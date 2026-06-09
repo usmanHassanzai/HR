@@ -1,0 +1,446 @@
+HR KPI BOARD
+
+Complete Project Guide
+& Roadmap
+Simple English Edition — Internal Use Only
+■ CONFIDENTIAL — Do Not Share Outside the Team
+
+■ WHAT IT IS
+
+■ WHO USES IT
+
+■ TIMELINE
+
+A web app that automatically
+
+Employees, Managers, and
+
+~14 weeks from project kickoff to
+
+tracks all HR performance
+
+Admins — each seeing only their
+
+a fully live, enterprise-ready
+
+numbers in one place.
+
+relevant view.
+
+product.
+
+CONTENTS
+
+01 What Is This Project?
+02 The 7 KPIs We Track
+03 User Roles & Access
+04 Technology Stack
+05 The 4 Build Phases
+06 Full Timeline
+07 Key Risks
+
+Version 1.0 · June 2026 · Confidential
+
+HR KPI BOARD — PROJECT ROADMAP
+
+CONFIDENTIAL
+
+SECTION 01
+
+What Is This Project?
+Right now, most HR teams track their performance numbers using Excel files. These get emailed around, go out
+of date quickly, and require someone to manually chase people for updates. Mistakes happen. Things get
+missed.
+The HR KPI Board fixes all of this. It is a simple web app where:
+• Employees log in and see only their own tasks and numbers.
+• Managers see their whole team's performance on one screen.
+• Admins control everything — set targets, manage users, run reports.
+• Everything updates automatically the moment someone submits a new number.
+• The system flags problems without anyone having to manually check.
+Think of it as a live scoreboard for HR — always up to date, always accessible from any phone or computer.
+
+SECTION 02
+
+The 7 Numbers We Track (KPIs)
+A KPI (Key Performance Indicator) is simply a number that shows how well something is going. Here are the 7
+KPIs tracked in the system:
+#
+
+KPI Name
+
+What It Means
+
+Status Type
+
+1
+
+Recruitment Cycle Time
+
+Days from job posting to offer being made.
+
+Lower = better
+
+2
+
+Offer Acceptance Rate
+
+% of job offers that candidates accept.
+
+Higher = better
+
+3
+
+Employee Satisfaction Score
+
+How happy employees are, measured by surveys.
+
+Higher = better
+
+4
+
+Training Completion Rate
+
+% of employees who finished required training.
+
+Higher = better
+
+5
+
+Absenteeism Rate
+
+% of unplanned absences in a given period.
+
+Lower = better
+
+6
+
+Performance Review Completion
+
+% of reviews completed by their deadline.
+
+Higher = better
+
+7
+
+Turnover Rate
+
+% of employees who left the company.
+
+Lower = better
+
+● On Track
+
+● At Risk
+
+For internal use only | Do not distribute
+
+● Off Track
+
+Each KPI is auto-assigned one of these statuses based on
+target vs actual value.
+
+Page 2
+
+HR KPI BOARD — PROJECT ROADMAP
+
+CONFIDENTIAL
+
+SECTION 03
+
+Who Uses It and What They Can Do
+■ Employee
+
+Role
+
+• See their own KPI targets and current scores.
+• Submit new KPI values using a simple form on their phone.
+• Update task status: Pending → In Progress → Done.
+• Receive reminders when deadlines are approaching.
+
+■ Manager
+
+Role
+
+• See everything an Employee sees, plus the full team's performance.
+• View a leaderboard showing who is on track and who is not.
+• See trend indicators — is each person improving, declining, or stable?
+• Get automatic alerts when a team member's KPI goes Off Track.
+
+■■ Admin
+
+Role
+
+• Full access to every part of the system.
+• Set KPI targets, weights, and categories for the organisation.
+• Add or remove users and assign roles.
+• Generate and export reports to PDF or Excel in one click.
+• Configure notifications, escalation rules, and automation settings.
+
+SECTION 04
+
+Technology We Are Using
+Every tool below was chosen to minimise cost and setup time while keeping the system reliable and scalable.
+Tool
+
+What It Does
+
+Why We Chose It
+
+React
+
+Builds all the screens users see — buttons, charts, forms.
+
+Fast, mobile-friendly, very widely
+supported.
+
+Supabase DB + API
+
+Stores all data: users, KPIs, tasks, submissions.
+
+Real-time updates built in. Free to
+start.
+
+For internal use only | Do not distribute
+
+Page 3
+
+HR KPI BOARD — PROJECT ROADMAP
+
+Supabase Auth
+
+Manages login and enforces role-based access.
+
+CONFIDENTIAL
+
+Built into Supabase — no extra
+setup needed.
+
+Edge Functions
+
+Auto-runs calculations the moment a KPI is submitted.
+
+Serverless — no server to
+manage.
+
+OneSignal
+
+Sends push notifications to phones and browsers.
+
+Free tier, quick to connect.
+
+Vercel
+
+Hosts the app so everyone can access it online.
+
+Deploys in minutes. Free staging
+included.
+
+Capacitor (Phase 3)
+
+Wraps the web app into a native iOS / Android app.
+
+No full rewrite needed for app
+stores.
+
+For internal use only | Do not distribute
+
+Page 4
+
+HR KPI BOARD — PROJECT ROADMAP
+
+CONFIDENTIAL
+
+SECTION 05
+
+The 4 Build Phases — Step by Step
+Phase 0 — Foundation & Setup
+
+Weeks 1–2
+
+Before building anything users see, we lay a solid technical foundation. Like laying bricks before building the
+house — get this right and everything else is faster.
+• Set up the Supabase database with 5 core tables: Users, KPIs, KPI Submissions, Tasks, and
+Notifications.
+• Configure Row-Level Security (RLS) so employees can ONLY see their own data — not other people's.
+• Scaffold the React project and connect it to the database.
+• Deploy to Vercel so the team has a live staging link from day one.
+• Set up Git version control so multiple developers can work without overwriting each other.
+DELIVERABLE
+
+A working (but empty) app accessible on a live staging URL.
+
+Phase 1 — Full MVP
+
+Weeks 3–8
+
+The main build. Everything employees, managers, and admins need for their day-to-day work gets built in this
+phase.
+• Login screen with automatic role detection — the right dashboard appears for each user.
+• KPI Dashboard with 7 KPI cards, traffic-light status, and an overall health score.
+• Real-time updates — when someone submits a number, everyone's dashboard refreshes instantly.
+• Task Management — employees update task status from their phone; overdue tasks are flagged
+automatically.
+• KPI Submission Form — a clean form for employees to enter values with optional notes.
+• Team Leaderboard — managers see all team members ranked with improving/declining arrows.
+• Push notifications via OneSignal — deadline reminders and Off Track alerts.
+DELIVERABLE
+
+A fully working app the whole team uses in their daily work.
+
+For internal use only | Do not distribute
+
+Page 5
+
+HR KPI BOARD — PROJECT ROADMAP
+
+Phase 2 — Automation Layer
+
+CONFIDENTIAL
+
+Weeks 9–12
+
+Now we make the app work for the team instead of the other way around. The system starts doing things
+automatically so people can focus on decisions, not data entry.
+• Auto-score calculation — Edge Functions recalculate the health score on every new submission.
+• AI narrative summaries — a one-line auto-generated insight per KPI, e.g. 'Turnover rose 2% this month
+— flagged for review'.
+• Monthly target generation — the system suggests next month's targets based on historical trends.
+• One-tap export — admins download a full quarterly report as PDF or Excel in a single click.
+• Escalation alerts — if any KPI stays Off Track for more than 7 days, a senior manager is automatically
+notified.
+DELIVERABLE
+
+A largely self-running system that surfaces problems before anyone has to manually check.
+
+Phase 3 — Native App & Enterprise
+
+Weeks
+13–14+
+
+The final phase takes the product to enterprise scale and puts it in the app stores.
+• Wrap the app using Capacitor to publish on the Apple App Store and Google Play Store.
+• Add SSO (Single Sign-On) so staff log in with their existing company email accounts.
+• Connect to HRIS platforms (SAP, Workday, BambooHR) to auto-import employee data.
+• Advanced analytics: trend charts, year-over-year comparisons, predictive modelling.
+• Custom branding: your logo, colour scheme, and a dedicated domain name.
+DELIVERABLE
+
+A fully branded, enterprise-ready HR platform available on all devices and in app stores.
+
+For internal use only | Do not distribute
+
+Page 6
+
+HR KPI BOARD — PROJECT ROADMAP
+
+CONFIDENTIAL
+
+SECTION 06
+
+Full Timeline at a Glance
+WEEK
+S
+
+PHASE
+
+KEY MILESTONE
+
+STATUS
+
+1–2
+
+Phase 0 Setup
+
+Database, security rules, and staging environment live.
+
+To Do
+
+3–4
+
+Phase 1 MVP
+
+Login system, roles, and KPI dashboard working.
+
+To Do
+
+5–6
+
+Phase 1 MVP
+
+Task management and KPI submission form live.
+
+To Do
+
+7–8
+
+Phase 1 MVP
+
+Team leaderboard and notifications done — MVP complete.
+
+To Do
+
+9–10
+
+Phase 2 Auto.
+
+Auto-scoring and AI narrative summaries live.
+
+To Do
+
+11–12
+
+Phase 2 Auto.
+
+Exports, escalation alerts, and monthly targets done.
+
+To Do
+
+13–14
+
+Phase 3 Native
+
+App Store submission and enterprise features launched.
+
+To Do
+
+SECTION 07
+
+Key Risks — Get These Right Early
+Security Rules (RLS)
+
+■
+
+Database row-level security must be set correctly in Weeks 1–2. If wrong, employees could see other
+people's data. This is the most critical technical task in the whole project.
+
+Role Design
+
+■
+
+The three roles (Employee, Manager, Admin) must be defined clearly before any screen is built.
+Changing role logic midway through development is expensive and time-consuming.
+
+Real-Time Subscriptions
+
+■
+
+Live dashboard updates must be scoped so employees only subscribe to their own data — not the
+whole company's dataset — or the app will be slow for everyone.
+
+AI Summary Costs
+
+■
+
+The AI narrative feature calls an external API that charges per request. Trigger it once per KPI
+submission only — never on every page load — to keep monthly costs predictable.
+
+■ CONFIDENTIAL
+
+For internal use only | Do not distribute
+
+This document is for internal use only. Do not share, print, or distribute outside the core
+project team.
+
+Page 7
+
+
