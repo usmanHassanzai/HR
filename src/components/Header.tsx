@@ -54,16 +54,9 @@ export default function Header({ profile, onLogout, onNavigateHome }: HeaderProp
   };
 
   return (
-    <header className="glass-panel app-header animate-fade-in" style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        borderRadius: 'var(--border-radius-sm)',
-        marginBottom: '2rem',
-      }}
-    >
-      <div 
-        onClick={onNavigateHome} 
+    <header className="glass-panel app-header animate-fade-in">
+      <div
+        onClick={onNavigateHome}
         className="header-brand"
         style={{ cursor: onNavigateHome ? 'pointer' : 'default' }}
       >
@@ -76,46 +69,33 @@ export default function Header({ profile, onLogout, onNavigateHome }: HeaderProp
         )}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textAlign: 'right' }}>
-          <div>
-            <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{profile.full_name}</div>
+      <div className="header-actions">
+        <div className="header-user">
+          <div className="header-user-text">
+            <div className="header-user-name">{profile.full_name}</div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2px' }}>
               {getRoleBadge(profile.role)}
             </div>
           </div>
-          <div 
-            style={{ 
-              width: '36px', 
-              height: '36px', 
-              borderRadius: '50%', 
-              background: 'rgba(255,255,255,0.05)', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              border: '1px solid var(--border-color)',
-              color: 'var(--text-secondary)'
-            }}
-          >
+          <div className="header-avatar">
             <User size={18} />
           </div>
         </div>
 
-        <div style={{ width: '1px', height: '24px', background: 'var(--border-color)' }}></div>
+        <div className="header-divider" />
 
-        {/* Notifications dropdown widget */}
         <NotificationCenter userId={profile.id} />
 
-        <button 
-          className="btn btn-secondary" 
-          onClick={handleLogout} 
-          style={{ 
-            padding: '0.65rem', 
+        <button
+          className="btn btn-secondary"
+          onClick={handleLogout}
+          style={{
+            padding: '0.65rem',
             borderRadius: '50%',
             width: '40px',
             height: '40px',
             color: 'var(--color-danger)',
-            borderColor: 'transparent'
+            borderColor: 'transparent',
           }}
           title="Sign Out"
         >

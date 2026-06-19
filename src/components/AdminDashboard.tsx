@@ -274,7 +274,7 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
       ) : activeTab === 'rewards' ? (
         <AdminRewards />
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem' }}>
+        <div className="responsive-grid-wide" style={{ gap: '2rem' }}>
           
           {/* User Directory List */}
           <div className="glass-panel" style={{ flex: 2 }}>

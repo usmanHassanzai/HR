@@ -95,7 +95,7 @@ export default function ManagerKpiConfig({ managerId }: ManagerKpiConfigProps) {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem' }}>
+    <div className="responsive-grid-wide" style={{ gap: '2rem' }}>
       <div className="glass-panel">
         <h3 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-display)', marginBottom: '1rem' }}>Team KPI Assignments</h3>
         <select value={selectedUserId} onChange={(e) => setSelectedUserId(e.target.value)} style={{ marginBottom: '1rem' }}>

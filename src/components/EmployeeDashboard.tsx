@@ -132,11 +132,8 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
       {/* Read-Only Banner for Managers */}
       {isReadOnly && (
         <div 
-          className="glass-panel" 
+          className="glass-panel mobile-banner-row" 
           style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center', 
             padding: '1rem 1.5rem', 
             borderColor: 'var(--color-warning)',
             background: 'rgba(230, 150, 0, 0.05)'
@@ -181,8 +178,8 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
       <>
 
       {/* Health Dial Dashboard overview card */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
-        <div className="glass-panel" style={{ display: 'flex', alignItems: 'center', gap: '2rem', borderLeft: `5px solid ${getHealthStatusColor(healthScore)}` }}>
+      <div className="responsive-grid-2">
+        <div className="glass-panel health-overview-card" style={{ borderLeft: `5px solid ${getHealthStatusColor(healthScore)}` }}>
           {/* Radial score circle */}
           <div style={{ 
             width: '90px', 
@@ -228,8 +225,8 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
       </div>
 
       {/* KPI Cards and Action Panel */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ fontSize: '1.5rem', fontFamily: 'var(--font-display)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+      <div className="section-header-row">
+        <h3 style={{ fontSize: '1.5rem', fontFamily: 'var(--font-display)', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
           <BarChart2 size={22} className="text-secondary" /> KPI Cards List
         </h3>
         
@@ -310,7 +307,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
       )}
 
       {/* Tasks Panel */}
-      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
+      <section className="responsive-grid-wide">
         <TaskList userId={activeUser.id} />
         
         {/* KPI Legend Card */}

@@ -38,12 +38,8 @@ export default function AdminResetPasswordModal({ userId, userName, onClose }: A
   };
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 99999,
-      background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem',
-    }}>
-      <div className="glass-panel" style={{ width: '100%', maxWidth: 400, padding: '2rem', position: 'relative' }}>
+    <div className="modal-overlay" style={{ backdropFilter: 'blur(4px)' }}>
+      <div className="glass-panel modal-panel" style={{ maxWidth: 400 }}>
         <button onClick={onClose} style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
           <X size={18} />
         </button>

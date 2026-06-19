@@ -157,48 +157,26 @@ export default function Leaderboard({ managerId, onSelectEmployee }: Leaderboard
             <div 
               key={rank.profile.id}
               onClick={() => onSelectEmployee && onSelectEmployee(rank.profile)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '1rem',
-                background: 'rgba(255, 255, 255, 0.02)',
-                borderRadius: 'var(--border-radius-sm)',
-                border: '1px solid var(--border-color)',
-                cursor: onSelectEmployee ? 'pointer' : 'default',
-                transition: 'var(--transition-smooth)',
-                position: 'relative'
-              }}
-              className="leaderboard-row"
+              className={`leaderboard-item ${onSelectEmployee ? 'leaderboard-item--clickable' : ''}`}
             >
-              {/* Leaderboard hover effect style wrapper */}
-              <style dangerouslySetInnerHTML={{__html: `
-                .leaderboard-row:hover {
-                  background: rgba(255, 255, 255, 0.06) !important;
-                  border-color: var(--border-hover) !important;
-                  transform: translateX(4px);
-                }
-              `}} />
-
-              {/* Rank and Identity */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1 }}>
+              <div className="leaderboard-item-main">
                 <span style={{ 
                   fontFamily: 'var(--font-display)', 
                   fontWeight: 800, 
                   fontSize: '1.1rem',
                   color: getRankBadgeColor(index),
                   width: '24px',
-                  textAlign: 'center'
+                  textAlign: 'center',
+                  flexShrink: 0,
                 }}>
                   #{index + 1}
                 </span>
                 
-                <div>
+                <div style={{ minWidth: 0 }}>
                   <strong style={{ display: 'block', fontSize: '0.95rem' }}>{rank.profile.full_name}</strong>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{rank.profile.email}</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', wordBreak: 'break-word' }}>{rank.profile.email}</span>
                   
-                  {/* Status distribution bubbles */}
-                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '6px', fontSize: '0.65rem' }}>
+                  <div className="leaderboard-status-row">
                     <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>{rank.onTrackCount} On Track</span>
                     <span style={{ color: 'var(--text-muted)' }}>&bull;</span>
                     <span style={{ color: 'var(--color-warning)', fontWeight: 600 }}>{rank.atRiskCount} At Risk</span>
@@ -208,8 +186,7 @@ export default function Leaderboard({ managerId, onSelectEmployee }: Leaderboard
                 </div>
               </div>
 
-              {/* Score and action */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div className="leaderboard-item-score">
                 <div style={{ textAlign: 'right' }}>
                   <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Health Index</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', justifyContent: 'flex-end' }}>

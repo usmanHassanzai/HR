@@ -100,20 +100,10 @@ export default function NotificationCenter({ userId }: NotificationCenterProps) 
   const dropdown = isOpen ? (
     <div
       id="notification-portal"
+      className="notification-dropdown"
       style={{
-        position: 'fixed',
         top: dropdownPos.top,
-        right: dropdownPos.right,
-        width: 340,
-        maxHeight: 480,
-        overflowY: 'auto',
-        zIndex: 99999,
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border-hover)',
-        borderRadius: 'var(--border-radius-sm)',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
-        padding: '1rem',
-        animation: 'fadeIn 0.15s ease-out',
+        right: Math.max(12, dropdownPos.right),
       }}
     >
       {/* Header row */}
