@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Profile, Kpi, calculateHealthScore } from '../utils/kpiHelpers';
-import { Trophy, ArrowRight, Loader2, Sparkles, AlertCircle } from 'lucide-react';
+import { Profile, Kpi, calculateHealthScore, getHealthTrend } from '../utils/kpiHelpers';
+import { Trophy, ArrowRight, Loader2, Sparkles, AlertCircle, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 interface LeaderboardProps {
   managerId: string;
@@ -25,10 +25,8 @@ export default function Leaderboard({ managerId, onSelectEmployee }: Leaderboard
     setLoading(true);
     try {
       // 1. Fetch direct reports
-      const { data: reports, error: reportsError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('manager_id', managerId);
+      const { data: reportsData, error: reportsError } = await supabase
+        .rpc('get_direct_reports', { p_manager_id: managerId });
 
       if (reportsError) {
         console.error('Error fetching direct reports:', reportsError);
@@ -36,13 +34,15 @@ export default function Leaderboard({ managerId, onSelectEmployee }: Leaderboard
         return;
       }
 
-      if (!reports || reports.length === 0) {
+      const reports = (reportsData || []) as Profile[];
+
+      if (reports.length === 0) {
         setRankings([]);
         setLoading(false);
         return;
       }
 
-      const reportIds = reports.map(r => r.id);
+      const reportIds = reports.map((r) => r.id);
 
       // 2. Fetch all KPIs for these reports
       const { data: kpis, error: kpisError } = await supabase
@@ -57,9 +57,11 @@ export default function Leaderboard({ managerId, onSelectEmployee }: Leaderboard
       }
 
       // 3. Process and rank
-      const list: RankedEmployee[] = reports.map(emp => {
-        const empKpis = (kpis || []).filter(k => k.user_id === emp.id);
-        const healthScore = calculateHealthScore(empKpis);
+      const list: RankedEmployee[] = reports.map((emp) => {
+        const empKpis = ((kpis || []) as Kpi[]).filter((k) => k.user_id === emp.id);
+        const healthScore = emp.health_score != null
+          ? Number(emp.health_score)
+          : calculateHealthScore(empKpis);
         
         const onTrackCount = empKpis.filter(k => k.status === 'on_track').length;
         const atRiskCount = empKpis.filter(k => k.status === 'at_risk').length;
@@ -210,13 +212,24 @@ export default function Leaderboard({ managerId, onSelectEmployee }: Leaderboard
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                 <div style={{ textAlign: 'right' }}>
                   <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Health Index</span>
-                  <strong style={{ 
-                    fontSize: '1.4rem', 
-                    fontFamily: 'var(--font-display)', 
-                    color: getHealthScoreColor(rank.healthScore)
-                  }}>
-                    {rank.healthScore}%
-                  </strong>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', justifyContent: 'flex-end' }}>
+                    <strong style={{ 
+                      fontSize: '1.4rem', 
+                      fontFamily: 'var(--font-display)', 
+                      color: getHealthScoreColor(rank.healthScore)
+                    }}>
+                      {rank.healthScore}%
+                    </strong>
+                    {(() => {
+                      const trend = getHealthTrend(
+                        rank.profile.health_score != null ? Number(rank.profile.health_score) : undefined,
+                        rank.profile.previous_health_score != null ? Number(rank.profile.previous_health_score) : undefined
+                      );
+                      if (trend === 'up') return <TrendingUp size={16} style={{ color: 'var(--color-success)' }} />;
+                      if (trend === 'down') return <TrendingDown size={16} style={{ color: 'var(--color-danger)' }} />;
+                      return <Minus size={14} style={{ color: 'var(--text-muted)' }} />;
+                    })()}
+                  </div>
                 </div>
 
                 {onSelectEmployee && (

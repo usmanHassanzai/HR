@@ -2,22 +2,30 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Profile, Kpi, calculateHealthScore } from '../utils/kpiHelpers';
 import TaskList from './TaskList';
-import KpiSubmissionForm from './KpiSubmissionForm';
-import { PlusCircle, RefreshCw, BarChart2 } from 'lucide-react';
+import { RefreshCw, BarChart2, Sparkles, Trophy, KeyRound, CheckCircle2 } from 'lucide-react';
+import ExportButton from './ExportButton';
+import RewardsTab from './RewardsTab';
+import ChangePasswordModal from './ChangePasswordModal';
+import { emailKpiCompleted, emailKpiOverdue } from '../utils/kpiEmail';
 
 interface EmployeeDashboardProps {
   profile: Profile;
   readOnlyUser?: Profile | null; // For manager view-only mode
   onBackToLeaderboard?: () => void;
+  hideChangePassword?: boolean; // Manager dashboard already shows it in the parent tab bar
 }
 
-export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeaderboard }: EmployeeDashboardProps) {
+export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeaderboard, hideChangePassword }: EmployeeDashboardProps) {
   const activeUser = readOnlyUser || profile;
   const isReadOnly = !!readOnlyUser;
 
   const [kpis, setKpis] = useState<Kpi[]>([]);
+  const [persistedHealthScore, setPersistedHealthScore] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showSubmissionForm, setShowSubmissionForm] = useState(false);
+  const [activeTab, setActiveTab] = useState<'kpis' | 'rewards'>('kpis');
+  const [showChangePassword, setShowChangePassword] = useState(false);
+
+  const [completingId, setCompletingId] = useState<string | null>(null);
 
   const fetchKpis = async () => {
     setLoading(true);
@@ -33,6 +41,16 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
       } else {
         setKpis(data || []);
       }
+
+      const { data: userData } = await supabase
+        .from('users')
+        .select('health_score')
+        .eq('id', activeUser.id)
+        .single();
+
+      if (userData?.health_score != null) {
+        setPersistedHealthScore(Number(userData.health_score));
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -42,6 +60,13 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
 
   useEffect(() => {
     fetchKpis();
+    if (!isReadOnly) {
+      supabase.rpc('check_overdue_kpis').then(({ data }) => {
+        (data || []).forEach((row: any) => {
+          if (row.emp_email) emailKpiOverdue(row.emp_email, row.emp_name, row.department, row.end_date, row.redo_count);
+        });
+      });
+    }
 
     // Subscribe to KPI changes for this user
     const subscription = supabase
@@ -64,7 +89,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
     };
   }, [activeUser.id]);
 
-  const healthScore = calculateHealthScore(kpis);
+  const healthScore = persistedHealthScore ?? calculateHealthScore(kpis);
 
   const getHealthStatusText = (score: number) => {
     if (score >= 80) return 'Excellent Health';
@@ -77,6 +102,25 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
     if (score >= 50) return 'var(--color-warning)';
     return 'var(--color-danger)';
   };
+
+  const handleCompleteKpi = async (kpiId: string) => {
+    setCompletingId(kpiId);
+    try {
+      const { data, error } = await supabase.rpc('complete_kpi_employee', { p_kpi_id: kpiId });
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      if (row?.manager_email) {
+        await emailKpiCompleted(row.manager_email, row.manager_name, activeUser.full_name, row.department);
+      }
+      fetchKpis();
+    } catch (err: any) {
+      alert(err.message || 'Could not mark complete.');
+    } finally {
+      setCompletingId(null);
+    }
+  };
+
+  const fmtDate = (d?: string | null) => d ? new Date(d + 'T00:00:00').toLocaleDateString() : '—';
 
   const getCardStatusClass = (status: string) => {
     return status.replace('_', '-');
@@ -108,6 +152,34 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
         </div>
       )}
 
+      {/* Tab switcher */}
+      {!isReadOnly && (
+        <div className="tab-bar">
+          <button className={`tab-btn ${activeTab === 'kpis' ? 'tab-btn--active' : ''}`} onClick={() => setActiveTab('kpis')}>
+            <BarChart2 size={15} /> My KPIs
+          </button>
+          <button className={`tab-btn ${activeTab === 'rewards' ? 'tab-btn--active' : ''}`} onClick={() => setActiveTab('rewards')}>
+            <Trophy size={15} /> Rewards & Points
+          </button>
+          {!hideChangePassword && (
+            <button className="tab-btn tab-btn--utility" onClick={() => setShowChangePassword(true)}>
+              <KeyRound size={15} /> Change Password
+            </button>
+          )}
+        </div>
+      )}
+
+      {!hideChangePassword && showChangePassword && (
+        <ChangePasswordModal onClose={() => setShowChangePassword(false)} />
+      )}
+
+      {activeTab === 'rewards' && !isReadOnly ? (
+        <RewardsTab userId={activeUser.id} viewerRole={profile.role === 'manager' ? 'manager' : 'employee'} />
+      ) : null}
+
+      {activeTab !== 'rewards' && (
+      <>
+
       {/* Health Dial Dashboard overview card */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
         <div className="glass-panel" style={{ display: 'flex', alignItems: 'center', gap: '2rem', borderLeft: `5px solid ${getHealthStatusColor(healthScore)}` }}>
@@ -131,11 +203,15 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
           <div>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Overall Performance index</span>
             <h2 style={{ fontSize: '1.5rem', margin: '2px 0 4px', fontFamily: 'var(--font-display)' }}>{getHealthStatusText(healthScore)}</h2>
-            <p style={{ fontSize: '0.85rem' }}>Weighted average performance calculated across {kpis.length} key metric cards.</p>
+            <p style={{ fontSize: '0.85rem' }}>Based on {kpis.length} assigned KPI tasks — complete before each deadline.</p>
           </div>
         </div>
 
         <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            <span>Completed</span>
+            <strong style={{ color: 'var(--accent-primary)' }}>{kpis.filter(k => k.completion_status === 'completed').length} / {kpis.length}</strong>
+          </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
             <span>On Track KPIs</span>
             <strong style={{ color: 'var(--color-success)' }}>{kpis.filter(k => k.status === 'on_track').length} / {kpis.length}</strong>
@@ -157,15 +233,11 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
           <BarChart2 size={22} className="text-secondary" /> KPI Cards List
         </h3>
         
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <ExportButton kpis={kpis} userName={activeUser.full_name} />
           <button className="btn btn-secondary" style={{ padding: '0.65rem' }} onClick={fetchKpis} title="Reload Data">
             <RefreshCw size={16} />
           </button>
-          {!isReadOnly && (
-            <button className="btn btn-primary" onClick={() => setShowSubmissionForm(true)}>
-              <PlusCircle size={16} /> Submit New Score
-            </button>
-          )}
         </div>
       </div>
 
@@ -182,10 +254,10 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
                 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
-                    {kpi.category || 'General'}
+                    {kpi.department || kpi.category || 'General'}
                   </span>
-                  <span className={`badge badge-${statusClass}`} style={{ fontSize: '0.65rem' }}>
-                    {kpi.status.replace('_', ' ')}
+                  <span className={`badge badge-${kpi.completion_status === 'completed' ? 'on-track' : statusClass}`} style={{ fontSize: '0.65rem' }}>
+                    {kpi.completion_status === 'completed' ? 'completed' : kpi.status.replace('_', ' ')}
                   </span>
                 </div>
 
@@ -193,26 +265,42 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
                   {kpi.name}
                 </h4>
 
-                {kpi.description && (
+                {kpi.ai_narrative ? (
+                  <p style={{
+                    fontSize: '0.75rem',
+                    color: 'var(--accent-primary)',
+                    marginBottom: '1rem',
+                    display: 'flex',
+                    gap: '0.35rem',
+                    alignItems: 'flex-start',
+                    lineHeight: 1.4
+                  }}>
+                    <Sparkles size={12} style={{ flexShrink: 0, marginTop: '2px' }} />
+                    <span>{kpi.ai_narrative}</span>
+                  </p>
+                ) : kpi.description ? (
                   <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '1.25rem', height: '2.5rem', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {kpi.description}
                   </p>
-                )}
+                ) : null}
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '0.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '0.75rem', flexWrap: 'wrap', gap: '0.75rem' }}>
                   <div>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Current / Target</span>
-                    <div style={{ fontSize: '1.4rem', fontWeight: 700 }}>
-                      {kpi.current_value} <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 400 }}>/ {kpi.target_value}</span>
-                    </div>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Start → End</span>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 600 }}>{fmtDate(kpi.start_date)} → {fmtDate(kpi.end_date)}</div>
+                    {(kpi.redo_count ?? 0) > 0 && (
+                      <span style={{ fontSize: '0.7rem', color: 'var(--color-warning)' }}>Missed deadlines: {kpi.redo_count}/3</span>
+                    )}
                   </div>
-                  
-                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textAlign: 'right' }}>
-                    <div>Weight: {kpi.weight}x</div>
-                    <div style={{ marginTop: '2px' }}>
-                      Updated {new Date(kpi.updated_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}
-                    </div>
-                  </div>
+                  {!isReadOnly && kpi.completion_status !== 'completed' && (
+                    <button
+                      className="btn btn-primary btn-sm"
+                      disabled={completingId === kpi.id}
+                      onClick={() => handleCompleteKpi(kpi.id)}
+                    >
+                      <CheckCircle2 size={14} /> {completingId === kpi.id ? 'Saving…' : 'Mark Complete'}
+                    </button>
+                  )}
                 </div>
 
               </div>
@@ -230,33 +318,25 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
           <h3 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-display)', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', margin: 0 }}>
             KPI Status Rules Legend
           </h3>
-          <p style={{ fontSize: '0.85rem' }}>Individual statuses are automatically calculated by comparing current metrics against targets according to optimization directions:</p>
-          
+          <p style={{ fontSize: '0.85rem' }}>KPIs are assigned by your manager with start/end dates. Complete before the deadline — 3 missed deadlines deduct 300 points.</p>
           <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.85rem' }}>
             <li style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
               <span className="badge badge-on-track" style={{ width: '90px', justifyContent: 'center', flexShrink: 0 }}>ON TRACK</span>
-              <span>Metric meets target or exceeds expectations. (within 100% of target)</span>
+              <span>KPI completed on time.</span>
             </li>
             <li style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
               <span className="badge badge-at-risk" style={{ width: '90px', justifyContent: 'center', flexShrink: 0 }}>AT RISK</span>
-              <span>Metric falls slightly below target, within boundary (+/- 15% range). Flagged for attention.</span>
+              <span>In progress — deadline approaching.</span>
             </li>
             <li style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
               <span className="badge badge-off-track" style={{ width: '90px', justifyContent: 'center', flexShrink: 0 }}>OFF TRACK</span>
-              <span>Metric deviates critically (+/- 15% or worse) from target. Triggers auto-notifications.</span>
+              <span>Past end date without completion — manager notified.</span>
             </li>
           </ul>
         </div>
       </section>
 
-      {/* KPI Submission Form Modal */}
-      {showSubmissionForm && (
-        <KpiSubmissionForm 
-          kpis={kpis}
-          userId={activeUser.id}
-          onClose={() => setShowSubmissionForm(false)}
-          onSuccess={fetchKpis}
-        />
+      </> // end KPI tab content
       )}
 
     </div>

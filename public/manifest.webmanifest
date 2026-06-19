@@ -1,0 +1,14 @@
+{
+  "name": "Scorr — scorr.walfia.ai",
+  "short_name": "Scorr",
+  "description": "Scorr KPI scoreboard for employees, managers, and admins at scorr.walfia.ai",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0e1117",
+  "theme_color": "#121820",
+  "icons": [
+    { "src": "/scorr-logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

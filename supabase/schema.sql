@@ -5,7 +5,7 @@
 CREATE TYPE user_role AS ENUM ('employee', 'manager', 'admin');
 CREATE TYPE kpi_status_type AS ENUM ('on_track', 'at_risk', 'off_track');
 CREATE TYPE task_status_type AS ENUM ('pending', 'in_progress', 'done');
-CREATE TYPE notification_type AS ENUM ('info', 'alert', 'reminder', 'escalation');
+CREATE TYPE kpi_completion_status AS ENUM ('pending', 'completed');
 
 -- 2. Create Core Tables
 
@@ -16,6 +16,9 @@ CREATE TABLE public.users (
     full_name TEXT,
     role user_role DEFAULT 'employee'::user_role NOT NULL,
     manager_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
+    health_score NUMERIC DEFAULT 100 NOT NULL,
+    previous_health_score NUMERIC DEFAULT 100 NOT NULL,
+    health_score_updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -31,6 +34,17 @@ CREATE TABLE public.kpis (
     status kpi_status_type DEFAULT 'on_track'::kpi_status_type NOT NULL,
     weight NUMERIC DEFAULT 1.0 NOT NULL CHECK (weight >= 0),
     category TEXT,
+    department TEXT,
+    start_date DATE,
+    end_date DATE,
+    completion_status kpi_completion_status DEFAULT 'pending'::kpi_completion_status NOT NULL,
+    redo_count INTEGER DEFAULT 0 NOT NULL,
+    overdue_notified_at TIMESTAMP WITH TIME ZONE,
+    previous_value NUMERIC,
+    off_track_since TIMESTAMP WITH TIME ZONE,
+    ai_narrative TEXT,
+    ai_narrative_updated_at TIMESTAMP WITH TIME ZONE,
+    suggested_target NUMERIC,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -74,21 +88,21 @@ CREATE OR REPLACE FUNCTION public.is_admin(user_id UUID)
 RETURNS BOOLEAN AS $$
 BEGIN
     RETURN EXISTS (
-        SELECT 1 FROM public.users
-        WHERE id = user_id AND role = 'admin'::user_role
+        SELECT 1 FROM public.users u
+        WHERE u.id = user_id AND u.role = 'admin'::public.user_role
     );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth;
 
-CREATE OR REPLACE FUNCTION public.is_manager_of(manager_id UUID, employee_id UUID)
+CREATE OR REPLACE FUNCTION public.is_manager_of(p_manager_id UUID, p_employee_id UUID)
 RETURNS BOOLEAN AS $$
 BEGIN
     RETURN EXISTS (
-        SELECT 1 FROM public.users
-        WHERE id = employee_id AND public.users.manager_id = manager_id
+        SELECT 1 FROM public.users u
+        WHERE u.id = p_employee_id AND u.manager_id = p_manager_id
     );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth;
 
 -- 4. KPI Status Calculation and Trigger Logic
 
@@ -130,6 +144,14 @@ CREATE OR REPLACE FUNCTION public.on_kpi_update()
 RETURNS TRIGGER AS $$
 BEGIN
     new.status := public.calculate_kpi_status(new.direction, new.target_value, new.current_value);
+
+    IF new.status = 'off_track'::kpi_status_type
+       AND (old.status IS DISTINCT FROM 'off_track'::kpi_status_type) THEN
+        new.off_track_since := timezone('utc'::text, now());
+    ELSIF new.status <> 'off_track'::kpi_status_type THEN
+        new.off_track_since := NULL;
+    END IF;
+
     new.updated_at := timezone('utc'::text, now());
     RETURN new;
 END;
@@ -139,16 +161,293 @@ CREATE TRIGGER kpi_before_update
     BEFORE UPDATE ON public.kpis
     FOR EACH ROW EXECUTE PROCEDURE public.on_kpi_update();
 
--- Sync KPI submissions to current_value on KPI card
+-- Phase 2: System notification helper (bypasses RLS for automation)
+CREATE OR REPLACE FUNCTION public.create_system_notification(
+    p_user_id UUID,
+    p_title TEXT,
+    p_message TEXT,
+    p_type notification_type DEFAULT 'info'::notification_type
+) RETURNS VOID AS $$
+BEGIN
+    INSERT INTO public.notifications (user_id, title, message, type)
+    VALUES (p_user_id, p_title, p_message, p_type);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Phase 2: Weighted health score for a user
+CREATE OR REPLACE FUNCTION public.calculate_user_health_score(p_user_id UUID)
+RETURNS NUMERIC AS $$
+DECLARE
+    total_points NUMERIC := 0;
+    total_weight NUMERIC := 0;
+    kpi_row RECORD;
+    points NUMERIC;
+BEGIN
+    FOR kpi_row IN
+        SELECT status, weight FROM public.kpis WHERE user_id = p_user_id
+    LOOP
+        IF kpi_row.status = 'on_track'::kpi_status_type THEN
+            points := 100;
+        ELSIF kpi_row.status = 'at_risk'::kpi_status_type THEN
+            points := 50;
+        ELSE
+            points := 0;
+        END IF;
+        total_points := total_points + (points * kpi_row.weight);
+        total_weight := total_weight + kpi_row.weight;
+    END LOOP;
+
+    IF total_weight = 0 THEN
+        RETURN 100;
+    END IF;
+
+    RETURN ROUND(total_points / total_weight);
+END;
+$$ LANGUAGE plpgsql STABLE;
+
+-- Phase 2: Rule-based AI narrative (generated once per submission)
+CREATE OR REPLACE FUNCTION public.generate_ai_narrative(
+    p_name TEXT,
+    p_direction TEXT,
+    p_status kpi_status_type,
+    p_target NUMERIC,
+    p_old_value NUMERIC,
+    p_new_value NUMERIC
+) RETURNS TEXT AS $$
+DECLARE
+    delta NUMERIC;
+    pct NUMERIC;
+BEGIN
+    IF p_old_value IS NULL OR p_old_value = 0 THEN
+        delta := 0;
+        pct := 0;
+    ELSE
+        delta := p_new_value - p_old_value;
+        pct := ROUND(ABS(delta / p_old_value * 100), 1);
+    END IF;
+
+    IF p_status = 'off_track'::kpi_status_type THEN
+        RETURN format(
+            '%s is Off Track at %s (target %s) — flagged for review.',
+            p_name, p_new_value, p_target
+        );
+    END IF;
+
+    IF p_status = 'at_risk'::kpi_status_type THEN
+        RETURN format(
+            '%s is At Risk at %s vs target %s — monitor closely this period.',
+            p_name, p_new_value, p_target
+        );
+    END IF;
+
+    IF p_direction = 'higher_better' AND delta > 0 THEN
+        RETURN format('%s rose %.1f%% to %s — trending positively.', p_name, pct, p_new_value);
+    ELSIF p_direction = 'lower_better' AND delta < 0 THEN
+        RETURN format('%s dropped %.1f%% to %s — trending positively.', p_name, pct, p_new_value);
+    ELSIF delta <> 0 THEN
+        RETURN format('%s changed to %s (%.1f%% shift) — holding On Track.', p_name, p_new_value, pct);
+    END IF;
+
+    RETURN format('%s remains On Track at %s against target %s.', p_name, p_new_value, p_target);
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+-- Phase 2: Suggest next-month target from submission history
+CREATE OR REPLACE FUNCTION public.generate_suggested_target(p_kpi_id UUID)
+RETURNS NUMERIC AS $$
+DECLARE
+    kpi_row RECORD;
+    avg_value NUMERIC;
+    suggested NUMERIC;
+BEGIN
+    SELECT direction, target_value INTO kpi_row
+    FROM public.kpis WHERE id = p_kpi_id;
+
+    SELECT AVG(value) INTO avg_value
+    FROM (
+        SELECT value FROM public.kpi_submissions
+        WHERE kpi_id = p_kpi_id
+        ORDER BY created_at DESC
+        LIMIT 3
+    ) recent;
+
+    IF avg_value IS NULL THEN
+        RETURN kpi_row.target_value;
+    END IF;
+
+    IF kpi_row.direction = 'higher_better' THEN
+        suggested := GREATEST(avg_value * 1.05, kpi_row.target_value);
+    ELSE
+        suggested := LEAST(avg_value * 0.95, kpi_row.target_value);
+    END IF;
+
+    RETURN ROUND(suggested, 2);
+END;
+$$ LANGUAGE plpgsql STABLE;
+
+-- Phase 2: Escalation check — notify manager + admin after 7 days off track
+CREATE OR REPLACE FUNCTION public.check_kpi_escalation(p_kpi_id UUID)
+RETURNS VOID AS $$
+DECLARE
+    kpi_row RECORD;
+    manager_row RECORD;
+    admin_row RECORD;
+    days_off NUMERIC;
+    escalation_msg TEXT;
+BEGIN
+    SELECT k.*, u.full_name AS employee_name, u.manager_id
+    INTO kpi_row
+    FROM public.kpis k
+    JOIN public.users u ON u.id = k.user_id
+    WHERE k.id = p_kpi_id;
+
+    IF kpi_row.status <> 'off_track'::kpi_status_type
+       OR kpi_row.off_track_since IS NULL THEN
+        RETURN;
+    END IF;
+
+    days_off := EXTRACT(EPOCH FROM (timezone('utc'::text, now()) - kpi_row.off_track_since)) / 86400;
+
+    IF days_off < 7 THEN
+        RETURN;
+    END IF;
+
+    escalation_msg := format(
+        'ESCALATION: %s has been Off Track for %s days (%s at %s vs target %s).',
+        kpi_row.name,
+        FLOOR(days_off)::TEXT,
+        kpi_row.employee_name,
+        kpi_row.current_value,
+        kpi_row.target_value
+    );
+
+    -- Notify direct manager
+    IF kpi_row.manager_id IS NOT NULL THEN
+        IF NOT EXISTS (
+            SELECT 1 FROM public.notifications
+            WHERE user_id = kpi_row.manager_id
+              AND type = 'escalation'::notification_type
+              AND message = escalation_msg
+              AND created_at > timezone('utc'::text, now()) - interval '1 day'
+        ) THEN
+            PERFORM public.create_system_notification(
+                kpi_row.manager_id,
+                'KPI Escalation Alert',
+                escalation_msg,
+                'escalation'::notification_type
+            );
+        END IF;
+    END IF;
+
+    -- Notify senior manager (admin) as fallback
+    FOR admin_row IN
+        SELECT id FROM public.users WHERE role = 'admin'::user_role LIMIT 1
+    LOOP
+        IF NOT EXISTS (
+            SELECT 1 FROM public.notifications
+            WHERE user_id = admin_row.id
+              AND type = 'escalation'::notification_type
+              AND message = escalation_msg
+              AND created_at > timezone('utc'::text, now()) - interval '1 day'
+        ) THEN
+            PERFORM public.create_system_notification(
+                admin_row.id,
+                'Senior KPI Escalation',
+                escalation_msg,
+                'escalation'::notification_type
+            );
+        END IF;
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Phase 2: Post-submission automation orchestrator
+CREATE OR REPLACE FUNCTION public.run_submission_automation(
+    p_kpi_id UUID,
+    p_user_id UUID,
+    p_old_value NUMERIC,
+    p_new_value NUMERIC
+) RETURNS VOID AS $$
+DECLARE
+    kpi_row RECORD;
+    narrative TEXT;
+    new_score NUMERIC;
+    old_score NUMERIC;
+    alert_msg TEXT;
+BEGIN
+    SELECT * INTO kpi_row FROM public.kpis WHERE id = p_kpi_id;
+
+    narrative := public.generate_ai_narrative(
+        kpi_row.name, kpi_row.direction, kpi_row.status,
+        kpi_row.target_value, p_old_value, p_new_value
+    );
+
+    UPDATE public.kpis
+    SET
+        ai_narrative = narrative,
+        ai_narrative_updated_at = timezone('utc'::text, now()),
+        suggested_target = public.generate_suggested_target(p_kpi_id)
+    WHERE id = p_kpi_id;
+
+    -- Alert employee on off_track status
+    IF kpi_row.status = 'off_track'::kpi_status_type THEN
+        alert_msg := format(
+            'Your KPI "%s" is now Off Track at %s (target %s).',
+            kpi_row.name, p_new_value, kpi_row.target_value
+        );
+        PERFORM public.create_system_notification(
+            p_user_id,
+            'KPI Off Track Alert',
+            alert_msg,
+            'alert'::notification_type
+        );
+
+        -- Alert manager immediately
+        IF EXISTS (SELECT 1 FROM public.users WHERE id = p_user_id AND manager_id IS NOT NULL) THEN
+            PERFORM public.create_system_notification(
+                (SELECT manager_id FROM public.users WHERE id = p_user_id),
+                'Team KPI Alert',
+                format('Team member KPI "%s" went Off Track at %s.', kpi_row.name, p_new_value),
+                'alert'::notification_type
+            );
+        END IF;
+    END IF;
+
+    -- Recalculate and persist health score
+    SELECT health_score INTO old_score FROM public.users WHERE id = p_user_id;
+    new_score := public.calculate_user_health_score(p_user_id);
+
+    UPDATE public.users
+    SET
+        previous_health_score = old_score,
+        health_score = new_score,
+        health_score_updated_at = timezone('utc'::text, now())
+    WHERE id = p_user_id;
+
+    -- Check 7-day escalation
+    PERFORM public.check_kpi_escalation(p_kpi_id);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Sync KPI submissions to current_value and run Phase 2 automation
 CREATE OR REPLACE FUNCTION public.on_kpi_submission()
 RETURNS TRIGGER AS $$
+DECLARE
+    old_value NUMERIC;
 BEGIN
+    SELECT current_value INTO old_value FROM public.kpis WHERE id = new.kpi_id;
+
     UPDATE public.kpis
-    SET current_value = new.value
+    SET
+        current_value = new.value,
+        previous_value = old_value
     WHERE id = new.kpi_id;
+
+    PERFORM public.run_submission_automation(new.kpi_id, new.user_id, old_value, new.value);
+
     RETURN new;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 CREATE TRIGGER kpi_submission_after_insert
     AFTER INSERT ON public.kpi_submissions
@@ -164,11 +463,11 @@ BEGIN
         new.id,
         new.email,
         coalesce(new.raw_user_meta_data->>'full_name', new.email),
-        coalesce((new.raw_user_meta_data->>'role')::user_role, 'employee'::user_role)
+        coalesce((new.raw_user_meta_data->>'role')::public.user_role, 'employee'::public.user_role)
     );
     RETURN new;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth;
 
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
@@ -233,6 +532,11 @@ CREATE POLICY "Admins can manage all KPIs"
     USING (public.is_admin(auth.uid()))
     WITH CHECK (public.is_admin(auth.uid()));
 
+CREATE POLICY "Managers can manage team KPIs"
+    ON public.kpis FOR ALL
+    USING (public.is_manager_of(auth.uid(), user_id))
+    WITH CHECK (public.is_manager_of(auth.uid(), user_id));
+
 -- KPI Submissions RLS Policies
 CREATE POLICY "Users view own submissions, managers view team submissions, admins view all"
     ON public.kpi_submissions FOR SELECT
@@ -295,3 +599,425 @@ CREATE POLICY "Users can mark own notifications as read"
 CREATE POLICY "Admins and system can manage notifications"
     ON public.notifications FOR ALL
     USING (public.is_admin(auth.uid()));
+
+-- Phase 2: Security definer RPCs for reliable admin/manager data access
+CREATE OR REPLACE FUNCTION public.get_direct_reports(p_manager_id UUID)
+RETURNS SETOF public.users AS $$
+BEGIN
+    IF auth.uid() IS DISTINCT FROM p_manager_id
+       AND NOT public.is_admin(auth.uid()) THEN
+        RAISE EXCEPTION 'Unauthorized';
+    END IF;
+    RETURN QUERY
+        SELECT u.* FROM public.users u
+        WHERE u.manager_id = p_manager_id
+        ORDER BY u.full_name;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION public.get_all_users_admin()
+RETURNS SETOF public.users AS $$
+BEGIN
+    IF NOT public.is_admin(auth.uid()) THEN
+        RAISE EXCEPTION 'Unauthorized';
+    END IF;
+    RETURN QUERY SELECT u.* FROM public.users u ORDER BY u.created_at DESC;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Fully delete a user (admin only). Removes the auth.users row, which
+-- cascades (ON DELETE CASCADE) to public.users and all related kpis,
+-- tasks, submissions, and notifications.
+CREATE OR REPLACE FUNCTION public.delete_user_admin(p_user_id UUID)
+RETURNS VOID AS $$
+BEGIN
+    IF NOT public.is_admin(auth.uid()) THEN
+        RAISE EXCEPTION 'Unauthorized: only admins can delete users';
+    END IF;
+
+    IF p_user_id = auth.uid() THEN
+        RAISE EXCEPTION 'You cannot delete your own account';
+    END IF;
+
+    DELETE FROM auth.users WHERE id = p_user_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth;
+
+GRANT EXECUTE ON FUNCTION public.get_direct_reports(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_all_users_admin() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.delete_user_admin(UUID) TO authenticated;
+
+-- Admin-only password reset using pgcrypto bcrypt (same algorithm Supabase uses).
+-- Allows an admin to set a new password for any user without the service-role key
+-- being exposed on the frontend.
+CREATE OR REPLACE FUNCTION public.reset_user_password_admin(p_user_id UUID, p_new_password TEXT)
+RETURNS VOID AS $$
+BEGIN
+    IF NOT public.is_admin(auth.uid()) THEN
+        RAISE EXCEPTION 'Unauthorized: only admins can reset passwords';
+    END IF;
+    IF length(p_new_password) < 6 THEN
+        RAISE EXCEPTION 'Password must be at least 6 characters';
+    END IF;
+    UPDATE auth.users
+    SET encrypted_password = crypt(p_new_password, gen_salt('bf'))
+    WHERE id = p_user_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth, extensions;
+
+GRANT EXECUTE ON FUNCTION public.reset_user_password_admin(UUID, TEXT) TO authenticated;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- PHASE 4: REWARDS & POINTS SYSTEM
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- Points ledger: one row per employee per month
+CREATE TABLE IF NOT EXISTS public.points_ledger (
+    id           UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    employee_id  UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
+    month        DATE NOT NULL,  -- first day of the month, e.g. 2026-06-01
+    kpi_score    NUMERIC NOT NULL,
+    points_earned INTEGER NOT NULL DEFAULT 0,
+    created_at   TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+    UNIQUE (employee_id, month)
+);
+
+-- Reward catalog: admin-managed list of redeemable rewards
+CREATE TABLE IF NOT EXISTS public.rewards_catalog (
+    id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    name        TEXT NOT NULL,
+    description TEXT,
+    icon        TEXT DEFAULT '🎁',
+    point_cost  INTEGER NOT NULL DEFAULT 1000,
+    active      BOOLEAN NOT NULL DEFAULT true,
+    created_at  TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
+);
+
+-- Reward redemptions: tracks claims and fulfillment
+CREATE TABLE IF NOT EXISTS public.reward_redemptions (
+    id           UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    employee_id  UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
+    reward_id    UUID REFERENCES public.rewards_catalog(id) ON DELETE RESTRICT NOT NULL,
+    points_used  INTEGER NOT NULL,
+    status       TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','fulfilled')),
+    redeemed_at  TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
+);
+
+-- Seed default catalog items (skip if already present)
+INSERT INTO public.rewards_catalog (name, description, icon, point_cost) VALUES
+  ('Team Dinner',           'Dinner for you and your team at a restaurant of your choice', '🍽️', 1000),
+  ('Movie Tickets',         '2 cinema tickets + snacks',                                  '🎬', 1000),
+  ('Half-Day Paid Leave',   'Take a half-day off, fully paid',                            '🌴', 1000),
+  ('Gift Voucher ($50)',    '$50 gift voucher redeemable at major retailers',             '🎁', 1000)
+ON CONFLICT DO NOTHING;
+
+-- RLS
+ALTER TABLE public.points_ledger       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rewards_catalog     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.reward_redemptions  ENABLE ROW LEVEL SECURITY;
+
+-- points_ledger: own rows; managers see direct reports; admin sees all
+CREATE POLICY "points_ledger_select" ON public.points_ledger FOR SELECT
+  USING (
+    employee_id = auth.uid()
+    OR public.is_admin(auth.uid())
+    OR public.is_manager_of(auth.uid(), employee_id)
+  );
+
+CREATE POLICY "points_ledger_admin_all" ON public.points_ledger FOR ALL
+  USING (public.is_admin(auth.uid())) WITH CHECK (public.is_admin(auth.uid()));
+
+-- rewards_catalog: everyone can read active items; only admin writes
+CREATE POLICY "catalog_read" ON public.rewards_catalog FOR SELECT USING (true);
+CREATE POLICY "catalog_admin" ON public.rewards_catalog FOR ALL
+  USING (public.is_admin(auth.uid())) WITH CHECK (public.is_admin(auth.uid()));
+
+-- redemptions: employee own; manager team; admin all
+CREATE POLICY "redemptions_select" ON public.reward_redemptions FOR SELECT
+  USING (
+    employee_id = auth.uid()
+    OR public.is_admin(auth.uid())
+    OR public.is_manager_of(auth.uid(), employee_id)
+  );
+CREATE POLICY "redemptions_insert" ON public.reward_redemptions FOR INSERT
+  WITH CHECK (employee_id = auth.uid());
+CREATE POLICY "redemptions_admin_update" ON public.reward_redemptions FOR UPDATE
+  USING (public.is_admin(auth.uid()));
+CREATE POLICY "redemptions_manager_update" ON public.reward_redemptions FOR UPDATE
+  USING (public.is_manager_of(auth.uid(), employee_id));
+
+-- ── Monthly points calculation function ──────────────────────────────────────
+-- Called by pg_cron on the last day of each month (or can be run manually).
+-- Calculates each employee's weighted health score for that month and awards
+-- 500 points if score >= 90.
+CREATE OR REPLACE FUNCTION public.calculate_monthly_points(p_month DATE DEFAULT date_trunc('month', now())::DATE)
+RETURNS TABLE(employee TEXT, score NUMERIC, points INTEGER) AS $$
+DECLARE
+    rec RECORD;
+    v_score NUMERIC;
+    v_points INTEGER;
+    v_on  NUMERIC := 100;
+    v_risk NUMERIC := 50;
+    v_off  NUMERIC := 0;
+BEGIN
+    FOR rec IN
+        SELECT u.id, u.email, u.full_name
+        FROM public.users u
+        WHERE u.role IN ('employee'::public.user_role, 'manager'::public.user_role)
+    LOOP
+        -- Weighted health score from KPIs
+        SELECT CASE WHEN sum(k.weight) = 0 THEN 100
+                    ELSE sum(
+                      CASE k.status
+                        WHEN 'on_track'  THEN v_on  * k.weight
+                        WHEN 'at_risk'   THEN v_risk * k.weight
+                        ELSE                  v_off  * k.weight
+                      END
+                    ) / sum(k.weight)
+               END
+        INTO v_score
+        FROM public.kpis k
+        WHERE k.user_id = rec.id;
+
+        v_score  := COALESCE(v_score, 0);
+        v_points := CASE WHEN v_score >= 90 THEN 500 ELSE 0 END;
+
+        -- Upsert: skip months already calculated
+        INSERT INTO public.points_ledger (employee_id, month, kpi_score, points_earned)
+        VALUES (rec.id, p_month, v_score, v_points)
+        ON CONFLICT (employee_id, month) DO NOTHING;
+
+        -- Notify if points were awarded
+        IF v_points > 0 THEN
+            PERFORM public.create_system_notification(
+                rec.id,
+                'Monthly Bonus Awarded! 🎉',
+                'You scored ' || round(v_score) || '% this month — +' || v_points || ' points added to your balance!',
+                'info'
+            );
+        END IF;
+
+        -- Check if total points crossed a 1000-point multiple → reward eligible
+        DECLARE
+            v_total   INTEGER;
+            v_prev    INTEGER;
+        BEGIN
+            SELECT COALESCE(sum(points_earned),0) INTO v_total
+            FROM public.points_ledger WHERE employee_id = rec.id;
+
+            SELECT COALESCE(sum(points_earned),0) INTO v_prev
+            FROM public.points_ledger WHERE employee_id = rec.id AND month < p_month;
+
+            IF floor(v_total::NUMERIC/1000) > floor(v_prev::NUMERIC/1000) THEN
+                PERFORM public.create_system_notification(
+                    rec.id,
+                    'Reward Unlocked! 🏆',
+                    'You''ve reached ' || v_total || ' points — you''ve earned a reward! Visit the Rewards tab to redeem.',
+                    'alert'
+                );
+            END IF;
+        END;
+
+        employee := rec.full_name;
+        score    := v_score;
+        points   := v_points;
+        RETURN NEXT;
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth;
+
+GRANT EXECUTE ON FUNCTION public.calculate_monthly_points(DATE) TO authenticated;
+
+-- Points leaderboard (all employees + managers with KPIs)
+CREATE OR REPLACE FUNCTION public.get_points_leaderboard()
+RETURNS TABLE(full_name TEXT, total_points BIGINT) AS $$
+  SELECT u.full_name, COALESCE(sum(pl.points_earned), 0)::BIGINT AS total_points
+  FROM public.users u
+  LEFT JOIN public.points_ledger pl ON pl.employee_id = u.id
+  WHERE u.role IN ('employee'::public.user_role, 'manager'::public.user_role)
+  GROUP BY u.id, u.full_name
+  ORDER BY total_points DESC;
+$$ LANGUAGE sql SECURITY DEFINER SET search_path = public;
+
+GRANT EXECUTE ON FUNCTION public.get_points_leaderboard() TO authenticated;
+
+-- Notify manager when a direct report redeems a reward
+CREATE OR REPLACE FUNCTION public.notify_manager_on_redemption()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_manager_id UUID;
+    v_employee_name TEXT;
+    v_reward_name TEXT;
+BEGIN
+    SELECT u.manager_id, u.full_name INTO v_manager_id, v_employee_name
+    FROM public.users u WHERE u.id = NEW.employee_id;
+
+    SELECT name INTO v_reward_name FROM public.rewards_catalog WHERE id = NEW.reward_id;
+
+    IF v_manager_id IS NOT NULL THEN
+        PERFORM public.create_system_notification(
+            v_manager_id,
+            'Team Reward Request 🎁',
+            COALESCE(v_employee_name, 'An employee') || ' redeemed "' || COALESCE(v_reward_name, 'a reward') || '" — review in Team Rewards.',
+            'info'
+        );
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+DROP TRIGGER IF EXISTS reward_redemption_notify_manager ON public.reward_redemptions;
+CREATE TRIGGER reward_redemption_notify_manager
+    AFTER INSERT ON public.reward_redemptions
+    FOR EACH ROW EXECUTE FUNCTION public.notify_manager_on_redemption();
+
+-- ── pg_cron: schedule on the last day of each month at 23:55 UTC ─────────────
+-- Requires pg_cron extension (enabled in Supabase by default on paid plans).
+-- The DO block skips gracefully if pg_cron is not available.
+DO $outer$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+    PERFORM cron.schedule(
+      'monthly-kpi-points',
+      '55 23 28-31 * *',
+      'SELECT public.calculate_monthly_points()'
+    );
+  END IF;
+EXCEPTION WHEN OTHERS THEN NULL;
+END;
+$outer$;
+
+-- ── KPI task assignment (manager → employee) ────────────────────────────────
+
+CREATE OR REPLACE FUNCTION public.assign_kpi_manager(
+    p_employee_id UUID,
+    p_department TEXT,
+    p_description TEXT,
+    p_start_date DATE,
+    p_end_date DATE
+)
+RETURNS TABLE(employee_email TEXT, employee_name TEXT, kpi_id UUID) AS $$
+DECLARE
+    v_kpi_id UUID;
+    v_email TEXT;
+    v_name TEXT;
+BEGIN
+    IF NOT public.is_manager_of(auth.uid(), p_employee_id) AND NOT public.is_admin(auth.uid()) THEN
+        RAISE EXCEPTION 'Not authorized to assign KPIs to this employee';
+    END IF;
+
+    SELECT u.email, u.full_name INTO v_email, v_name FROM public.users u WHERE u.id = p_employee_id;
+
+    INSERT INTO public.kpis (
+        user_id, name, description, department, category,
+        start_date, end_date, target_value, current_value, weight, direction, status, completion_status, redo_count
+    ) VALUES (
+        p_employee_id, p_department, p_description, p_department, p_department,
+        p_start_date, p_end_date, 100, 0, 1, 'higher_better', 'at_risk', 'pending', 0
+    ) RETURNING id INTO v_kpi_id;
+
+    PERFORM public.create_system_notification(
+        p_employee_id,
+        'New KPI Assigned',
+        'Your manager assigned a KPI in ' || p_department || '. Due by ' || p_end_date::TEXT || '.',
+        'info'
+    );
+
+    employee_email := v_email;
+    employee_name := COALESCE(v_name, 'Employee');
+    kpi_id := v_kpi_id;
+    RETURN NEXT;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+CREATE OR REPLACE FUNCTION public.complete_kpi_employee(p_kpi_id UUID)
+RETURNS TABLE(manager_email TEXT, manager_name TEXT, department TEXT) AS $$
+DECLARE
+    v_kpi public.kpis%ROWTYPE;
+    v_mgr_email TEXT;
+    v_mgr_name TEXT;
+BEGIN
+    SELECT * INTO v_kpi FROM public.kpis WHERE id = p_kpi_id AND user_id = auth.uid();
+    IF NOT FOUND THEN RAISE EXCEPTION 'KPI not found'; END IF;
+    IF v_kpi.completion_status = 'completed' THEN RAISE EXCEPTION 'Already completed'; END IF;
+
+    UPDATE public.kpis SET
+        completion_status = 'completed',
+        status = 'on_track'::kpi_status_type,
+        current_value = 100,
+        updated_at = now()
+    WHERE id = p_kpi_id;
+
+    SELECT u.email, u.full_name INTO v_mgr_email, v_mgr_name
+    FROM public.users emp
+    JOIN public.users u ON u.id = emp.manager_id
+    WHERE emp.id = auth.uid();
+
+    IF (SELECT manager_id FROM public.users WHERE id = auth.uid()) IS NOT NULL THEN
+        PERFORM public.create_system_notification(
+            (SELECT manager_id FROM public.users WHERE id = auth.uid()),
+            'KPI Completed',
+            (SELECT full_name FROM public.users WHERE id = auth.uid()) || ' completed KPI: ' || COALESCE(v_kpi.department, v_kpi.name),
+            'info'
+        );
+    END IF;
+
+    manager_email := v_mgr_email;
+    manager_name := COALESCE(v_mgr_name, 'Manager');
+    department := COALESCE(v_kpi.department, v_kpi.name);
+    RETURN NEXT;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+CREATE OR REPLACE FUNCTION public.check_overdue_kpis()
+RETURNS TABLE(emp_email TEXT, emp_name TEXT, department TEXT, end_date DATE, redo_count INTEGER) AS $$
+DECLARE
+    rec RECORD;
+    v_month DATE := date_trunc('month', now())::DATE;
+BEGIN
+    FOR rec IN
+        SELECT k.*, u.email AS e_email, u.full_name AS e_name
+        FROM public.kpis k
+        JOIN public.users u ON u.id = k.user_id
+        WHERE k.completion_status = 'pending'
+          AND k.end_date IS NOT NULL
+          AND k.end_date < CURRENT_DATE
+          AND (k.overdue_notified_at IS NULL OR k.overdue_notified_at::DATE < CURRENT_DATE)
+    LOOP
+        UPDATE public.kpis SET
+            redo_count = redo_count + 1,
+            status = 'off_track'::kpi_status_type,
+            overdue_notified_at = now(),
+            updated_at = now()
+        WHERE id = rec.id;
+
+        PERFORM public.create_system_notification(
+            rec.user_id,
+            'KPI Overdue',
+            'Your KPI "' || COALESCE(rec.department, rec.name) || '" passed the deadline (' || rec.end_date::TEXT || '). Miss ' || (rec.redo_count + 1) || '/3.',
+            'alert'
+        );
+
+        IF rec.redo_count + 1 >= 3 THEN
+            INSERT INTO public.points_ledger (employee_id, month, kpi_score, points_earned)
+            VALUES (rec.user_id, v_month, 0, -300)
+            ON CONFLICT (employee_id, month) DO UPDATE
+            SET points_earned = public.points_ledger.points_earned - 300;
+
+            PERFORM public.create_system_notification(
+                rec.user_id,
+                'Points Deducted',
+                '3 missed KPI deadlines — 300 points deducted from your balance.',
+                'escalation'
+            );
+        END IF;
+
+        emp_email := rec.e_email;
+        emp_name := COALESCE(rec.e_name, 'Employee');
+        department := COALESCE(rec.department, rec.name);
+        end_date := rec.end_date;
+        redo_count := rec.redo_count + 1;
+        RETURN NEXT;
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;

@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
-import { Profile, Kpi } from '../utils/kpiHelpers';
-import { Users, Settings, Plus, UserPlus, Trash2, Edit2, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import { supabase, supabaseSignup } from '../lib/supabase';
+import { Profile } from '../utils/kpiHelpers';
+import { Users, UserPlus, Trash2, Loader2, AlertCircle, CheckCircle, Download, FileSpreadsheet, FileText, BarChart3, Palette, Trophy, KeyRound } from 'lucide-react';
+import { fetchQuarterlyReportData, fetchMonthlyReportData, exportToCsv, exportToExcel, exportToPdf } from '../utils/exportReport';
+import Analytics from './Analytics';
+import BrandingSettings from './BrandingSettings';
+import AdminRewards from './AdminRewards';
+import AdminResetPasswordModal from './AdminResetPasswordModal';
 
 interface AdminDashboardProps {
   profile: Profile;
@@ -11,7 +16,7 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
   const [users, setUsers] = useState<Profile[]>([]);
   const [managers, setManagers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'users' | 'kpis'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'export' | 'analytics' | 'branding' | 'rewards'>('users');
 
   // User Form States
   const [email, setEmail] = useState('');
@@ -22,38 +27,24 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
   const [userFormLoading, setUserFormLoading] = useState(false);
   const [userFormMsg, setUserFormMsg] = useState({ type: '', text: '' });
 
-  // KPI Config States
-  const [selectedUserId, setSelectedUserId] = useState('');
-  const [userKpis, setUserKpis] = useState<Kpi[]>([]);
-  const [kpiLoading, setKpiLoading] = useState(false);
-  
-  // New KPI Form States
-  const [newKpiName, setNewKpiName] = useState('');
-  const [newKpiDesc, setNewKpiDesc] = useState('');
-  const [newKpiTarget, setNewKpiTarget] = useState('');
-  const [newKpiWeight, setNewKpiWeight] = useState('1.0');
-  const [newKpiCategory, setNewKpiCategory] = useState('');
-  const [newKpiDirection, setNewKpiDirection] = useState<'higher_better' | 'lower_better'>('higher_better');
-  const [kpiFormLoading, setKpiFormLoading] = useState(false);
-  const [kpiFormError, setKpiFormError] = useState('');
+  // Password reset modal state
+  const [resetPasswordUser, setResetPasswordUser] = useState<{ id: string; name: string } | null>(null);
 
-  // Editing KPI states
-  const [editingKpiId, setEditingKpiId] = useState<string | null>(null);
-  const [editTarget, setEditTarget] = useState('');
-  const [editWeight, setEditWeight] = useState('');
+  // Export states
+  const [exportLoading, setExportLoading] = useState(false);
+  const [exportMsg, setExportMsg] = useState('');
 
   const fetchData = async () => {
     setLoading(true);
     try {
       const { data: allUsers, error: usersError } = await supabase
-        .from('users')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .rpc('get_all_users_admin');
 
       if (usersError) console.error('Error fetching users:', usersError);
       else {
-        setUsers(allUsers || []);
-        setManagers((allUsers || []).filter(u => u.role === 'manager' || u.role === 'admin'));
+        const usersList = (allUsers || []) as Profile[];
+        setUsers(usersList);
+        setManagers(usersList.filter((u) => u.role === 'manager' || u.role === 'admin'));
       }
     } catch (err) {
       console.error(err);
@@ -66,31 +57,21 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
     fetchData();
   }, []);
 
-  const fetchUserKpis = async (userId: string) => {
-    if (!userId) {
-      setUserKpis([]);
-      return;
-    }
-    setKpiLoading(true);
+  const handleExport = async (format: 'csv' | 'excel' | 'pdf', period: 'quarterly' | 'monthly' = 'quarterly') => {
+    setExportLoading(true);
+    setExportMsg('');
     try {
-      const { data, error } = await supabase
-        .from('kpis')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: true });
-
-      if (error) console.error('Error fetching user KPIs:', error);
-      else setUserKpis(data || []);
-    } catch (err) {
-      console.error(err);
+      const data = period === 'monthly' ? await fetchMonthlyReportData() : await fetchQuarterlyReportData();
+      if (format === 'csv') exportToCsv(data);
+      else if (format === 'excel') await exportToExcel(data);
+      else await exportToPdf(data);
+      setExportMsg(`${period === 'monthly' ? 'Monthly' : 'Quarterly'} report exported as ${format.toUpperCase()}.`);
+    } catch (err: any) {
+      setExportMsg(err.message || 'Export failed.');
     } finally {
-      setKpiLoading(false);
+      setExportLoading(false);
     }
   };
-
-  useEffect(() => {
-    fetchUserKpis(selectedUserId);
-  }, [selectedUserId]);
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,8 +84,11 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
     setUserFormMsg({ type: '', text: '' });
 
     try {
-      // 1. Sign up new auth user (triggers handle_new_user public trigger)
-      const { data: signupData, error: signupError } = await supabase.auth.signUp({
+      // 1. Create the auth user via a non-persisting client so the admin's
+      //    own session is never replaced (signUp would otherwise log the
+      //    admin in as the new user). The handle_new_user trigger syncs the
+      //    public.users profile (full_name + role) automatically.
+      const { data: signupData, error: signupError } = await supabaseSignup.auth.signUp({
         email,
         password,
         options: {
@@ -122,7 +106,7 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
       }
 
       if (signupData.user) {
-        // 2. Since the trigger syncs role/fullname, now update manager_id if selected
+        // 2. Assign manager (runs on the main admin-authenticated client).
         if (managerId && role !== 'admin') {
           const { error: updateError } = await supabase
             .from('users')
@@ -133,6 +117,9 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
             console.error('Error setting user manager:', updateError.message);
           }
         }
+
+        // Clear the throwaway signup client's in-memory session.
+        await supabaseSignup.auth.signOut();
 
         setUserFormMsg({ type: 'success', text: `Successfully registered user profile for ${fullName}.` });
         setEmail('');
@@ -151,93 +138,25 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
     }
   };
 
-  const handleCreateKpi = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedUserId) return;
-    if (!newKpiName || !newKpiTarget) {
-      setKpiFormError('KPI Name and Target are required.');
-      return;
-    }
-
-    setKpiFormLoading(true);
-    setKpiFormError('');
-
-    try {
-      const { error } = await supabase
-        .from('kpis')
-        .insert({
-          user_id: selectedUserId,
-          name: newKpiName,
-          description: newKpiDesc.trim() || null,
-          target_value: parseFloat(newKpiTarget),
-          weight: parseFloat(newKpiWeight),
-          category: newKpiCategory.trim() || null,
-          direction: newKpiDirection
-        });
-
-      if (error) {
-        setKpiFormError(error.message);
-      } else {
-        setNewKpiName('');
-        setNewKpiDesc('');
-        setNewKpiTarget('');
-        setNewKpiWeight('1.0');
-        setNewKpiCategory('');
-        setNewKpiDirection('higher_better');
-        fetchUserKpis(selectedUserId);
-      }
-    } catch (err: any) {
-      setKpiFormError(err.message || 'Submission error.');
-    } finally {
-      setKpiFormLoading(false);
-    }
-  };
-
-  const handleUpdateKpiConfig = async (kpiId: string) => {
-    if (!editTarget || isNaN(Number(editTarget))) return;
-
-    try {
-      const { error } = await supabase
-        .from('kpis')
-        .update({
-          target_value: parseFloat(editTarget),
-          weight: parseFloat(editWeight) || 1.0
-        })
-        .eq('id', kpiId);
-
-      if (error) {
-        console.error('Error updating KPI config:', error);
-      } else {
-        setEditingKpiId(null);
-        fetchUserKpis(selectedUserId);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   const handleDeleteUser = async (userId: string) => {
     if (userId === profile.id) {
       alert("Cannot delete your own administrator profile.");
       return;
     }
 
-    if (!confirm("Are you sure you want to remove this user profile? All associated KPIs and submissions will be permanently deleted.")) {
+    if (!confirm("Are you sure you want to permanently delete this user? Their login account and all associated KPIs, tasks, and submissions will be permanently removed.")) {
       return;
     }
 
     try {
-      // Deleting public user cascade deletes from database tables (kpis, tasks, notifications, submissions)
-      const { error } = await supabase
-        .from('users')
-        .delete()
-        .eq('id', userId);
+      // Deletes the auth.users record server-side (SECURITY DEFINER), which
+      // cascades to public.users and all related tables.
+      const { error } = await supabase.rpc('delete_user_admin', { p_user_id: userId });
 
       if (error) {
         alert(`Error: ${error.message}`);
       } else {
         fetchData();
-        if (selectedUserId === userId) setSelectedUserId('');
       }
     } catch (err: any) {
       alert(err.message);
@@ -246,26 +165,115 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      
+
+      {resetPasswordUser && (
+        <AdminResetPasswordModal
+          userId={resetPasswordUser.id}
+          userName={resetPasswordUser.name}
+          onClose={() => setResetPasswordUser(null)}
+        />
+      )}
+
       {/* Admin Tab System */}
-      <div style={{ display: 'flex', gap: '0.75rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+      <div className="tab-bar">
         <button 
-          className={`btn ${activeTab === 'users' ? 'btn-primary' : 'btn-secondary'}`}
+          className={`tab-btn ${activeTab === 'users' ? 'tab-btn--active' : ''}`}
           onClick={() => setActiveTab('users')}
-          style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem' }}
         >
-          <Users size={16} /> User Profiles Management
+          <Users size={16} /> Users
         </button>
         <button 
-          className={`btn ${activeTab === 'kpis' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => setActiveTab('kpis')}
-          style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem' }}
+          className={`tab-btn ${activeTab === 'export' ? 'tab-btn--active' : ''}`}
+          onClick={() => setActiveTab('export')}
         >
-          <Settings size={16} /> KPI Target configurations
+          <Download size={16} /> Reports
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'analytics' ? 'tab-btn--active' : ''}`}
+          onClick={() => setActiveTab('analytics')}
+        >
+          <BarChart3 size={16} /> Analytics
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'branding' ? 'tab-btn--active' : ''}`}
+          onClick={() => setActiveTab('branding')}
+        >
+          <Palette size={16} /> Branding
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'rewards' ? 'tab-btn--active' : ''}`}
+          onClick={() => setActiveTab('rewards')}
+        >
+          <Trophy size={16} /> Rewards
         </button>
       </div>
 
-      {activeTab === 'users' ? (
+      {activeTab === 'export' ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '680px' }}>
+
+          {exportMsg && (
+            <div style={{
+              background: exportMsg.includes('failed') ? 'var(--color-danger-bg)' : 'var(--color-success-bg)',
+              color: exportMsg.includes('failed') ? 'var(--color-danger)' : 'var(--color-success)',
+              padding: '0.75rem 1rem', borderRadius: 'var(--border-radius-sm)', fontSize: '0.85rem',
+            }}>
+              {exportMsg}
+            </div>
+          )}
+
+          {/* Monthly report */}
+          <div className="glass-panel" style={{ borderLeft: '4px solid var(--accent-primary)' }}>
+            <h3 style={{ fontSize: '1.1rem', fontFamily: 'var(--font-display)', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Download size={16} style={{ color: 'var(--accent-primary)' }} />
+              Monthly Report
+            </h3>
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
+              KPI snapshot, submission log, and AI insights for the <strong>current calendar month</strong>.
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+              <button className="btn btn-primary" onClick={() => handleExport('excel', 'monthly')} disabled={exportLoading}>
+                {exportLoading ? <Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} /> : <FileSpreadsheet size={15} />}
+                Excel
+              </button>
+              <button className="btn btn-secondary" onClick={() => handleExport('pdf', 'monthly')} disabled={exportLoading}>
+                <FileText size={15} /> PDF
+              </button>
+              <button className="btn btn-secondary" onClick={() => handleExport('csv', 'monthly')} disabled={exportLoading}>
+                <Download size={15} /> CSV
+              </button>
+            </div>
+          </div>
+
+          {/* Quarterly report */}
+          <div className="glass-panel">
+            <h3 style={{ fontSize: '1.1rem', fontFamily: 'var(--font-display)', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Download size={16} />
+              Quarterly Report
+            </h3>
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
+              Full organizational KPI report including AI insights, suggested targets, and submission history for the <strong>current quarter</strong>.
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+              <button className="btn btn-primary" onClick={() => handleExport('excel', 'quarterly')} disabled={exportLoading}>
+                {exportLoading ? <Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} /> : <FileSpreadsheet size={15} />}
+                Excel
+              </button>
+              <button className="btn btn-secondary" onClick={() => handleExport('pdf', 'quarterly')} disabled={exportLoading}>
+                <FileText size={15} /> PDF
+              </button>
+              <button className="btn btn-secondary" onClick={() => handleExport('csv', 'quarterly')} disabled={exportLoading}>
+                <Download size={15} /> CSV
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : activeTab === 'analytics' ? (
+        <Analytics title="Organization-Wide Analytics" />
+      ) : activeTab === 'branding' ? (
+        <BrandingSettings />
+      ) : activeTab === 'rewards' ? (
+        <AdminRewards />
+      ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem' }}>
           
           {/* User Directory List */}
@@ -309,6 +317,14 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
                         </div>
                       </div>
 
+                      <button
+                        className="btn btn-secondary"
+                        onClick={() => setResetPasswordUser({ id: u.id, name: u.full_name })}
+                        style={{ padding: '0.45rem', borderRadius: '50%', borderColor: 'transparent' }}
+                        title="Reset Password"
+                      >
+                        <KeyRound size={14} />
+                      </button>
                       <button 
                         className="btn btn-secondary" 
                         onClick={() => handleDeleteUser(u.id)}
@@ -405,238 +421,6 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
 
               <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '0.5rem' }} disabled={userFormLoading}>
                 {userFormLoading ? <Loader2 size={16} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} /> : 'Register User'}
-              </button>
-            </form>
-          </div>
-
-        </div>
-      ) : (
-        /* KPI Configurations Tab */
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem' }}>
-          
-          {/* Selected User's KPIs Config List */}
-          <div className="glass-panel" style={{ flex: 2 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
-              <h3 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-display)', margin: 0 }}>KPI Targets Settings</h3>
-              
-              <select 
-                value={selectedUserId} 
-                onChange={(e) => setSelectedUserId(e.target.value)}
-                style={{ width: 'auto', padding: '0.35rem 0.75rem', fontSize: '0.85rem' }}
-              >
-                <option value="">-- Select Employee --</option>
-                {users.map(u => (
-                  <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>
-                ))}
-              </select>
-            </div>
-
-            {!selectedUserId ? (
-              <div style={{ padding: '4rem 1rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                Please select an employee from the dropdown list to configure their KPI targets.
-              </div>
-            ) : kpiLoading ? (
-              <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
-                <Loader2 className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '500px', overflowY: 'auto', paddingRight: '4px' }}>
-                {userKpis.length === 0 ? (
-                  <div style={{ padding: '3rem 1rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-                    No KPIs currently configured for this employee.
-                  </div>
-                ) : (
-                  userKpis.map(kpi => (
-                    <div 
-                      key={kpi.id}
-                      style={{
-                        padding: '1rem',
-                        background: 'rgba(255,255,255,0.02)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: 'var(--border-radius-sm)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '0.5rem'
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <div>
-                          <strong style={{ fontSize: '0.95rem' }}>{kpi.name}</strong>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase', marginTop: '2px' }}>
-                            {kpi.category} &bull; {kpi.direction.replace('_', ' ')}
-                          </span>
-                        </div>
-
-                        {editingKpiId !== kpi.id ? (
-                          <button 
-                            className="btn btn-secondary"
-                            onClick={() => {
-                              setEditingKpiId(kpi.id);
-                              setEditTarget(String(kpi.target_value));
-                              setEditWeight(String(kpi.weight));
-                            }}
-                            style={{ padding: '0.45rem', borderRadius: '50%', borderColor: 'transparent' }}
-                            title="Edit Targets"
-                          >
-                            <Edit2 size={14} />
-                          </button>
-                        ) : (
-                          <div style={{ display: 'flex', gap: '0.25rem' }}>
-                            <button 
-                              className="btn btn-primary" 
-                              onClick={() => handleUpdateKpiConfig(kpi.id)}
-                              style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
-                            >
-                              Save
-                            </button>
-                            <button 
-                              className="btn btn-secondary" 
-                              onClick={() => setEditingKpiId(null)}
-                              style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
-                      {editingKpiId === kpi.id ? (
-                        <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
-                          <div className="form-group" style={{ margin: 0, flex: 1 }}>
-                            <label style={{ fontSize: '0.75rem' }}>Target Value</label>
-                            <input 
-                              type="number" 
-                              step="any"
-                              value={editTarget}
-                              onChange={(e) => setEditTarget(e.target.value)}
-                              style={{ padding: '0.4rem' }}
-                            />
-                          </div>
-                          <div className="form-group" style={{ margin: 0, flex: 1 }}>
-                            <label style={{ fontSize: '0.75rem' }}>Weight Multipier</label>
-                            <input 
-                              type="number" 
-                              step="any"
-                              value={editWeight}
-                              onChange={(e) => setEditWeight(e.target.value)}
-                              style={{ padding: '0.4rem' }}
-                            />
-                          </div>
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                          <div>Target: <strong>{kpi.target_value}</strong></div>
-                          <div>Current: <strong>{kpi.current_value}</strong></div>
-                          <div>Weight: <strong>{kpi.weight}x</strong></div>
-                        </div>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Add KPI form */}
-          <div className="glass-panel" style={{ flex: 1, height: 'fit-content' }}>
-            <h3 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-display)', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Plus size={20} /> Add KPI Indicator
-            </h3>
-
-            {kpiFormError && (
-              <div style={{ 
-                background: 'var(--color-danger-bg)', 
-                color: 'var(--color-danger)', 
-                padding: '0.75rem 1rem', 
-                borderRadius: 'var(--border-radius-sm)', 
-                fontSize: '0.85rem', 
-                marginBottom: '1rem' 
-              }}>
-                {kpiFormError}
-              </div>
-            )}
-
-            <form onSubmit={handleCreateKpi} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div className="form-group" style={{ margin: 0 }}>
-                <label>KPI Name</label>
-                <input 
-                  type="text" 
-                  placeholder="e.g. Absenteeism Rate"
-                  value={newKpiName}
-                  onChange={(e) => setNewKpiName(e.target.value)}
-                  disabled={!selectedUserId}
-                  required 
-                />
-              </div>
-
-              <div className="form-group" style={{ margin: 0 }}>
-                <label>Category Group</label>
-                <input 
-                  type="text" 
-                  placeholder="e.g. Culture & Retention"
-                  value={newKpiCategory}
-                  onChange={(e) => setNewKpiCategory(e.target.value)}
-                  disabled={!selectedUserId}
-                />
-              </div>
-
-              <div className="form-group" style={{ margin: 0 }}>
-                <label>Description</label>
-                <textarea 
-                  placeholder="Explain KPI metrics..."
-                  rows={2}
-                  value={newKpiDesc}
-                  onChange={(e) => setNewKpiDesc(e.target.value)}
-                  disabled={!selectedUserId}
-                />
-              </div>
-
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <div className="form-group" style={{ margin: 0, flex: 1 }}>
-                  <label>Target Value</label>
-                  <input 
-                    type="number" 
-                    step="any"
-                    placeholder="e.g. 5"
-                    value={newKpiTarget}
-                    onChange={(e) => setNewKpiTarget(e.target.value)}
-                    disabled={!selectedUserId}
-                    required 
-                  />
-                </div>
-
-                <div className="form-group" style={{ margin: 0, flex: 1 }}>
-                  <label>Weight</label>
-                  <input 
-                    type="number" 
-                    step="any"
-                    value={newKpiWeight}
-                    onChange={(e) => setNewKpiWeight(e.target.value)}
-                    disabled={!selectedUserId}
-                    required 
-                  />
-                </div>
-              </div>
-
-              <div className="form-group" style={{ margin: 0 }}>
-                <label>Optimization Direction</label>
-                <select 
-                  value={newKpiDirection} 
-                  onChange={(e) => setNewKpiDirection(e.target.value as any)}
-                  disabled={!selectedUserId}
-                >
-                  <option value="higher_better">Higher is Better</option>
-                  <option value="lower_better">Lower is Better</option>
-                </select>
-              </div>
-
-              <button 
-                type="submit" 
-                className="btn btn-primary" 
-                style={{ width: '100%', marginTop: '0.5rem' }} 
-                disabled={kpiFormLoading || !selectedUserId}
-              >
-                {kpiFormLoading ? <Loader2 size={16} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} /> : 'Add KPI Card'}
               </button>
             </form>
           </div>

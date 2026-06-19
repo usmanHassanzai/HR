@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Lock, Mail, Shield, Users, User, Loader2 } from 'lucide-react';
+import BrandLogo from './BrandLogo';
 
 interface LoginProps {
   onLoginSuccess: (session: any) => void;
@@ -65,22 +66,12 @@ export default function Login({ onLoginSuccess }: LoginProps) {
   };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh', padding: '1rem' }}>
-      <div className="glass-panel animate-fade-in" style={{ width: '100%', maxWidth: '440px', padding: '2.5rem' }}>
+    <div className="login-page">
+      <div className="glass-panel login-card animate-fade-in">
         
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{ 
-            display: 'inline-flex', 
-            background: 'var(--accent-gradient)', 
-            padding: '1rem', 
-            borderRadius: 'var(--border-radius-sm)', 
-            boxShadow: 'var(--accent-glow)',
-            marginBottom: '1rem'
-          }}>
-            <Lock size={28} color="white" />
-          </div>
-          <h2 style={{ fontSize: '1.8rem', fontFamily: 'var(--font-display)', marginBottom: '0.25rem' }}>Secure Portal</h2>
-          <p style={{ color: 'var(--text-secondary)' }}>Sign in to manage and view HR KPI scores</p>
+        <div className="login-brand">
+          <BrandLogo variant="login" alt="Scorr — scorr.walfia.ai" />
+          <p className="login-brand-sub">Sign in to continue</p>
         </div>
 
         {error && (
@@ -141,12 +132,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         </form>
 
         {/* CSS Spin Keyframe style */}
-        <style dangerouslySetInnerHTML={{__html: `
-          @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-        `}} />
+        <style dangerouslySetInnerHTML={{__html: `@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}} />
 
         <div style={{ margin: '2rem 0 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }}></div>
@@ -157,8 +143,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <button 
             type="button" 
-            className="btn btn-secondary" 
-            style={{ justifyContent: 'flex-start', padding: '0.65rem 1rem', fontSize: '0.85rem' }}
+            className="btn btn-secondary login-shortcut"
             onClick={() => handleShortcutLogin('employee@walfia.ai', 'employee123')}
             disabled={loading}
           >
@@ -171,8 +156,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
 
           <button 
             type="button" 
-            className="btn btn-secondary" 
-            style={{ justifyContent: 'flex-start', padding: '0.65rem 1rem', fontSize: '0.85rem' }}
+            className="btn btn-secondary login-shortcut"
             onClick={() => handleShortcutLogin('manager@walfia.ai', 'manager123')}
             disabled={loading}
           >
@@ -185,8 +169,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
 
           <button 
             type="button" 
-            className="btn btn-secondary" 
-            style={{ justifyContent: 'flex-start', padding: '0.65rem 1rem', fontSize: '0.85rem' }}
+            className="btn btn-secondary login-shortcut"
             onClick={() => handleShortcutLogin('admin@walfia.ai', 'admin123')}
             disabled={loading}
           >

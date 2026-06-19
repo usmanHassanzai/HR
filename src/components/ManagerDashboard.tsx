@@ -1,8 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 import { Profile } from '../utils/kpiHelpers';
 import Leaderboard from './Leaderboard';
 import EmployeeDashboard from './EmployeeDashboard';
-import { Users, BarChart3, ShieldAlert } from 'lucide-react';
+import ManagerKpiConfig from './ManagerKpiConfig';
+import { Users, BarChart3, ShieldAlert, KeyRound, Trophy, Settings } from 'lucide-react';
+import ChangePasswordModal from './ChangePasswordModal';
+import ManagerRewardsPanel from './ManagerRewardsPanel';
 
 interface ManagerDashboardProps {
   profile: Profile;
@@ -10,7 +14,32 @@ interface ManagerDashboardProps {
 
 export default function ManagerDashboard({ profile }: ManagerDashboardProps) {
   const [selectedEmployee, setSelectedEmployee] = useState<Profile | null>(null);
-  const [activeTab, setActiveTab] = useState<'team' | 'personal'>('team');
+  const [activeTab, setActiveTab] = useState<'team' | 'kpis' | 'rewards' | 'personal'>('team');
+  const [alertCount, setAlertCount] = useState(0);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+
+  useEffect(() => {
+    const fetchAlerts = async () => {
+      await supabase.rpc('check_overdue_kpis');
+      const { count } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', profile.id)
+        .in('type', ['alert', 'escalation'])
+        .eq('is_read', false);
+
+      setAlertCount(count || 0);
+    };
+
+    fetchAlerts();
+
+    const subscription = supabase
+      .channel(`manager-alerts:${profile.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, fetchAlerts)
+      .subscribe();
+
+    return () => { supabase.removeChannel(subscription); };
+  }, [profile.id]);
 
   const handleSelectEmployee = (employeeProfile: Profile) => {
     setSelectedEmployee(employeeProfile);
@@ -34,21 +63,23 @@ export default function ManagerDashboard({ profile }: ManagerDashboardProps) {
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       
-      {/* Tab Navigation for Team vs Personal KPIs */}
-      <div style={{ display: 'flex', gap: '0.75rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
-        <button 
-          className={`btn ${activeTab === 'team' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => setActiveTab('team')}
-          style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem' }}
-        >
+      {showChangePassword && <ChangePasswordModal onClose={() => setShowChangePassword(false)} />}
+
+      <div className="tab-bar">
+        <button className={`tab-btn ${activeTab === 'team' ? 'tab-btn--active' : ''}`} onClick={() => setActiveTab('team')}>
           <Users size={16} /> Team Performance
         </button>
-        <button 
-          className={`btn ${activeTab === 'personal' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => setActiveTab('personal')}
-          style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem' }}
-        >
-          <BarChart3 size={16} /> My Personal Dashboard
+        <button className={`tab-btn ${activeTab === 'kpis' ? 'tab-btn--active' : ''}`} onClick={() => setActiveTab('kpis')}>
+          <Settings size={16} /> KPI Config
+        </button>
+        <button className={`tab-btn ${activeTab === 'rewards' ? 'tab-btn--active' : ''}`} onClick={() => setActiveTab('rewards')}>
+          <Trophy size={16} /> Team Rewards
+        </button>
+        <button className={`tab-btn ${activeTab === 'personal' ? 'tab-btn--active' : ''}`} onClick={() => setActiveTab('personal')}>
+          <BarChart3 size={16} /> My KPIs & Points
+        </button>
+        <button className="tab-btn tab-btn--utility" onClick={() => setShowChangePassword(true)}>
+          <KeyRound size={16} /> Change Password
         </button>
       </div>
 
@@ -64,19 +95,26 @@ export default function ManagerDashboard({ profile }: ManagerDashboardProps) {
             
             <div className="glass-panel" style={{ borderLeft: '4px solid var(--color-warning)', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>System Alert Status</span>
-              <h3 style={{ fontSize: '1.8rem', fontFamily: 'var(--font-display)', margin: 0, color: 'var(--color-warning)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <ShieldAlert size={24} /> Alerts Active
+              <h3 style={{ fontSize: '1.8rem', fontFamily: 'var(--font-display)', margin: 0, color: alertCount > 0 ? 'var(--color-warning)' : 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <ShieldAlert size={24} /> {alertCount > 0 ? `${alertCount} Alert${alertCount > 1 ? 's' : ''} Active` : 'All Clear'}
               </h3>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Off Track notifications will automatically trigger alerts in your menu header.</p>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                {alertCount > 0
+                  ? 'Off Track and escalation alerts require your attention in the notification menu.'
+                  : 'No active Off Track or escalation alerts for your team.'}
+              </p>
             </div>
           </div>
 
           {/* Leaderboard Table showing team ranking */}
           <Leaderboard managerId={profile.id} onSelectEmployee={handleSelectEmployee} />
         </div>
+      ) : activeTab === 'kpis' ? (
+        <ManagerKpiConfig managerId={profile.id} />
+      ) : activeTab === 'rewards' ? (
+        <ManagerRewardsPanel managerId={profile.id} onGoToPersonal={() => setActiveTab('personal')} />
       ) : (
-        /* Personal Dashboard view (Managers are also employees who track their own KPIs) */
-        <EmployeeDashboard profile={profile} />
+        <EmployeeDashboard profile={profile} hideChangePassword />
       )}
     </div>
   );

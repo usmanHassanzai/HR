@@ -1,0 +1,26 @@
+<svg viewBox="25 30 640 165" role="img" xmlns="http://www.w3.org/2000/svg" aria-label="Scorr">
+  <defs>
+    <linearGradient id="bar1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#00E5A0"/>
+      <stop offset="100%" stop-color="#00B87A"/>
+    </linearGradient>
+    <linearGradient id="bar2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#00C98A"/>
+      <stop offset="100%" stop-color="#009E6A"/>
+    </linearGradient>
+    <linearGradient id="bar3" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1AD4FF"/>
+      <stop offset="100%" stop-color="#00A8D4"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="40" y="38" width="160" height="160" rx="28" fill="#1A2438"/>
+  <rect x="72" y="128" width="28" height="52" rx="5" fill="url(#bar1)"/>
+  <rect x="108" y="98" width="28" height="82" rx="5" fill="url(#bar2)"/>
+  <rect x="144" y="74" width="28" height="106" rx="5" fill="url(#bar3)"/>
+  <circle cx="158" cy="68" r="8" fill="#00E5A0"/>
+  <line x1="86" y1="122" x2="158" y2="62" stroke="#00E5A0" stroke-width="3" stroke-linecap="round"/>
+
+  <text x="228" y="142" font-family="Outfit, Inter, Arial Black, sans-serif" font-size="82" font-weight="700" fill="#FFFFFF" letter-spacing="-2">scorr</text>
+  <text x="230" y="180" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="500" fill="#94A3B8" letter-spacing="5">PERFORMANCE � REWARDS</text>
+</svg>

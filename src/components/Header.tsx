@@ -1,7 +1,10 @@
+import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Profile } from '../utils/kpiHelpers';
 import NotificationCenter from './NotificationCenter';
-import { LogOut, User, Sparkles, Shield, Briefcase } from 'lucide-react';
+import { LogOut, User, Shield, Briefcase } from 'lucide-react';
+import { BrandingConfig, loadBranding, usesBundledWordmark } from '../lib/branding';
+import BrandLogo from './BrandLogo';
 
 interface HeaderProps {
   profile: Profile;
@@ -10,6 +13,14 @@ interface HeaderProps {
 }
 
 export default function Header({ profile, onLogout, onNavigateHome }: HeaderProps) {
+  const [branding, setBranding] = useState<BrandingConfig>(loadBranding());
+
+  useEffect(() => {
+    const handler = (e: Event) => setBranding((e as CustomEvent<BrandingConfig>).detail);
+    window.addEventListener('branding-updated', handler);
+    return () => window.removeEventListener('branding-updated', handler);
+  }, []);
+
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
@@ -43,46 +54,26 @@ export default function Header({ profile, onLogout, onNavigateHome }: HeaderProp
   };
 
   return (
-    <header 
-      className="glass-panel" 
-      style={{ 
+    <header className="glass-panel app-header animate-fade-in" style={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center', 
-        padding: '0.75rem 1.5rem', 
         borderRadius: 'var(--border-radius-sm)',
         marginBottom: '2rem',
-        animation: 'fadeIn 0.4s ease-out forwards',
-        borderLeft: '4px solid var(--accent-primary)'
       }}
     >
       <div 
         onClick={onNavigateHome} 
-        style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '0.5rem', 
-          cursor: onNavigateHome ? 'pointer' : 'default' 
-        }}
+        className="header-brand"
+        style={{ cursor: onNavigateHome ? 'pointer' : 'default' }}
       >
-        <div 
-          style={{ 
-            background: 'var(--accent-gradient)', 
-            width: '32px', 
-            height: '32px', 
-            borderRadius: 'var(--border-radius-sm)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: 'var(--accent-glow)'
-          }}
-        >
-          <Sparkles size={16} color="white" />
-        </div>
-        <div>
-          <h2 style={{ fontSize: '1.2rem', fontFamily: 'var(--font-display)', margin: 0, lineHeight: 1 }}>Walfia AI</h2>
-          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>HR KPI Dashboard</span>
-        </div>
+        <BrandLogo src={branding.logoUrl} variant="header" alt={branding.brandName} />
+        {!usesBundledWordmark(branding) && (
+          <div className="header-brand-text">
+            <h2>{branding.brandName}</h2>
+            <span>{branding.tagline}</span>
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>

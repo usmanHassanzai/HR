@@ -10,3 +10,16 @@ if (!supabaseUrl || !supabaseAnonKey || supabaseUrl.includes('placeholder') || s
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+/**
+ * Secondary client used ONLY for admin-initiated user registration.
+ * It does not persist or auto-refresh its session, so calling signUp here
+ * never overwrites the currently logged-in admin's session in localStorage.
+ */
+export const supabaseSignup = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+    storageKey: 'walfia-signup-only',
+  },
+});

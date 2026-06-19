@@ -9,6 +9,9 @@ export interface Profile {
   full_name: string;
   role: UserRole;
   manager_id: string | null;
+  health_score?: number;
+  previous_health_score?: number;
+  health_score_updated_at?: string;
   created_at: string;
 }
 
@@ -23,6 +26,16 @@ export interface Kpi {
   status: KpiStatus;
   weight: number;
   category: string | null;
+  department?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  completion_status?: 'pending' | 'completed';
+  redo_count?: number;
+  previous_value?: number | null;
+  off_track_since?: string | null;
+  ai_narrative?: string | null;
+  ai_narrative_updated_at?: string | null;
+  suggested_target?: number | null;
   updated_at: string;
   created_at: string;
 }
@@ -88,18 +101,35 @@ export function calculateHealthScore(kpis: Kpi[]): number {
 
   let totalPoints = 0;
   let totalWeight = 0;
+  const today = new Date().toISOString().slice(0, 10);
 
   for (const kpi of kpis) {
     let points = 0;
-    if (kpi.status === 'on_track') points = 100;
+    if (kpi.completion_status === 'completed') {
+      points = 100;
+    } else if (kpi.end_date && kpi.end_date < today) {
+      points = 0;
+    } else if (kpi.start_date || kpi.end_date) {
+      points = kpi.status === 'on_track' ? 75 : kpi.status === 'at_risk' ? 50 : 25;
+    } else if (kpi.status === 'on_track') points = 100;
     else if (kpi.status === 'at_risk') points = 50;
     else if (kpi.status === 'off_track') points = 0;
 
-    totalPoints += points * kpi.weight;
-    totalWeight += kpi.weight;
+    totalPoints += points * (kpi.weight || 1);
+    totalWeight += kpi.weight || 1;
   }
 
   if (totalWeight === 0) return 100;
-
   return Math.round(totalPoints / totalWeight);
+}
+
+/** Returns trend direction comparing persisted health scores. */
+export function getHealthTrend(
+  current?: number,
+  previous?: number
+): 'up' | 'down' | 'flat' {
+  if (current == null || previous == null) return 'flat';
+  if (current > previous) return 'up';
+  if (current < previous) return 'down';
+  return 'flat';
 }

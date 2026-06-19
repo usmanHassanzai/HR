@@ -1,0 +1,12 @@
+Employee,KPI,Category,Status,Current,Target,Suggested Target,Health Score,AI Insight
+"Jim Halpert","Recruitment Cycle Time","Talent Acquisition","at_risk","28","25","26.6","56","Recruitment Cycle Time is At Risk at 28 vs target 25 — monitor closely this period."
+"Jim Halpert","Offer Acceptance Rate","Talent Acquisition","at_risk","80","85","85","56","Offer Acceptance Rate is At Risk at 80 vs target 85 — monitor closely this period."
+"Jim Halpert","Employee Satisfaction Score","Culture & Retention","on_track","4.5","4.2","4.7","56","Employee Satisfaction Score remains On Track at 4.5 against target 4.2."
+"Jim Halpert","Training Completion Rate","Development","at_risk","90","95","95","56","Training Completion Rate is At Risk at 90 vs target 95 — monitor closely this period."
+"Jim Halpert","Absenteeism Rate","Culture & Retention","on_track","2.5","3","2.4","56","Absenteeism Rate remains On Track at 2.5 against target 3."
+"Jim Halpert","Performance Review Completion","Performance Management","at_risk","95","100","100","56","Performance Review Completion is At Risk at 95 vs target 100 — monitor closely this period."
+"Jim Halpert","Turnover Rate","Culture & Retention","off_track","12","10","11.4","56","Turnover Rate is Off Track at 12 (target 10) — flagged for review."
+"Pam Beesly","Recruitment Cycle Time","Talent Acquisition","on_track","22","25","21","88","Recruitment Cycle Time remains On Track at 22 against target 25."
+"Pam Beesly","Offer Acceptance Rate","Talent Acquisition","on_track","92","85","96.6","88","Offer Acceptance Rate rose 8.2% to 92 — trending positively."
+"Dwight Schrute","Turnover Rate","Culture & Retention","at_risk","11","10","10.4","72","Turnover Rate is At Risk at 11 vs target 10 — monitor closely this period."
+"Dwight Schrute","Training Completion Rate","Development","on_track","98","95","100","72","Training Completion Rate remains On Track at 98 against target 95."
