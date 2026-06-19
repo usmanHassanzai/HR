@@ -7,6 +7,7 @@ import ExportButton from './ExportButton';
 import RewardsTab from './RewardsTab';
 import ChangePasswordModal from './ChangePasswordModal';
 import { emailKpiCompleted, emailKpiOverdue } from '../utils/kpiEmail';
+import DashboardTabNav from './DashboardTabNav';
 
 interface EmployeeDashboardProps {
   profile: Profile;
@@ -127,7 +128,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
   };
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+    <div className={`animate-fade-in ${!isReadOnly && !hideChangePassword ? 'dashboard-with-mobile-nav' : ''}`} style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       
       {/* Read-Only Banner for Managers */}
       {isReadOnly && (
@@ -151,19 +152,28 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
 
       {/* Tab switcher */}
       {!isReadOnly && (
-        <div className="tab-bar">
-          <button className={`tab-btn ${activeTab === 'kpis' ? 'tab-btn--active' : ''}`} onClick={() => setActiveTab('kpis')}>
-            <BarChart2 size={15} /> My KPIs
-          </button>
-          <button className={`tab-btn ${activeTab === 'rewards' ? 'tab-btn--active' : ''}`} onClick={() => setActiveTab('rewards')}>
-            <Trophy size={15} /> Rewards & Points
-          </button>
-          {!hideChangePassword && (
-            <button className="tab-btn tab-btn--utility" onClick={() => setShowChangePassword(true)}>
-              <KeyRound size={15} /> Change Password
-            </button>
-          )}
-        </div>
+        <DashboardTabNav
+          activeTab={activeTab}
+          onTabChange={(id) => setActiveTab(id as typeof activeTab)}
+          mobilePlacement={hideChangePassword ? 'inline' : 'bottom'}
+          tabs={[
+            { id: 'kpis', label: 'My KPIs', mobileLabel: 'KPIs', icon: <BarChart2 size={15} /> },
+            { id: 'rewards', label: 'Rewards & Points', mobileLabel: 'Rewards', icon: <Trophy size={15} /> },
+          ]}
+          actions={
+            hideChangePassword
+              ? []
+              : [
+                  {
+                    id: 'password',
+                    label: 'Change Password',
+                    mobileLabel: 'Password',
+                    icon: <KeyRound size={15} />,
+                    onClick: () => setShowChangePassword(true),
+                  },
+                ]
+          }
+        />
       )}
 
       {!hideChangePassword && showChangePassword && (

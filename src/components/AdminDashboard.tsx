@@ -7,6 +7,7 @@ import Analytics from './Analytics';
 import BrandingSettings from './BrandingSettings';
 import AdminRewards from './AdminRewards';
 import AdminResetPasswordModal from './AdminResetPasswordModal';
+import DashboardTabNav from './DashboardTabNav';
 
 interface AdminDashboardProps {
   profile: Profile;
@@ -164,7 +165,7 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
   };
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+    <div className="animate-fade-in dashboard-with-mobile-nav" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
 
       {resetPasswordUser && (
         <AdminResetPasswordModal
@@ -174,40 +175,19 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
         />
       )}
 
-      {/* Admin Tab System */}
-      <div className="tab-bar">
-        <button 
-          className={`tab-btn ${activeTab === 'users' ? 'tab-btn--active' : ''}`}
-          onClick={() => setActiveTab('users')}
-        >
-          <Users size={16} /> Users
-        </button>
-        <button 
-          className={`tab-btn ${activeTab === 'export' ? 'tab-btn--active' : ''}`}
-          onClick={() => setActiveTab('export')}
-        >
-          <Download size={16} /> Reports
-        </button>
-        <button 
-          className={`tab-btn ${activeTab === 'analytics' ? 'tab-btn--active' : ''}`}
-          onClick={() => setActiveTab('analytics')}
-        >
-          <BarChart3 size={16} /> Analytics
-        </button>
-        <button 
-          className={`tab-btn ${activeTab === 'branding' ? 'tab-btn--active' : ''}`}
-          onClick={() => setActiveTab('branding')}
-        >
-          <Palette size={16} /> Branding
-        </button>
-        <button 
-          className={`tab-btn ${activeTab === 'rewards' ? 'tab-btn--active' : ''}`}
-          onClick={() => setActiveTab('rewards')}
-        >
-          <Trophy size={16} /> Rewards
-        </button>
-      </div>
+      <DashboardTabNav
+        activeTab={activeTab}
+        onTabChange={(id) => setActiveTab(id as typeof activeTab)}
+        tabs={[
+          { id: 'users', label: 'Users', mobileLabel: 'Users', icon: <Users size={16} /> },
+          { id: 'export', label: 'Reports', mobileLabel: 'Reports', icon: <Download size={16} /> },
+          { id: 'analytics', label: 'Analytics', mobileLabel: 'Analytics', icon: <BarChart3 size={16} /> },
+          { id: 'branding', label: 'Branding', mobileLabel: 'Brand', icon: <Palette size={16} /> },
+          { id: 'rewards', label: 'Rewards', mobileLabel: 'Rewards', icon: <Trophy size={16} /> },
+        ]}
+      />
 
+      <div className="dashboard-tab-content">
       {activeTab === 'export' ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '680px' }}>
 
@@ -428,6 +408,7 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
         </div>
       )}
 
+      </div>
     </div>
   );
 }
