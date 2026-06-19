@@ -11,18 +11,40 @@ interface NotificationCenterProps {
 export default function NotificationCenter({ userId }: NotificationCenterProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
-  const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0, left: undefined as number | undefined, mobile: false });
   const buttonRef = useRef<HTMLButtonElement>(null);
 
-  // Re-position whenever it opens
-  useEffect(() => {
-    if (isOpen && buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
+  const updateDropdownPosition = () => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    const mobile = window.innerWidth <= 768;
+    if (mobile) {
       setDropdownPos({
         top: rect.bottom + 8,
-        right: window.innerWidth - rect.right,
+        right: 0,
+        left: 12,
+        mobile: true,
+      });
+    } else {
+      setDropdownPos({
+        top: rect.bottom + 8,
+        right: Math.max(12, window.innerWidth - rect.right),
+        left: undefined,
+        mobile: false,
       });
     }
+  };
+
+  // Re-position whenever it opens or viewport changes
+  useEffect(() => {
+    if (!isOpen) return;
+    updateDropdownPosition();
+    window.addEventListener('resize', updateDropdownPosition);
+    window.addEventListener('scroll', updateDropdownPosition, true);
+    return () => {
+      window.removeEventListener('resize', updateDropdownPosition);
+      window.removeEventListener('scroll', updateDropdownPosition, true);
+    };
   }, [isOpen]);
 
   // Close on outside click
@@ -100,11 +122,12 @@ export default function NotificationCenter({ userId }: NotificationCenterProps) 
   const dropdown = isOpen ? (
     <div
       id="notification-portal"
-      className="notification-dropdown"
-      style={{
-        top: dropdownPos.top,
-        right: Math.max(12, dropdownPos.right),
-      }}
+      className={`notification-dropdown${dropdownPos.mobile ? ' notification-dropdown--mobile' : ''}`}
+      style={
+        dropdownPos.mobile
+          ? { top: dropdownPos.top, left: dropdownPos.left, right: 12 }
+          : { top: dropdownPos.top, right: dropdownPos.right }
+      }
     >
       {/* Header row */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
