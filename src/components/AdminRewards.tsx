@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Gift, Plus, Trash2, Edit2, Loader2, CheckCircle, Trophy, Star, PlayCircle } from 'lucide-react';
 import RewardsWorkflowBanner from './RewardsWorkflowBanner';
+import { tierColorForScore } from '../utils/rewardsTiers';
 
 interface CatalogItem {
   id: string;
@@ -113,7 +114,7 @@ export default function AdminRewards() {
       setMsg('Error: ' + error.message);
     } else {
       const awarded = (data as any[]).filter((r) => r.points > 0).length;
-      setMsg(`✅ Monthly job complete — ${awarded} employee(s) & manager(s) awarded 500 pts.`);
+      setMsg(`✅ Monthly job complete — ${awarded} employee(s) & manager(s) received tiered bonuses.`);
       fetchAll();
     }
     setRunning(false);
@@ -171,7 +172,7 @@ export default function AdminRewards() {
               <Star size={20} /> Monthly Points Engine
             </h3>
             <p className="rewards-section-desc" style={{ margin: 0 }}>
-              Auto-awards +500 pts to every employee &amp; manager with KPI score ≥ 90%. Runs on the last day of each month.
+              Tiered monthly bonus from KPI score: ≥90% → 1,000 pts · 80–89% → 500 · 70–79% → 250 · &lt;70% → 0. Points never expire.
             </p>
           </div>
           <button className="btn btn-primary btn-sm" onClick={runMonthlyJob} disabled={running}>
@@ -199,7 +200,7 @@ export default function AdminRewards() {
                     <td><strong>{r.full_name}</strong></td>
                     <td><span className="badge badge-on-track" style={{ fontSize: '0.6rem' }}>{r.role}</span></td>
                     <td>{new Date(r.month).toLocaleDateString('default', { month: 'short', year: 'numeric' })}</td>
-                    <td style={{ color: r.kpi_score >= 90 ? 'var(--color-success)' : 'var(--text-secondary)' }}>{Math.round(r.kpi_score)}%</td>
+                    <td style={{ color: tierColorForScore(r.kpi_score), fontWeight: 600 }}>{Math.round(r.kpi_score)}%</td>
                     <td style={{ fontWeight: 700, color: r.points_earned ? 'var(--color-success)' : 'var(--text-muted)' }}>
                       {r.points_earned ? `+${r.points_earned}` : '—'}
                     </td>

@@ -734,6 +734,33 @@ svg.brand-logo {
   font-weight: 400;
 }
 
+.rewards-tier-panel { padding: 1.25rem 1.5rem !important; }
+
+.rewards-tier-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: 0.5rem;
+}
+
+.rewards-tier-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.02);
+  font-size: 0.85rem;
+}
+
+.rewards-tier-label { color: var(--text-secondary); }
+
+.rewards-tier-points {
+  color: var(--accent-primary);
+  font-family: var(--font-display);
+}
+
 .branding-preview-header {
   display: flex;
   align-items: center;

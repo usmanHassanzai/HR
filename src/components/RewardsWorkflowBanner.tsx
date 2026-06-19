@@ -10,7 +10,7 @@ export default function RewardsWorkflowBanner({ variant = 'employee' }: RewardsW
       icon: <User size={18} />,
       role: 'Employee',
       color: 'var(--color-success)',
-      tasks: ['Earn +500 pts when monthly KPI ≥ 90%', 'Redeem rewards from catalog', 'Track balance & leaderboard'],
+      tasks: ['Earn up to +1,000 pts/month by KPI score', 'Points never expire — redeem anytime', 'Track balance & leaderboard'],
     },
     {
       icon: <Briefcase size={18} />,

@@ -671,7 +671,7 @@ GRANT EXECUTE ON FUNCTION public.reset_user_password_admin(UUID, TEXT) TO authen
 -- PHASE 4: REWARDS & POINTS SYSTEM
 -- ─────────────────────────────────────────────────────────────────────────────
 
--- Points ledger: one row per employee per month
+-- Points ledger: one row per employee per month (points never expire)
 CREATE TABLE IF NOT EXISTS public.points_ledger (
     id           UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     employee_id  UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
@@ -748,8 +748,22 @@ CREATE POLICY "redemptions_manager_update" ON public.reward_redemptions FOR UPDA
 
 -- ── Monthly points calculation function ──────────────────────────────────────
 -- Called by pg_cron on the last day of each month (or can be run manually).
--- Calculates each employee's weighted health score for that month and awards
--- 500 points if score >= 90.
+-- Tiered monthly bonus from weighted KPI score (points never expire):
+--   >= 90% → 1000 pts | >= 80% → 500 pts | >= 70% → 250 pts | < 70% → 0
+CREATE OR REPLACE FUNCTION public.monthly_points_for_score(p_score NUMERIC)
+RETURNS INTEGER AS $$
+BEGIN
+    RETURN CASE
+        WHEN p_score >= 90 THEN 1000
+        WHEN p_score >= 80 THEN 500
+        WHEN p_score >= 70 THEN 250
+        ELSE 0
+    END;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+GRANT EXECUTE ON FUNCTION public.monthly_points_for_score(NUMERIC) TO authenticated;
+
 CREATE OR REPLACE FUNCTION public.calculate_monthly_points(p_month DATE DEFAULT date_trunc('month', now())::DATE)
 RETURNS TABLE(employee TEXT, score NUMERIC, points INTEGER) AS $$
 DECLARE
@@ -780,7 +794,7 @@ BEGIN
         WHERE k.user_id = rec.id;
 
         v_score  := COALESCE(v_score, 0);
-        v_points := CASE WHEN v_score >= 90 THEN 500 ELSE 0 END;
+        v_points := public.monthly_points_for_score(v_score);
 
         -- Upsert: skip months already calculated
         INSERT INTO public.points_ledger (employee_id, month, kpi_score, points_earned)

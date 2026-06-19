@@ -105,6 +105,7 @@ async function main() {
     DROP FUNCTION IF EXISTS public.get_direct_reports(UUID) CASCADE;
     DROP FUNCTION IF EXISTS public.get_all_users_admin() CASCADE;
     DROP FUNCTION IF EXISTS public.delete_user_admin(UUID) CASCADE;
+    DROP FUNCTION IF EXISTS public.monthly_points_for_score(NUMERIC) CASCADE;
     DROP FUNCTION IF EXISTS public.calculate_monthly_points(DATE) CASCADE;
     DROP FUNCTION IF EXISTS public.get_points_leaderboard() CASCADE;
     DROP FUNCTION IF EXISTS public.notify_manager_on_redemption() CASCADE;

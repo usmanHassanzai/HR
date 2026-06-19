@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from './lib/supabase';
+import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { Profile } from './utils/kpiHelpers';
 import Login from './components/Login';
 import Header from './components/Header';
@@ -73,6 +73,20 @@ function App() {
     setSession(null);
     setProfile(null);
   };
+
+  if (!isSupabaseConfigured) {
+    return (
+      <div className="dashboard-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+        <div className="glass-panel" style={{ width: '100%', maxWidth: '560px', padding: '2.5rem', textAlign: 'center', borderLeft: '4px solid var(--color-warning)' }}>
+          <AlertCircle size={40} style={{ color: 'var(--color-warning)', marginBottom: '1rem' }} />
+          <h2 style={{ fontSize: '1.5rem', fontFamily: 'var(--font-display)', marginBottom: '0.75rem' }}>Supabase Not Configured</h2>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem', fontSize: '0.95rem' }}>
+            Add <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> in Vercel → Settings → Environment Variables, then redeploy.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // Main Loading View
   if (loading) {

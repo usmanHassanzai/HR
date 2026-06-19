@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Trophy, Star, Gift, Loader2, CheckCircle, Clock, Sparkles } from 'lucide-react';
 import RewardsWorkflowBanner from './RewardsWorkflowBanner';
+import { MONTHLY_POINTS_TIERS, REWARD_CATALOG_COST, tierColorForScore } from '../utils/rewardsTiers';
 
 interface CatalogItem {
   id: string;
@@ -38,7 +39,7 @@ interface RewardsTabProps {
   viewerRole?: 'employee' | 'manager';
 }
 
-const POINTS_PER_REWARD = 1000;
+const POINTS_PER_REWARD = REWARD_CATALOG_COST;
 
 export default function RewardsTab({ userId, isReadOnly, viewerRole = 'employee' }: RewardsTabProps) {
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
@@ -119,6 +120,7 @@ export default function RewardsTab({ userId, isReadOnly, viewerRole = 'employee'
             <p className="rewards-hero-meta">
               {rewardsEarned} lifetime reward{rewardsEarned !== 1 ? 's' : ''} earned
               {canRedeemAny && <span className="rewards-hero-badge"> · Reward available!</span>}
+              <span style={{ display: 'block', marginTop: '0.35rem', fontSize: '0.78rem', opacity: 0.85 }}>Points never expire</span>
             </p>
           </div>
           <div className="rewards-hero-progress">
@@ -137,6 +139,22 @@ export default function RewardsTab({ userId, isReadOnly, viewerRole = 'employee'
 
       {msg && <div className="rewards-toast rewards-toast--success">{msg}</div>}
 
+      {/* Monthly tier rules */}
+      <div className="glass-panel rewards-tier-panel">
+        <h3 className="rewards-section-title" style={{ marginBottom: '0.75rem' }}>Monthly Performance Rewards</h3>
+        <p className="rewards-section-desc" style={{ marginBottom: '0.85rem' }}>
+          Points are awarded each month based on your KPI score. They <strong>never expire</strong> and accumulate until you redeem.
+        </p>
+        <div className="rewards-tier-grid">
+          {MONTHLY_POINTS_TIERS.map((tier) => (
+            <div key={tier.label} className="rewards-tier-row">
+              <span className="rewards-tier-label">{tier.label}</span>
+              <strong className="rewards-tier-points">{tier.points > 0 ? `+${tier.points} pts` : '0 pts'}</strong>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Mini stats */}
       <div className="rewards-stats-grid">
         <div className="stat-card stat-card--accent">
@@ -151,7 +169,9 @@ export default function RewardsTab({ userId, isReadOnly, viewerRole = 'employee'
         <div className="stat-card">
           <Trophy size={20} />
           <div>
-            <div className="stat-card-value">{thisMonthEntry ? `${Math.round(thisMonthEntry.kpi_score)}%` : '—'}</div>
+            <div className="stat-card-value" style={{ color: thisMonthEntry ? tierColorForScore(thisMonthEntry.kpi_score) : undefined }}>
+              {thisMonthEntry ? `${Math.round(thisMonthEntry.kpi_score)}%` : '—'}
+            </div>
             <div className="stat-card-label">Monthly KPI Score</div>
           </div>
         </div>

@@ -132,7 +132,7 @@ export default function ManagerRewardsPanel({ managerId, onGoToPersonal }: Manag
           <span className="rewards-workflow-label">Your Points (Manager)</span>
           <div><strong>{ownBalance.toLocaleString()}</strong> <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>pts available · {ownEarned.toLocaleString()} earned lifetime</span></div>
           <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
-            Managers earn +500 pts/month when KPI ≥ 90%. Redeem rewards on the <em>My KPIs &amp; Points</em> tab.
+            Managers earn tiered monthly points (up to +1,000 at ≥90%). Points never expire. Redeem on the <em>My KPIs &amp; Points</em> tab.
           </p>
         </div>
         {onGoToPersonal && (
