@@ -185,7 +185,7 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
           { id: 'analytics', label: 'Analytics', mobileLabel: 'Analytics', icon: <BarChart3 size={16} /> },
           { id: 'branding', label: 'Branding', mobileLabel: 'Brand', icon: <Palette size={16} /> },
           { id: 'rewards', label: 'Rewards', mobileLabel: 'Rewards', icon: <Trophy size={16} /> },
-          { id: 'attendance', label: 'Attendance & Leave', mobileLabel: 'Leave', icon: <CalendarCheck size={16} /> },
+          { id: 'attendance', label: 'Leave Approvals', mobileLabel: 'Leave', icon: <CalendarCheck size={16} /> },
         ]}
       />
 

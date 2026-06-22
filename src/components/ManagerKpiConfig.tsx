@@ -76,7 +76,7 @@ export default function ManagerKpiConfig({ managerId }: ManagerKpiConfigProps) {
       setEndDate('');
       fetchKpis(selectedUserId);
     } catch (err: any) {
-      setError(err.message || 'Failed to assign KPI.');
+      setError(err.message || 'Failed to assign task.');
     } finally {
       setFormLoading(false);
     }
@@ -97,7 +97,7 @@ export default function ManagerKpiConfig({ managerId }: ManagerKpiConfigProps) {
   return (
     <div className="responsive-grid-wide" style={{ gap: '2rem' }}>
       <div className="glass-panel">
-        <h3 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-display)', marginBottom: '1rem' }}>Team KPI Assignments</h3>
+        <h3 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-display)', marginBottom: '1rem' }}>Team Tasks</h3>
         <select value={selectedUserId} onChange={(e) => setSelectedUserId(e.target.value)} style={{ marginBottom: '1rem' }}>
           <option value="">— Select employee —</option>
           {reports.map((r) => <option key={r.id} value={r.id}>{r.full_name}</option>)}
@@ -136,7 +136,7 @@ export default function ManagerKpiConfig({ managerId }: ManagerKpiConfigProps) {
 
       <div className="glass-panel" style={{ height: 'fit-content' }}>
         <h3 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-display)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Plus size={18} /> Assign KPI
+          <Plus size={18} /> Assign Task
         </h3>
         {error && <div style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)', padding: '0.75rem', borderRadius: 'var(--border-radius-sm)', fontSize: '0.85rem', marginBottom: '1rem' }}>{error}</div>}
         <form onSubmit={handleAssign} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>

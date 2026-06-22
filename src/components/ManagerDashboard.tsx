@@ -70,7 +70,7 @@ export default function ManagerDashboard({ profile }: ManagerDashboardProps) {
         onTabChange={(id) => setActiveTab(id as typeof activeTab)}
         tabs={[
           { id: 'team', label: 'Team Performance', mobileLabel: 'Team', icon: <Users size={16} /> },
-          { id: 'kpis', label: 'KPI Config', mobileLabel: 'KPIs', icon: <Settings size={16} /> },
+          { id: 'kpis', label: 'Assign Task', mobileLabel: 'Tasks', icon: <Settings size={16} /> },
           { id: 'rewards', label: 'Team Rewards', mobileLabel: 'Rewards', icon: <Trophy size={16} /> },
           { id: 'attendance', label: 'Attendance & Leave', mobileLabel: 'Leave', icon: <CalendarCheck size={16} /> },
           { id: 'personal', label: 'My KPIs & Points', mobileLabel: 'My KPIs', icon: <BarChart3 size={16} /> },

@@ -63,6 +63,17 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
     setLoading(true);
     setMsg('');
     try {
+      if (mode === 'admin') {
+        const { data: pLeave } = await supabase
+          .from('leave_requests')
+          .select('*, users(full_name, email, role)')
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false });
+        setPendingLeaves((pLeave || []) as LeaveRequest[]);
+        setPendingAttendance([]);
+        return;
+      }
+
       const [balRes, yearSumRes, monthSumRes, yearLeaveRes, monthLeaveRes, attRes, leaveRes] = await Promise.all([
         supabase.rpc('get_leave_balance', { p_user_id: userId }),
         supabase.rpc('get_my_attendance_summary', { p_year: selectedYear, p_month: null }),
@@ -97,45 +108,29 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
         setTeamMembers((reports || []) as Profile[]);
         if (reports?.[0] && !markUserId) setMarkUserId(reports[0].id);
 
-        const ids = [userId, ...(reports || []).map((r: Profile) => r.id)];
-        const { data: pAtt } = await supabase
-          .from('attendance_records')
-          .select('*, users(full_name, email)')
-          .in('user_id', ids)
-          .neq('user_id', userId)
-          .eq('approval_status', 'pending')
-          .order('attendance_date', { ascending: false });
-        setPendingAttendance((pAtt || []) as AttendanceRecord[]);
+        const reportIds = (reports || []).map((r: Profile) => r.id);
+        if (reportIds.length > 0) {
+          const { data: pAtt } = await supabase
+            .from('attendance_records')
+            .select('*, users(full_name, email)')
+            .in('user_id', reportIds)
+            .eq('approval_status', 'pending')
+            .order('attendance_date', { ascending: false });
+          setPendingAttendance((pAtt || []) as AttendanceRecord[]);
 
-        const { data: pLeave } = await supabase
-          .from('leave_requests')
-          .select('*, users(full_name, email, role)')
-          .in('user_id', ids)
-          .eq('status', 'pending')
-          .order('created_at', { ascending: false });
-        setPendingLeaves((pLeave || []) as LeaveRequest[]);
+          const { data: pLeave } = await supabase
+            .from('leave_requests')
+            .select('*, users(full_name, email, role)')
+            .in('user_id', reportIds)
+            .eq('status', 'pending')
+            .order('created_at', { ascending: false });
+          setPendingLeaves((pLeave || []) as LeaveRequest[]);
+        } else {
+          setPendingAttendance([]);
+          setPendingLeaves([]);
+        }
       }
 
-      if (mode === 'admin') {
-        const { data: allUsers } = await supabase.rpc('get_all_users_admin');
-        const list = ((allUsers || []) as Profile[]).filter((u) => u.role !== 'admin');
-        setTeamMembers(list);
-        if (list[0] && !markUserId) setMarkUserId(list[0].id);
-
-        const { data: pAtt } = await supabase
-          .from('attendance_records')
-          .select('*, users(full_name, email)')
-          .eq('approval_status', 'pending')
-          .order('attendance_date', { ascending: false });
-        setPendingAttendance((pAtt || []) as AttendanceRecord[]);
-
-        const { data: pLeave } = await supabase
-          .from('leave_requests')
-          .select('*, users(full_name, email, role)')
-          .eq('status', 'pending')
-          .order('created_at', { ascending: false });
-        setPendingLeaves((pLeave || []) as LeaveRequest[]);
-      }
     } catch (e: unknown) {
       setMsg(e instanceof Error ? e.message : 'Failed to load attendance data');
     } finally {
@@ -152,7 +147,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
     setSubmitting(false);
     if (error) setMsg(error.message);
     else {
-      setMsg('Check-in submitted — waiting for manager/admin approval.');
+      setMsg('Check-in submitted — waiting for manager approval.');
       load();
     }
   };
@@ -249,6 +244,45 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const checkedInToday = myAttendance.some((a) => a.attendance_date === todayStr);
+
+  if (mode === 'admin') {
+    return (
+      <div className="rewards-page animate-fade-in">
+        {msg && (
+          <div className={`rewards-toast ${msg.includes('Failed') || msg.includes('error') ? 'rewards-toast--error' : 'rewards-toast--success'}`}>
+            {msg}
+          </div>
+        )}
+        <div className="glass-panel rewards-section">
+          <h3 className="rewards-section-title">Leave request approvals</h3>
+          <p className="rewards-section-desc">
+            Approve or reject leave requests from employees and managers. Employee leave approved by a manager does not require admin approval.
+          </p>
+          {pendingLeaves.length === 0 ? (
+            <div className="rewards-empty">No pending leave requests.</div>
+          ) : (
+            pendingLeaves.map((r) => {
+              const u = (r as LeaveRequest & { users?: { full_name: string; role: string } }).users;
+              return (
+                <div key={r.id} className="redemption-row redemption-row--pending" style={{ marginBottom: '0.5rem' }}>
+                  <div className="redemption-info">
+                    <strong>{u?.full_name}</strong>
+                    <span style={{ marginLeft: '0.5rem', fontSize: '0.75rem', textTransform: 'capitalize' }}>({u?.role})</span>
+                    <span>{LEAVE_TYPE_LABEL[r.leave_type]} · {r.start_date} → {r.end_date} ({r.days_count} days)</span>
+                    {r.reason && <span style={{ display: 'block', fontSize: '0.75rem' }}>{r.reason}</span>}
+                  </div>
+                  <div className="redemption-actions">
+                    <button className="btn btn-primary btn-sm" onClick={() => reviewLeave(r.id, true)}>Approve</button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => reviewLeave(r.id, false)}>Reject</button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="rewards-page animate-fade-in">
@@ -364,7 +398,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
         <div className="glass-panel rewards-section">
           <h3 className="rewards-section-title"><UserCheck size={20} /> Daily Attendance</h3>
           <p className="rewards-section-desc">
-            Check in each working day. Your manager{mode === 'manager' ? ' or admin' : ''} approves attendance records.
+            Check in each working day. Your {mode === 'manager' ? 'admin' : 'manager'} approves attendance records.
           </p>
           <button
             className="btn btn-primary"
@@ -387,7 +421,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
         ) : mode === 'employee' ? (
           <p className="rewards-section-desc">
             <Mail size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} />
-            Your manager will receive an <strong>email notification</strong> and can approve from their dashboard.
+            Your manager will receive an <strong>email notification</strong> and can approve from their dashboard. Manager approval is final — you do not need admin approval.
           </p>
         ) : null}
         <form onSubmit={submitLeave} className="responsive-grid-wide" style={{ gap: '1rem', marginTop: '0.75rem' }}>
@@ -414,8 +448,8 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
         </form>
       </div>
 
-      {/* Manager/Admin: mark team attendance */}
-      {(mode === 'manager' || mode === 'admin') && (
+      {/* Manager: mark team attendance & approve employee leave */}
+      {mode === 'manager' && (
         <div className="glass-panel rewards-section">
           <h3 className="rewards-section-title"><Users size={20} /> Mark Team Attendance</h3>
           <div className="responsive-grid-wide" style={{ gap: '1rem' }}>
@@ -448,16 +482,37 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
         </div>
       )}
 
-      {/* Pending approvals */}
-      {(mode === 'manager' || mode === 'admin') && (
+      {mode === 'manager' && (
         <div className="glass-panel rewards-section">
-          <h3 className="rewards-section-title">
-            {mode === 'admin' ? 'Leave & attendance approvals' : 'Team leave & attendance approvals'}
-          </h3>
-          {pendingAttendance.length === 0 && pendingLeaves.length === 0 ? (
-            <div className="rewards-empty">No pending approvals.</div>
+          <h3 className="rewards-section-title">Employee leave approvals</h3>
+          <p className="rewards-section-desc">Review and approve leave requests from your team. Your approval is sufficient — employees do not need admin approval.</p>
+          {pendingLeaves.length === 0 ? (
+            <div className="rewards-empty">No pending employee leave requests.</div>
           ) : (
-            <>
+            pendingLeaves.map((r) => {
+              const u = (r as LeaveRequest & { users?: { full_name: string; role: string } }).users;
+              if (u?.role === 'manager') return null;
+              return (
+                <div key={r.id} className="redemption-row redemption-row--pending" style={{ marginBottom: '0.5rem' }}>
+                  <div className="redemption-info">
+                    <strong>{u?.full_name}</strong>
+                    <span>{LEAVE_TYPE_LABEL[r.leave_type]} · {r.start_date} → {r.end_date} ({r.days_count} days)</span>
+                    {r.reason && <span style={{ display: 'block', fontSize: '0.75rem' }}>{r.reason}</span>}
+                  </div>
+                  <div className="redemption-actions">
+                    <button className="btn btn-primary btn-sm" onClick={() => reviewLeave(r.id, true)}>Approve</button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => reviewLeave(r.id, false)}>Reject</button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {mode === 'manager' && pendingAttendance.length > 0 && (
+        <div className="glass-panel rewards-section">
+          <h3 className="rewards-section-title">Employee attendance approvals</h3>
           {pendingAttendance.map((r) => (
             <div key={r.id} className="redemption-row redemption-row--pending" style={{ marginBottom: '0.5rem' }}>
               <div className="redemption-info">
@@ -470,26 +525,6 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
               </div>
             </div>
           ))}
-          {pendingLeaves.map((r) => {
-            const u = (r as LeaveRequest & { users?: { full_name: string; role: string } }).users;
-            const managerLeave = u?.role === 'manager';
-            if (mode === 'manager' && managerLeave) return null;
-            return (
-              <div key={r.id} className="redemption-row redemption-row--pending" style={{ marginBottom: '0.5rem' }}>
-                <div className="redemption-info">
-                  <strong>{u?.full_name}</strong>
-                  <span>{LEAVE_TYPE_LABEL[r.leave_type]} · {r.start_date} → {r.end_date} ({r.days_count} days)</span>
-                  {r.reason && <span style={{ display: 'block', fontSize: '0.75rem' }}>{r.reason}</span>}
-                </div>
-                <div className="redemption-actions">
-                  <button className="btn btn-primary btn-sm" onClick={() => reviewLeave(r.id, true)}>Approve</button>
-                  <button className="btn btn-secondary btn-sm" onClick={() => reviewLeave(r.id, false)}>Reject</button>
-                </div>
-              </div>
-            );
-          })}
-            </>
-          )}
         </div>
       )}
 
