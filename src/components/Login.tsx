@@ -5,9 +5,11 @@ import BrandLogo from './BrandLogo';
 
 interface LoginProps {
   onLoginSuccess: (session: any) => void;
+  /** When true, renders only the card (for embedding in landing page). */
+  embedded?: boolean;
 }
 
-export default function Login({ onLoginSuccess }: LoginProps) {
+export default function Login({ onLoginSuccess, embedded = false }: LoginProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -65,9 +67,8 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     }
   };
 
-  return (
-    <div className="login-page">
-      <div className="glass-panel login-card animate-fade-in">
+  const card = (
+      <div className={`glass-panel login-card animate-fade-in ${embedded ? 'login-card--embedded' : ''}`}>
         
         <div className="login-brand">
           <BrandLogo variant="login" alt="Scorr — scorr.walfia.ai" />
@@ -182,6 +183,13 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         </div>
 
       </div>
+  );
+
+  if (embedded) return card;
+
+  return (
+    <div className="login-page">
+      {card}
     </div>
   );
 }

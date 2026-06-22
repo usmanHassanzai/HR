@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { Profile } from './utils/kpiHelpers';
-import Login from './components/Login';
+import LandingPage from './components/LandingPage';
 import Header from './components/Header';
 import EmployeeDashboard from './components/EmployeeDashboard';
 import ManagerDashboard from './components/ManagerDashboard';
@@ -127,11 +127,7 @@ function App() {
 
   // Not Authenticated View
   if (!session || !profile) {
-    return (
-      <div className="dashboard-container">
-        <Login onLoginSuccess={(activeSession) => setSession(activeSession)} />
-      </div>
-    );
+    return <LandingPage onLoginSuccess={(activeSession) => setSession(activeSession)} />;
   }
 
   // Authenticated Dashboard Views
