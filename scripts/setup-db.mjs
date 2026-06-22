@@ -76,6 +76,11 @@ async function main() {
     END $$;
     DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 
+    -- Drop attendance & leave tables
+    DROP TABLE IF EXISTS public.leave_requests CASCADE;
+    DROP TABLE IF EXISTS public.attendance_records CASCADE;
+    DROP TABLE IF EXISTS public.leave_balances CASCADE;
+
     -- Drop rewards tables first (reference public.users)
     DROP TABLE IF EXISTS public.reward_redemptions CASCADE;
     DROP TABLE IF EXISTS public.rewards_catalog    CASCADE;
@@ -109,6 +114,19 @@ async function main() {
     DROP FUNCTION IF EXISTS public.calculate_monthly_points(DATE) CASCADE;
     DROP FUNCTION IF EXISTS public.get_points_leaderboard() CASCADE;
     DROP FUNCTION IF EXISTS public.notify_manager_on_redemption() CASCADE;
+
+    DROP FUNCTION IF EXISTS public.review_leave_request(UUID, BOOLEAN, TEXT) CASCADE;
+    DROP FUNCTION IF EXISTS public.submit_leave_request(public.leave_type, DATE, DATE, TEXT) CASCADE;
+    DROP FUNCTION IF EXISTS public.review_attendance(UUID, BOOLEAN, TEXT) CASCADE;
+    DROP FUNCTION IF EXISTS public.mark_attendance(UUID, DATE, public.attendance_status, TEXT) CASCADE;
+    DROP FUNCTION IF EXISTS public.check_in_attendance(DATE) CASCADE;
+    DROP FUNCTION IF EXISTS public.get_my_attendance_summary(INTEGER) CASCADE;
+    DROP FUNCTION IF EXISTS public.get_leave_balance(UUID) CASCADE;
+    DROP FUNCTION IF EXISTS public.ensure_leave_balance(UUID, INTEGER) CASCADE;
+    DROP FUNCTION IF EXISTS public.count_weekdays(DATE, DATE) CASCADE;
+    DROP TYPE IF EXISTS public.leave_type CASCADE;
+    DROP TYPE IF EXISTS public.approval_status CASCADE;
+    DROP TYPE IF EXISTS public.attendance_status CASCADE;
 
     -- Drop enums
     DROP TYPE IF EXISTS user_role          CASCADE;

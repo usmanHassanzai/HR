@@ -4,9 +4,10 @@ import { Profile } from '../utils/kpiHelpers';
 import Leaderboard from './Leaderboard';
 import EmployeeDashboard from './EmployeeDashboard';
 import ManagerKpiConfig from './ManagerKpiConfig';
-import { Users, BarChart3, ShieldAlert, KeyRound, Trophy, Settings } from 'lucide-react';
+import { Users, BarChart3, ShieldAlert, KeyRound, Trophy, Settings, CalendarCheck } from 'lucide-react';
 import ChangePasswordModal from './ChangePasswordModal';
 import ManagerRewardsPanel from './ManagerRewardsPanel';
+import AttendanceLeavePanel from './AttendanceLeavePanel';
 import DashboardTabNav from './DashboardTabNav';
 
 interface ManagerDashboardProps {
@@ -15,7 +16,7 @@ interface ManagerDashboardProps {
 
 export default function ManagerDashboard({ profile }: ManagerDashboardProps) {
   const [selectedEmployee, setSelectedEmployee] = useState<Profile | null>(null);
-  const [activeTab, setActiveTab] = useState<'team' | 'kpis' | 'rewards' | 'personal'>('team');
+  const [activeTab, setActiveTab] = useState<'team' | 'kpis' | 'rewards' | 'personal' | 'attendance'>('team');
   const [alertCount, setAlertCount] = useState(0);
   const [showChangePassword, setShowChangePassword] = useState(false);
 
@@ -71,6 +72,7 @@ export default function ManagerDashboard({ profile }: ManagerDashboardProps) {
           { id: 'team', label: 'Team Performance', mobileLabel: 'Team', icon: <Users size={16} /> },
           { id: 'kpis', label: 'KPI Config', mobileLabel: 'KPIs', icon: <Settings size={16} /> },
           { id: 'rewards', label: 'Team Rewards', mobileLabel: 'Rewards', icon: <Trophy size={16} /> },
+          { id: 'attendance', label: 'Attendance & Leave', mobileLabel: 'Leave', icon: <CalendarCheck size={16} /> },
           { id: 'personal', label: 'My KPIs & Points', mobileLabel: 'My KPIs', icon: <BarChart3 size={16} /> },
         ]}
         actions={[
@@ -113,6 +115,8 @@ export default function ManagerDashboard({ profile }: ManagerDashboardProps) {
           <ManagerKpiConfig managerId={profile.id} />
         ) : activeTab === 'rewards' ? (
           <ManagerRewardsPanel managerId={profile.id} onGoToPersonal={() => setActiveTab('personal')} />
+        ) : activeTab === 'attendance' ? (
+          <AttendanceLeavePanel profile={profile} mode="manager" />
         ) : (
           <EmployeeDashboard profile={profile} hideChangePassword />
         )}

@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Profile, Kpi, calculateHealthScore } from '../utils/kpiHelpers';
 import TaskList from './TaskList';
-import { RefreshCw, BarChart2, Sparkles, Trophy, KeyRound, CheckCircle2 } from 'lucide-react';
+import { RefreshCw, BarChart2, Sparkles, Trophy, KeyRound, CheckCircle2, CalendarCheck } from 'lucide-react';
 import ExportButton from './ExportButton';
 import RewardsTab from './RewardsTab';
+import AttendanceLeavePanel from './AttendanceLeavePanel';
 import ChangePasswordModal from './ChangePasswordModal';
 import { emailKpiCompleted, emailKpiOverdue } from '../utils/kpiEmail';
 import DashboardTabNav from './DashboardTabNav';
@@ -23,7 +24,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
   const [kpis, setKpis] = useState<Kpi[]>([]);
   const [persistedHealthScore, setPersistedHealthScore] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'kpis' | 'rewards'>('kpis');
+  const [activeTab, setActiveTab] = useState<'kpis' | 'rewards' | 'attendance'>('kpis');
   const [showChangePassword, setShowChangePassword] = useState(false);
 
   const [completingId, setCompletingId] = useState<string | null>(null);
@@ -158,6 +159,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
           mobilePlacement={hideChangePassword ? 'inline' : 'bottom'}
           tabs={[
             { id: 'kpis', label: 'My KPIs', mobileLabel: 'KPIs', icon: <BarChart2 size={15} /> },
+            { id: 'attendance', label: 'Attendance & Leave', mobileLabel: 'Leave', icon: <CalendarCheck size={15} /> },
             { id: 'rewards', label: 'Rewards & Points', mobileLabel: 'Rewards', icon: <Trophy size={15} /> },
           ]}
           actions={
@@ -184,7 +186,11 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
         <RewardsTab userId={activeUser.id} viewerRole={profile.role === 'manager' ? 'manager' : 'employee'} />
       ) : null}
 
-      {activeTab !== 'rewards' && (
+      {activeTab === 'attendance' && !isReadOnly ? (
+        <AttendanceLeavePanel profile={profile} mode={profile.role === 'manager' ? 'manager' : 'employee'} />
+      ) : null}
+
+      {activeTab === 'kpis' && (
       <>
 
       {/* Health Dial Dashboard overview card */}
