@@ -6,6 +6,7 @@ import {
   LeaveBalance,
   LeaveRequest,
   PendingLeaveRequest,
+  PendingAttendanceRecord,
   AttendanceSummary,
   LeaveSummary,
   AttendanceStatus,
@@ -37,7 +38,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
   const [monthLeaveSummary, setMonthLeaveSummary] = useState<LeaveSummary | null>(null);
   const [myAttendance, setMyAttendance] = useState<AttendanceRecord[]>([]);
   const [myLeaves, setMyLeaves] = useState<LeaveRequest[]>([]);
-  const [pendingAttendance, setPendingAttendance] = useState<AttendanceRecord[]>([]);
+  const [pendingAttendance, setPendingAttendance] = useState<PendingAttendanceRecord[]>([]);
   const [pendingLeaves, setPendingLeaves] = useState<PendingLeaveRequest[]>([]);
   const [teamMembers, setTeamMembers] = useState<Profile[]>([]);
 
@@ -62,7 +63,10 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
 
   const fetchPendingLeaves = async (): Promise<PendingLeaveRequest[]> => {
     const { data, error } = await supabase.rpc('get_pending_leave_requests');
-    if (error) throw error;
+    if (error) {
+      console.warn('Pending leaves load failed:', error.message);
+      return [];
+    }
     return (data || []) as PendingLeaveRequest[];
   };
 
@@ -78,9 +82,9 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
 
       const [balRes, yearSumRes, monthSumRes, yearLeaveRes, monthLeaveRes, attRes, leaveRes] = await Promise.all([
         supabase.rpc('get_leave_balance', { p_user_id: userId }),
-        supabase.rpc('get_my_attendance_summary', { p_year: selectedYear, p_month: null }),
+        supabase.rpc('get_my_attendance_summary', { p_year: selectedYear }),
         supabase.rpc('get_my_attendance_summary', { p_year: selectedYear, p_month: selectedMonth }),
-        supabase.rpc('get_my_leave_summary', { p_year: selectedYear, p_month: null }),
+        supabase.rpc('get_my_leave_summary', { p_year: selectedYear }),
         supabase.rpc('get_my_leave_summary', { p_year: selectedYear, p_month: selectedMonth }),
         supabase
           .from('attendance_records')
@@ -97,6 +101,16 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
           .limit(20),
       ]);
 
+      const rpcError =
+        balRes.error?.message ||
+        yearSumRes.error?.message ||
+        monthSumRes.error?.message ||
+        yearLeaveRes.error?.message ||
+        monthLeaveRes.error?.message;
+      if (rpcError) throw new Error(rpcError);
+      if (attRes.error) throw new Error(attRes.error.message);
+      if (leaveRes.error) throw new Error(leaveRes.error.message);
+
       if (balRes.data?.[0]) setBalance(balRes.data[0] as LeaveBalance);
       if (yearSumRes.data?.[0]) setSummary(yearSumRes.data[0] as AttendanceSummary);
       if (monthSumRes.data?.[0]) setMonthlySummary(monthSumRes.data[0] as AttendanceSummary);
@@ -110,19 +124,8 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
         setTeamMembers((reports || []) as Profile[]);
         if (reports?.[0] && !markUserId) setMarkUserId(reports[0].id);
 
-        const reportIds = (reports || []).map((r: Profile) => r.id);
-        if (reportIds.length > 0) {
-          const { data: pAtt } = await supabase
-            .from('attendance_records')
-            .select('*, users(full_name, email)')
-            .in('user_id', reportIds)
-            .eq('approval_status', 'pending')
-            .order('attendance_date', { ascending: false });
-          setPendingAttendance((pAtt || []) as AttendanceRecord[]);
-        } else {
-          setPendingAttendance([]);
-        }
-
+        const { data: pAtt } = await supabase.rpc('get_pending_attendance_for_manager');
+        setPendingAttendance((pAtt || []) as PendingAttendanceRecord[]);
         setPendingLeaves(await fetchPendingLeaves());
       }
 
@@ -504,7 +507,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
           {pendingAttendance.map((r) => (
             <div key={r.id} className="redemption-row redemption-row--pending" style={{ marginBottom: '0.5rem' }}>
               <div className="redemption-info">
-                <strong>{(r as AttendanceRecord & { users?: { full_name: string } }).users?.full_name || 'Employee'}</strong>
+                <strong>{r.employee_name || 'Employee'}</strong>
                 <span>{r.attendance_date} · {ATTENDANCE_STATUS_LABEL[r.status]} · check-in</span>
               </div>
               <div className="redemption-actions">
