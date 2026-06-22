@@ -44,4 +44,15 @@ export async function emailLeaveRequestNotifications(payload: LeaveRequestEmailP
       `Hi ${payload.manager_name || 'Manager'},\n\n${payload.employee_name} has requested ${typeLabel}.\n\nDates: ${payload.start_date} to ${payload.end_date}\nDays: ${payload.days_count}${reasonLine}\n\nPlease review and approve in your Scorr manager dashboard under Attendance & Leave.`
     );
   }
+
+  const admins = payload.admin_recipients || [];
+  await Promise.all(
+    admins.map((admin) =>
+      sendKpiEmail(
+        admin.email,
+        `Leave request from ${payload.employee_name}`,
+        `Hi ${admin.name},\n\n${payload.employee_name} (Employee) has requested ${typeLabel}.\n\nDates: ${payload.start_date} to ${payload.end_date}\nDays: ${payload.days_count}${reasonLine}\n\nThe employee's manager can approve this in their dashboard. You can also view it under Leave Approvals in the admin dashboard.`
+      )
+    )
+  );
 }

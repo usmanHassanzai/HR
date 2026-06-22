@@ -5,6 +5,7 @@ import {
   AttendanceRecord,
   LeaveBalance,
   LeaveRequest,
+  PendingLeaveRequest,
   AttendanceSummary,
   LeaveSummary,
   AttendanceStatus,
@@ -37,7 +38,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
   const [myAttendance, setMyAttendance] = useState<AttendanceRecord[]>([]);
   const [myLeaves, setMyLeaves] = useState<LeaveRequest[]>([]);
   const [pendingAttendance, setPendingAttendance] = useState<AttendanceRecord[]>([]);
-  const [pendingLeaves, setPendingLeaves] = useState<LeaveRequest[]>([]);
+  const [pendingLeaves, setPendingLeaves] = useState<PendingLeaveRequest[]>([]);
   const [teamMembers, setTeamMembers] = useState<Profile[]>([]);
 
   const [leaveType, setLeaveType] = useState<LeaveType>('annual');
@@ -59,17 +60,18 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
   const monthLabel = new Date(selectedYear, selectedMonth - 1, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
   const canExportCsv = mode === 'employee' || mode === 'manager';
 
+  const fetchPendingLeaves = async (): Promise<PendingLeaveRequest[]> => {
+    const { data, error } = await supabase.rpc('get_pending_leave_requests');
+    if (error) throw error;
+    return (data || []) as PendingLeaveRequest[];
+  };
+
   const load = useCallback(async () => {
     setLoading(true);
     setMsg('');
     try {
       if (mode === 'admin') {
-        const { data: pLeave } = await supabase
-          .from('leave_requests')
-          .select('*, users(full_name, email, role)')
-          .eq('status', 'pending')
-          .order('created_at', { ascending: false });
-        setPendingLeaves((pLeave || []) as LeaveRequest[]);
+        setPendingLeaves(await fetchPendingLeaves());
         setPendingAttendance([]);
         return;
       }
@@ -117,18 +119,11 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
             .eq('approval_status', 'pending')
             .order('attendance_date', { ascending: false });
           setPendingAttendance((pAtt || []) as AttendanceRecord[]);
-
-          const { data: pLeave } = await supabase
-            .from('leave_requests')
-            .select('*, users(full_name, email, role)')
-            .in('user_id', reportIds)
-            .eq('status', 'pending')
-            .order('created_at', { ascending: false });
-          setPendingLeaves((pLeave || []) as LeaveRequest[]);
         } else {
           setPendingAttendance([]);
-          setPendingLeaves([]);
         }
+
+        setPendingLeaves(await fetchPendingLeaves());
       }
 
     } catch (e: unknown) {
@@ -261,23 +256,20 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
           {pendingLeaves.length === 0 ? (
             <div className="rewards-empty">No pending leave requests.</div>
           ) : (
-            pendingLeaves.map((r) => {
-              const u = (r as LeaveRequest & { users?: { full_name: string; role: string } }).users;
-              return (
-                <div key={r.id} className="redemption-row redemption-row--pending" style={{ marginBottom: '0.5rem' }}>
-                  <div className="redemption-info">
-                    <strong>{u?.full_name}</strong>
-                    <span style={{ marginLeft: '0.5rem', fontSize: '0.75rem', textTransform: 'capitalize' }}>({u?.role})</span>
-                    <span>{LEAVE_TYPE_LABEL[r.leave_type]} · {r.start_date} → {r.end_date} ({r.days_count} days)</span>
-                    {r.reason && <span style={{ display: 'block', fontSize: '0.75rem' }}>{r.reason}</span>}
-                  </div>
-                  <div className="redemption-actions">
-                    <button className="btn btn-primary btn-sm" onClick={() => reviewLeave(r.id, true)}>Approve</button>
-                    <button className="btn btn-secondary btn-sm" onClick={() => reviewLeave(r.id, false)}>Reject</button>
-                  </div>
+            pendingLeaves.map((r) => (
+              <div key={r.id} className="redemption-row redemption-row--pending" style={{ marginBottom: '0.5rem' }}>
+                <div className="redemption-info">
+                  <strong>{r.employee_name}</strong>
+                  <span style={{ marginLeft: '0.5rem', fontSize: '0.75rem', textTransform: 'capitalize' }}>({r.employee_role})</span>
+                  <span>{LEAVE_TYPE_LABEL[r.leave_type]} · {r.start_date} → {r.end_date} ({r.days_count} days)</span>
+                  {r.reason && <span style={{ display: 'block', fontSize: '0.75rem' }}>{r.reason}</span>}
                 </div>
-              );
-            })
+                <div className="redemption-actions">
+                  <button className="btn btn-primary btn-sm" onClick={() => reviewLeave(r.id, true)}><CheckCircle size={14} /> Approve</button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => reviewLeave(r.id, false)}><XCircle size={14} /> Reject</button>
+                </div>
+              </div>
+            ))
           )}
         </div>
       </div>
@@ -489,23 +481,19 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
           {pendingLeaves.length === 0 ? (
             <div className="rewards-empty">No pending employee leave requests.</div>
           ) : (
-            pendingLeaves.map((r) => {
-              const u = (r as LeaveRequest & { users?: { full_name: string; role: string } }).users;
-              if (u?.role === 'manager') return null;
-              return (
-                <div key={r.id} className="redemption-row redemption-row--pending" style={{ marginBottom: '0.5rem' }}>
-                  <div className="redemption-info">
-                    <strong>{u?.full_name}</strong>
-                    <span>{LEAVE_TYPE_LABEL[r.leave_type]} · {r.start_date} → {r.end_date} ({r.days_count} days)</span>
-                    {r.reason && <span style={{ display: 'block', fontSize: '0.75rem' }}>{r.reason}</span>}
-                  </div>
-                  <div className="redemption-actions">
-                    <button className="btn btn-primary btn-sm" onClick={() => reviewLeave(r.id, true)}>Approve</button>
-                    <button className="btn btn-secondary btn-sm" onClick={() => reviewLeave(r.id, false)}>Reject</button>
-                  </div>
+            pendingLeaves.map((r) => (
+              <div key={r.id} className="redemption-row redemption-row--pending" style={{ marginBottom: '0.5rem' }}>
+                <div className="redemption-info">
+                  <strong>{r.employee_name}</strong>
+                  <span>{LEAVE_TYPE_LABEL[r.leave_type]} · {r.start_date} → {r.end_date} ({r.days_count} days)</span>
+                  {r.reason && <span style={{ display: 'block', fontSize: '0.75rem' }}>{r.reason}</span>}
                 </div>
-              );
-            })
+                <div className="redemption-actions">
+                  <button className="btn btn-primary btn-sm" onClick={() => reviewLeave(r.id, true)}><CheckCircle size={14} /> Approve</button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => reviewLeave(r.id, false)}><XCircle size={14} /> Reject</button>
+                </div>
+              </div>
+            ))
           )}
         </div>
       )}

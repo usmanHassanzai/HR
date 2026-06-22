@@ -43,6 +43,21 @@ export interface AttendanceRecord {
   users?: { full_name: string; email: string };
 }
 
+export interface PendingLeaveRequest {
+  id: string;
+  user_id: string;
+  leave_type: LeaveType;
+  start_date: string;
+  end_date: string;
+  days_count: number;
+  reason: string | null;
+  status: ApprovalStatus;
+  created_at: string;
+  employee_name: string;
+  employee_email: string;
+  employee_role: string;
+}
+
 export interface LeaveRequest {
   id: string;
   user_id: string;

@@ -115,7 +115,7 @@ async function main() {
     DROP FUNCTION IF EXISTS public.get_points_leaderboard() CASCADE;
     DROP FUNCTION IF EXISTS public.notify_manager_on_redemption() CASCADE;
 
-    DROP FUNCTION IF EXISTS public.review_leave_request(UUID, BOOLEAN, TEXT) CASCADE;
+    DROP FUNCTION IF EXISTS public.get_pending_leave_requests() CASCADE;
     DROP FUNCTION IF EXISTS public.submit_leave_request(public.leave_type, DATE, DATE, TEXT) CASCADE;
     DROP FUNCTION IF EXISTS public.review_attendance(UUID, BOOLEAN, TEXT) CASCADE;
     DROP FUNCTION IF EXISTS public.mark_attendance(UUID, DATE, public.attendance_status, TEXT) CASCADE;
