@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { Profile } from './utils/kpiHelpers';
 import LandingPage from './components/LandingPage';
+import DemoModeBanner from './components/DemoModeBanner';
+import { applyBranding, loadBranding } from './lib/branding';
+import { isDemoProfile } from './utils/demoMode';
 import Header from './components/Header';
 import EmployeeDashboard from './components/EmployeeDashboard';
 import ManagerDashboard from './components/ManagerDashboard';
@@ -34,6 +37,7 @@ function App() {
       } else {
         setProfile(data);
         setError('');
+        applyBranding(loadBranding(isDemoProfile(data)));
       }
     } catch (err: any) {
       setError(err.message || 'Error loading profile data.');
@@ -69,9 +73,20 @@ function App() {
     };
   }, []);
 
+  const handleLoginSuccess = async (activeSession: any) => {
+    setSession(activeSession);
+    setLoading(true);
+    setError('');
+    if (activeSession?.user?.id) {
+      await fetchUserProfile(activeSession.user.id);
+    }
+    setLoading(false);
+  };
+
   const handleLogout = () => {
     setSession(null);
     setProfile(null);
+    applyBranding(loadBranding(false));
   };
 
   if (!isSupabaseConfigured) {
@@ -127,12 +142,13 @@ function App() {
 
   // Not Authenticated View
   if (!session || !profile) {
-    return <LandingPage onLoginSuccess={(activeSession) => setSession(activeSession)} />;
+    return <LandingPage onLoginSuccess={handleLoginSuccess} />;
   }
 
   // Authenticated Dashboard Views
   return (
     <div className="dashboard-container">
+      {isDemoProfile(profile) && <DemoModeBanner />}
       {/* Mounted Layout Header */}
       <Header profile={profile} onLogout={handleLogout} />
 

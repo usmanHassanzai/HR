@@ -13,6 +13,7 @@ export interface Profile {
   previous_health_score?: number;
   health_score_updated_at?: string;
   created_at: string;
+  is_demo?: boolean;
 }
 
 export interface Kpi {

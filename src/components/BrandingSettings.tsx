@@ -3,8 +3,12 @@ import { Palette, RotateCcw, Check } from 'lucide-react';
 import { BrandingConfig, DEFAULT_BRANDING, DEFAULT_LOGO_URL, loadBranding, saveBranding, usesBundledWordmark } from '../lib/branding';
 import BrandLogo from './BrandLogo';
 
-export default function BrandingSettings() {
-  const [config, setConfig] = useState<BrandingConfig>(loadBranding());
+interface BrandingSettingsProps {
+  isDemo?: boolean;
+}
+
+export default function BrandingSettings({ isDemo = false }: BrandingSettingsProps) {
+  const [config, setConfig] = useState<BrandingConfig>(loadBranding(isDemo));
   const [saved, setSaved] = useState(false);
 
   const update = (patch: Partial<BrandingConfig>) => {
@@ -13,14 +17,14 @@ export default function BrandingSettings() {
   };
 
   const handleSave = () => {
-    saveBranding(config);
+    saveBranding(config, isDemo);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   };
 
   const handleReset = () => {
     setConfig({ ...DEFAULT_BRANDING });
-    saveBranding({ ...DEFAULT_BRANDING });
+    saveBranding({ ...DEFAULT_BRANDING }, isDemo);
   };
 
   return (
@@ -30,6 +34,11 @@ export default function BrandingSettings() {
           <Palette size={18} style={{ color: 'var(--accent-primary)' }} />
           <h3 style={{ margin: 0 }}>White-Label Branding</h3>
         </div>
+        {isDemo && (
+          <p style={{ fontSize: '0.82rem', color: 'var(--color-warning)', marginBottom: '1rem', padding: '0.65rem 0.85rem', background: 'var(--color-warning-bg)', borderRadius: 'var(--border-radius-sm)' }}>
+            Demo branding is saved separately and does not change production settings.
+          </p>
+        )}
 
         <div className="form-group">
           <label>Brand Name</label>

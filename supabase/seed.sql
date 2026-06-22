@@ -98,6 +98,10 @@ FROM public.users AS manager
 WHERE employee.email = 'employee@walfia.ai'
   AND manager.email = 'manager@walfia.ai';
 
+-- 3b. Mark demo accounts as sandbox-only (isolated from production users)
+UPDATE public.users SET is_demo = true
+WHERE email IN ('admin@walfia.ai', 'manager@walfia.ai', 'employee@walfia.ai');
+
 -- 4. Seed KPI tasks for Jim Halpert (Employee) — manager-assigned style with dates
 INSERT INTO public.kpis (id, user_id, name, description, target_value, current_value, direction, weight, category, department, start_date, end_date, completion_status, status)
 VALUES

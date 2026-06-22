@@ -29,6 +29,11 @@ export const DEFAULT_BRANDING: BrandingConfig = {
 };
 
 const STORAGE_KEY = 'scorr-branding';
+const DEMO_STORAGE_KEY = 'scorr-branding-demo';
+
+export function getBrandingStorageKey(isDemo = false): string {
+  return isDemo ? DEMO_STORAGE_KEY : STORAGE_KEY;
+}
 
 /** Resolve logo URL — empty string falls back to bundled asset. */
 export function resolveLogoUrl(url?: string): string {
@@ -46,10 +51,11 @@ export function usesBundledWordmark(config: Pick<BrandingConfig, 'logoUrl'>): bo
   );
 }
 
-export function loadBranding(): BrandingConfig {
+export function loadBranding(isDemo = false): BrandingConfig {
   try {
-    let raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) raw = localStorage.getItem('walfia-branding'); // legacy key
+    const key = getBrandingStorageKey(isDemo);
+    let raw = localStorage.getItem(key);
+    if (!raw && !isDemo) raw = localStorage.getItem('walfia-branding'); // legacy key
     if (!raw) return { ...DEFAULT_BRANDING };
     const parsed = { ...DEFAULT_BRANDING, ...JSON.parse(raw) };
     // Auto-migrate pre-Scorr branding
@@ -71,8 +77,8 @@ export function loadBranding(): BrandingConfig {
   }
 }
 
-export function saveBranding(config: BrandingConfig): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+export function saveBranding(config: BrandingConfig, isDemo = false): void {
+  localStorage.setItem(getBrandingStorageKey(isDemo), JSON.stringify(config));
   applyBranding(config);
   // Notify listeners (e.g. Header) within the same tab.
   window.dispatchEvent(new CustomEvent('branding-updated', { detail: config }));

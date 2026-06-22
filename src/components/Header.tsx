@@ -4,6 +4,7 @@ import { Profile } from '../utils/kpiHelpers';
 import NotificationCenter from './NotificationCenter';
 import { LogOut, User, Shield, Briefcase } from 'lucide-react';
 import { BrandingConfig, loadBranding, usesBundledWordmark } from '../lib/branding';
+import { isDemoProfile } from '../utils/demoMode';
 import BrandLogo from './BrandLogo';
 
 interface HeaderProps {
@@ -13,7 +14,12 @@ interface HeaderProps {
 }
 
 export default function Header({ profile, onLogout, onNavigateHome }: HeaderProps) {
-  const [branding, setBranding] = useState<BrandingConfig>(loadBranding());
+  const demoMode = isDemoProfile(profile);
+  const [branding, setBranding] = useState<BrandingConfig>(loadBranding(demoMode));
+
+  useEffect(() => {
+    setBranding(loadBranding(demoMode));
+  }, [demoMode]);
 
   useEffect(() => {
     const handler = (e: Event) => setBranding((e as CustomEvent<BrandingConfig>).detail);

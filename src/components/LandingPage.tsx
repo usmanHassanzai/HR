@@ -326,7 +326,7 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
             <div className="landing-section__eyebrow">Get Started</div>
             <h2 className="landing-section__title" style={{ textAlign: 'left' }}>Sign in to Scorr</h2>
             <p style={{ marginBottom: '1.5rem' }}>
-              Access your dashboard at <strong style={{ color: 'var(--landing-accent)' }}>scorr.walfia.ai</strong>. Use demo accounts below to explore each role instantly.
+              Access your dashboard at <strong style={{ color: 'var(--landing-accent)' }}>scorr.walfia.ai</strong>. Use the demo buttons in the sign-in panel to explore each role — demo data only, never real production users.
             </p>
             <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
               {['Employee — KPIs, attendance & rewards', 'Manager — assign tasks, approve leave', 'Admin — users, reports & branding'].map((t) => (
@@ -337,7 +337,7 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
             </ul>
           </div>
           <div className="landing-login-card-wrap landing-reveal landing-reveal--delay-2">
-            <Login onLoginSuccess={onLoginSuccess} embedded />
+            <Login onLoginSuccess={onLoginSuccess} embedded showDemoShortcuts />
           </div>
         </div>
       </section>

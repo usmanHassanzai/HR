@@ -9,6 +9,7 @@ import AdminRewards from './AdminRewards';
 import AttendanceLeavePanel from './AttendanceLeavePanel';
 import AdminResetPasswordModal from './AdminResetPasswordModal';
 import DashboardTabNav from './DashboardTabNav';
+import { isDemoProfile } from '../utils/demoMode';
 
 interface AdminDashboardProps {
   profile: Profile;
@@ -77,6 +78,10 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isDemoProfile(profile)) {
+      setUserFormMsg({ type: 'error', text: 'Demo admin cannot create production users. Sign in with a real admin account.' });
+      return;
+    }
     if (!email || !password || !fullName) {
       setUserFormMsg({ type: 'error', text: 'All fields are required.' });
       return;
@@ -252,7 +257,7 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
       ) : activeTab === 'analytics' ? (
         <Analytics title="Organization-Wide Analytics" />
       ) : activeTab === 'branding' ? (
-        <BrandingSettings />
+        <BrandingSettings isDemo={isDemoProfile(profile)} />
       ) : activeTab === 'rewards' ? (
         <AdminRewards />
       ) : activeTab === 'attendance' ? (
@@ -325,8 +330,17 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
             )}
           </div>
 
-          {/* Add User Form */}
+          {/* Add User Form — production admins only */}
           <div className="glass-panel" style={{ flex: 1, height: 'fit-content' }}>
+            {isDemoProfile(profile) ? (
+              <>
+                <h3 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-display)', marginBottom: '0.75rem' }}>Production user setup</h3>
+                <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                  Demo admin can only manage the 3 sandbox accounts shown in the directory. To add real employees, sign in with your production admin account.
+                </p>
+              </>
+            ) : (
+              <>
             <h3 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-display)', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <UserPlus size={20} /> Add New User
             </h3>
@@ -407,6 +421,8 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
                 {userFormLoading ? <Loader2 size={16} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} /> : 'Register User'}
               </button>
             </form>
+              </>
+            )}
           </div>
 
         </div>
