@@ -120,7 +120,9 @@ async function main() {
     DROP FUNCTION IF EXISTS public.review_attendance(UUID, BOOLEAN, TEXT) CASCADE;
     DROP FUNCTION IF EXISTS public.mark_attendance(UUID, DATE, public.attendance_status, TEXT) CASCADE;
     DROP FUNCTION IF EXISTS public.check_in_attendance(DATE) CASCADE;
+    DROP FUNCTION IF EXISTS public.get_my_leave_summary(INTEGER, INTEGER) CASCADE;
     DROP FUNCTION IF EXISTS public.get_my_attendance_summary(INTEGER) CASCADE;
+    DROP FUNCTION IF EXISTS public.get_my_attendance_summary(INTEGER, INTEGER) CASCADE;
     DROP FUNCTION IF EXISTS public.get_leave_balance(UUID) CASCADE;
     DROP FUNCTION IF EXISTS public.ensure_leave_balance(UUID, INTEGER) CASCADE;
     DROP FUNCTION IF EXISTS public.count_weekdays(DATE, DATE) CASCADE;

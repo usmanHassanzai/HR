@@ -6,6 +6,7 @@ import {
   LeaveBalance,
   LeaveRequest,
   AttendanceSummary,
+  LeaveSummary,
   AttendanceStatus,
   LeaveType,
   ATTENDANCE_STATUS_LABEL,
@@ -13,9 +14,11 @@ import {
   APPROVAL_LABEL,
   approvalBadgeClass,
 } from '../utils/attendanceHelpers';
+import { emailLeaveRequestNotifications } from '../utils/attendanceEmail';
+import { downloadAttendanceCsv } from '../utils/exportAttendance';
 import {
   CalendarCheck, Clock, Loader2, CheckCircle, XCircle, Palmtree, Thermometer,
-  UserCheck, Users,
+  UserCheck, Users, Download, Mail,
 } from 'lucide-react';
 
 interface AttendanceLeavePanelProps {
@@ -28,6 +31,9 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
   const [msg, setMsg] = useState('');
   const [balance, setBalance] = useState<LeaveBalance | null>(null);
   const [summary, setSummary] = useState<AttendanceSummary | null>(null);
+  const [monthlySummary, setMonthlySummary] = useState<AttendanceSummary | null>(null);
+  const [yearLeaveSummary, setYearLeaveSummary] = useState<LeaveSummary | null>(null);
+  const [monthLeaveSummary, setMonthLeaveSummary] = useState<LeaveSummary | null>(null);
   const [myAttendance, setMyAttendance] = useState<AttendanceRecord[]>([]);
   const [myLeaves, setMyLeaves] = useState<LeaveRequest[]>([]);
   const [pendingAttendance, setPendingAttendance] = useState<AttendanceRecord[]>([]);
@@ -44,21 +50,32 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
   const [markDate, setMarkDate] = useState(new Date().toISOString().slice(0, 10));
   const [markStatus, setMarkStatus] = useState<AttendanceStatus>('present');
 
+  const now = new Date();
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
+  const [exporting, setExporting] = useState(false);
+
   const userId = profile.id;
+  const monthLabel = new Date(selectedYear, selectedMonth - 1, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+  const canExportCsv = mode === 'employee' || mode === 'manager';
 
   const load = useCallback(async () => {
     setLoading(true);
     setMsg('');
     try {
-      const [balRes, sumRes, attRes, leaveRes] = await Promise.all([
+      const [balRes, yearSumRes, monthSumRes, yearLeaveRes, monthLeaveRes, attRes, leaveRes] = await Promise.all([
         supabase.rpc('get_leave_balance', { p_user_id: userId }),
-        supabase.rpc('get_my_attendance_summary'),
+        supabase.rpc('get_my_attendance_summary', { p_year: selectedYear, p_month: null }),
+        supabase.rpc('get_my_attendance_summary', { p_year: selectedYear, p_month: selectedMonth }),
+        supabase.rpc('get_my_leave_summary', { p_year: selectedYear, p_month: null }),
+        supabase.rpc('get_my_leave_summary', { p_year: selectedYear, p_month: selectedMonth }),
         supabase
           .from('attendance_records')
           .select('*')
           .eq('user_id', userId)
-          .order('attendance_date', { ascending: false })
-          .limit(30),
+          .gte('attendance_date', `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`)
+          .lte('attendance_date', `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${new Date(selectedYear, selectedMonth, 0).getDate()}`)
+          .order('attendance_date', { ascending: false }),
         supabase
           .from('leave_requests')
           .select('*')
@@ -68,7 +85,10 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
       ]);
 
       if (balRes.data?.[0]) setBalance(balRes.data[0] as LeaveBalance);
-      if (sumRes.data?.[0]) setSummary(sumRes.data[0] as AttendanceSummary);
+      if (yearSumRes.data?.[0]) setSummary(yearSumRes.data[0] as AttendanceSummary);
+      if (monthSumRes.data?.[0]) setMonthlySummary(monthSumRes.data[0] as AttendanceSummary);
+      if (yearLeaveRes.data?.[0]) setYearLeaveSummary(yearLeaveRes.data[0] as LeaveSummary);
+      if (monthLeaveRes.data?.[0]) setMonthLeaveSummary(monthLeaveRes.data[0] as LeaveSummary);
       setMyAttendance((attRes.data || []) as AttendanceRecord[]);
       setMyLeaves((leaveRes.data || []) as LeaveRequest[]);
 
@@ -121,7 +141,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
     } finally {
       setLoading(false);
     }
-  }, [userId, mode, markUserId]);
+  }, [userId, mode, markUserId, selectedYear, selectedMonth]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -142,7 +162,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
     if (!leaveStart || !leaveEnd) return;
     setSubmitting(true);
     setMsg('');
-    const { error } = await supabase.rpc('submit_leave_request', {
+    const { data, error } = await supabase.rpc('submit_leave_request', {
       p_leave_type: leaveType,
       p_start: leaveStart,
       p_end: leaveEnd,
@@ -151,7 +171,12 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
     setSubmitting(false);
     if (error) setMsg(error.message);
     else {
-      setMsg('Leave request submitted.');
+      if (data) await emailLeaveRequestNotifications(data);
+      setMsg(
+        profile.role === 'manager'
+          ? 'Leave request submitted — admins have been notified by email.'
+          : 'Leave request submitted — your manager has been notified by email.'
+      );
       setLeaveStart('');
       setLeaveEnd('');
       setLeaveReason('');
@@ -186,7 +211,32 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
   const reviewLeave = async (id: string, approve: boolean) => {
     const { error } = await supabase.rpc('review_leave_request', { p_request_id: id, p_approve: approve });
     if (error) setMsg(error.message);
-    else load();
+    else {
+      setMsg(approve ? 'Leave request approved.' : 'Leave request rejected.');
+      load();
+    }
+  };
+
+  const exportCsv = async () => {
+    setExporting(true);
+    try {
+      const lastDay = new Date(selectedYear, selectedMonth, 0).getDate();
+      const start = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
+      const end = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+      const { data, error } = await supabase
+        .from('attendance_records')
+        .select('*')
+        .eq('user_id', userId)
+        .gte('attendance_date', start)
+        .lte('attendance_date', end)
+        .order('attendance_date', { ascending: true });
+      if (error) throw error;
+      downloadAttendanceCsv((data || []) as AttendanceRecord[], profile.full_name, monthLabel);
+    } catch (e: unknown) {
+      setMsg(e instanceof Error ? e.message : 'CSV export failed');
+    } finally {
+      setExporting(false);
+    }
   };
 
   if (loading) {
@@ -205,6 +255,78 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
       {msg && (
         <div className={`rewards-toast ${msg.includes('Failed') || msg.includes('Not enough') || msg.includes('error') ? 'rewards-toast--error' : 'rewards-toast--success'}`}>
           {msg}
+        </div>
+      )}
+
+      {/* Period selector */}
+      <div className="glass-panel rewards-section" style={{ padding: '1rem 1.25rem' }}>
+        <div className="responsive-grid-wide" style={{ gap: '1rem', alignItems: 'end' }}>
+          <div className="form-group" style={{ margin: 0 }}>
+            <label>Month</label>
+            <select value={selectedMonth} onChange={(e) => setSelectedMonth(Number(e.target.value))}>
+              {Array.from({ length: 12 }, (_, i) => (
+                <option key={i + 1} value={i + 1}>
+                  {new Date(selectedYear, i, 1).toLocaleString('default', { month: 'long' })}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group" style={{ margin: 0 }}>
+            <label>Year</label>
+            <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}>
+              {[selectedYear - 1, selectedYear, selectedYear + 1].map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
+          {canExportCsv && (
+            <button type="button" className="btn btn-secondary" disabled={exporting} onClick={exportCsv}>
+              {exporting ? <Loader2 size={16} className="spin-icon" /> : <Download size={16} />}
+              Download CSV ({monthLabel})
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Monthly & yearly stats */}
+      {(monthlySummary || yearLeaveSummary) && (
+        <div className="rewards-stats-grid">
+          {monthlySummary && (
+            <>
+              <div className="stat-card stat-card--accent">
+                <CalendarCheck size={20} />
+                <div>
+                  <div className="stat-card-value">{monthlySummary.present_approved}</div>
+                  <div className="stat-card-label">Present days this month ({monthLabel})</div>
+                </div>
+              </div>
+              <div className="stat-card">
+                <CalendarCheck size={20} />
+                <div>
+                  <div className="stat-card-value">{monthlySummary.attendance_rate}%</div>
+                  <div className="stat-card-label">Monthly attendance rate</div>
+                </div>
+              </div>
+            </>
+          )}
+          {monthLeaveSummary && (
+            <div className="stat-card stat-card--warning">
+              <Palmtree size={20} />
+              <div>
+                <div className="stat-card-value">{monthLeaveSummary.total_days_taken}</div>
+                <div className="stat-card-label">Leave days taken this month</div>
+              </div>
+            </div>
+          )}
+          {yearLeaveSummary && (
+            <div className="stat-card">
+              <Thermometer size={20} />
+              <div>
+                <div className="stat-card-value">{yearLeaveSummary.total_days_taken}</div>
+                <div className="stat-card-label">Total leave days this year ({yearLeaveSummary.annual_days_taken} annual, {yearLeaveSummary.sick_days_taken} sick)</div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -257,9 +379,17 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
       {/* Request leave */}
       <div className="glass-panel rewards-section">
         <h3 className="rewards-section-title"><Palmtree size={20} /> Request Leave</h3>
-        {mode === 'manager' && (
-          <p className="rewards-section-desc">Manager leave requests are approved by <strong>Admin</strong> only.</p>
-        )}
+        {mode === 'manager' ? (
+          <p className="rewards-section-desc">
+            <Mail size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+            Manager leave requests are sent to <strong>admin email</strong> and approved in the admin dashboard.
+          </p>
+        ) : mode === 'employee' ? (
+          <p className="rewards-section-desc">
+            <Mail size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+            Your manager will receive an <strong>email notification</strong> and can approve from their dashboard.
+          </p>
+        ) : null}
         <form onSubmit={submitLeave} className="responsive-grid-wide" style={{ gap: '1rem', marginTop: '0.75rem' }}>
           <div className="form-group" style={{ margin: 0 }}>
             <label>Leave type</label>
@@ -319,9 +449,15 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
       )}
 
       {/* Pending approvals */}
-      {(mode === 'manager' || mode === 'admin') && (pendingAttendance.length > 0 || pendingLeaves.length > 0) && (
+      {(mode === 'manager' || mode === 'admin') && (
         <div className="glass-panel rewards-section">
-          <h3 className="rewards-section-title">Pending approvals</h3>
+          <h3 className="rewards-section-title">
+            {mode === 'admin' ? 'Leave & attendance approvals' : 'Team leave & attendance approvals'}
+          </h3>
+          {pendingAttendance.length === 0 && pendingLeaves.length === 0 ? (
+            <div className="rewards-empty">No pending approvals.</div>
+          ) : (
+            <>
           {pendingAttendance.map((r) => (
             <div key={r.id} className="redemption-row redemption-row--pending" style={{ marginBottom: '0.5rem' }}>
               <div className="redemption-info">
@@ -352,12 +488,14 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
               </div>
             );
           })}
+            </>
+          )}
         </div>
       )}
 
       {/* My attendance history */}
       <div className="glass-panel rewards-section">
-        <h3 className="rewards-section-title"><CalendarCheck size={20} /> My attendance (recent)</h3>
+        <h3 className="rewards-section-title"><CalendarCheck size={20} /> My attendance — {monthLabel}</h3>
         {myAttendance.length === 0 ? (
           <div className="rewards-empty">No attendance records yet.</div>
         ) : (

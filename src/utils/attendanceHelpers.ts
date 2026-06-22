@@ -21,6 +21,14 @@ export interface AttendanceSummary {
   attendance_rate: number;
 }
 
+export interface LeaveSummary {
+  annual_days_taken: number;
+  sick_days_taken: number;
+  approved_requests: number;
+  pending_requests: number;
+  total_days_taken: number;
+}
+
 export interface AttendanceRecord {
   id: string;
   user_id: string;
