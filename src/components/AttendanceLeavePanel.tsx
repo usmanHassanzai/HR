@@ -61,13 +61,69 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
   const monthLabel = new Date(selectedYear, selectedMonth - 1, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
   const canExportCsv = mode === 'employee' || mode === 'manager';
 
-  const fetchPendingLeaves = async (): Promise<PendingLeaveRequest[]> => {
-    const { data, error } = await supabase.rpc('get_pending_leave_requests');
+  const mapLeaveRows = (rows: LeaveRequest[], members: Profile[]): PendingLeaveRequest[] => {
+    const info = new Map(members.map((m) => [m.id, m]));
+    return rows.map((lr) => {
+      const person = info.get(lr.user_id);
+      return {
+        id: lr.id,
+        user_id: lr.user_id,
+        leave_type: lr.leave_type,
+        start_date: lr.start_date,
+        end_date: lr.end_date,
+        days_count: lr.days_count,
+        reason: lr.reason,
+        status: lr.status,
+        created_at: lr.created_at,
+        employee_name: person?.full_name || 'Employee',
+        employee_email: person?.email || '',
+        employee_role: person?.role || 'employee',
+      };
+    });
+  };
+
+  const loadPendingLeavesForManager = async (reports: Profile[]): Promise<PendingLeaveRequest[]> => {
+    const employeeReports = reports.filter((r) => r.role === 'employee');
+    const reportIds = employeeReports.map((r) => r.id);
+    if (reportIds.length === 0) return [];
+
+    const { data, error } = await supabase
+      .from('leave_requests')
+      .select('*')
+      .in('user_id', reportIds)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+
     if (error) {
-      console.warn('Pending leaves load failed:', error.message);
-      return [];
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_pending_leave_requests');
+      if (rpcError) throw new Error(rpcError.message);
+      return (rpcData || []) as PendingLeaveRequest[];
     }
-    return (data || []) as PendingLeaveRequest[];
+    return mapLeaveRows((data || []) as LeaveRequest[], employeeReports);
+  };
+
+  const loadPendingLeavesForAdmin = async (): Promise<PendingLeaveRequest[]> => {
+    const { data: users, error: usersErr } = await supabase.rpc('get_all_users_admin');
+    if (usersErr) throw new Error(usersErr.message);
+    const members = ((users || []) as Profile[]).filter((u) => u.role !== 'admin');
+
+    const { data, error } = await supabase
+      .from('leave_requests')
+      .select('*')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_pending_leave_requests');
+      if (rpcError) throw new Error(rpcError.message);
+      return (rpcData || []) as PendingLeaveRequest[];
+    }
+
+    const allowedIds = new Set(members.map((m) => m.id));
+    return mapLeaveRows(
+      ((data || []) as LeaveRequest[]).filter((lr) => allowedIds.has(lr.user_id)),
+      members
+    );
   };
 
   const load = useCallback(async () => {
@@ -75,7 +131,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
     setMsg('');
     try {
       if (mode === 'admin') {
-        setPendingLeaves(await fetchPendingLeaves());
+        setPendingLeaves(await loadPendingLeavesForAdmin());
         setPendingAttendance([]);
         return;
       }
@@ -120,13 +176,16 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
       setMyLeaves((leaveRes.data || []) as LeaveRequest[]);
 
       if (mode === 'manager') {
-        const { data: reports } = await supabase.rpc('get_direct_reports', { p_manager_id: userId });
-        setTeamMembers((reports || []) as Profile[]);
-        if (reports?.[0] && !markUserId) setMarkUserId(reports[0].id);
+        const { data: reports, error: reportsErr } = await supabase.rpc('get_direct_reports', { p_manager_id: userId });
+        if (reportsErr) throw new Error(reportsErr.message);
+
+        const team = (reports || []) as Profile[];
+        setTeamMembers(team);
+        if (team[0] && !markUserId) setMarkUserId(team[0].id);
 
         const { data: pAtt } = await supabase.rpc('get_pending_attendance_for_manager');
         setPendingAttendance((pAtt || []) as PendingAttendanceRecord[]);
-        setPendingLeaves(await fetchPendingLeaves());
+        setPendingLeaves(await loadPendingLeavesForManager(team));
       }
 
     } catch (e: unknown) {
@@ -202,7 +261,9 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
   };
 
   const reviewLeave = async (id: string, approve: boolean) => {
+    setSubmitting(true);
     const { error } = await supabase.rpc('review_leave_request', { p_request_id: id, p_approve: approve });
+    setSubmitting(false);
     if (error) setMsg(error.message);
     else {
       setMsg(approve ? 'Leave request approved.' : 'Leave request rejected.');
@@ -284,6 +345,46 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
       {msg && (
         <div className={`rewards-toast ${msg.includes('Failed') || msg.includes('Not enough') || msg.includes('error') ? 'rewards-toast--error' : 'rewards-toast--success'}`}>
           {msg}
+        </div>
+      )}
+
+      {/* Manager: employee leave approvals — shown first */}
+      {mode === 'manager' && (
+        <div className="glass-panel rewards-section" style={{ borderLeft: '4px solid var(--color-warning)' }}>
+          <h3 className="rewards-section-title">
+            <Palmtree size={20} /> Employee leave approvals
+            {pendingLeaves.length > 0 && (
+              <span className="badge badge-at-risk" style={{ marginLeft: '0.5rem', fontSize: '0.7rem' }}>
+                {pendingLeaves.length} pending
+              </span>
+            )}
+          </h3>
+          <p className="rewards-section-desc">
+            Approve or reject leave requests from your team. Your decision is final — employees do not need admin approval.
+          </p>
+          {teamMembers.filter((m) => m.role === 'employee').length === 0 ? (
+            <div className="rewards-empty">No employees assigned to you yet. Ask admin to link employees to your manager account.</div>
+          ) : pendingLeaves.length === 0 ? (
+            <div className="rewards-empty">No pending employee leave requests.</div>
+          ) : (
+            pendingLeaves.map((r) => (
+              <div key={r.id} className="redemption-row redemption-row--pending" style={{ marginBottom: '0.5rem' }}>
+                <div className="redemption-info">
+                  <strong>{r.employee_name}</strong>
+                  <span>{LEAVE_TYPE_LABEL[r.leave_type]} · {r.start_date} → {r.end_date} ({r.days_count} days)</span>
+                  {r.reason && <span style={{ display: 'block', fontSize: '0.75rem' }}>{r.reason}</span>}
+                </div>
+                <div className="redemption-actions">
+                  <button className="btn btn-primary btn-sm" disabled={submitting} onClick={() => reviewLeave(r.id, true)}>
+                    <CheckCircle size={14} /> Approve
+                  </button>
+                  <button className="btn btn-secondary btn-sm" disabled={submitting} onClick={() => reviewLeave(r.id, false)}>
+                    <XCircle size={14} /> Reject
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       )}
 
@@ -474,30 +575,6 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
               </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {mode === 'manager' && (
-        <div className="glass-panel rewards-section">
-          <h3 className="rewards-section-title">Employee leave approvals</h3>
-          <p className="rewards-section-desc">Review and approve leave requests from your team. Your approval is sufficient — employees do not need admin approval.</p>
-          {pendingLeaves.length === 0 ? (
-            <div className="rewards-empty">No pending employee leave requests.</div>
-          ) : (
-            pendingLeaves.map((r) => (
-              <div key={r.id} className="redemption-row redemption-row--pending" style={{ marginBottom: '0.5rem' }}>
-                <div className="redemption-info">
-                  <strong>{r.employee_name}</strong>
-                  <span>{LEAVE_TYPE_LABEL[r.leave_type]} · {r.start_date} → {r.end_date} ({r.days_count} days)</span>
-                  {r.reason && <span style={{ display: 'block', fontSize: '0.75rem' }}>{r.reason}</span>}
-                </div>
-                <div className="redemption-actions">
-                  <button className="btn btn-primary btn-sm" onClick={() => reviewLeave(r.id, true)}><CheckCircle size={14} /> Approve</button>
-                  <button className="btn btn-secondary btn-sm" onClick={() => reviewLeave(r.id, false)}><XCircle size={14} /> Reject</button>
-                </div>
-              </div>
-            ))
-          )}
         </div>
       )}
 
