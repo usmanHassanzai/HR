@@ -110,7 +110,4 @@ export function applyBranding(config: BrandingConfig): void {
   root.style.setProperty('--border-hover', `rgba(${rgb}, 0.4)`);
 
   document.title = `${config.brandName} — ${config.tagline}`;
-
-  const themeMeta = document.querySelector('meta[name="theme-color"]');
-  if (themeMeta) themeMeta.setAttribute('content', config.accentPrimary);
 }

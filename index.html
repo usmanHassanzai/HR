@@ -7,7 +7,8 @@
 
     <!-- Phase 3: PWA + native app metadata -->
     <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#121820" />
+    <meta name="theme-color" content="#0b1120" />
+    <meta name="color-scheme" content="light dark" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Scorr" />
@@ -16,6 +17,17 @@
     <title>Scorr — scorr.walfia.ai</title>
   </head>
   <body>
+    <script>
+      (function () {
+        try {
+          var pref = localStorage.getItem('scorr-theme');
+          var dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var theme = pref === 'light' || pref === 'dark' ? pref : (dark ? 'dark' : 'light');
+          document.documentElement.setAttribute('data-theme', theme);
+          if (pref) document.documentElement.setAttribute('data-theme-pref', pref);
+        } catch (e) {}
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

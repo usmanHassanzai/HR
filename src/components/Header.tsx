@@ -6,6 +6,7 @@ import { LogOut, User, Shield, Briefcase } from 'lucide-react';
 import { BrandingConfig, loadBranding, usesBundledWordmark } from '../lib/branding';
 import { isDemoProfile } from '../utils/demoMode';
 import BrandLogo from './BrandLogo';
+import ThemeToggle from './ThemeToggle';
 
 interface HeaderProps {
   profile: Profile;
@@ -89,6 +90,8 @@ export default function Header({ profile, onLogout, onNavigateHome }: HeaderProp
         </div>
 
         <div className="header-divider" />
+
+        <ThemeToggle compact />
 
         <NotificationCenter userId={profile.id} />
 

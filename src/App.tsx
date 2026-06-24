@@ -153,7 +153,7 @@ function App() {
       <Header profile={profile} onLogout={handleLogout} />
 
       {/* Role Dashboard Routing */}
-      <main style={{ marginTop: '1rem' }}>
+      <main className="dashboard-main" style={{ marginTop: '1rem' }}>
         {profile.role === 'admin' && <AdminDashboard profile={profile} />}
         {profile.role === 'manager' && <ManagerDashboard profile={profile} />}
         {profile.role === 'employee' && <EmployeeDashboard profile={profile} />}

@@ -88,20 +88,20 @@ export default function ManagerDashboard({ profile }: ManagerDashboardProps) {
 
       <div className="dashboard-tab-content">
         {activeTab === 'team' ? (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '2rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
-              <div className="glass-panel" style={{ borderLeft: '4px solid var(--accent-primary)', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Direct Reports</span>
-                <h3 style={{ fontSize: '1.8rem', fontFamily: 'var(--font-display)', margin: 0 }}>Team Overview</h3>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>View rankings and performance metrics for employees in your organization.</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem' }}>
+            <div className="dash-insight-grid">
+              <div className="glass-panel dash-insight-card dash-insight-card--accent">
+                <span className="dash-eyebrow">Direct reports</span>
+                <h3>Team Overview</h3>
+                <p>View rankings and performance metrics for employees in your organization.</p>
               </div>
-              
-              <div className="glass-panel" style={{ borderLeft: '4px solid var(--color-warning)', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>System Alert Status</span>
-                <h3 style={{ fontSize: '1.8rem', fontFamily: 'var(--font-display)', margin: 0, color: alertCount > 0 ? 'var(--color-warning)' : 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+
+              <div className="glass-panel dash-insight-card dash-insight-card--warning">
+                <span className="dash-eyebrow">System alert status</span>
+                <h3 style={{ color: alertCount > 0 ? 'var(--color-warning)' : 'var(--color-success)' }}>
                   <ShieldAlert size={24} /> {alertCount > 0 ? `${alertCount} Alert${alertCount > 1 ? 's' : ''} Active` : 'All Clear'}
                 </h3>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                <p>
                   {alertCount > 0
                     ? 'Off Track and escalation alerts require your attention in the notification menu.'
                     : 'No active Off Track or escalation alerts for your team.'}

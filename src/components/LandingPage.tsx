@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import Login from './Login';
+import ThemeToggle from './ThemeToggle';
 import ScorrWordmark from './ScorrWordmark';
 import {
   BarChart3, Trophy, CalendarCheck, Users, FileSpreadsheet, Bell,
@@ -125,6 +126,7 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
           <a href="#fees" onClick={(e) => { e.preventDefault(); scrollTo('fees'); }}>Billing</a>
         </div>
         <div className="landing-nav__cta">
+          <ThemeToggle />
           <button type="button" className="btn btn-secondary btn-sm" onClick={() => scrollTo('login')}>Sign In</button>
           <button type="button" className="btn btn-primary btn-sm" onClick={() => scrollTo('login')}>
             Get Started <ArrowRight size={14} />
@@ -234,7 +236,7 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
       </section>
 
       {/* How it works */}
-      <section id="how-it-works" className="landing-section landing-section--wide" style={{ background: 'rgba(30,40,56,0.4)' }}>
+      <section id="how-it-works" className="landing-section landing-section--wide landing-section--alt">
         <div className="landing-section__header landing-reveal">
           <div className="landing-section__eyebrow">Workflow</div>
           <h2 className="landing-section__title">How Scorr works</h2>

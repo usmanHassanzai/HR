@@ -266,46 +266,33 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
         <div className="responsive-grid-wide" style={{ gap: '2rem' }}>
           
           {/* User Directory List */}
-          <div className="glass-panel" style={{ flex: 2 }}>
-            <h3 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-display)', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
-              User Directory ({users.length})
-            </h3>
-            
+          <div className="glass-panel dash-panel" style={{ flex: 2 }}>
+            <h3 className="dash-panel-title">User Directory ({users.length})</h3>
+
             {loading ? (
-              <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
+              <div className="dash-loading">
                 <Loader2 className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '500px', overflowY: 'auto', paddingRight: '4px' }}>
+              <div className="dash-user-list">
                 {users.map(u => {
                   const userManager = users.find(m => m.id === u.manager_id);
                   return (
-                    <div 
-                      key={u.id}
-                      style={{
-                        padding: '0.85rem 1rem',
-                        background: 'rgba(255,255,255,0.02)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: 'var(--border-radius-sm)',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        gap: '1rem'
-                      }}
-                    >
+                    <div key={u.id} className="dash-user-row">
                       <div>
-                        <strong style={{ display: 'block', fontSize: '0.9rem' }}>{u.full_name}</strong>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{u.email}</span>
-                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '4px', alignItems: 'center' }}>
-                          <span className="badge badge-on-track" style={{ fontSize: '0.6rem', padding: '1px 6px' }}>{u.role}</span>
+                        <strong className="dash-user-row__name">{u.full_name}</strong>
+                        <span className="dash-user-row__email">{u.email}</span>
+                        <div className="dash-user-row__meta">
+                          <span className="badge badge-on-track" style={{ fontSize: '0.65rem', padding: '2px 8px' }}>{u.role}</span>
                           {userManager && (
-                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                               Reports to: {userManager.full_name}
                             </span>
                           )}
                         </div>
                       </div>
 
+                      <div className="dash-user-row__actions">
                       <button
                         className="btn btn-secondary"
                         onClick={() => setResetPasswordUser({ id: u.id, name: u.full_name })}
@@ -323,6 +310,7 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
                       >
                         <Trash2 size={14} />
                       </button>
+                      </div>
                     </div>
                   );
                 })}

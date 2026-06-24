@@ -19,13 +19,48 @@ import {
 import { emailLeaveRequestNotifications } from '../utils/attendanceEmail';
 import { downloadAttendanceCsv } from '../utils/exportAttendance';
 import {
-  CalendarCheck, Clock, Loader2, CheckCircle, XCircle, Palmtree, Thermometer,
-  UserCheck, Users, Download, Mail,
+  Clock, Loader2, CheckCircle, XCircle, Palmtree,
+  UserCheck, Users, Download, Inbox, History, ClipboardList,
 } from 'lucide-react';
+import '../styles/attendance.css';
 
 interface AttendanceLeavePanelProps {
   profile: Profile;
   mode: 'employee' | 'manager' | 'admin';
+}
+
+type EmployeeTab = 'today' | 'leave' | 'history';
+type ManagerTab = 'approvals' | 'today' | 'team';
+
+function Toast({ msg }: { msg: string }) {
+  if (!msg) return null;
+  const isError = /failed|error|not enough/i.test(msg);
+  return (
+    <div className={`rewards-toast ${isError ? 'rewards-toast--error' : 'rewards-toast--success'}`}>
+      {msg}
+    </div>
+  );
+}
+
+function ApprovalActions({
+  onApprove,
+  onReject,
+  disabled,
+}: {
+  onApprove: () => void;
+  onReject: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="attendance-approval-item__actions">
+      <button type="button" className="btn btn-primary btn-sm" disabled={disabled} onClick={onApprove}>
+        <CheckCircle size={14} /> Approve
+      </button>
+      <button type="button" className="btn btn-secondary btn-sm" disabled={disabled} onClick={onReject}>
+        <XCircle size={14} /> Reject
+      </button>
+    </div>
+  );
 }
 
 export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeavePanelProps) {
@@ -41,6 +76,9 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
   const [pendingAttendance, setPendingAttendance] = useState<PendingAttendanceRecord[]>([]);
   const [pendingLeaves, setPendingLeaves] = useState<PendingLeaveRequest[]>([]);
   const [teamMembers, setTeamMembers] = useState<Profile[]>([]);
+
+  const [employeeTab, setEmployeeTab] = useState<EmployeeTab>('today');
+  const [managerTab, setManagerTab] = useState<ManagerTab>('approvals');
 
   const [leaveType, setLeaveType] = useState<LeaveType>('annual');
   const [leaveStart, setLeaveStart] = useState('');
@@ -59,7 +97,9 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
 
   const userId = profile.id;
   const monthLabel = new Date(selectedYear, selectedMonth - 1, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
-  const canExportCsv = mode === 'employee' || mode === 'manager';
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const checkedInToday = myAttendance.some((a) => a.attendance_date === todayStr);
+  const pendingCount = pendingLeaves.length + pendingAttendance.length;
 
   const mapLeaveRows = (rows: LeaveRequest[], members: Profile[]): PendingLeaveRequest[] => {
     const info = new Map(members.map((m) => [m.id, m]));
@@ -187,7 +227,6 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
         setPendingAttendance((pAtt || []) as PendingAttendanceRecord[]);
         setPendingLeaves(await loadPendingLeavesForManager(team));
       }
-
     } catch (e: unknown) {
       setMsg(e instanceof Error ? e.message : 'Failed to load attendance data');
     } finally {
@@ -200,11 +239,11 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
   const checkInToday = async () => {
     setSubmitting(true);
     setMsg('');
-    const { error } = await supabase.rpc('check_in_attendance', { p_date: new Date().toISOString().slice(0, 10) });
+    const { error } = await supabase.rpc('check_in_attendance', { p_date: todayStr });
     setSubmitting(false);
     if (error) setMsg(error.message);
     else {
-      setMsg('Check-in submitted — waiting for manager approval.');
+      setMsg('Checked in! Waiting for approval.');
       load();
     }
   };
@@ -226,12 +265,14 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
       if (data) await emailLeaveRequestNotifications(data);
       setMsg(
         profile.role === 'manager'
-          ? 'Leave request submitted — admins have been notified by email.'
-          : 'Leave request submitted — your manager has been notified by email.'
+          ? 'Leave request sent. Admin will review it.'
+          : 'Leave request sent. Your manager will review it.'
       );
       setLeaveStart('');
       setLeaveEnd('');
       setLeaveReason('');
+      setEmployeeTab('history');
+      setManagerTab('today');
       load();
     }
   };
@@ -249,7 +290,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
     setSubmitting(false);
     if (error) setMsg(error.message);
     else {
-      setMsg('Attendance marked.');
+      setMsg('Team attendance saved.');
       load();
     }
   };
@@ -257,7 +298,10 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
   const reviewAtt = async (id: string, approve: boolean) => {
     const { error } = await supabase.rpc('review_attendance', { p_record_id: id, p_approve: approve });
     if (error) setMsg(error.message);
-    else load();
+    else {
+      setMsg(approve ? 'Attendance approved.' : 'Attendance rejected.');
+      load();
+    }
   };
 
   const reviewLeave = async (id: string, approve: boolean) => {
@@ -266,7 +310,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
     setSubmitting(false);
     if (error) setMsg(error.message);
     else {
-      setMsg(approve ? 'Leave request approved.' : 'Leave request rejected.');
+      setMsg(approve ? 'Leave approved.' : 'Leave rejected.');
       load();
     }
   };
@@ -293,6 +337,196 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
     }
   };
 
+  const renderQuickStats = () => (
+    <div className="attendance-quick-stats">
+      {balance && (
+        <>
+          <div className="attendance-stat-pill">
+            <div className="attendance-stat-pill__value">{balance.annual_remaining}</div>
+            <div className="attendance-stat-pill__label">Annual leave left</div>
+          </div>
+          <div className="attendance-stat-pill">
+            <div className="attendance-stat-pill__value">{balance.sick_remaining}</div>
+            <div className="attendance-stat-pill__label">Sick leave left</div>
+          </div>
+        </>
+      )}
+      {monthlySummary && (
+        <div className="attendance-stat-pill">
+          <div className="attendance-stat-pill__value">{monthlySummary.attendance_rate}%</div>
+          <div className="attendance-stat-pill__label">Attendance this month</div>
+        </div>
+      )}
+      {monthLeaveSummary && (
+        <div className="attendance-stat-pill">
+          <div className="attendance-stat-pill__value">{monthLeaveSummary.total_days_taken}</div>
+          <div className="attendance-stat-pill__label">Leave days this month</div>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderCheckInHero = (approverLabel: string) => (
+    <div className="attendance-hero">
+      <h3 className="attendance-hero__title">Today — {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</h3>
+      <p className="attendance-hero__hint">
+        Tap check-in once per working day. {approverLabel} will approve your record.
+      </p>
+      <button
+        type="button"
+        className="btn btn-primary attendance-hero__btn"
+        disabled={submitting || checkedInToday}
+        onClick={checkInToday}
+      >
+        {checkedInToday ? (
+          <><CheckCircle size={18} /> Checked in today</>
+        ) : (
+          <><Clock size={18} /> Check in now</>
+        )}
+      </button>
+    </div>
+  );
+
+  const renderLeaveForm = (hint: string) => (
+    <div className="attendance-card">
+      <h3 className="attendance-card__title"><Palmtree size={18} /> Request time off</h3>
+      <p className="attendance-card__subtitle">{hint}</p>
+      <form onSubmit={submitLeave} className="attendance-form-grid attendance-form-grid--wide">
+        <div className="form-group">
+          <label>Type</label>
+          <select value={leaveType} onChange={(e) => setLeaveType(e.target.value as LeaveType)}>
+            <option value="annual">Annual leave</option>
+            <option value="sick">Sick leave</option>
+          </select>
+        </div>
+        <div className="form-group">
+          <label>From</label>
+          <input type="date" value={leaveStart} onChange={(e) => setLeaveStart(e.target.value)} required />
+        </div>
+        <div className="form-group">
+          <label>To</label>
+          <input type="date" value={leaveEnd} onChange={(e) => setLeaveEnd(e.target.value)} required />
+        </div>
+        <div className="form-group attendance-form-span-full">
+          <label>Reason (optional)</label>
+          <input type="text" value={leaveReason} onChange={(e) => setLeaveReason(e.target.value)} placeholder="e.g. Family trip" />
+        </div>
+        <button type="submit" className="btn btn-primary" disabled={submitting}>
+          {submitting ? <Loader2 size={16} className="spin-icon" /> : 'Submit request'}
+        </button>
+      </form>
+    </div>
+  );
+
+  const renderPeriodBar = (showExport = true) => (
+    <div className="attendance-period-bar">
+      <div className="form-group">
+        <label>Month</label>
+        <select value={selectedMonth} onChange={(e) => setSelectedMonth(Number(e.target.value))}>
+          {Array.from({ length: 12 }, (_, i) => (
+            <option key={i + 1} value={i + 1}>
+              {new Date(selectedYear, i, 1).toLocaleString('default', { month: 'long' })}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="form-group">
+        <label>Year</label>
+        <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}>
+          {[selectedYear - 1, selectedYear, selectedYear + 1].map((y) => (
+            <option key={y} value={y}>{y}</option>
+          ))}
+        </select>
+      </div>
+      {showExport && (
+        <button type="button" className="btn btn-secondary" disabled={exporting} onClick={exportCsv}>
+          {exporting ? <Loader2 size={16} className="spin-icon" /> : <Download size={16} />}
+          Export CSV
+        </button>
+      )}
+    </div>
+  );
+
+  const renderHistory = () => (
+    <div className="attendance-card">
+      <h3 className="attendance-card__title"><History size={18} /> History — {monthLabel}</h3>
+      {renderPeriodBar()}
+      <h4 style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', margin: '0 0 0.75rem' }}>Attendance</h4>
+      {myAttendance.length === 0 ? (
+        <p className="attendance-empty">No attendance records for this month.</p>
+      ) : (
+        <div className="team-points-table-wrap" style={{ marginBottom: '1.25rem' }}>
+          <table className="attendance-history-table">
+            <thead>
+              <tr><th>Date</th><th>Status</th><th>Approval</th></tr>
+            </thead>
+            <tbody>
+              {myAttendance.map((r) => (
+                <tr key={r.id}>
+                  <td>{r.attendance_date}</td>
+                  <td>{ATTENDANCE_STATUS_LABEL[r.status]}</td>
+                  <td><span className={`badge ${approvalBadgeClass(r.approval_status)}`}>{APPROVAL_LABEL[r.approval_status]}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <h4 style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', margin: '0 0 0.75rem' }}>Leave requests</h4>
+      {myLeaves.length === 0 ? (
+        <p className="attendance-empty">No leave requests yet.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          {myLeaves.map((r) => (
+            <div key={r.id} className="attendance-leave-chip">
+              <div className="attendance-leave-chip__info">
+                <strong>{LEAVE_TYPE_LABEL[r.leave_type]}</strong>
+                <span>{r.start_date} → {r.end_date} · {r.days_count} day{r.days_count !== 1 ? 's' : ''}</span>
+              </div>
+              <span className={`badge ${approvalBadgeClass(r.status)}`}>{APPROVAL_LABEL[r.status]}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {yearLeaveSummary && (
+        <p style={{ marginTop: '1rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+          Year total: {yearLeaveSummary.total_days_taken} days ({yearLeaveSummary.annual_days_taken} annual, {yearLeaveSummary.sick_days_taken} sick)
+        </p>
+      )}
+    </div>
+  );
+
+  const renderLeaveApprovals = (emptyText: string) => (
+    pendingLeaves.length === 0 ? (
+      <div className="attendance-empty">
+        <Inbox size={32} />
+        {emptyText}
+      </div>
+    ) : (
+      <div className="attendance-approval-list">
+        {pendingLeaves.map((r) => (
+          <div key={r.id} className="attendance-approval-item">
+            <div className="attendance-approval-item__main">
+              <span className="attendance-approval-item__name">
+                {r.employee_name}
+                {r.employee_role && <span className="attendance-role-tag">{r.employee_role}</span>}
+              </span>
+              <span className="attendance-approval-item__meta">
+                {LEAVE_TYPE_LABEL[r.leave_type]} · {r.start_date} to {r.end_date} · {r.days_count} day{r.days_count !== 1 ? 's' : ''}
+              </span>
+              {r.reason && <span className="attendance-approval-item__reason">"{r.reason}"</span>}
+            </div>
+            <ApprovalActions
+              disabled={submitting}
+              onApprove={() => reviewLeave(r.id, true)}
+              onReject={() => reviewLeave(r.id, false)}
+            />
+          </div>
+        ))}
+      </div>
+    )
+  );
+
   if (loading) {
     return (
       <div className="rewards-loading">
@@ -301,345 +535,192 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
     );
   }
 
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const checkedInToday = myAttendance.some((a) => a.attendance_date === todayStr);
-
+  /* ── Admin: leave approvals only ── */
   if (mode === 'admin') {
     return (
-      <div className="rewards-page animate-fade-in">
-        {msg && (
-          <div className={`rewards-toast ${msg.includes('Failed') || msg.includes('error') ? 'rewards-toast--error' : 'rewards-toast--success'}`}>
-            {msg}
-          </div>
-        )}
-        <div className="glass-panel rewards-section">
-          <h3 className="rewards-section-title">Leave request approvals</h3>
-          <p className="rewards-section-desc">
-            Approve or reject leave requests from employees and managers. Employee leave approved by a manager does not require admin approval.
-          </p>
-          {pendingLeaves.length === 0 ? (
-            <div className="rewards-empty">No pending leave requests.</div>
-          ) : (
-            pendingLeaves.map((r) => (
-              <div key={r.id} className="redemption-row redemption-row--pending" style={{ marginBottom: '0.5rem' }}>
-                <div className="redemption-info">
-                  <strong>{r.employee_name}</strong>
-                  <span style={{ marginLeft: '0.5rem', fontSize: '0.75rem', textTransform: 'capitalize' }}>({r.employee_role})</span>
-                  <span>{LEAVE_TYPE_LABEL[r.leave_type]} · {r.start_date} → {r.end_date} ({r.days_count} days)</span>
-                  {r.reason && <span style={{ display: 'block', fontSize: '0.75rem' }}>{r.reason}</span>}
-                </div>
-                <div className="redemption-actions">
-                  <button className="btn btn-primary btn-sm" onClick={() => reviewLeave(r.id, true)}><CheckCircle size={14} /> Approve</button>
-                  <button className="btn btn-secondary btn-sm" onClick={() => reviewLeave(r.id, false)}><XCircle size={14} /> Reject</button>
-                </div>
-              </div>
-            ))
-          )}
+      <div className="attendance-page animate-fade-in">
+        <Toast msg={msg} />
+        <div className="attendance-admin-header">
+          <h3>Leave approvals</h3>
+          <p>Review requests from employees and managers. One tap to approve or reject.</p>
+        </div>
+        <div className="attendance-card">
+          <h3 className="attendance-card__title">
+            <Inbox size={18} /> Pending requests
+            {pendingLeaves.length > 0 && (
+              <span className="badge badge-at-risk" style={{ marginLeft: '0.5rem', fontSize: '0.75rem' }}>
+                {pendingLeaves.length}
+              </span>
+            )}
+          </h3>
+          {renderLeaveApprovals('All caught up — no pending leave requests.')}
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="rewards-page animate-fade-in">
-      {msg && (
-        <div className={`rewards-toast ${msg.includes('Failed') || msg.includes('Not enough') || msg.includes('error') ? 'rewards-toast--error' : 'rewards-toast--success'}`}>
-          {msg}
-        </div>
-      )}
+  /* ── Manager ── */
+  if (mode === 'manager') {
+    return (
+      <div className="attendance-page animate-fade-in">
+        <Toast msg={msg} />
 
-      {/* Manager: employee leave approvals — shown first */}
-      {mode === 'manager' && (
-        <div className="glass-panel rewards-section" style={{ borderLeft: '4px solid var(--color-warning)' }}>
-          <h3 className="rewards-section-title">
-            <Palmtree size={20} /> Employee leave approvals
-            {pendingLeaves.length > 0 && (
-              <span className="badge badge-at-risk" style={{ marginLeft: '0.5rem', fontSize: '0.7rem' }}>
-                {pendingLeaves.length} pending
-              </span>
-            )}
-          </h3>
-          <p className="rewards-section-desc">
-            Approve or reject leave requests from your team. Your decision is final — employees do not need admin approval.
-          </p>
-          {teamMembers.filter((m) => m.role === 'employee').length === 0 ? (
-            <div className="rewards-empty">No employees assigned to you yet. Ask admin to link employees to your manager account.</div>
-          ) : pendingLeaves.length === 0 ? (
-            <div className="rewards-empty">No pending employee leave requests.</div>
-          ) : (
-            pendingLeaves.map((r) => (
-              <div key={r.id} className="redemption-row redemption-row--pending" style={{ marginBottom: '0.5rem' }}>
-                <div className="redemption-info">
-                  <strong>{r.employee_name}</strong>
-                  <span>{LEAVE_TYPE_LABEL[r.leave_type]} · {r.start_date} → {r.end_date} ({r.days_count} days)</span>
-                  {r.reason && <span style={{ display: 'block', fontSize: '0.75rem' }}>{r.reason}</span>}
-                </div>
-                <div className="redemption-actions">
-                  <button className="btn btn-primary btn-sm" disabled={submitting} onClick={() => reviewLeave(r.id, true)}>
-                    <CheckCircle size={14} /> Approve
-                  </button>
-                  <button className="btn btn-secondary btn-sm" disabled={submitting} onClick={() => reviewLeave(r.id, false)}>
-                    <XCircle size={14} /> Reject
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* Period selector */}
-      <div className="glass-panel rewards-section" style={{ padding: '1rem 1.25rem' }}>
-        <div className="responsive-grid-wide" style={{ gap: '1rem', alignItems: 'end' }}>
-          <div className="form-group" style={{ margin: 0 }}>
-            <label>Month</label>
-            <select value={selectedMonth} onChange={(e) => setSelectedMonth(Number(e.target.value))}>
-              {Array.from({ length: 12 }, (_, i) => (
-                <option key={i + 1} value={i + 1}>
-                  {new Date(selectedYear, i, 1).toLocaleString('default', { month: 'long' })}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="form-group" style={{ margin: 0 }}>
-            <label>Year</label>
-            <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}>
-              {[selectedYear - 1, selectedYear, selectedYear + 1].map((y) => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
-          </div>
-          {canExportCsv && (
-            <button type="button" className="btn btn-secondary" disabled={exporting} onClick={exportCsv}>
-              {exporting ? <Loader2 size={16} className="spin-icon" /> : <Download size={16} />}
-              Download CSV ({monthLabel})
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Monthly & yearly stats */}
-      {(monthlySummary || yearLeaveSummary) && (
-        <div className="rewards-stats-grid">
-          {monthlySummary && (
-            <>
-              <div className="stat-card stat-card--accent">
-                <CalendarCheck size={20} />
-                <div>
-                  <div className="stat-card-value">{monthlySummary.present_approved}</div>
-                  <div className="stat-card-label">Present days this month ({monthLabel})</div>
-                </div>
-              </div>
-              <div className="stat-card">
-                <CalendarCheck size={20} />
-                <div>
-                  <div className="stat-card-value">{monthlySummary.attendance_rate}%</div>
-                  <div className="stat-card-label">Monthly attendance rate</div>
-                </div>
-              </div>
-            </>
-          )}
-          {monthLeaveSummary && (
-            <div className="stat-card stat-card--warning">
-              <Palmtree size={20} />
-              <div>
-                <div className="stat-card-value">{monthLeaveSummary.total_days_taken}</div>
-                <div className="stat-card-label">Leave days taken this month</div>
-              </div>
-            </div>
-          )}
-          {yearLeaveSummary && (
-            <div className="stat-card">
-              <Thermometer size={20} />
-              <div>
-                <div className="stat-card-value">{yearLeaveSummary.total_days_taken}</div>
-                <div className="stat-card-label">Total leave days this year ({yearLeaveSummary.annual_days_taken} annual, {yearLeaveSummary.sick_days_taken} sick)</div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Leave balance */}
-      {balance && (
-        <div className="rewards-stats-grid">
-          <div className="stat-card stat-card--accent">
-            <Palmtree size={20} />
-            <div>
-              <div className="stat-card-value">{balance.annual_remaining}</div>
-              <div className="stat-card-label">Annual leave left (of {balance.annual_allowance})</div>
-            </div>
-          </div>
-          <div className="stat-card stat-card--warning">
-            <Thermometer size={20} />
-            <div>
-              <div className="stat-card-value">{balance.sick_remaining}</div>
-              <div className="stat-card-label">Sick leave left (of {balance.sick_allowance})</div>
-            </div>
-          </div>
-          {summary && (
-            <div className="stat-card">
-              <CalendarCheck size={20} />
-              <div>
-                <div className="stat-card-value">{summary.attendance_rate}%</div>
-                <div className="stat-card-label">Attendance rate ({summary.present_approved} approved days)</div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Employee: daily check-in */}
-      {(mode === 'employee' || mode === 'manager') && (
-        <div className="glass-panel rewards-section">
-          <h3 className="rewards-section-title"><UserCheck size={20} /> Daily Attendance</h3>
-          <p className="rewards-section-desc">
-            Check in each working day. Your {mode === 'manager' ? 'admin' : 'manager'} approves attendance records.
-          </p>
+        <div className="attendance-tabs">
           <button
-            className="btn btn-primary"
-            disabled={submitting || checkedInToday}
-            onClick={checkInToday}
+            type="button"
+            className={`attendance-tab ${managerTab === 'approvals' ? 'attendance-tab--active' : ''}`}
+            onClick={() => setManagerTab('approvals')}
           >
-            {checkedInToday ? <><CheckCircle size={16} /> Checked in today</> : <><Clock size={16} /> Check in for today</>}
+            <ClipboardList size={16} /> Approvals
+            {pendingCount > 0 && <span className="attendance-tab__count">{pendingCount}</span>}
+          </button>
+          <button
+            type="button"
+            className={`attendance-tab ${managerTab === 'today' ? 'attendance-tab--active' : ''}`}
+            onClick={() => setManagerTab('today')}
+          >
+            <UserCheck size={16} /> My day
+          </button>
+          <button
+            type="button"
+            className={`attendance-tab ${managerTab === 'team' ? 'attendance-tab--active' : ''}`}
+            onClick={() => setManagerTab('team')}
+          >
+            <Users size={16} /> Team
           </button>
         </div>
-      )}
 
-      {/* Request leave */}
-      <div className="glass-panel rewards-section">
-        <h3 className="rewards-section-title"><Palmtree size={20} /> Request Leave</h3>
-        {mode === 'manager' ? (
-          <p className="rewards-section-desc">
-            <Mail size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} />
-            Manager leave requests are sent to <strong>admin email</strong> and approved in the admin dashboard.
-          </p>
-        ) : mode === 'employee' ? (
-          <p className="rewards-section-desc">
-            <Mail size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} />
-            Your manager will receive an <strong>email notification</strong> and can approve from their dashboard. Manager approval is final — you do not need admin approval.
-          </p>
-        ) : null}
-        <form onSubmit={submitLeave} className="responsive-grid-wide" style={{ gap: '1rem', marginTop: '0.75rem' }}>
-          <div className="form-group" style={{ margin: 0 }}>
-            <label>Leave type</label>
-            <select value={leaveType} onChange={(e) => setLeaveType(e.target.value as LeaveType)}>
-              <option value="annual">Annual leave</option>
-              <option value="sick">Sick leave</option>
-            </select>
-          </div>
-          <div className="form-group" style={{ margin: 0 }}>
-            <label>Start date</label>
-            <input type="date" value={leaveStart} onChange={(e) => setLeaveStart(e.target.value)} required />
-          </div>
-          <div className="form-group" style={{ margin: 0 }}>
-            <label>End date</label>
-            <input type="date" value={leaveEnd} onChange={(e) => setLeaveEnd(e.target.value)} required />
-          </div>
-          <div className="form-group" style={{ margin: 0, gridColumn: '1 / -1' }}>
-            <label>Reason (optional)</label>
-            <input type="text" value={leaveReason} onChange={(e) => setLeaveReason(e.target.value)} placeholder="Brief reason" />
-          </div>
-          <button type="submit" className="btn btn-primary" disabled={submitting}>Submit request</button>
-        </form>
-      </div>
+        {managerTab === 'approvals' && (
+          <div className="attendance-card">
+            <h3 className="attendance-card__title">Needs your action</h3>
+            <p className="attendance-card__subtitle">Approve leave and check-ins from your team.</p>
 
-      {/* Manager: mark team attendance & approve employee leave */}
-      {mode === 'manager' && (
-        <div className="glass-panel rewards-section">
-          <h3 className="rewards-section-title"><Users size={20} /> Mark Team Attendance</h3>
-          <div className="responsive-grid-wide" style={{ gap: '1rem' }}>
-            <div className="form-group" style={{ margin: 0 }}>
-              <label>Employee</label>
-              <select value={markUserId} onChange={(e) => setMarkUserId(e.target.value)}>
-                {teamMembers.map((m) => (
-                  <option key={m.id} value={m.id}>{m.full_name} ({m.role})</option>
+            {pendingLeaves.length === 0 && pendingAttendance.length === 0 ? (
+              <div className="attendance-empty"><Inbox size={32} />Nothing waiting for approval.</div>
+            ) : (
+              <div className="attendance-approval-list">
+                {pendingLeaves.map((r) => (
+                  <div key={r.id} className="attendance-approval-item">
+                    <div className="attendance-approval-item__main">
+                      <span className="attendance-approval-item__name">Leave · {r.employee_name}</span>
+                      <span className="attendance-approval-item__meta">
+                        {LEAVE_TYPE_LABEL[r.leave_type]} · {r.start_date} to {r.end_date} · {r.days_count} days
+                      </span>
+                      {r.reason && <span className="attendance-approval-item__reason">"{r.reason}"</span>}
+                    </div>
+                    <ApprovalActions disabled={submitting} onApprove={() => reviewLeave(r.id, true)} onReject={() => reviewLeave(r.id, false)} />
+                  </div>
                 ))}
-              </select>
-            </div>
-            <div className="form-group" style={{ margin: 0 }}>
-              <label>Date</label>
-              <input type="date" value={markDate} onChange={(e) => setMarkDate(e.target.value)} />
-            </div>
-            <div className="form-group" style={{ margin: 0 }}>
-              <label>Status</label>
-              <select value={markStatus} onChange={(e) => setMarkStatus(e.target.value as AttendanceStatus)}>
-                {(Object.keys(ATTENDANCE_STATUS_LABEL) as AttendanceStatus[]).map((s) => (
-                  <option key={s} value={s}>{ATTENDANCE_STATUS_LABEL[s]}</option>
+                {pendingAttendance.map((r) => (
+                  <div key={r.id} className="attendance-approval-item attendance-approval-item--attendance">
+                    <div className="attendance-approval-item__main">
+                      <span className="attendance-approval-item__name">Check-in · {r.employee_name || 'Employee'}</span>
+                      <span className="attendance-approval-item__meta">
+                        {r.attendance_date} · {ATTENDANCE_STATUS_LABEL[r.status]}
+                      </span>
+                    </div>
+                    <ApprovalActions disabled={submitting} onApprove={() => reviewAtt(r.id, true)} onReject={() => reviewAtt(r.id, false)} />
+                  </div>
                 ))}
-              </select>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-              <button type="button" className="btn btn-primary" disabled={submitting} onClick={markTeamAttendance}>
-                Save attendance
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {mode === 'manager' && pendingAttendance.length > 0 && (
-        <div className="glass-panel rewards-section">
-          <h3 className="rewards-section-title">Employee attendance approvals</h3>
-          {pendingAttendance.map((r) => (
-            <div key={r.id} className="redemption-row redemption-row--pending" style={{ marginBottom: '0.5rem' }}>
-              <div className="redemption-info">
-                <strong>{r.employee_name || 'Employee'}</strong>
-                <span>{r.attendance_date} · {ATTENDANCE_STATUS_LABEL[r.status]} · check-in</span>
               </div>
-              <div className="redemption-actions">
-                <button className="btn btn-primary btn-sm" onClick={() => reviewAtt(r.id, true)}><CheckCircle size={14} /> Approve</button>
-                <button className="btn btn-secondary btn-sm" onClick={() => reviewAtt(r.id, false)}><XCircle size={14} /> Reject</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* My attendance history */}
-      <div className="glass-panel rewards-section">
-        <h3 className="rewards-section-title"><CalendarCheck size={20} /> My attendance — {monthLabel}</h3>
-        {myAttendance.length === 0 ? (
-          <div className="rewards-empty">No attendance records yet.</div>
-        ) : (
-          <div className="team-points-table-wrap">
-            <table className="team-points-table">
-              <thead>
-                <tr><th>Date</th><th>Status</th><th>Approval</th></tr>
-              </thead>
-              <tbody>
-                {myAttendance.map((r) => (
-                  <tr key={r.id}>
-                    <td>{r.attendance_date}</td>
-                    <td>{ATTENDANCE_STATUS_LABEL[r.status]}</td>
-                    <td><span className={`badge ${approvalBadgeClass(r.approval_status)}`}>{APPROVAL_LABEL[r.approval_status]}</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            )}
           </div>
         )}
-      </div>
 
-      {/* My leave requests */}
-      <div className="glass-panel rewards-section">
-        <h3 className="rewards-section-title">My leave requests</h3>
-        {myLeaves.length === 0 ? (
-          <div className="rewards-empty">No leave requests yet.</div>
-        ) : (
-          <div className="redemption-list">
-            {myLeaves.map((r) => (
-              <div key={r.id} className={`redemption-row redemption-row--${r.status === 'approved' ? 'fulfilled' : r.status === 'pending' ? 'pending' : 'approved'}`}>
-                <div className="redemption-info">
-                  <strong>{LEAVE_TYPE_LABEL[r.leave_type]}</strong>
-                  <span>{r.start_date} → {r.end_date} ({r.days_count} days)</span>
+        {managerTab === 'today' && (
+          <>
+            {renderCheckInHero('Admin')}
+            {renderQuickStats()}
+            {renderLeaveForm('Your leave goes to admin for approval.')}
+          </>
+        )}
+
+        {managerTab === 'team' && (
+          <>
+            <div className="attendance-card">
+              <h3 className="attendance-card__title"><Users size={18} /> Mark team attendance</h3>
+              <p className="attendance-card__subtitle">Record attendance for a team member on a specific date.</p>
+              {teamMembers.length === 0 ? (
+                <p className="attendance-empty">No team members assigned yet.</p>
+              ) : (
+                <div className="attendance-form-grid">
+                  <div className="form-group">
+                    <label>Team member</label>
+                    <select value={markUserId} onChange={(e) => setMarkUserId(e.target.value)}>
+                      {teamMembers.map((m) => (
+                        <option key={m.id} value={m.id}>{m.full_name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Date</label>
+                    <input type="date" value={markDate} onChange={(e) => setMarkDate(e.target.value)} />
+                  </div>
+                  <div className="form-group">
+                    <label>Status</label>
+                    <select value={markStatus} onChange={(e) => setMarkStatus(e.target.value as AttendanceStatus)}>
+                      {(Object.keys(ATTENDANCE_STATUS_LABEL) as AttendanceStatus[]).map((s) => (
+                        <option key={s} value={s}>{ATTENDANCE_STATUS_LABEL[s]}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <button type="button" className="btn btn-primary" disabled={submitting} onClick={markTeamAttendance}>
+                    Save
+                  </button>
                 </div>
-                <span className={`badge ${approvalBadgeClass(r.status)}`}>{APPROVAL_LABEL[r.status]}</span>
-              </div>
-            ))}
-          </div>
+              )}
+            </div>
+            {renderHistory()}
+          </>
         )}
       </div>
+    );
+  }
+
+  /* ── Employee ── */
+  return (
+    <div className="attendance-page animate-fade-in">
+      <Toast msg={msg} />
+
+      <div className="attendance-tabs">
+        <button
+          type="button"
+          className={`attendance-tab ${employeeTab === 'today' ? 'attendance-tab--active' : ''}`}
+          onClick={() => setEmployeeTab('today')}
+        >
+          <UserCheck size={16} /> Today
+        </button>
+        <button
+          type="button"
+          className={`attendance-tab ${employeeTab === 'leave' ? 'attendance-tab--active' : ''}`}
+          onClick={() => setEmployeeTab('leave')}
+        >
+          <Palmtree size={16} /> Request leave
+        </button>
+        <button
+          type="button"
+          className={`attendance-tab ${employeeTab === 'history' ? 'attendance-tab--active' : ''}`}
+          onClick={() => setEmployeeTab('history')}
+        >
+          <History size={16} /> History
+        </button>
+      </div>
+
+      {employeeTab === 'today' && (
+        <>
+          {renderCheckInHero('Your manager')}
+          {renderQuickStats()}
+          {summary && (
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+              Year-to-date attendance: {summary.attendance_rate}% ({summary.present_approved} approved days)
+            </p>
+          )}
+        </>
+      )}
+
+      {employeeTab === 'leave' && renderLeaveForm('Your manager will be notified and can approve the request.')}
+
+      {employeeTab === 'history' && renderHistory()}
     </div>
   );
 }

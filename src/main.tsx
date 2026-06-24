@@ -1,10 +1,12 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
+import './styles/dashboard.css'
 import App from './App.tsx'
 import { applyBranding, loadBranding } from './lib/branding'
+import { initTheme } from './lib/theme'
 
-// Phase 3: apply white-label branding before first paint.
+initTheme()
 applyBranding(loadBranding())
 
 // Phase 3: register service worker for PWA installability (production only).

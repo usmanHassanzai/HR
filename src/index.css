@@ -1,30 +1,12 @@
-/* HR KPI Board - Premium Design System (Vanilla CSS) */
+/* HR KPI Board - Design System with Light / Night themes */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
 
+/* Shared tokens (accent overridden by branding.ts at runtime) */
 :root {
-  /* Warm slate HR palette — calm, professional (Lattice / BambooHR inspired) */
-  --bg-main: #121820;
-  --bg-elevated: #1a2332;
-  --bg-card: #1e2838;
-  --bg-card-hover: #243044;
-  --border-color: rgba(148, 163, 184, 0.14);
-  --border-hover: rgba(45, 212, 168, 0.45);
-
-  --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-
-  --accent-primary: #2dd4a8;
-  --accent-secondary: #38bdf8;
-  --accent-gradient: linear-gradient(135deg, #2dd4a8 0%, #22c997 100%);
-  --accent-glow: 0 4px 20px rgba(45, 212, 168, 0.18);
-
-  --color-success: #34d399;
-  --color-success-bg: rgba(52, 211, 153, 0.12);
-  --color-warning: #fbbf24;
-  --color-warning-bg: rgba(251, 191, 36, 0.12);
-  --color-danger: #f87171;
-  --color-danger-bg: rgba(248, 113, 113, 0.12);
+  --accent-primary: #0d9488;
+  --accent-secondary: #0284c7;
+  --accent-gradient: linear-gradient(135deg, #0d9488 0%, #0284c7 100%);
+  --accent-glow: 0 4px 20px rgba(13, 148, 136, 0.2);
 
   --font-display: 'Outfit', 'Inter', system-ui, sans-serif;
   --font-body: 'Inter', system-ui, sans-serif;
@@ -33,10 +15,141 @@
   --border-radius-md: 14px;
   --border-radius-lg: 20px;
   --glass-blur: blur(12px);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.25);
-  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.35);
   --transition-smooth: all 0.2s ease;
+}
+
+/* ── Day (light) theme — high contrast, readable ── */
+[data-theme="light"] {
+  --bg-main: #eef2f7;
+  --bg-elevated: #ffffff;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f8fafc;
+  --border-color: rgba(15, 23, 42, 0.14);
+  --border-hover: rgba(13, 148, 136, 0.45);
+
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+
+  --surface-input: #ffffff;
+  --surface-input-focus: #ffffff;
+  --surface-muted: rgba(15, 23, 42, 0.04);
+  --surface-overlay: rgba(15, 23, 42, 0.55);
+
+  --btn-primary-text: #042f2e;
+  --btn-primary-hover: #0f766e;
+  --btn-secondary-bg: #ffffff;
+  --btn-secondary-bg-hover: #f1f5f9;
+  --btn-secondary-text: var(--text-primary);
+
+  --color-success: #047857;
+  --color-success-bg: rgba(4, 120, 87, 0.12);
+  --color-warning: #b45309;
+  --color-warning-bg: rgba(180, 83, 9, 0.12);
+  --color-danger: #b91c1c;
+  --color-danger-bg: rgba(185, 28, 28, 0.1);
+
+  --header-accent-border: rgba(13, 148, 136, 0.35);
+  --focus-ring: rgba(13, 148, 136, 0.28);
+  --body-glow: radial-gradient(ellipse 100% 80% at 50% -30%, rgba(13, 148, 136, 0.1), transparent 55%);
+  --body-gradient: linear-gradient(180deg, #e8eef5 0%, #f8fafc 45%, #eef2f7 100%);
+
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.07);
+  --shadow-md: 0 4px 16px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.1);
+
+  --landing-nav-bg: rgba(255, 255, 255, 0.88);
+  --landing-nav-bg-scrolled: rgba(255, 255, 255, 0.96);
+  --landing-nav-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  --landing-section-alt: rgba(241, 245, 249, 0.85);
+  --table-head-bg: rgba(15, 23, 42, 0.04);
+  --hero-stat-muted: var(--text-secondary);
+
+  /* Dashboard surfaces */
+  --dash-card-bg: #ffffff;
+  --dash-card-border: rgba(15, 23, 42, 0.1);
+  --dash-card-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 4px 14px rgba(15, 23, 42, 0.06);
+  --dash-card-shadow-hover: 0 4px 20px rgba(15, 23, 42, 0.1);
+  --dash-surface-muted: #f1f5f9;
+  --dash-kpi-bg: #ffffff;
+  --dash-tab-bg: #ffffff;
+  --dash-table-head-bg: #eef2f7;
+  --dash-rewards-hero-bg: linear-gradient(135deg, #ecfdf5 0%, #f0f9ff 100%);
+  --dash-rewards-hero-border: rgba(13, 148, 136, 0.22);
+}
+
+/* ── Night (dark) theme — high contrast, readable ── */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg-main: #0b1120;
+  --bg-elevated: #141c2e;
+  --bg-card: #1a2438;
+  --bg-card-hover: #223048;
+  --border-color: rgba(203, 213, 225, 0.16);
+  --border-hover: rgba(45, 212, 168, 0.45);
+
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+
+  --surface-input: rgba(8, 14, 26, 0.9);
+  --surface-input-focus: rgba(12, 20, 36, 0.95);
+  --surface-muted: rgba(255, 255, 255, 0.04);
+  --surface-overlay: rgba(0, 0, 0, 0.65);
+
+  --btn-primary-text: #042f2e;
+  --btn-primary-hover: #34e0b8;
+  --btn-secondary-bg: rgba(15, 25, 45, 0.75);
+  --btn-secondary-bg-hover: rgba(20, 35, 60, 0.9);
+  --btn-secondary-text: var(--text-primary);
+
+  --color-success: #34d399;
+  --color-success-bg: rgba(52, 211, 153, 0.14);
+  --color-warning: #fbbf24;
+  --color-warning-bg: rgba(251, 191, 36, 0.14);
+  --color-danger: #f87171;
+  --color-danger-bg: rgba(248, 113, 113, 0.14);
+
+  --header-accent-border: rgba(45, 212, 168, 0.35);
+  --focus-ring: rgba(45, 212, 168, 0.22);
+  --body-glow: radial-gradient(ellipse 100% 80% at 50% -30%, rgba(45, 212, 168, 0.08), transparent 55%);
+  --body-gradient: linear-gradient(180deg, #0f1628 0%, #0b1120 50%, #080d18 100%);
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.4);
+
+  --landing-nav-bg: rgba(11, 17, 32, 0.82);
+  --landing-nav-bg-scrolled: rgba(11, 17, 32, 0.95);
+  --landing-nav-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  --landing-section-alt: rgba(26, 36, 56, 0.45);
+  --table-head-bg: rgba(0, 0, 0, 0.2);
+  --hero-stat-muted: var(--text-secondary);
+
+  /* Dashboard surfaces */
+  --dash-card-bg: #1a2438;
+  --dash-card-border: rgba(203, 213, 225, 0.14);
+  --dash-card-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+  --dash-card-shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.32);
+  --dash-surface-muted: rgba(255, 255, 255, 0.04);
+  --dash-kpi-bg: #1e2a3e;
+  --dash-tab-bg: #141c2e;
+  --dash-table-head-bg: rgba(0, 0, 0, 0.22);
+  --dash-rewards-hero-bg: linear-gradient(135deg, rgba(20, 35, 55, 0.98) 0%, rgba(15, 28, 48, 0.95) 100%);
+  --dash-rewards-hero-border: rgba(45, 212, 168, 0.22);
+}
+
+/* Default before JS: follow system preference */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    color-scheme: light;
+    --bg-main: #eef2f7;
+    --bg-elevated: #ffffff;
+    --bg-card: #ffffff;
+    --text-primary: #0f172a;
+    --text-secondary: #334155;
+  }
 }
 
 /* Global Reset */
@@ -58,9 +171,7 @@ html, body {
 }
 
 body {
-  background:
-    radial-gradient(ellipse 100% 80% at 50% -30%, rgba(45, 212, 168, 0.07), transparent 55%),
-    linear-gradient(180deg, #151c28 0%, #121820 50%, #0f141c 100%);
+  background: var(--body-glow), var(--body-gradient);
   background-attachment: fixed;
 }
 
@@ -83,6 +194,7 @@ h1 {
 p {
   color: var(--text-secondary);
   font-weight: 400;
+  line-height: 1.6;
 }
 
 /* Glassmorphism Containers */
@@ -104,7 +216,7 @@ p {
 .app-header {
   background: var(--bg-elevated) !important;
   border-left: none !important;
-  border-bottom: 2px solid rgba(45, 212, 168, 0.35) !important;
+  border-bottom: 2px solid var(--header-accent-border) !important;
   padding: 1rem 1.75rem !important;
   border-radius: var(--border-radius-md) !important;
   display: flex;
@@ -141,14 +253,14 @@ button, .btn {
 
 .btn-primary {
   background: var(--accent-primary);
-  color: #0f172a;
-  font-weight: 600;
+  color: var(--btn-primary-text);
+  font-weight: 700;
   box-shadow: var(--shadow-sm);
 }
 
 .btn-primary:hover {
   transform: translateY(-1px);
-  background: #34e0b8;
+  background: var(--btn-primary-hover);
   box-shadow: var(--accent-glow);
 }
 
@@ -157,13 +269,13 @@ button, .btn {
 }
 
 .btn-secondary {
-  background: rgba(10, 22, 40, 0.6);
-  color: var(--text-primary);
+  background: var(--btn-secondary-bg);
+  color: var(--btn-secondary-text);
   border: 1px solid var(--border-color);
 }
 
 .btn-secondary:hover {
-  background: rgba(13, 31, 60, 0.8);
+  background: var(--btn-secondary-bg-hover);
   border-color: var(--border-hover);
   color: var(--accent-primary);
 }
@@ -178,13 +290,13 @@ button, .btn {
 
 label {
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-secondary);
   font-family: var(--font-display);
 }
 
 input, select, textarea {
-  background: rgba(4, 10, 18, 0.6);
+  background: var(--surface-input);
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius-sm);
   padding: 0.75rem 1rem;
@@ -195,11 +307,16 @@ input, select, textarea {
   width: 100%;
 }
 
+input::placeholder, textarea::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}
+
 input:focus, select:focus, textarea:focus {
   outline: none;
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px rgba(0, 229, 160, 0.12);
-  background: rgba(4, 10, 18, 0.85);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+  background: var(--surface-input-focus);
 }
 
 /* Badges & Status Indicators */
@@ -217,16 +334,19 @@ input:focus, select:focus, textarea:focus {
 .badge-on-track {
   background-color: var(--color-success-bg);
   color: var(--color-success);
+  border: 1px solid color-mix(in srgb, var(--color-success) 25%, transparent);
 }
 
 .badge-at-risk {
   background-color: var(--color-warning-bg);
   color: var(--color-warning);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 25%, transparent);
 }
 
 .badge-off-track {
   background-color: var(--color-danger-bg);
   color: var(--color-danger);
+  border: 1px solid color-mix(in srgb, var(--color-danger) 25%, transparent);
 }
 
 /* Grid & Layout Utilities */
@@ -241,6 +361,13 @@ input:focus, select:focus, textarea:focus {
   max-width: 1280px;
   margin: 0 auto;
   padding: 1.5rem 1.25rem 3rem;
+}
+
+.dashboard-container .app-header {
+  background: var(--dash-card-bg) !important;
+  box-shadow: var(--dash-card-shadow);
+  border: 1px solid var(--dash-card-border) !important;
+  border-bottom: 2px solid var(--header-accent-border) !important;
 }
 
 .demo-mode-banner {
@@ -271,6 +398,19 @@ input:focus, select:focus, textarea:focus {
 
 .demo-mode-banner span {
   color: var(--text-secondary);
+}
+
+/* Theme toggle */
+.theme-toggle--compact {
+  width: 40px !important;
+  height: 40px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  flex-shrink: 0;
+}
+
+.theme-toggle--compact:hover {
+  color: var(--accent-primary);
 }
 
 /* Animations */
@@ -342,11 +482,11 @@ input:focus, select:focus, textarea:focus {
   transition: var(--transition-smooth);
 }
 
-.tab-btn:hover { color: var(--text-primary); background: rgba(255,255,255,0.04); }
+.tab-btn:hover { color: var(--text-primary); background: var(--surface-muted); }
 
 .tab-btn--active {
   background: var(--accent-primary);
-  color: #0f172a;
+  color: var(--btn-primary-text);
   font-weight: 600;
   box-shadow: none;
 }
@@ -511,16 +651,30 @@ input:focus, select:focus, textarea:focus {
   font-size: 1.5rem; font-weight: 800; font-family: var(--font-display); line-height: 1.1;
 }
 
-.stat-card-label { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.stat-card-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+  line-height: 1.35;
+}
+
+.rewards-section-desc {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
 
 .rewards-section { padding: 1.5rem !important; }
 
 .rewards-section-title {
-  display: flex; align-items: center; gap: 0.5rem;
-  font-size: 1.05rem; margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.05rem;
+  margin-bottom: 0.75rem;
+  color: var(--text-primary);
 }
-
-.rewards-section-desc { font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1rem; }
 
 .rewards-badge {
   margin-left: auto; font-size: 0.7rem; font-weight: 700;
@@ -543,7 +697,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .rewards-empty {
-  text-align: center; padding: 2rem; color: var(--text-muted); font-size: 0.88rem;
+  text-align: center; padding: 2rem; color: var(--text-secondary); font-size: 0.9rem; line-height: 1.5;
 }
 
 .reward-catalog-grid {
@@ -647,15 +801,18 @@ input:focus, select:focus, textarea:focus {
 }
 
 .team-points-table th {
-  text-align: left; padding: 0.5rem 0.75rem;
-  color: var(--text-muted); font-size: 0.72rem;
-  text-transform: uppercase; letter-spacing: 0.04em;
+  text-align: left; padding: 0.55rem 0.75rem;
+  color: var(--text-secondary); font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.03em;
   border-bottom: 1px solid var(--border-color);
+  background: var(--table-head-bg);
 }
 
 .team-points-table td {
-  padding: 0.65rem 0.75rem;
-  border-bottom: 1px solid hsla(217, 20%, 30%, 0.15);
+  padding: 0.7rem 0.75rem;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .team-points-table__top { background: hsla(38, 92%, 55%, 0.05); }
@@ -1104,9 +1261,9 @@ svg.brand-logo {
     align-items: stretch;
     justify-content: space-around;
     gap: 0.1rem;
-    background: var(--bg-elevated);
-    border-top: 1px solid rgba(45, 212, 168, 0.25);
-    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.35);
+    background: var(--dash-tab-bg);
+    border-top: 1px solid var(--dash-card-border);
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12);
     padding: 0.35rem 0.2rem calc(0.4rem + env(safe-area-inset-bottom, 0px));
   }
 
@@ -1134,7 +1291,7 @@ svg.brand-logo {
 
   .mobile-bottom-nav__item--active {
     color: var(--accent-primary);
-    background: rgba(45, 212, 168, 0.1);
+    background: var(--color-success-bg);
   }
 
   .mobile-bottom-nav__icon {
