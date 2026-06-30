@@ -64,13 +64,27 @@ export function getGeoPermissionState(): GeoPermissionState {
 export function requestCurrentPosition(): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
-      reject(new Error('Geolocation is not supported on this device'));
+      reject(new Error('Geolocation is not supported on this device. Use a phone or laptop with GPS.'));
       return;
     }
-    navigator.geolocation.getCurrentPosition(resolve, reject, {
+    if (!window.isSecureContext) {
+      reject(new Error('Location requires HTTPS. Open the app via https://walfiaai.vercel.app'));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(resolve, (err) => {
+      if (err.code === err.PERMISSION_DENIED) {
+        reject(new Error('Location blocked. Allow location permission for this site in your browser settings, then try again.'));
+      } else if (err.code === err.POSITION_UNAVAILABLE) {
+        reject(new Error('Could not detect GPS. Move near a window, enable device location, and try again.'));
+      } else if (err.code === err.TIMEOUT) {
+        reject(new Error('Location timed out. Check GPS is on and try again.'));
+      } else {
+        reject(new Error(err.message || 'Could not get location'));
+      }
+    }, {
       enableHighAccuracy: true,
-      timeout: 20000,
-      maximumAge: 15000,
+      timeout: 25000,
+      maximumAge: 10000,
     });
   });
 }

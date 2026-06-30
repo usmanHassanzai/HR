@@ -513,3 +513,72 @@
 .geo-assign-preview strong {
   color: var(--text-primary);
 }
+
+/* ── Map location picker ── */
+.map-location-picker {
+  margin-bottom: 0.5rem;
+}
+
+.map-location-picker__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.map-location-picker__hint {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0;
+  flex: 1;
+  min-width: 200px;
+}
+
+.map-location-picker__map {
+  width: 100%;
+  height: 320px;
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  z-index: 0;
+}
+
+.map-location-picker__coords {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin: 0.65rem 0 0;
+}
+
+.map-location-picker__coords--muted {
+  font-style: italic;
+}
+
+.map-pin-marker {
+  background: transparent;
+  border: none;
+}
+
+.map-pin-marker__dot {
+  display: block;
+  width: 22px;
+  height: 22px;
+  margin: 3px;
+  background: var(--accent-primary, #6366f1);
+  border: 3px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.leaflet-container {
+  font-family: inherit;
+  background: var(--bg-elevated, #1a1a2e);
+}
+
+.geo-last-action--warn {
+  color: var(--color-warning, #b8860b);
+}

@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { MapPin, Loader2, Trash2, Plus, Navigation, UserCheck } from 'lucide-react';
 import { OfficeLocation, requestCurrentPosition } from '../utils/geoAttendance';
 import AssignManagerLocationPanel from './AssignManagerLocationPanel';
+import MapLocationPicker from './MapLocationPicker';
 
 export default function OfficeLocationSettings() {
   const [offices, setOffices] = useState<OfficeLocation[]>([]);
@@ -125,10 +126,17 @@ export default function OfficeLocationSettings() {
       <div className="attendance-card">
         <h3 className="attendance-card__title"><MapPin size={18} /> Step 1 — Add office location</h3>
         <p className="attendance-card__subtitle">
-          Set GPS coordinates and radius for your office building.
+          Pick the office on the map, use your live GPS, or enter coordinates manually.
         </p>
 
-        <form onSubmit={save} className="attendance-form-grid attendance-form-grid--wide">
+        <MapLocationPicker
+          latitude={form.latitude}
+          longitude={form.longitude}
+          radiusMeters={parseInt(form.radius_meters, 10) || 150}
+          onLocationChange={(lat, lng) => setForm((f) => ({ ...f, latitude: lat, longitude: lng }))}
+        />
+
+        <form onSubmit={save} className="attendance-form-grid attendance-form-grid--wide" style={{ marginTop: '1.25rem' }}>
           <div className="form-group">
             <label>Office name</label>
             <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Karachi HQ" required />
