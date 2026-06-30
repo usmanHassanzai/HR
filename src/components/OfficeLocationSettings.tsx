@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { MapPin, Loader2, Trash2, Plus, Navigation } from 'lucide-react';
+import { MapPin, Loader2, Trash2, Plus, Navigation, UserCheck } from 'lucide-react';
 import { OfficeLocation, requestCurrentPosition } from '../utils/geoAttendance';
+import AssignManagerLocationPanel from './AssignManagerLocationPanel';
 
 export default function OfficeLocationSettings() {
   const [offices, setOffices] = useState<OfficeLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
+  const [assignOfficeId, setAssignOfficeId] = useState('');
+  const [assignKey, setAssignKey] = useState(0);
   const [form, setForm] = useState({
     id: '' as string | null,
     name: '',
@@ -44,6 +47,12 @@ export default function OfficeLocationSettings() {
     });
   };
 
+  const startAssign = (officeId: string) => {
+    setAssignOfficeId(officeId);
+    setAssignKey((k) => k + 1);
+    document.getElementById('assign-manager-location')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   const useMyLocation = async () => {
     setMsg('');
     try {
@@ -67,6 +76,8 @@ export default function OfficeLocationSettings() {
     }
     setSaving(true);
     setMsg('');
+    const savedName = form.name.trim();
+    const wasNew = !form.id;
     const { error } = await supabase.rpc('upsert_office_location', {
       p_id: form.id || null,
       p_name: form.name.trim(),
@@ -79,9 +90,15 @@ export default function OfficeLocationSettings() {
     setSaving(false);
     if (error) setMsg(error.message);
     else {
-      setMsg('Office location saved.');
+      setMsg(wasNew ? 'Office saved! Now assign it to a manager in Step 2 below.' : 'Office location saved.');
       resetForm();
-      load();
+      await load();
+      if (wasNew) {
+        const { data: refreshed } = await supabase.rpc('get_office_locations');
+        const list = (refreshed || []) as OfficeLocation[];
+        const match = list.find((o) => o.name === savedName);
+        if (match) startAssign(match.id);
+      }
     }
   };
 
@@ -100,10 +117,15 @@ export default function OfficeLocationSettings() {
         </div>
       )}
 
+      <div className="attendance-admin-header">
+        <h3>Office GPS setup</h3>
+        <p><strong>Step 1:</strong> Add your office coordinates. <strong>Step 2:</strong> Assign that office to a manager so their whole team is tracked.</p>
+      </div>
+
       <div className="attendance-card">
-        <h3 className="attendance-card__title"><MapPin size={18} /> Office GPS zones</h3>
+        <h3 className="attendance-card__title"><MapPin size={18} /> Step 1 — Add office location</h3>
         <p className="attendance-card__subtitle">
-          Set your office coordinates and radius. When employees enter this area with location enabled, they are automatically marked present with clock-in time. Leaving the zone clocks them out.
+          Set GPS coordinates and radius for your office building.
         </p>
 
         <form onSubmit={save} className="attendance-form-grid attendance-form-grid--wide">
@@ -138,7 +160,7 @@ export default function OfficeLocationSettings() {
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? <Loader2 size={16} className="spin-icon" /> : form.id ? 'Update office' : <><Plus size={16} /> Add office</>}
+              {saving ? <Loader2 size={16} className="spin-icon" /> : form.id ? 'Update office' : <><Plus size={16} /> Save office</>}
             </button>
             {form.id && (
               <button type="button" className="btn btn-secondary" onClick={resetForm}>Cancel</button>
@@ -147,12 +169,14 @@ export default function OfficeLocationSettings() {
         </form>
       </div>
 
+      <AssignManagerLocationPanel key={assignKey} initialOfficeId={assignOfficeId} />
+
       <div className="attendance-card">
-        <h3 className="attendance-card__title">Configured offices ({offices.length})</h3>
+        <h3 className="attendance-card__title">Saved offices ({offices.length})</h3>
         {loading ? (
           <div className="dash-loading"><Loader2 size={24} className="spin-icon" /></div>
         ) : offices.length === 0 ? (
-          <p className="attendance-empty">No office zones yet. Add one above so geo attendance can work.</p>
+          <p className="attendance-empty">No office zones yet. Add one in Step 1.</p>
         ) : (
           <div className="attendance-approval-list">
             {offices.map((o) => (
@@ -168,6 +192,11 @@ export default function OfficeLocationSettings() {
                   {o.address && <span className="attendance-approval-item__reason">{o.address}</span>}
                 </div>
                 <div className="attendance-approval-item__actions">
+                  {o.active && (
+                    <button type="button" className="btn btn-primary btn-sm" onClick={() => startAssign(o.id)}>
+                      <UserCheck size={14} /> Assign to manager
+                    </button>
+                  )}
                   <button type="button" className="btn btn-secondary btn-sm" onClick={() => editOffice(o)}>Edit</button>
                   <button type="button" className="btn btn-secondary btn-sm" onClick={() => remove(o.id)} style={{ color: 'var(--color-danger)' }}>
                     <Trash2 size={14} />
