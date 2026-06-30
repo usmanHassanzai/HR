@@ -1,9 +1,12 @@
-import { useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { MapPin, Loader2, Trash2, Plus, Navigation, UserCheck } from 'lucide-react';
-import { OfficeLocation, requestCurrentPosition } from '../utils/geoAttendance';
+import { MapPin, Loader2, Trash2, Plus, UserCheck } from 'lucide-react';
+import { OfficeLocation } from '../utils/geoAttendance';
 import AssignManagerLocationPanel from './AssignManagerLocationPanel';
-import MapLocationPicker from './MapLocationPicker';
+import LiveGpsCapture from './LiveGpsCapture';
+import '../styles/attendance.css';
+
+const MapLocationPicker = lazy(() => import('./MapLocationPicker'));
 
 export default function OfficeLocationSettings() {
   const [offices, setOffices] = useState<OfficeLocation[]>([]);
@@ -46,6 +49,12 @@ export default function OfficeLocationSettings() {
       radius_meters: String(o.radius_meters),
       active: o.active,
     });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const setCoords = (lat: string, lng: string) => {
+    setForm((f) => ({ ...f, latitude: lat, longitude: lng }));
+    setMsg('Live location captured! Review coordinates below and save the office.');
   };
 
   const startAssign = (officeId: string) => {
@@ -54,25 +63,14 @@ export default function OfficeLocationSettings() {
     document.getElementById('assign-manager-location')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const useMyLocation = async () => {
-    setMsg('');
-    try {
-      const pos = await requestCurrentPosition();
-      setForm((f) => ({
-        ...f,
-        latitude: pos.coords.latitude.toFixed(6),
-        longitude: pos.coords.longitude.toFixed(6),
-      }));
-      setMsg('Current location captured.');
-    } catch (e: unknown) {
-      setMsg(e instanceof Error ? e.message : 'Could not get location');
-    }
-  };
-
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim() || !form.latitude || !form.longitude) {
-      setMsg('Name and GPS coordinates are required.');
+    if (!form.name.trim()) {
+      setMsg('Office name is required.');
+      return;
+    }
+    if (!form.latitude || !form.longitude) {
+      setMsg('Please add live location first (blue button above) or enter latitude/longitude.');
       return;
     }
     setSaving(true);
@@ -113,32 +111,49 @@ export default function OfficeLocationSettings() {
   return (
     <div className="attendance-page">
       {msg && (
-        <div className={`rewards-toast ${msg.includes('fail') || msg.includes('denied') || msg.includes('required') ? 'rewards-toast--error' : 'rewards-toast--success'}`}>
+        <div className={`rewards-toast ${msg.includes('fail') || msg.includes('denied') || msg.includes('required') || msg.includes('Please') ? 'rewards-toast--error' : 'rewards-toast--success'}`}>
           {msg}
         </div>
       )}
 
       <div className="attendance-admin-header">
         <h3>Office GPS setup</h3>
-        <p><strong>Step 1:</strong> Add your office coordinates. <strong>Step 2:</strong> Assign that office to a manager so their whole team is tracked.</p>
+        <p>
+          <strong>1.</strong> Add live location &nbsp;→&nbsp;
+          <strong>2.</strong> Save office &nbsp;→&nbsp;
+          <strong>3.</strong> Assign to manager
+        </p>
       </div>
 
+      {/* ── LIVE GPS — always visible, no map required ── */}
+      <LiveGpsCapture
+        latitude={form.latitude}
+        longitude={form.longitude}
+        onCapture={setCoords}
+      />
+
       <div className="attendance-card">
-        <h3 className="attendance-card__title"><MapPin size={18} /> Step 1 — Add office location</h3>
+        <h3 className="attendance-card__title"><MapPin size={18} /> Office details & map</h3>
         <p className="attendance-card__subtitle">
-          Pick the office on the map, use your live GPS, or enter coordinates manually.
+          After capturing live GPS above, enter the office name and fine-tune on the map if needed.
         </p>
 
-        <MapLocationPicker
-          latitude={form.latitude}
-          longitude={form.longitude}
-          radiusMeters={parseInt(form.radius_meters, 10) || 150}
-          onLocationChange={(lat, lng) => setForm((f) => ({ ...f, latitude: lat, longitude: lng }))}
-        />
+        <Suspense fallback={
+          <div className="dash-loading" style={{ minHeight: 120 }}>
+            <Loader2 size={24} className="spin-icon" /> Loading map…
+          </div>
+        }>
+          <MapLocationPicker
+            latitude={form.latitude}
+            longitude={form.longitude}
+            radiusMeters={parseInt(form.radius_meters, 10) || 150}
+            onLocationChange={setCoords}
+          />
+        </Suspense>
 
         <form onSubmit={save} className="attendance-form-grid attendance-form-grid--wide" style={{ marginTop: '1.25rem' }}>
           <div className="form-group">
-            <label>Office name</label>
+            <label>Office name *</label>
             <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Karachi HQ" required />
           </div>
           <div className="form-group">
@@ -146,21 +161,18 @@ export default function OfficeLocationSettings() {
             <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="Street, city" />
           </div>
           <div className="form-group">
-            <label>Latitude</label>
-            <input type="number" step="any" value={form.latitude} onChange={(e) => setForm({ ...form, latitude: e.target.value })} required />
+            <label>Latitude *</label>
+            <input type="number" step="any" value={form.latitude} onChange={(e) => setForm({ ...form, latitude: e.target.value })} placeholder="From live GPS button" required />
           </div>
           <div className="form-group">
-            <label>Longitude</label>
-            <input type="number" step="any" value={form.longitude} onChange={(e) => setForm({ ...form, longitude: e.target.value })} required />
+            <label>Longitude *</label>
+            <input type="number" step="any" value={form.longitude} onChange={(e) => setForm({ ...form, longitude: e.target.value })} placeholder="From live GPS button" required />
           </div>
           <div className="form-group">
             <label>Radius (meters)</label>
             <input type="number" min={30} max={2000} value={form.radius_meters} onChange={(e) => setForm({ ...form, radius_meters: e.target.value })} />
           </div>
-          <div className="form-group" style={{ display: 'flex', alignItems: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <button type="button" className="btn btn-secondary" onClick={useMyLocation}>
-              <Navigation size={16} /> Use my location
-            </button>
+          <div className="form-group" style={{ display: 'flex', alignItems: 'flex-end' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', margin: 0, cursor: 'pointer' }}>
               <input type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} />
               Active
@@ -184,7 +196,7 @@ export default function OfficeLocationSettings() {
         {loading ? (
           <div className="dash-loading"><Loader2 size={24} className="spin-icon" /></div>
         ) : offices.length === 0 ? (
-          <p className="attendance-empty">No office zones yet. Add one in Step 1.</p>
+          <p className="attendance-empty">No office zones yet. Use live GPS above, then save.</p>
         ) : (
           <div className="attendance-approval-list">
             {offices.map((o) => (

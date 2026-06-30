@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabase';
 import { Profile } from '../utils/kpiHelpers';
 import { OfficeLocation } from '../utils/geoAttendance';
 import { MapPin, Loader2, Trash2, UserCheck, Users } from 'lucide-react';
+import LiveGpsCapture from './LiveGpsCapture';
+import '../styles/attendance.css';
 
 export interface ManagerSiteRow {
   site_id: string;
@@ -36,6 +38,8 @@ export default function AssignManagerLocationPanel({
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState('');
+  const [quickOffice, setQuickOffice] = useState({ name: '', latitude: '', longitude: '', radius_meters: '150' });
+  const [quickSaving, setQuickSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -106,6 +110,37 @@ export default function AssignManagerLocationPanel({
 
   const activeOffices = offices.filter((o) => o.active);
 
+  const saveQuickOffice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickOffice.name.trim()) {
+      setMsg('Office name is required.');
+      return;
+    }
+    if (!quickOffice.latitude || !quickOffice.longitude) {
+      setMsg('Tap “Add my live location now” above to capture GPS first.');
+      return;
+    }
+    setQuickSaving(true);
+    setMsg('');
+    const { error } = await supabase.rpc('upsert_office_location', {
+      p_id: null,
+      p_name: quickOffice.name.trim(),
+      p_address: null,
+      p_latitude: parseFloat(quickOffice.latitude),
+      p_longitude: parseFloat(quickOffice.longitude),
+      p_radius_meters: parseInt(quickOffice.radius_meters, 10) || 150,
+      p_active: true,
+    });
+    setQuickSaving(false);
+    if (error) {
+      setMsg(error.message);
+      return;
+    }
+    setMsg('Office saved from live GPS! Select it below and assign to a manager.');
+    setQuickOffice({ name: '', latitude: '', longitude: '', radius_meters: '150' });
+    await load();
+  };
+
   return (
     <div className="attendance-card geo-attendance-panel" id="assign-manager-location">
       <h3 className="attendance-card__title">
@@ -127,7 +162,42 @@ export default function AssignManagerLocationPanel({
       ) : managers.length === 0 ? (
         <p className="attendance-empty">No managers found. Create a manager account first under Users.</p>
       ) : activeOffices.length === 0 ? (
-        <p className="attendance-empty">No office locations yet. Add an office in Step 1 above, then come back here to assign it.</p>
+        <div>
+          <p className="attendance-empty" style={{ marginBottom: '1rem' }}>
+            No office locations yet. Capture your live GPS below, name the office, and save — then assign it to a manager.
+          </p>
+          <LiveGpsCapture
+            latitude={quickOffice.latitude}
+            longitude={quickOffice.longitude}
+            onCapture={(lat, lng) => setQuickOffice((o) => ({ ...o, latitude: lat, longitude: lng }))}
+          />
+          <form onSubmit={saveQuickOffice} className="attendance-form-grid attendance-form-grid--wide" style={{ marginTop: '1rem' }}>
+            <div className="form-group">
+              <label>Office name *</label>
+              <input
+                value={quickOffice.name}
+                onChange={(e) => setQuickOffice({ ...quickOffice, name: e.target.value })}
+                placeholder="e.g. Karachi HQ"
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>Radius (meters)</label>
+              <input
+                type="number"
+                min={30}
+                max={2000}
+                value={quickOffice.radius_meters}
+                onChange={(e) => setQuickOffice({ ...quickOffice, radius_meters: e.target.value })}
+              />
+            </div>
+            <div>
+              <button type="submit" className="btn btn-primary" disabled={quickSaving || !quickOffice.latitude}>
+                {quickSaving ? <Loader2 size={16} className="spin-icon" /> : <><MapPin size={16} /> Save office at live location</>}
+              </button>
+            </div>
+          </form>
+        </div>
       ) : (
         <form onSubmit={assign} className="attendance-form-grid attendance-form-grid--wide">
           <div className="form-group">

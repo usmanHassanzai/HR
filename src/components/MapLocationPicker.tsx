@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
-import { Loader2, MapPin, Navigation } from 'lucide-react';
+import { Crosshair, Loader2, MapPin, Navigation } from 'lucide-react';
 import { requestCurrentPosition } from '../utils/geoAttendance';
 import 'leaflet/dist/leaflet.css';
 
@@ -61,7 +61,7 @@ export default function MapLocationPicker({
         radius: radiusMeters,
         color: '#6366f1',
         fillColor: '#6366f1',
-        fillOpacity: 0.12,
+        fillOpacity: 0.15,
         weight: 2,
       }).addTo(map);
     }
@@ -133,25 +133,46 @@ export default function MapLocationPicker({
 
   return (
     <div className="map-location-picker">
-      <div className="map-location-picker__toolbar">
+      <div className="map-location-picker__actions">
+        <button
+          type="button"
+          className="btn btn-primary map-location-picker__gps-btn"
+          onClick={useLiveLocation}
+          disabled={locating}
+        >
+          {locating ? <Loader2 size={18} className="spin-icon" /> : <Navigation size={18} />}
+          Use my current / live GPS location
+        </button>
         <p className="map-location-picker__hint">
-          <MapPin size={14} /> Tap the map or drag the pin. The circle is your attendance zone.
+          <MapPin size={14} />
+          Or tap anywhere on the map to place the pin. Drag the pin to adjust. Circle = attendance zone ({radiusMeters}m).
         </p>
-        <button type="button" className="btn btn-secondary btn-sm" onClick={useLiveLocation} disabled={locating}>
-          {locating ? <Loader2 size={14} className="spin-icon" /> : <Navigation size={14} />}
-          Use my live location
+      </div>
+
+      {mapError && <p className="geo-error">{mapError}</p>}
+
+      <div className="map-location-picker__map-wrap">
+        <div ref={containerRef} className="map-location-picker__map" aria-label="Office location map" />
+        <button
+          type="button"
+          className="map-location-picker__fab"
+          onClick={useLiveLocation}
+          disabled={locating}
+          title="Use my live GPS location"
+          aria-label="Use my live GPS location"
+        >
+          {locating ? <Loader2 size={20} className="spin-icon" /> : <Crosshair size={20} />}
         </button>
       </div>
-      {mapError && <p className="geo-error">{mapError}</p>}
-      <div ref={containerRef} className="map-location-picker__map" aria-label="Office location map" />
+
       {latitude && longitude ? (
         <p className="map-location-picker__coords">
+          <Crosshair size={14} />
           Selected: <strong>{parseFloat(latitude).toFixed(6)}</strong>, <strong>{parseFloat(longitude).toFixed(6)}</strong>
-          {' · '}{radiusMeters}m radius
         </p>
       ) : (
         <p className="map-location-picker__coords map-location-picker__coords--muted">
-          No pin yet — tap the map or use live location.
+          No location selected yet — use the blue GPS button above or tap the map.
         </p>
       )}
     </div>
