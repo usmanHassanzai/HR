@@ -1,4 +1,5 @@
 import { AttendanceRecord, ATTENDANCE_STATUS_LABEL, APPROVAL_LABEL } from './attendanceHelpers';
+import { formatClockTime } from './geoAttendance';
 
 function escapeCsv(value: string) {
   if (/[",\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
@@ -6,12 +7,15 @@ function escapeCsv(value: string) {
 }
 
 export function downloadAttendanceCsv(records: AttendanceRecord[], employeeName: string, periodLabel: string) {
-  const header = 'Employee,Date,Status,Approval,Notes';
+  const header = 'Employee,Date,Status,Clock In,Clock Out,Source,Approval,Notes';
   const rows = records.map((r) =>
     [
       escapeCsv(employeeName),
       r.attendance_date,
       ATTENDANCE_STATUS_LABEL[r.status],
+      formatClockTime(r.clock_in_at),
+      formatClockTime(r.clock_out_at),
+      r.attendance_source || 'manual',
       APPROVAL_LABEL[r.approval_status],
       escapeCsv(r.notes || ''),
     ].join(',')

@@ -35,6 +35,9 @@ export interface AttendanceRecord {
   attendance_date: string;
   status: AttendanceStatus;
   approval_status: ApprovalStatus;
+  clock_in_at?: string | null;
+  clock_out_at?: string | null;
+  attendance_source?: string;
   notes: string | null;
   marked_by: string | null;
   reviewed_by: string | null;

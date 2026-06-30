@@ -9,6 +9,7 @@ import Header from './components/Header';
 import EmployeeDashboard from './components/EmployeeDashboard';
 import ManagerDashboard from './components/ManagerDashboard';
 import AdminDashboard from './components/AdminDashboard';
+import GeoAttendanceTracker from './components/GeoAttendanceTracker';
 import { Loader2, AlertCircle } from 'lucide-react';
 
 function App() {
@@ -151,6 +152,10 @@ function App() {
       {isDemoProfile(profile) && <DemoModeBanner />}
       {/* Mounted Layout Header */}
       <Header profile={profile} onLogout={handleLogout} />
+
+      {(profile.role === 'employee' || profile.role === 'manager') && (
+        <GeoAttendanceTracker profile={profile} />
+      )}
 
       {/* Role Dashboard Routing */}
       <main className="dashboard-main" style={{ marginTop: '1rem' }}>

@@ -336,3 +336,110 @@
   font-size: 0.9rem;
   color: var(--text-secondary);
 }
+
+/* ── Geo attendance ── */
+.geo-attendance-panel {
+  border-left: 4px solid var(--accent-primary);
+}
+
+.geo-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.geo-toggle-row input {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--accent-primary);
+}
+
+.geo-clock-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.geo-clock-stat {
+  padding: 0.85rem 1rem;
+  border-radius: var(--border-radius-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+}
+
+.geo-clock-stat__label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.25rem;
+}
+
+.geo-clock-stat strong {
+  font-size: 1.15rem;
+  color: var(--text-primary);
+}
+
+.geo-clock-stat__tag {
+  display: inline-block;
+  margin-left: 0.4rem;
+  font-size: 0.65rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  vertical-align: middle;
+}
+
+.geo-nearby,
+.geo-last-action,
+.geo-hint {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0.5rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.geo-error {
+  font-size: 0.85rem;
+  color: var(--color-danger);
+  margin: 0.5rem 0;
+}
+
+.office-location-form {
+  display: grid;
+  gap: 1rem;
+  max-width: 520px;
+}
+
+.office-location-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.office-location-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--border-radius-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+}
+
+.office-location-row__meta {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}

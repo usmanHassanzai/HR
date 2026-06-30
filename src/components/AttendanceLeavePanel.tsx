@@ -18,6 +18,8 @@ import {
 } from '../utils/attendanceHelpers';
 import { emailLeaveRequestNotifications } from '../utils/attendanceEmail';
 import { downloadAttendanceCsv } from '../utils/exportAttendance';
+import GeoAttendancePanel from './GeoAttendancePanel';
+import { formatClockTime } from '../utils/geoAttendance';
 import {
   Clock, Loader2, CheckCircle, XCircle, Palmtree,
   UserCheck, Users, Download, Inbox, History, ClipboardList,
@@ -458,13 +460,15 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
         <div className="team-points-table-wrap" style={{ marginBottom: '1.25rem' }}>
           <table className="attendance-history-table">
             <thead>
-              <tr><th>Date</th><th>Status</th><th>Approval</th></tr>
+              <tr><th>Date</th><th>Status</th><th>Clock in</th><th>Clock out</th><th>Approval</th></tr>
             </thead>
             <tbody>
               {myAttendance.map((r) => (
                 <tr key={r.id}>
                   <td>{r.attendance_date}</td>
                   <td>{ATTENDANCE_STATUS_LABEL[r.status]}</td>
+                  <td>{formatClockTime(r.clock_in_at)}{r.attendance_source === 'geo' && r.clock_in_at ? ' · GPS' : ''}</td>
+                  <td>{formatClockTime(r.clock_out_at)}</td>
                   <td><span className={`badge ${approvalBadgeClass(r.approval_status)}`}>{APPROVAL_LABEL[r.approval_status]}</span></td>
                 </tr>
               ))}
@@ -629,6 +633,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
 
         {managerTab === 'today' && (
           <>
+            <GeoAttendancePanel onClockUpdate={load} />
             {renderCheckInHero('Admin')}
             {renderQuickStats()}
             {renderLeaveForm('Your leave goes to admin for approval.')}
@@ -708,6 +713,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
 
       {employeeTab === 'today' && (
         <>
+          <GeoAttendancePanel onClockUpdate={load} />
           {renderCheckInHero('Your manager')}
           {renderQuickStats()}
           {summary && (
