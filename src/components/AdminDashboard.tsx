@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, supabaseSignup } from '../lib/supabase';
 import { Profile } from '../utils/kpiHelpers';
-import { Users, UserPlus, Trash2, Loader2, AlertCircle, CheckCircle, Download, FileSpreadsheet, FileText, BarChart3, Palette, Trophy, KeyRound, CalendarCheck, MapPin } from 'lucide-react';
+import { Users, UserPlus, Trash2, Loader2, AlertCircle, CheckCircle, Download, FileSpreadsheet, FileText, BarChart3, Palette, Trophy, KeyRound, CalendarCheck, MapPin, Radio } from 'lucide-react';
 import { fetchQuarterlyReportData, fetchMonthlyReportData, exportToCsv, exportToExcel, exportToPdf } from '../utils/exportReport';
 import Analytics from './Analytics';
 import BrandingSettings from './BrandingSettings';
@@ -9,6 +9,7 @@ import AdminRewards from './AdminRewards';
 import AttendanceLeavePanel from './AttendanceLeavePanel';
 import AdminResetPasswordModal from './AdminResetPasswordModal';
 import OfficeLocationSettings from './OfficeLocationSettings';
+import EmployeeLocationTracking from './EmployeeLocationTracking';
 import DashboardTabNav from './DashboardTabNav';
 import { isDemoProfile } from '../utils/demoMode';
 
@@ -20,7 +21,7 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
   const [users, setUsers] = useState<Profile[]>([]);
   const [managers, setManagers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'users' | 'export' | 'analytics' | 'branding' | 'rewards' | 'attendance' | 'office'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'export' | 'analytics' | 'branding' | 'rewards' | 'attendance' | 'office' | 'tracking'>('users');
 
   // User Form States
   const [email, setEmail] = useState('');
@@ -193,6 +194,7 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
           { id: 'rewards', label: 'Rewards', mobileLabel: 'Rewards', icon: <Trophy size={16} /> },
           { id: 'attendance', label: 'Leave Approvals', mobileLabel: 'Leave', icon: <CalendarCheck size={16} /> },
           { id: 'office', label: 'Office GPS', mobileLabel: 'GPS', icon: <MapPin size={16} /> },
+          { id: 'tracking', label: 'Live Tracking', mobileLabel: 'Track', icon: <Radio size={16} /> },
         ]}
       />
 
@@ -266,6 +268,8 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
         <AttendanceLeavePanel profile={profile} mode="admin" />
       ) : activeTab === 'office' ? (
         <OfficeLocationSettings />
+      ) : activeTab === 'tracking' ? (
+        <EmployeeLocationTracking profile={profile} mode="admin" />
       ) : (
         <div className="responsive-grid-wide" style={{ gap: '2rem' }}>
           

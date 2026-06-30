@@ -29,13 +29,14 @@ export default function GeoAttendanceTracker({ profile, onUpdate }: GeoAttendanc
 
   const isEligible = profile.role === 'employee' || profile.role === 'manager';
 
-  const sendPing = useCallback(async (lat: number, lng: number) => {
+  const sendPing = useCallback(async (lat: number, lng: number, accuracy?: number | null) => {
     if (busy.current) return;
     busy.current = true;
     try {
       const { data, error: rpcError } = await supabase.rpc('process_geo_attendance_ping', {
         p_latitude: lat,
         p_longitude: lng,
+        p_accuracy: accuracy ?? null,
       });
       if (rpcError) throw rpcError;
       const result = data as GeoPingResult;
@@ -53,7 +54,7 @@ export default function GeoAttendanceTracker({ profile, onUpdate }: GeoAttendanc
     if (!isEligible || !enabled || !navigator.geolocation) return;
 
     const onPosition = (pos: GeolocationPosition) => {
-      sendPing(pos.coords.latitude, pos.coords.longitude);
+      sendPing(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
     };
 
     const onError = () => {

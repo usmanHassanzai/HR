@@ -79,6 +79,7 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
       const { data, error: rpcError } = await supabase.rpc('process_geo_attendance_ping', {
         p_latitude: lat,
         p_longitude: lng,
+        p_accuracy: pos.coords.accuracy ?? null,
       });
       if (rpcError) throw rpcError;
       const result = data as GeoPingResult;

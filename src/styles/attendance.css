@@ -443,3 +443,57 @@
   font-size: 0.85rem;
   color: var(--text-secondary);
 }
+
+.geo-tracking-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+@media (max-width: 640px) {
+  .geo-tracking-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+.geo-tracking-table__sub {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  font-weight: normal;
+  margin-top: 0.15rem;
+}
+
+.geo-status-badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.geo-status--in {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.geo-status--away {
+  background: var(--color-warning-bg, rgba(255, 193, 7, 0.15));
+  color: var(--color-warning, #b8860b);
+}
+
+.geo-status--pending {
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--accent-primary);
+}
+
+.geo-status--muted {
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+}
+
+.geo-tracking-table td {
+  vertical-align: top;
+}
