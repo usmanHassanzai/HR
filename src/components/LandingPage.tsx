@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import Login from './Login';
 import ThemeToggle from './ThemeToggle';
 import ScorrWordmark from './ScorrWordmark';
+import MobileAppDownload from './MobileAppDownload';
 import {
   BarChart3, Trophy, CalendarCheck, Users, FileSpreadsheet, Bell,
   Palette, Sparkles, Shield, Check, ArrowRight, Zap, CreditCard,
-  TrendingUp, Target, Award,
+  TrendingUp, Target, Award, Smartphone,
 } from 'lucide-react';
 import '../styles/landing.css';
 
@@ -123,6 +124,7 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
           <a href="#services" onClick={(e) => { e.preventDefault(); scrollTo('services'); }}>Services</a>
           <a href="#how-it-works" onClick={(e) => { e.preventDefault(); scrollTo('how-it-works'); }}>How It Works</a>
           <a href="#pricing" onClick={(e) => { e.preventDefault(); scrollTo('pricing'); }}>Pricing</a>
+          <a href="#download-app" onClick={(e) => { e.preventDefault(); scrollTo('download-app'); }}>Mobile App</a>
           <a href="#fees" onClick={(e) => { e.preventDefault(); scrollTo('fees'); }}>Billing</a>
         </div>
         <div className="landing-nav__cta">
@@ -159,6 +161,9 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
               </button>
               <button type="button" className="btn btn-secondary" onClick={() => scrollTo('pricing')}>
                 View Pricing
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={() => scrollTo('download-app')}>
+                <Smartphone size={16} /> Get Mobile App
               </button>
             </div>
             <div className="landing-hero__stats">
@@ -320,6 +325,8 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
           </div>
         </div>
       </section>
+
+      <MobileAppDownload />
 
       {/* Login */}
       <section id="login" className="landing-login-section">

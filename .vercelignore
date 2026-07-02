@@ -1,0 +1,12 @@
+# Mobile / native — not needed for web deploy (saves ~600 MB upload)
+.tools
+android
+ios
+
+# Dependencies & build cache (Vercel installs fresh)
+node_modules
+
+# Local artifacts
+*.tar.gz
+*.keystore
+.git

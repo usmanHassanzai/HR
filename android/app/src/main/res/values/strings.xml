@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Scorr</string>
+    <string name="title_activity_main">Scorr</string>
+    <string name="package_name">ai.walfia.scorr</string>
+    <string name="custom_url_scheme">ai.walfia.scorr</string>
+</resources>

@@ -6,9 +6,11 @@ import './styles/attendance.css'
 import App from './App.tsx'
 import { applyBranding, loadBranding } from './lib/branding'
 import { initTheme } from './lib/theme'
+import { initNativeApp } from './utils/nativePlatform'
 
 initTheme()
 applyBranding(loadBranding())
+void initNativeApp()
 
 // Phase 3: register service worker for PWA installability (production only).
 if ('serviceWorker' in navigator && import.meta.env.PROD) {

@@ -54,6 +54,22 @@ Until domain is verified, Resend only sends to your signup email.
 node scripts/deploy-production.mjs   # configures Supabase auth + builds dist/
 ```
 
+### Mobile apps (Android APK + iOS)
+
+See **[MOBILE.md](./MOBILE.md)** for full instructions.
+
+```bash
+node scripts/build-android-apk.mjs   # builds APK → public/downloads/scorr.apk
+npm run build                        # copies APK into dist/ for deploy
+npx vercel --prod --yes              # deploy website + download link
+```
+
+Or one command before deploy:
+
+```bash
+npm run prepare:deploy && npx vercel --prod --yes
+```
+
 ### Vercel (recommended)
 
 1. [vercel.com](https://vercel.com) → Import this repo (or `vercel link` in project folder)

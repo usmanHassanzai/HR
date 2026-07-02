@@ -1,5 +1,8 @@
 /** Geofence attendance — client helpers */
 
+import { Capacitor } from '@capacitor/core';
+import { Geolocation } from '@capacitor/geolocation';
+
 export interface OfficeLocation {
   id: string;
   name: string;
@@ -62,6 +65,45 @@ export function getGeoPermissionState(): GeoPermissionState {
 }
 
 export function requestCurrentPosition(): Promise<GeolocationPosition> {
+  if (Capacitor.isNativePlatform()) {
+    return requestNativePosition();
+  }
+  return requestBrowserPosition();
+}
+
+async function requestNativePosition(): Promise<GeolocationPosition> {
+  const perm = await Geolocation.checkPermissions();
+  if (perm.location === 'denied') {
+    throw new Error('Location blocked. Open Settings → Apps → Scorr → Permissions → Location → Allow.');
+  }
+  if (perm.location !== 'granted') {
+    const req = await Geolocation.requestPermissions();
+    if (req.location !== 'granted') {
+      throw new Error('Location permission required for GPS attendance. Allow location when prompted.');
+    }
+  }
+
+  const pos = await Geolocation.getCurrentPosition({
+    enableHighAccuracy: true,
+    timeout: 25000,
+    maximumAge: 10000,
+  });
+
+  return {
+    coords: {
+      latitude: pos.coords.latitude,
+      longitude: pos.coords.longitude,
+      accuracy: pos.coords.accuracy,
+      altitude: pos.coords.altitude ?? null,
+      altitudeAccuracy: pos.coords.altitudeAccuracy ?? null,
+      heading: pos.coords.heading ?? null,
+      speed: pos.coords.speed ?? null,
+    },
+    timestamp: pos.timestamp,
+  } as GeolocationPosition;
+}
+
+function requestBrowserPosition(): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
       reject(new Error('Geolocation is not supported on this device. Use a phone or laptop with GPS.'));
