@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
+import { SplashScreen } from '@capacitor/splash-screen';
 import { StatusBar, Style } from '@capacitor/status-bar';
 
 export function isNativeApp(): boolean {
@@ -18,6 +19,9 @@ export function isIosApp(): boolean {
 export async function initNativeApp(): Promise<void> {
   if (!isNativeApp()) return;
 
+  document.documentElement.classList.add('native-app');
+  document.body.classList.add('native-app');
+
   try {
     await StatusBar.setStyle({ style: Style.Dark });
     if (isAndroidApp()) {
@@ -33,4 +37,8 @@ export async function initNativeApp(): Promise<void> {
       else App.exitApp();
     });
   }
+
+  window.addEventListener('load', () => {
+    void SplashScreen.hide();
+  });
 }

@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { Lock, Mail, Loader2 } from 'lucide-react';
 import BrandLogo from './BrandLogo';
 import DemoLoginShortcuts from './DemoLoginShortcuts';
+import { isNativeApp } from '../utils/nativePlatform';
 
 interface LoginProps {
   onLoginSuccess: (session: any) => void;
@@ -52,7 +53,7 @@ export default function Login({ onLoginSuccess, embedded = false, showDemoShortc
         
         <div className="login-brand">
           <BrandLogo variant="login" alt="Scorr — scorr.walfia.ai" />
-          <p className="login-brand-sub">Sign in to continue</p>
+          <p className="login-brand-sub">{embedded ? 'Sign in to continue' : isNativeApp() ? 'Scorr HR — sign in' : 'Sign in to continue'}</p>
         </div>
 
         {error && (

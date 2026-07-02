@@ -67,8 +67,11 @@ export default function MobileAppDownload() {
           <div className="landing-download-card__icon landing-download-card__icon--android">
             <Smartphone size={28} />
           </div>
-          <h3>Android (.apk)</h3>
-          <p>Download and install directly from this website. Works on Android 8+.</p>
+          <h3>Android app (.apk)</h3>
+          <p>
+            Installs <strong>Scorr</strong> as a real app on your phone — opens directly to sign-in
+            (not the marketing website). KPIs, attendance, GPS check-in, and rewards inside the app.
+          </p>
           <ol className="landing-download-steps">
             <li>Tap <strong>Download &amp; Install APK</strong> below</li>
             <li>When download finishes, tap the notification or open <strong>Downloads</strong></li>

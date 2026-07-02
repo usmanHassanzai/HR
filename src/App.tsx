@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { Profile } from './utils/kpiHelpers';
 import LandingPage from './components/LandingPage';
+import Login from './components/Login';
 import DemoModeBanner from './components/DemoModeBanner';
+import { isNativeApp } from './utils/nativePlatform';
 import { applyBranding, loadBranding } from './lib/branding';
 import { isDemoProfile } from './utils/demoMode';
 import Header from './components/Header';
@@ -141,8 +143,11 @@ function App() {
     );
   }
 
-  // Not Authenticated View
+  // Not Authenticated View — native APK opens login directly (not marketing website)
   if (!session || !profile) {
+    if (isNativeApp()) {
+      return <Login onLoginSuccess={handleLoginSuccess} showDemoShortcuts />;
+    }
     return <LandingPage onLoginSuccess={handleLoginSuccess} />;
   }
 
