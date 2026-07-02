@@ -97,6 +97,98 @@ body.native-app .native-scroll-root .app-header {
   margin-bottom: 1rem;
 }
 
+/* Mobile app header — name + role always visible, never clipped */
+.app-header--shell {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.75rem;
+  flex-wrap: nowrap;
+  padding: 0.75rem 0.85rem !important;
+}
+
+.app-header__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+  width: 100%;
+}
+
+.app-header--shell .header-brand {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 55%;
+}
+
+.app-header--shell .brand-logo--header {
+  height: clamp(36px, 9vw, 44px);
+  max-width: 100%;
+}
+
+.app-header--shell .header-actions--icons {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+
+.app-header__profile {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.7rem 0.85rem;
+  background: var(--dash-surface-muted, rgba(255, 255, 255, 0.04));
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--border-color);
+  box-sizing: border-box;
+}
+
+.app-header__profile-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.app-header__name {
+  display: block;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--text-primary);
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  max-width: 100%;
+}
+
+.app-header__role {
+  font-size: 0.72rem !important;
+  display: inline-flex !important;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.app-header--shell .header-avatar {
+  display: flex !important;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+}
+
+.app-header--shell .header-user-name {
+  overflow: visible;
+  text-overflow: unset;
+  white-space: normal;
+}
+
 body.app-shell .native-scroll-root .dashboard-with-mobile-nav,
 body.native-app .native-scroll-root .dashboard-with-mobile-nav {
   padding-bottom: 0;
