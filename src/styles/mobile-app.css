@@ -1,44 +1,59 @@
-/* Mobile APK / installed app — smooth scrolling, safe areas, no hang UX */
+/* Mobile APK — one scroll container; fixes Android WebView scroll freeze */
 
-html.app-shell {
+html.app-shell,
+html.native-app {
+  width: 100%;
   height: 100%;
-  height: 100dvh;
+  overflow: hidden;
 }
 
-body.app-shell {
-  min-height: 100%;
-  min-height: 100dvh;
+body.app-shell,
+body.native-app {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  margin: 0;
+  background-attachment: scroll !important;
+  touch-action: auto;
+}
+
+body.app-shell #root,
+body.native-app #root,
+#root.native-app-root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+  display: block;
+}
+
+/* Primary scroll surface — all app content lives inside this */
+.native-scroll-root {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   overflow-x: hidden;
   overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
-  touch-action: manipulation;
-}
-
-body.app-shell #root {
-  min-height: 100%;
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-}
-
-/* Login — scrollable when demo buttons need space */
-.app-login-screen {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 100dvh;
-  overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
-  padding: max(0.75rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  touch-action: pan-y pan-x;
+  scroll-behavior: auto;
+}
+
+/* Login */
+.app-login-screen {
+  min-height: min(100%, 100dvh);
+  padding: max(0.75rem, env(safe-area-inset-top))
+    max(1rem, env(safe-area-inset-right))
+    max(1.5rem, env(safe-area-inset-bottom))
+    max(1rem, env(safe-area-inset-left));
 }
 
 .app-login-screen .login-card--app {
   width: 100%;
   max-width: 420px;
-  margin: auto;
-  flex-shrink: 0;
+  margin: 0 auto 1.5rem;
   box-shadow: none !important;
   border: 1px solid var(--border-color) !important;
 }
@@ -47,78 +62,89 @@ body.app-shell #root {
   min-height: 48px;
 }
 
-/* Dashboard — content scrolls above fixed bottom nav */
-body.app-shell .dashboard-container {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 100dvh;
+/* Dashboard — natural document flow inside scroll root */
+body.app-shell .native-scroll-root .dashboard-container,
+body.native-app .native-scroll-root .dashboard-container {
+  display: block;
+  height: auto;
+  min-height: auto;
   max-width: 100%;
-  overflow-x: hidden;
-  padding-left: max(0.75rem, env(safe-area-inset-left));
-  padding-right: max(0.75rem, env(safe-area-inset-right));
-  padding-top: max(0.5rem, env(safe-area-inset-top));
-  padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+  overflow: visible;
+  padding: max(0.5rem, env(safe-area-inset-top))
+    max(0.75rem, env(safe-area-inset-right))
+    calc(5.5rem + env(safe-area-inset-bottom, 0px))
+    max(0.75rem, env(safe-area-inset-left));
 }
 
-body.app-shell .app-header {
+body.app-shell .native-scroll-root .dashboard-main,
+body.native-app .native-scroll-root .dashboard-main {
+  display: block;
+  height: auto;
+  overflow: visible;
+}
+
+body.app-shell .native-scroll-root .dashboard-tab-content,
+body.native-app .native-scroll-root .dashboard-tab-content {
+  overflow: visible;
+  height: auto;
+}
+
+body.app-shell .native-scroll-root .app-header,
+body.native-app .native-scroll-root .app-header {
   position: sticky;
   top: 0;
   z-index: 800;
-  flex-shrink: 0;
+  margin-bottom: 1rem;
 }
 
-body.app-shell .dashboard-main {
-  flex: 1;
-  overflow-x: hidden;
-  overflow-y: visible;
-  -webkit-overflow-scrolling: touch;
-  padding-bottom: 0.5rem;
+body.app-shell .native-scroll-root .dashboard-with-mobile-nav,
+body.native-app .native-scroll-root .dashboard-with-mobile-nav {
+  padding-bottom: 0;
 }
 
-body.app-shell .dashboard-with-mobile-nav {
-  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
-}
-
-body.app-shell .dashboard-tab-content {
-  overflow-x: hidden;
-}
-
-body.app-shell .team-points-table-wrap,
-body.app-shell .glass-panel {
+body.app-shell .native-scroll-root .glass-panel,
+body.app-shell .native-scroll-root .dash-panel,
+body.native-app .native-scroll-root .glass-panel,
+body.native-app .native-scroll-root .dash-panel {
   max-width: 100%;
+}
+
+body.app-shell .native-scroll-root .team-points-table-wrap,
+body.native-app .native-scroll-root .team-points-table-wrap {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  max-width: 100%;
 }
 
-body.app-shell .mobile-bottom-nav {
-  padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+body.app-shell .mobile-bottom-nav,
+body.native-app .mobile-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
   z-index: 950;
+  padding-bottom: calc(0.45rem + env(safe-area-inset-bottom, 0px));
 }
 
-/* Allow text selection in inputs */
 body.app-shell input,
 body.app-shell textarea,
 body.app-shell select,
-body.app-shell [contenteditable] {
-  user-select: text;
-  -webkit-user-select: text;
-  font-size: 16px; /* prevents iOS zoom on focus */
+body.native-app input,
+body.native-app textarea,
+body.native-app select {
+  font-size: 16px;
 }
 
-/* Reduce motion / GPU strain on low-end phones */
-body.app-shell .animate-fade-in {
-  animation-duration: 0.25s;
+body.app-shell .animate-fade-in,
+body.native-app .animate-fade-in {
+  animation: none;
+  opacity: 1;
 }
 
 @media (max-width: 768px) {
-  body.app-shell .dashboard-container {
+  body.app-shell .native-scroll-root .dashboard-container,
+  body.native-app .native-scroll-root .dashboard-container {
     padding-left: max(0.65rem, env(safe-area-inset-left));
     padding-right: max(0.65rem, env(safe-area-inset-right));
-  }
-
-  body.app-shell .glass-panel,
-  body.app-shell .dash-panel {
-    padding: 1rem 1.1rem;
   }
 }

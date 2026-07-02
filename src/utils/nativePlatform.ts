@@ -29,6 +29,7 @@ export async function initNativeApp(): Promise<void> {
   if (isAppShell()) {
     document.documentElement.classList.add('app-shell');
     document.body.classList.add('app-shell');
+    document.getElementById('root')?.classList.add('native-app-root');
   }
   if (!isNativeApp()) return;
 

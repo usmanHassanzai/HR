@@ -3,6 +3,7 @@ import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { Profile } from './utils/kpiHelpers';
 import LandingPage from './components/LandingPage';
 import AppLoginScreen from './components/AppLoginScreen';
+import NativeScrollRoot from './components/NativeScrollRoot';
 import DemoModeBanner from './components/DemoModeBanner';
 import { isAppShell, isNativeApp } from './utils/nativePlatform';
 import { SplashScreen } from '@capacitor/splash-screen';
@@ -100,7 +101,7 @@ function App() {
   };
 
   if (!isSupabaseConfigured) {
-    return (
+    const configView = (
       <div className="dashboard-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
         <div className="glass-panel" style={{ width: '100%', maxWidth: '560px', padding: '2.5rem', textAlign: 'center', borderLeft: '4px solid var(--color-warning)' }}>
           <AlertCircle size={40} style={{ color: 'var(--color-warning)', marginBottom: '1rem' }} />
@@ -111,11 +112,12 @@ function App() {
         </div>
       </div>
     );
+    return <NativeScrollRoot>{configView}</NativeScrollRoot>;
   }
 
   // Main Loading View
   if (loading) {
-    return (
+    const loadingView = (
       <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', gap: '1rem' }}>
         <Loader2 size={36} className="animate-spin" style={{ color: 'var(--accent-primary)', animation: 'spin 1.5s linear infinite' }} />
         <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
@@ -123,11 +125,12 @@ function App() {
         </span>
       </div>
     );
+    return <NativeScrollRoot>{loadingView}</NativeScrollRoot>;
   }
 
   // Database/Schema Error View
   if (session && error) {
-    return (
+    const errorView = (
       <div className="dashboard-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
         <div className="glass-panel" style={{ width: '100%', maxWidth: '560px', padding: '2.5rem', textAlign: 'center', borderLeft: '4px solid var(--color-danger)' }}>
           <AlertCircle size={40} style={{ color: 'var(--color-danger)', marginBottom: '1rem' }} />
@@ -150,34 +153,39 @@ function App() {
         </div>
       </div>
     );
+    return <NativeScrollRoot>{errorView}</NativeScrollRoot>;
   }
 
   // Installed app (APK / home screen): sign-in only — never the marketing website
   if (!session || !profile) {
     if (isAppShell()) {
-      return <AppLoginScreen onLoginSuccess={handleLoginSuccess} />;
+      return (
+        <NativeScrollRoot>
+          <AppLoginScreen onLoginSuccess={handleLoginSuccess} />
+        </NativeScrollRoot>
+      );
     }
     return <LandingPage onLoginSuccess={handleLoginSuccess} />;
   }
 
   // Authenticated Dashboard Views
   return (
-    <div className="dashboard-container">
-      {isDemoProfile(profile) && <DemoModeBanner />}
-      {/* Mounted Layout Header */}
-      <Header profile={profile} onLogout={handleLogout} />
+    <NativeScrollRoot>
+      <div className="dashboard-container">
+        {isDemoProfile(profile) && <DemoModeBanner />}
+        <Header profile={profile} onLogout={handleLogout} />
 
-      {(profile.role === 'employee' || profile.role === 'manager') && (
-        <GeoAttendanceTracker profile={profile} />
-      )}
+        {(profile.role === 'employee' || profile.role === 'manager') && (
+          <GeoAttendanceTracker profile={profile} />
+        )}
 
-      {/* Role Dashboard Routing */}
-      <main className="dashboard-main" style={{ marginTop: '1rem' }}>
-        {profile.role === 'admin' && <AdminDashboard profile={profile} />}
-        {profile.role === 'manager' && <ManagerDashboard profile={profile} />}
-        {profile.role === 'employee' && <EmployeeDashboard profile={profile} />}
-      </main>
-    </div>
+        <main className="dashboard-main" style={{ marginTop: '1rem' }}>
+          {profile.role === 'admin' && <AdminDashboard profile={profile} />}
+          {profile.role === 'manager' && <ManagerDashboard profile={profile} />}
+          {profile.role === 'employee' && <EmployeeDashboard profile={profile} />}
+        </main>
+      </div>
+    </NativeScrollRoot>
   );
 }
 
