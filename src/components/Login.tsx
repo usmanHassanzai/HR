@@ -13,9 +13,17 @@ interface LoginProps {
   showDemoShortcuts?: boolean;
   /** Installed app (APK) — minimal sign-in only */
   appMode?: boolean;
+  /** Label above demo shortcut buttons */
+  demoSectionLabel?: string;
 }
 
-export default function Login({ onLoginSuccess, embedded = false, showDemoShortcuts = true, appMode = false }: LoginProps) {
+export default function Login({
+  onLoginSuccess,
+  embedded = false,
+  showDemoShortcuts = true,
+  appMode = false,
+  demoSectionLabel,
+}: LoginProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -118,7 +126,13 @@ export default function Login({ onLoginSuccess, embedded = false, showDemoShortc
         {/* CSS Spin Keyframe style */}
         <style dangerouslySetInnerHTML={{__html: `@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}} />
 
-        {showDemoShortcuts && <DemoLoginShortcuts onLoginSuccess={onLoginSuccess} />}
+        {showDemoShortcuts && (
+          <DemoLoginShortcuts
+            onLoginSuccess={onLoginSuccess}
+            showDisclaimer={!appMode}
+            sectionLabel={demoSectionLabel ?? (appMode ? 'Demo accounts' : 'Demo Sandbox')}
+          />
+        )}
 
       </div>
   );

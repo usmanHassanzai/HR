@@ -4,7 +4,8 @@ import { Profile } from './utils/kpiHelpers';
 import LandingPage from './components/LandingPage';
 import AppLoginScreen from './components/AppLoginScreen';
 import DemoModeBanner from './components/DemoModeBanner';
-import { isAppShell } from './utils/nativePlatform';
+import { isAppShell, isNativeApp } from './utils/nativePlatform';
+import { SplashScreen } from '@capacitor/splash-screen';
 import { applyBranding, loadBranding } from './lib/branding';
 import { isDemoProfile } from './utils/demoMode';
 import Header from './components/Header';
@@ -75,6 +76,12 @@ function App() {
       subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (!loading && isNativeApp()) {
+      void SplashScreen.hide();
+    }
+  }, [loading]);
 
   const handleLoginSuccess = async (activeSession: any) => {
     setSession(activeSession);

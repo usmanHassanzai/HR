@@ -29,9 +29,9 @@ const GEO_ENABLED_KEY = 'scorr-geo-attendance';
 
 export function isGeoAttendanceEnabled(): boolean {
   try {
-    return localStorage.getItem(GEO_ENABLED_KEY) !== 'false';
+    return localStorage.getItem(GEO_ENABLED_KEY) === 'true';
   } catch {
-    return true;
+    return false;
   }
 }
 

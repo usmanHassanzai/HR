@@ -4,13 +4,14 @@ interface AppLoginScreenProps {
   onLoginSuccess: (session: unknown) => void;
 }
 
-/** Full-screen sign-in for APK — no website landing or demo extras. */
+/** Full-screen sign-in for APK — demo accounts + no website landing. */
 export default function AppLoginScreen({ onLoginSuccess }: AppLoginScreenProps) {
   return (
     <Login
       onLoginSuccess={onLoginSuccess}
-      showDemoShortcuts={false}
+      showDemoShortcuts
       appMode
+      demoSectionLabel="Demo accounts"
     />
   );
 }

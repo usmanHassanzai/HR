@@ -1,25 +1,30 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { App as CapApp } from '@capacitor/app';
 import { supabase } from '../lib/supabase';
 import { Profile } from '../utils/kpiHelpers';
 import {
   GeoPingResult,
   geoActionLabel,
   isGeoAttendanceEnabled,
+  requestCurrentPosition,
   setGeoAttendanceEnabled,
 } from '../utils/geoAttendance';
+import { isNativeApp } from '../utils/nativePlatform';
 
 interface GeoAttendanceTrackerProps {
   profile: Profile;
   onUpdate?: () => void;
 }
 
-const POLL_MS = 45000;
+/** Background geofence sync — light polling only when user enabled GPS attendance. */
+const POLL_MS_NATIVE = 90000;
+const POLL_MS_WEB = 60000;
 
-/** Background geofence watcher — runs while app is open for employees/managers. */
 export default function GeoAttendanceTracker({ profile, onUpdate }: GeoAttendanceTrackerProps) {
   const [enabled, setEnabled] = useState(() => isGeoAttendanceEnabled());
-  const watchId = useRef<number | null>(null);
+  const [appActive, setAppActive] = useState(true);
   const busy = useRef(false);
+  const timerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const sync = () => setEnabled(isGeoAttendanceEnabled());
@@ -27,16 +32,27 @@ export default function GeoAttendanceTracker({ profile, onUpdate }: GeoAttendanc
     return () => window.removeEventListener('scorr-geo-toggle', sync);
   }, []);
 
+  useEffect(() => {
+    if (!isNativeApp()) return;
+    const sub = CapApp.addListener('appStateChange', ({ isActive }) => {
+      setAppActive(isActive);
+    });
+    return () => {
+      void sub.then((h) => h.remove());
+    };
+  }, []);
+
   const isEligible = profile.role === 'employee' || profile.role === 'manager';
 
-  const sendPing = useCallback(async (lat: number, lng: number, accuracy?: number | null) => {
-    if (busy.current) return;
+  const sendPing = useCallback(async () => {
+    if (busy.current || !appActive) return;
     busy.current = true;
     try {
+      const pos = await requestCurrentPosition();
       const { data, error: rpcError } = await supabase.rpc('process_geo_attendance_ping', {
-        p_latitude: lat,
-        p_longitude: lng,
-        p_accuracy: accuracy ?? null,
+        p_latitude: pos.coords.latitude,
+        p_longitude: pos.coords.longitude,
+        p_accuracy: pos.coords.accuracy ?? null,
       });
       if (rpcError) throw rpcError;
       const result = data as GeoPingResult;
@@ -44,45 +60,34 @@ export default function GeoAttendanceTracker({ profile, onUpdate }: GeoAttendanc
         onUpdate?.();
       }
     } catch {
-      // Silent background sync — panel shows errors to the user
+      // Errors shown in GeoAttendancePanel
     } finally {
       busy.current = false;
     }
-  }, [onUpdate]);
+  }, [appActive, onUpdate]);
 
   useEffect(() => {
-    if (!isEligible || !enabled || !navigator.geolocation) return;
+    if (!isEligible || !enabled || !appActive) {
+      if (timerRef.current != null) {
+        window.clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      return;
+    }
 
-    const onPosition = (pos: GeolocationPosition) => {
-      sendPing(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
-    };
-
-    const onError = () => {
-      // Permission errors are surfaced in GeoAttendancePanel
-    };
-
-    watchId.current = navigator.geolocation.watchPosition(onPosition, onError, {
-      enableHighAccuracy: true,
-      maximumAge: POLL_MS,
-      timeout: 25000,
-    });
-
-    const interval = window.setInterval(() => {
-      navigator.geolocation.getCurrentPosition(onPosition, () => {}, {
-        enableHighAccuracy: true,
-        maximumAge: POLL_MS,
-        timeout: 20000,
-      });
-    }, POLL_MS);
+    const pollMs = isNativeApp() ? POLL_MS_NATIVE : POLL_MS_WEB;
+    void sendPing();
+    timerRef.current = window.setInterval(() => void sendPing(), pollMs);
 
     return () => {
-      if (watchId.current != null) navigator.geolocation.clearWatch(watchId.current);
-      window.clearInterval(interval);
+      if (timerRef.current != null) {
+        window.clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
     };
-  }, [isEligible, enabled, sendPing]);
+  }, [isEligible, enabled, appActive, sendPing]);
 
   if (!isEligible) return null;
-
   return null;
 }
 
