@@ -7,6 +7,15 @@ export function isNativeApp(): boolean {
   return Capacitor.isNativePlatform();
 }
 
+/** True when running as installed app (APK or home-screen PWA) — not the marketing website. */
+export function isAppShell(): boolean {
+  if (Capacitor.isNativePlatform()) return true;
+  if (typeof window === 'undefined') return false;
+  if (window.matchMedia('(display-mode: standalone)').matches) return true;
+  if ((window.navigator as Navigator & { standalone?: boolean }).standalone) return true;
+  return false;
+}
+
 export function isAndroidApp(): boolean {
   return Capacitor.getPlatform() === 'android';
 }
@@ -17,6 +26,10 @@ export function isIosApp(): boolean {
 
 /** Initialize native shell (status bar, back button). Safe to call on web. */
 export async function initNativeApp(): Promise<void> {
+  if (isAppShell()) {
+    document.documentElement.classList.add('app-shell');
+    document.body.classList.add('app-shell');
+  }
   if (!isNativeApp()) return;
 
   document.documentElement.classList.add('native-app');

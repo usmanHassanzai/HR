@@ -11,9 +11,11 @@ interface LoginProps {
   embedded?: boolean;
   /** Show one-click demo account buttons */
   showDemoShortcuts?: boolean;
+  /** Installed app (APK) — minimal sign-in only */
+  appMode?: boolean;
 }
 
-export default function Login({ onLoginSuccess, embedded = false, showDemoShortcuts = true }: LoginProps) {
+export default function Login({ onLoginSuccess, embedded = false, showDemoShortcuts = true, appMode = false }: LoginProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -49,11 +51,11 @@ export default function Login({ onLoginSuccess, embedded = false, showDemoShortc
 
 
   const card = (
-      <div className={`glass-panel login-card animate-fade-in ${embedded ? 'login-card--embedded' : ''}`}>
+      <div className={`glass-panel login-card animate-fade-in ${embedded ? 'login-card--embedded' : ''} ${appMode ? 'login-card--app' : ''}`}>
         
         <div className="login-brand">
-          <BrandLogo variant="login" alt="Scorr — scorr.walfia.ai" />
-          <p className="login-brand-sub">{embedded ? 'Sign in to continue' : isNativeApp() ? 'Scorr HR — sign in' : 'Sign in to continue'}</p>
+          <BrandLogo variant="login" alt={appMode ? 'Scorr' : 'Scorr — scorr.walfia.ai'} />
+          <p className="login-brand-sub">{appMode ? 'Sign in to your workspace' : embedded ? 'Sign in to continue' : isNativeApp() ? 'Scorr HR — sign in' : 'Sign in to continue'}</p>
         </div>
 
         {error && (
@@ -122,6 +124,10 @@ export default function Login({ onLoginSuccess, embedded = false, showDemoShortc
   );
 
   if (embedded) return card;
+
+  if (appMode) {
+    return <div className="app-login-screen">{card}</div>;
+  }
 
   return (
     <div className="login-page">

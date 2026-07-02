@@ -1494,3 +1494,21 @@ body.native-app [contenteditable] {
   user-select: text;
   -webkit-user-select: text;
 }
+
+/* APK / installed app — sign-in only screen */
+.app-login-screen,
+body.app-shell .login-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100dvh;
+  min-height: 100vh;
+  padding: max(1.25rem, env(safe-area-inset-top)) max(1.25rem, env(safe-area-inset-right)) max(1.25rem, env(safe-area-inset-bottom)) max(1.25rem, env(safe-area-inset-left));
+  background: var(--bg-main);
+}
+
+.login-card--app {
+  max-width: 400px;
+  box-shadow: none !important;
+  border: 1px solid var(--border-color) !important;
+}

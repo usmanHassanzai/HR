@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { Profile } from './utils/kpiHelpers';
 import LandingPage from './components/LandingPage';
-import Login from './components/Login';
+import AppLoginScreen from './components/AppLoginScreen';
 import DemoModeBanner from './components/DemoModeBanner';
-import { isNativeApp } from './utils/nativePlatform';
+import { isAppShell } from './utils/nativePlatform';
 import { applyBranding, loadBranding } from './lib/branding';
 import { isDemoProfile } from './utils/demoMode';
 import Header from './components/Header';
@@ -111,7 +111,9 @@ function App() {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', gap: '1rem' }}>
         <Loader2 size={36} className="animate-spin" style={{ color: 'var(--accent-primary)', animation: 'spin 1.5s linear infinite' }} />
-        <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Initializing HR Portal...</span>
+        <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+          {isAppShell() ? 'Loading Scorr…' : 'Initializing HR Portal...'}
+        </span>
       </div>
     );
   }
@@ -143,10 +145,10 @@ function App() {
     );
   }
 
-  // Not Authenticated View — native APK opens login directly (not marketing website)
+  // Installed app (APK / home screen): sign-in only — never the marketing website
   if (!session || !profile) {
-    if (isNativeApp()) {
-      return <Login onLoginSuccess={handleLoginSuccess} showDemoShortcuts />;
+    if (isAppShell()) {
+      return <AppLoginScreen onLoginSuccess={handleLoginSuccess} />;
     }
     return <LandingPage onLoginSuccess={handleLoginSuccess} />;
   }
