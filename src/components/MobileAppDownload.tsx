@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Smartphone, Download, Apple, Share, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 
-const APK_URL = '/downloads/scorr.apk';
-const APP_URL = 'https://scorr.walfia.ai';
+const APK_PATH = '/downloads/scorr.apk';
+
+function apkUrl(): string {
+  if (typeof window !== 'undefined') return `${window.location.origin}${APK_PATH}`;
+  return APK_PATH;
+}
+
+const APP_URL = typeof window !== 'undefined' ? window.location.origin : 'https://walfiaai.vercel.app';
 
 function isStandalonePwa(): boolean {
   return window.matchMedia('(display-mode: standalone)').matches
@@ -24,10 +30,21 @@ export default function MobileAppDownload() {
 
   useEffect(() => {
     setInstalled(isStandalonePwa());
-    fetch(APK_URL, { method: 'HEAD' })
-      .then((r) => setApkReady(r.ok))
+    fetch(apkUrl(), { method: 'HEAD' })
+      .then((r) => {
+        const type = r.headers.get('content-type') || '';
+        setApkReady(
+          r.ok &&
+          !type.includes('text/html') &&
+          (type.includes('android') || type.includes('octet-stream') || type.includes('zip'))
+        );
+      })
       .catch(() => setApkReady(false));
   }, []);
+
+  const downloadApk = () => {
+    window.location.href = apkUrl();
+  };
 
   const showIosInstall = () => {
     setIosHint(true);
@@ -53,19 +70,25 @@ export default function MobileAppDownload() {
           <h3>Android (.apk)</h3>
           <p>Download and install directly from this website. Works on Android 8+.</p>
           <ol className="landing-download-steps">
-            <li>Tap <strong>Download APK</strong> below</li>
-            <li>If prompted, allow installs from your browser</li>
-            <li>Open the file and tap <strong>Install</strong></li>
-            <li>Allow <strong>Location</strong> when you sign in (for GPS attendance)</li>
+            <li>Tap <strong>Download &amp; Install APK</strong> below</li>
+            <li>When download finishes, tap the notification or open <strong>Downloads</strong></li>
+            <li>If asked, allow install from Chrome / your browser</li>
+            <li>Tap <strong>Install</strong>, then open Scorr and sign in</li>
+            <li>Allow <strong>Location</strong> for GPS attendance</li>
           </ol>
           {apkReady === null ? (
             <button type="button" className="btn btn-secondary" disabled>
               <Loader2 size={16} className="spin-icon" /> Checking…
             </button>
           ) : apkReady ? (
-            <a href={APK_URL} className="btn btn-primary landing-download-btn" download="scorr.apk">
-              <Download size={18} /> Download APK for Android
-            </a>
+            <>
+              <button type="button" className="btn btn-primary landing-download-btn" onClick={downloadApk}>
+                <Download size={18} /> Download &amp; Install APK
+              </button>
+              <a href={apkUrl()} className="landing-download-direct" download="scorr.apk">
+                Direct link: {apkUrl()}
+              </a>
+            </>
           ) : (
             <div className="landing-download-soon">
               <AlertCircle size={16} />
@@ -87,7 +110,7 @@ export default function MobileAppDownload() {
             Install as a home-screen app (no App Store required). Opens full-screen like a native app.
           </p>
           <ol className="landing-download-steps">
-            <li>Open <strong>{APP_URL.replace('https://', '')}</strong> in <strong>Safari</strong></li>
+            <li>Open this site in <strong>Safari</strong></li>
             <li>Tap the <strong>Share</strong> button (square with arrow)</li>
             <li>Choose <strong>Add to Home Screen</strong></li>
             <li>Tap <strong>Add</strong> — Scorr appears on your home screen</li>

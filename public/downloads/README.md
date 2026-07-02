@@ -1,17 +1,16 @@
 # APK downloads for the website
 
-After building the Android app, the APK is placed here:
+The Android app file **must be committed to git** so Vercel/GitHub deploys serve it:
 
 ```
 public/downloads/scorr.apk
 ```
 
-Build command:
+Rebuild after app changes:
 
 ```bash
 node scripts/build-android-apk.mjs
+git add public/downloads/scorr.apk
+git commit -m "Update Android APK"
+git push
 ```
-
-Then deploy the website so users can download from **Mobile App** on the landing page.
-
-**Note:** Git may exclude large `.apk` files. Upload to your host/CDN or attach during deploy as needed.

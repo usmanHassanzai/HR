@@ -3,10 +3,16 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "rewrites": [
-    { "source": "/downloads/(.*)", "destination": "/downloads/$1" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/((?!.*\\.).*)", "destination": "/index.html" }
   ],
   "headers": [
+    {
+      "source": "/downloads/scorr.apk",
+      "headers": [
+        { "key": "Content-Type", "value": "application/vnd.android.package-archive" },
+        { "key": "Content-Disposition", "value": "attachment; filename=\"scorr.apk\"" }
+      ]
+    },
     {
       "source": "/(.*)",
       "headers": [

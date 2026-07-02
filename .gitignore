@@ -35,5 +35,4 @@ android/keystore.properties
 ios/App/Pods
 ios/App/App/build
 *.keystore
-public/downloads/*.apk
 .tools/

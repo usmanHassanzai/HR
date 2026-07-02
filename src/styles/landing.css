@@ -833,3 +833,16 @@
   color: var(--text-muted);
   font-style: italic;
 }
+
+.landing-download-direct {
+  display: block;
+  margin-top: 0.65rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  word-break: break-all;
+  text-decoration: none;
+}
+
+.landing-download-direct:hover {
+  color: var(--landing-accent);
+}
