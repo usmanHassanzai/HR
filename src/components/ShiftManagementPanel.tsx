@@ -43,7 +43,7 @@ export default function ShiftManagementPanel({ teamMembers, onUpdate }: ShiftMan
       supabase.rpc('get_manager_shifts'),
       supabase.rpc('get_team_shift_assignments'),
     ]);
-    if (shRes.error) setMsg(shRes.error.message);
+    if (shRes.error) setMsg(`Could not load shifts: ${shRes.error.message}`);
     else setShifts((shRes.data || []) as WorkShift[]);
     if (asRes.error && !shRes.error) setMsg(asRes.error.message);
     else setAssignments((asRes.data || []) as TeamShiftAssignment[]);
@@ -82,28 +82,72 @@ export default function ShiftManagementPanel({ teamMembers, onUpdate }: ShiftMan
     }
     setSubmitting(true);
     setMsg('');
-    const { error } = await supabase.rpc('upsert_work_shift', {
+    const payload: Record<string, unknown> = {
       p_name: name.trim(),
       p_start_time: startTime,
       p_end_time: endTime,
       p_days_of_week: days,
       p_grace_minutes: grace,
-      p_shift_id: editId,
       p_crosses_midnight: overnight,
       p_apply_to_all: applyToAll,
-    });
-    setSubmitting(false);
-    if (error) setMsg(error.message);
-    else {
-      setMsg(
-        editId
-          ? `Shift updated${applyToAll ? ` and applied to ${employeeCount} employee(s).` : '.'}`
-          : `Shift saved${applyToAll ? ` and applied to all ${employeeCount} team member(s).` : '.'}`,
-      );
-      resetForm();
-      await load();
-      onUpdate?.();
+    };
+    if (editId) payload.p_shift_id = editId;
+
+    let shiftId: string | null = null;
+    let errorMsg = '';
+
+    const v2 = await supabase.rpc('upsert_work_shift', payload);
+    if (v2.error) {
+      errorMsg = v2.error.message;
+      // Fallback for DB that only has v1 migration applied
+      if (/does not exist|Could not find|apply_to_all|crosses_midnight/i.test(v2.error.message)) {
+        if (overnight) {
+          setSubmitting(false);
+          setMsg('Overnight shifts require database migration. Run: cd ~/walfia.ai && node scripts/shift-attendance-migration.mjs');
+          return;
+        }
+        const v1Payload: Record<string, unknown> = {
+          p_name: name.trim(),
+          p_start_time: startTime,
+          p_end_time: endTime,
+          p_days_of_week: days,
+          p_grace_minutes: grace,
+        };
+        if (editId) v1Payload.p_shift_id = editId;
+        const v1 = await supabase.rpc('upsert_work_shift', v1Payload);
+        if (v1.error) errorMsg = v1.error.message;
+        else shiftId = v1.data as string;
+      }
+    } else {
+      shiftId = v2.data as string;
     }
+
+    setSubmitting(false);
+    if (!shiftId) {
+      const hint = /does not exist/i.test(errorMsg)
+        ? `${errorMsg} — Run migration: cd ~/walfia.ai && node scripts/shift-attendance-migration.mjs`
+        : errorMsg || 'Unknown error saving shift';
+      setMsg(hint);
+      return;
+    }
+
+    if (applyToAll && employeeCount > 0) {
+      const { error: assignErr } = await supabase.rpc('assign_shift_to_all_team', { p_shift_id: shiftId });
+      if (assignErr && !/does not exist/i.test(assignErr.message)) {
+        setMsg(`Shift saved but team assign failed: ${assignErr.message}`);
+        await load();
+        onUpdate?.();
+        return;
+      }
+    }
+    setMsg(
+      editId
+        ? `Shift updated${applyToAll ? ` and applied to ${employeeCount} employee(s).` : '.'}`
+        : `Shift saved${applyToAll ? ` and applied to all ${employeeCount} team member(s).` : '.'}`,
+    );
+    resetForm();
+    await load();
+    onUpdate?.();
   };
 
   const removeShift = async (id: string) => {

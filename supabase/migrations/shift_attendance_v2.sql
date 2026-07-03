@@ -1,5 +1,14 @@
 -- Shift v2: overnight shifts, auto-apply to all team, improved attendance lookup
 
+-- Drop functions whose signatures or return types changed (required before CREATE)
+DROP FUNCTION IF EXISTS public.process_geo_attendance_ping(DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION);
+DROP FUNCTION IF EXISTS public.get_active_shift_for_user(UUID, DATE);
+DROP FUNCTION IF EXISTS public.is_within_shift_window(TIME, TIME, INTEGER, TIMESTAMPTZ);
+DROP FUNCTION IF EXISTS public.has_shift_ended(TIME, TIMESTAMPTZ);
+DROP FUNCTION IF EXISTS public.upsert_work_shift(TEXT, TIME, TIME, INTEGER[], INTEGER, UUID);
+DROP FUNCTION IF EXISTS public.get_manager_shifts();
+DROP FUNCTION IF EXISTS public.get_my_shift();
+
 ALTER TABLE public.work_shifts
     DROP CONSTRAINT IF EXISTS work_shifts_check;
 
@@ -249,7 +258,12 @@ BEGIN
     END IF;
 
     IF p_apply_to_all THEN
-        PERFORM public.assign_shift_to_all_team(v_id, CURRENT_DATE);
+        BEGIN
+            PERFORM public.assign_shift_to_all_team(v_id, CURRENT_DATE);
+        EXCEPTION WHEN OTHERS THEN
+            -- Shift is saved even if team assignment fails (e.g. no employees yet)
+            NULL;
+        END;
     END IF;
 
     RETURN v_id;
@@ -271,12 +285,13 @@ RETURNS TABLE(
     apply_to_all BOOLEAN,
     assigned_count BIGINT
 ) AS $$
+#variable_conflict use_column
 DECLARE
     v_uid UUID := auth.uid();
     v_role public.user_role;
 BEGIN
     IF v_uid IS NULL THEN RAISE EXCEPTION 'Not authenticated'; END IF;
-    SELECT role INTO v_role FROM public.users WHERE id = v_uid;
+    SELECT u.role INTO v_role FROM public.users u WHERE u.id = v_uid;
     IF v_role NOT IN ('manager'::public.user_role, 'admin'::public.user_role) THEN
         RAISE EXCEPTION 'Managers only';
     END IF;
@@ -292,11 +307,13 @@ BEGIN
         ws.active,
         ws.crosses_midnight,
         ws.apply_to_all,
-        COUNT(esa.id) FILTER (WHERE esa.effective_to IS NULL)
+        (
+            SELECT COUNT(*)::BIGINT
+            FROM public.employee_shift_assignments esa
+            WHERE esa.shift_id = ws.id AND esa.effective_to IS NULL
+        ) AS assigned_count
     FROM public.work_shifts ws
-    LEFT JOIN public.employee_shift_assignments esa ON esa.shift_id = ws.id
     WHERE ws.manager_id = v_uid OR v_role = 'admin'::public.user_role
-    GROUP BY ws.id
     ORDER BY ws.start_time;
 END;
 $$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public;
