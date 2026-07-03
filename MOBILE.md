@@ -7,8 +7,8 @@ Your HR web app is wrapped with **Capacitor** — the same React codebase runs i
 | Platform | How users install | Build where |
 |----------|-------------------|-------------|
 | **Android** | Download `.apk` from website → Install | Linux / Mac / Windows |
-| **iPhone/iPad** | Safari → Share → **Add to Home Screen** (PWA) | No build needed |
-| **iOS native** | App Store / TestFlight (optional) | **Mac + Xcode only** |
+| **iPhone/iPad (easiest)** | Safari → Share → **Add to Home Screen** | No build needed |
+| **iOS native (TestFlight/App Store)** | TestFlight link or App Store | **Mac + Xcode** or GitHub Actions |
 
 ## One-time setup
 
@@ -17,90 +17,93 @@ npm install
 node scripts/setup-mobile.mjs
 ```
 
-Requirements for **Android APK**:
-- **JDK 21+** — auto-installed to `.tools/jdk-21` by the build script (no sudo)
-- **Android SDK** — install [Android Studio](https://developer.android.com/studio) or command-line tools
-- Set `ANDROID_HOME` if SDK is not at `~/Android/Sdk`
-
-## Build Android APK (for website download)
+## Build Android APK
 
 ```bash
 node scripts/build-android-apk.mjs
+# or: npm run build:android:apk
 ```
 
-This will:
-1. Build the web app (`npm run build`)
-2. Sync to the Android project (`cap sync`)
-3. Run Gradle to produce an APK
-4. Copy it to `public/downloads/scorr.apk`
+Output: `public/downloads/scorr.apk` — deploy website for direct download.
 
-Deploy your website — users download from **Mobile App** on the landing page.
+## Build iOS app
 
-### Signed release APK (production)
+### Option A — Install on iPhone today (recommended, no Mac)
 
-```bash
-keytool -genkey -v -keystore scorr-release.keystore -alias scorr -keyalg RSA -keysize 2048 -validity 10000
-```
+Users on iPhone/iPad:
 
-Create `android/keystore.properties`:
-
-```properties
-storeFile=../scorr-release.keystore
-storePassword=YOUR_PASSWORD
-keyAlias=scorr
-keyPassword=YOUR_PASSWORD
-```
-
-Then:
-
-```bash
-node scripts/build-android-apk.mjs --release
-```
-
-For Google Play Store, upload the release APK/AAB via [Google Play Console](https://play.google.com/console).
-
-## iOS
-
-### Option A — PWA (recommended, no Mac needed)
-
-Users on iPhone:
 1. Open **https://scorr.walfia.ai** in **Safari**
 2. Tap **Share** → **Add to Home Screen**
-3. Opens full-screen like an app
+3. Open **Scorr** from home screen → sign in (same as Android APK)
 
-Already configured: `manifest.webmanifest`, service worker, Apple meta tags.
+Opens full-screen with login screen — not the marketing website.
 
-### Option B — Native iOS app (App Store)
+### Option B — Native iOS (Capacitor + Xcode)
 
-Requires:
-- Mac with **Xcode**
-- **Apple Developer Program** ($99/year)
+**Sync project (Linux/Mac/Windows):**
 
 ```bash
-npm run build
-npx cap sync ios
-npm run cap:ios    # opens Xcode
+node scripts/build-ios-ipa.mjs
+# or: npm run build:ios:ipa
 ```
 
-In Xcode: select team → Product → Archive → Distribute to App Store or TestFlight.
-
-## Development workflow
+**Full IPA export (Mac only):**
 
 ```bash
-npm run dev                    # web dev server
-npm run build:mobile           # build + cap sync both platforms
-npm run cap:android            # open Android Studio
-npm run cap:ios                # open Xcode (Mac only)
+node scripts/build-ios-ipa.mjs --archive
+# or: npm run build:ios:release
 ```
 
-Live reload on device: see [Capacitor live reload docs](https://capacitorjs.com/docs/guides/live-reload).
+Requirements:
+
+- Mac with **Xcode** (App Store)
+- **Apple Developer Program** ($99/year) for TestFlight / App Store
+- Edit `ios/ExportOptions.plist` with your Team ID
+
+Then in Xcode:
+
+```bash
+npm run cap:ios
+```
+
+Product → Run (device) | Archive → TestFlight / App Store
+
+### Option C — GitHub Actions (no local Mac)
+
+Push to GitHub → **Actions** → **Build iOS** — compiles on `macos-latest`.
+
+For TestFlight upload, add Apple signing secrets (see `.github/workflows/build-ios.yml`).
+
+### TestFlight link on website
+
+After publishing to TestFlight, add to Vercel env:
+
+```
+VITE_TESTFLIGHT_URL=https://testflight.apple.com/join/XXXXXX
+```
+
+The download page shows an **Install via TestFlight** button.
+
+## Build both platforms
+
+```bash
+npm run build:mobile:apps
+```
+
+## Important: iOS vs Android distribution
+
+| | Android APK | iOS |
+|---|-------------|-----|
+| Direct website download | ✅ Yes | ❌ Apple blocks this |
+| Home screen PWA | ✅ | ✅ **Best for iPhone** |
+| TestFlight | — | ✅ |
+| App Store | Play Store | ✅ |
 
 ## GPS / permissions
 
-Configured automatically:
-- **Android:** `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION` in `AndroidManifest.xml`
-- **iOS:** location usage strings in `Info.plist`
-- App uses `@capacitor/geolocation` when running as native app
+- **Android:** `ACCESS_FINE_LOCATION`, background location in `AndroidManifest.xml`
+- **iOS:** Location usage strings + background mode in `Info.plist`
+- App uses `@capacitor/geolocation` on native; same shift + attendance features
 
 ## App identity
 
@@ -114,8 +117,9 @@ Configured automatically:
 
 | Script | Purpose |
 |--------|---------|
-| `npm run build:mobile` | Web build + Capacitor sync |
-| `npm run cap:android` | Open Android Studio |
+| `npm run build:android:apk` | Build APK → `public/downloads/scorr.apk` |
+| `npm run build:ios:ipa` | Web build + sync iOS project |
+| `npm run build:ios:release` | Export IPA on Mac |
+| `npm run build:mobile:apps` | Android APK + iOS sync |
 | `npm run cap:ios` | Open Xcode |
-| `node scripts/setup-mobile.mjs` | First-time setup + env check |
-| `node scripts/build-android-apk.mjs` | Build APK → `public/downloads/scorr.apk` |
+| `npm run cap:android` | Open Android Studio |

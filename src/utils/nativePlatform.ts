@@ -37,10 +37,12 @@ export async function initNativeApp(): Promise<void> {
   document.body.classList.add('native-app');
 
   try {
+  if (isAndroidApp()) {
+    await StatusBar.setBackgroundColor({ color: '#0b1120' });
+  }
+  if (isIosApp()) {
     await StatusBar.setStyle({ style: Style.Dark });
-    if (isAndroidApp()) {
-      await StatusBar.setBackgroundColor({ color: '#0b1120' });
-    }
+  }
   } catch {
     // Status bar plugin may be unavailable in some WebView builds.
   }

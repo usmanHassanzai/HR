@@ -38,4 +38,10 @@ async function makeIcon(size) {
 
 console.log('Generating app icons…');
 for (const s of [192, 512]) await makeIcon(s);
+for (const s of [180, 167, 152, 120]) {
+  await sharp(join(outDir, 'icon-512.png')).resize(s, s).png().toFile(join(outDir, `apple-touch-icon-${s}.png`));
+  console.log(`  apple-touch-icon-${s}.png`);
+}
+await sharp(join(outDir, 'icon-512.png')).resize(180, 180).png().toFile(join(outDir, 'apple-touch-icon.png'));
+console.log('  apple-touch-icon.png');
 console.log('Done → public/icons/');

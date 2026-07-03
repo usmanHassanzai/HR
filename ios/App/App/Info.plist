@@ -51,5 +51,13 @@
 	<string>Scorr uses your location for GPS attendance — automatic clock-in when you arrive at the office and clock-out when you leave.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Scorr uses your location for GPS attendance while the app is open so your team can track on-site presence.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Scorr uses your location for automatic attendance when you are at the office.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>

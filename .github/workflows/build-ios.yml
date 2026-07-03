@@ -1,0 +1,65 @@
+name: Build iOS
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+    paths:
+      - 'ios/**'
+      - 'src/**'
+      - 'capacitor.config.ts'
+      - 'package.json'
+      - 'scripts/build-ios-ipa.mjs'
+      - 'scripts/sync-ios-icons.mjs'
+
+jobs:
+  ios-simulator:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Sync iOS project
+        run: node scripts/build-ios-ipa.mjs
+
+      - name: Build for iOS Simulator
+        working-directory: ios/App
+        run: |
+          xcodebuild -project App.xcodeproj -scheme App \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            build
+
+      - name: Upload simulator build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-log
+          path: ios/App/build/
+          if-no-files-found: ignore
+
+  # Optional: uncomment + add secrets for TestFlight IPA export
+  # Secrets: APPLE_TEAM_ID, BUILD_CERTIFICATE_BASE64, P12_PASSWORD, PROVISION_PROFILE_BASE64
+  # ios-release:
+  #   runs-on: macos-latest
+  #   if: github.ref == 'refs/heads/main'
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-node@v4
+  #       with:
+  #         node-version: '22'
+  #         cache: npm
+  #     - run: npm ci
+  #     - run: node scripts/build-ios-ipa.mjs --archive
+  #     - uses: actions/upload-artifact@v4
+  #       with:
+  #         name: scorr-ipa
+  #         path: public/downloads/scorr.ipa

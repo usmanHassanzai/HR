@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Smartphone, Download, Apple, Share, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { Smartphone, Download, Apple, Share, CheckCircle, AlertCircle, Loader2, ExternalLink } from 'lucide-react';
 
 const APK_PATH = '/downloads/scorr.apk';
+const IPA_PATH = '/downloads/scorr.ipa';
+const TESTFLIGHT_URL = import.meta.env.VITE_TESTFLIGHT_URL as string | undefined;
 
-function apkUrl(): string {
-  if (typeof window !== 'undefined') return `${window.location.origin}${APK_PATH}`;
-  return APK_PATH;
+function assetUrl(path: string): string {
+  if (typeof window !== 'undefined') return `${window.location.origin}${path}`;
+  return path;
 }
 
 const APP_URL = typeof window !== 'undefined' ? window.location.origin : 'https://walfiaai.vercel.app';
@@ -16,38 +18,53 @@ function isStandalonePwa(): boolean {
 }
 
 function isIos(): boolean {
-  return /iPad|iPhone|iPod/.test(navigator.userAgent);
+  return /iPad|iPhone|iPod/.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 }
 
 function isAndroid(): boolean {
   return /Android/i.test(navigator.userAgent);
 }
 
+async function checkBinary(path: string, types: string[]): Promise<boolean> {
+  try {
+    const r = await fetch(assetUrl(path), { method: 'HEAD' });
+    const type = r.headers.get('content-type') || '';
+    return r.ok && !type.includes('text/html') && types.some((t) => type.includes(t));
+  } catch {
+    return false;
+  }
+}
+
 export default function MobileAppDownload() {
   const [apkReady, setApkReady] = useState<boolean | null>(null);
+  const [ipaReady, setIpaReady] = useState<boolean | null>(null);
   const [installed, setInstalled] = useState(false);
   const [iosHint, setIosHint] = useState(false);
 
   useEffect(() => {
     setInstalled(isStandalonePwa());
-    fetch(apkUrl(), { method: 'HEAD' })
-      .then((r) => {
-        const type = r.headers.get('content-type') || '';
-        setApkReady(
-          r.ok &&
-          !type.includes('text/html') &&
-          (type.includes('android') || type.includes('octet-stream') || type.includes('zip'))
-        );
-      })
-      .catch(() => setApkReady(false));
+    void checkBinary(APK_PATH, ['android', 'octet-stream', 'zip']).then(setApkReady);
+    void checkBinary(IPA_PATH, ['octet-stream', 'zip', 'ipa']).then(setIpaReady);
   }, []);
 
   const downloadApk = () => {
-    window.location.href = apkUrl();
+    window.location.href = assetUrl(APK_PATH);
   };
 
   const showIosInstall = () => {
     setIosHint(true);
+    if (isIos() && !isStandalonePwa()) {
+      window.scrollTo({ top: document.getElementById('download-app')?.offsetTop ?? 0, behavior: 'smooth' });
+    }
+  };
+
+  const openSafariInstall = () => {
+    if (isIos()) {
+      showIosInstall();
+      return;
+    }
+    window.open(APP_URL, '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -56,8 +73,8 @@ export default function MobileAppDownload() {
         <div className="landing-section__eyebrow">Mobile App</div>
         <h2 className="landing-section__title">Install Scorr on your phone</h2>
         <p>
-          Download the native Android app or install on iPhone/iPad from your browser.
-          Same login — KPIs, attendance, GPS check-in, and rewards on the go.
+          Native Android APK, iPhone home-screen app, or TestFlight — same login, KPIs, shifts,
+          GPS attendance, and rewards on the go.
         </p>
       </div>
 
@@ -69,15 +86,13 @@ export default function MobileAppDownload() {
           </div>
           <h3>Android app (.apk)</h3>
           <p>
-            Installs <strong>Scorr</strong> as a real app on your phone — opens directly to sign-in
-            (not the marketing website). KPIs, attendance, GPS check-in, and rewards inside the app.
+            Installs <strong>Scorr</strong> as a real app — opens directly to sign-in (not the marketing site).
           </p>
           <ol className="landing-download-steps">
-            <li>Tap <strong>Download &amp; Install APK</strong> below</li>
-            <li>When download finishes, tap the notification or open <strong>Downloads</strong></li>
-            <li>If asked, allow install from Chrome / your browser</li>
-            <li>Tap <strong>Install</strong>, then open Scorr and sign in</li>
-            <li>Allow <strong>Location</strong> for GPS attendance</li>
+            <li>Tap <strong>Download &amp; Install APK</strong></li>
+            <li>Open <strong>Downloads</strong> and tap the file</li>
+            <li>Allow install from browser if prompted</li>
+            <li>Open Scorr → sign in → allow <strong>Location</strong></li>
           </ol>
           {apkReady === null ? (
             <button type="button" className="btn btn-secondary" disabled>
@@ -88,14 +103,14 @@ export default function MobileAppDownload() {
               <button type="button" className="btn btn-primary landing-download-btn" onClick={downloadApk}>
                 <Download size={18} /> Download &amp; Install APK
               </button>
-              <a href={apkUrl()} className="landing-download-direct" download="scorr.apk">
-                Direct link: {apkUrl()}
+              <a href={assetUrl(APK_PATH)} className="landing-download-direct" download="scorr.apk">
+                Direct link: {assetUrl(APK_PATH)}
               </a>
             </>
           ) : (
             <div className="landing-download-soon">
               <AlertCircle size={16} />
-              <span>APK build coming soon — use the web app or PWA below for now.</span>
+              <span>APK build coming soon — use the web app for now.</span>
             </div>
           )}
           {isAndroid() && apkReady && (
@@ -108,37 +123,63 @@ export default function MobileAppDownload() {
           <div className="landing-download-card__icon landing-download-card__icon--ios">
             <Apple size={28} />
           </div>
-          <h3>iPhone &amp; iPad</h3>
+          <h3>iPhone &amp; iPad app</h3>
           <p>
-            Install as a home-screen app (no App Store required). Opens full-screen like a native app.
+            Same native experience as Android — sign-in screen, dashboards, GPS attendance.
+            Install in <strong>one tap</strong> from Safari (no App Store required).
           </p>
           <ol className="landing-download-steps">
-            <li>Open this site in <strong>Safari</strong></li>
-            <li>Tap the <strong>Share</strong> button (square with arrow)</li>
-            <li>Choose <strong>Add to Home Screen</strong></li>
-            <li>Tap <strong>Add</strong> — Scorr appears on your home screen</li>
+            <li>Open <strong>{APP_URL.replace('https://', '')}</strong> in <strong>Safari</strong></li>
+            <li>Tap <strong>Share</strong> (square with arrow up)</li>
+            <li>Scroll → <strong>Add to Home Screen</strong></li>
+            <li>Tap <strong>Add</strong> — open Scorr from your home screen</li>
+            <li>Sign in and allow <strong>Location</strong> for auto attendance</li>
           </ol>
+
           {installed ? (
             <div className="landing-download-installed">
               <CheckCircle size={18} /> Scorr is installed on this device
             </div>
           ) : isIos() ? (
             <button type="button" className="btn btn-primary landing-download-btn" onClick={showIosInstall}>
-              <Share size={18} /> Show install steps
+              <Share size={18} /> Install Scorr on this iPhone
             </button>
           ) : (
-            <a href={APP_URL} className="btn btn-secondary landing-download-btn" target="_blank" rel="noreferrer">
-              Open in Safari on iPhone
-            </a>
+            <button type="button" className="btn btn-primary landing-download-btn" onClick={openSafariInstall}>
+              <Apple size={18} /> Get iOS install link
+            </button>
           )}
-          {iosHint && (
+
+          {iosHint && isIos() && !installed && (
             <p className="landing-download-note landing-download-note--highlight">
-              In Safari: Share → <strong>Add to Home Screen</strong>
+              Tap <strong>Share</strong> at the bottom of Safari → <strong>Add to Home Screen</strong>
             </p>
           )}
-          <p className="landing-download-footnote">
-            Native iOS App Store build: requires Apple Developer account + Mac/Xcode to publish.
-          </p>
+
+          {TESTFLIGHT_URL && (
+            <a
+              href={TESTFLIGHT_URL}
+              className="btn btn-secondary landing-download-btn"
+              target="_blank"
+              rel="noreferrer"
+              style={{ marginTop: '0.5rem' }}
+            >
+              <ExternalLink size={16} /> Install via TestFlight
+            </a>
+          )}
+
+          {ipaReady && (
+            <p className="landing-download-footnote">
+              Developer IPA available — use TestFlight or Xcode for device install (iOS does not allow direct APK-style downloads).
+            </p>
+          )}
+
+          {!TESTFLIGHT_URL && !ipaReady && (
+            <p className="landing-download-footnote">
+              Native App Store / TestFlight build: run <code>node scripts/build-ios-ipa.mjs --archive</code> on a Mac,
+              or use GitHub Actions → Build iOS.
+            </p>
+          )}
         </div>
       </div>
     </section>

@@ -33,6 +33,8 @@ const config: CapacitorConfig = {
   },
   ios: {
     contentInset: 'always',
+    scrollEnabled: true,
+    backgroundColor: '#0b1120',
   },
   android: {
     allowMixedContent: false,
