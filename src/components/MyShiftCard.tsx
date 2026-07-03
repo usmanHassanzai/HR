@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import {
   MyShift,
   formatShiftDays,
-  formatShiftTime,
+  formatShiftTimeRange,
   isTodayWorkDay,
 } from '../utils/shiftHelpers';
 
@@ -53,7 +53,7 @@ export default function MyShiftCard() {
           <div className="shift-card__hero">
             <strong>{shift.shift_name}</strong>
             <span className="shift-card__time">
-              {formatShiftTime(shift.start_time)} – {formatShiftTime(shift.end_time)}
+              {formatShiftTimeRange(shift.start_time, shift.end_time, shift.crosses_midnight)}
             </span>
           </div>
           <p className="attendance-card__subtitle">

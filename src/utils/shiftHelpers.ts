@@ -8,6 +8,8 @@ export interface WorkShift {
   days_of_week: number[];
   grace_minutes: number;
   active: boolean;
+  crosses_midnight?: boolean;
+  apply_to_all?: boolean;
   assigned_count?: number;
 }
 
@@ -19,6 +21,7 @@ export interface MyShift {
   grace_minutes: number;
   days_of_week: number[];
   effective_from: string;
+  crosses_midnight?: boolean;
 }
 
 export interface TeamShiftAssignment {
@@ -53,6 +56,22 @@ export function formatShiftTime(t: string | null | undefined): string {
   const d = new Date();
   d.setHours(Number(h), Number(m), 0, 0);
   return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+}
+
+export function formatShiftTimeRange(
+  start: string,
+  end: string,
+  crossesMidnight?: boolean,
+): string {
+  const overnight = crossesMidnight ?? isOvernightShift(start, end);
+  const range = `${formatShiftTime(start)} – ${formatShiftTime(end)}`;
+  return overnight ? `${range} (next day)` : range;
+}
+
+export function isOvernightShift(start: string, end: string): boolean {
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  return eh * 60 + em <= sh * 60 + sm;
 }
 
 export function formatShiftDays(days: number[]): string {

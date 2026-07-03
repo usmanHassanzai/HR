@@ -36,7 +36,7 @@ interface AttendanceLeavePanelProps {
 }
 
 type EmployeeTab = 'today' | 'leave' | 'history';
-type ManagerTab = 'approvals' | 'today' | 'team' | 'shifts';
+type ManagerTab = 'approvals' | 'today' | 'team' | 'shifts' | 'history';
 
 function Toast({ msg }: { msg: string }) {
   if (!msg) return null;
@@ -604,6 +604,13 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
           >
             <CalendarClock size={16} /> Shifts
           </button>
+          <button
+            type="button"
+            className={`attendance-tab ${managerTab === 'history' ? 'attendance-tab--active' : ''}`}
+            onClick={() => setManagerTab('history')}
+          >
+            <History size={16} /> History
+          </button>
         </div>
 
         {managerTab === 'approvals' && (
@@ -692,8 +699,11 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
                 </div>
               )}
             </div>
-            <AttendanceHistoryPanel profile={profile} mode="manager" teamMembers={teamMembers} />
           </>
+        )}
+
+        {managerTab === 'history' && (
+          <AttendanceHistoryPanel profile={profile} mode="manager" teamMembers={teamMembers} />
         )}
       </div>
     );
