@@ -19,10 +19,14 @@ import {
 import { emailLeaveRequestNotifications } from '../utils/attendanceEmail';
 import { downloadAttendanceCsv } from '../utils/exportAttendance';
 import GeoAttendancePanel from './GeoAttendancePanel';
+import MyShiftCard from './MyShiftCard';
+import ShiftManagementPanel from './ShiftManagementPanel';
+import AttendanceHistoryPanel from './AttendanceHistoryPanel';
 import { formatClockTime } from '../utils/geoAttendance';
+import { formatWorkDuration } from '../utils/shiftHelpers';
 import {
   Clock, Loader2, CheckCircle, XCircle, Palmtree,
-  UserCheck, Users, Download, Inbox, History, ClipboardList,
+  UserCheck, Users, Download, Inbox, History, ClipboardList, CalendarClock,
 } from 'lucide-react';
 import '../styles/attendance.css';
 
@@ -32,7 +36,7 @@ interface AttendanceLeavePanelProps {
 }
 
 type EmployeeTab = 'today' | 'leave' | 'history';
-type ManagerTab = 'approvals' | 'today' | 'team';
+type ManagerTab = 'approvals' | 'today' | 'team' | 'shifts';
 
 function Toast({ msg }: { msg: string }) {
   if (!msg) return null;
@@ -460,7 +464,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
         <div className="team-points-table-wrap" style={{ marginBottom: '1.25rem' }}>
           <table className="attendance-history-table">
             <thead>
-              <tr><th>Date</th><th>Status</th><th>Clock in</th><th>Clock out</th><th>Approval</th></tr>
+              <tr><th>Date</th><th>Status</th><th>Clock in</th><th>Clock out</th><th>Duration</th><th>Approval</th></tr>
             </thead>
             <tbody>
               {myAttendance.map((r) => (
@@ -469,6 +473,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
                   <td>{ATTENDANCE_STATUS_LABEL[r.status]}</td>
                   <td>{formatClockTime(r.clock_in_at)}{r.attendance_source === 'geo' && r.clock_in_at ? ' · GPS' : ''}</td>
                   <td>{formatClockTime(r.clock_out_at)}</td>
+                  <td>{formatWorkDuration(r.work_minutes)}</td>
                   <td><span className={`badge ${approvalBadgeClass(r.approval_status)}`}>{APPROVAL_LABEL[r.approval_status]}</span></td>
                 </tr>
               ))}
@@ -592,6 +597,13 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
           >
             <Users size={16} /> Team
           </button>
+          <button
+            type="button"
+            className={`attendance-tab ${managerTab === 'shifts' ? 'attendance-tab--active' : ''}`}
+            onClick={() => setManagerTab('shifts')}
+          >
+            <CalendarClock size={16} /> Shifts
+          </button>
         </div>
 
         {managerTab === 'approvals' && (
@@ -633,11 +645,16 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
 
         {managerTab === 'today' && (
           <>
+            <MyShiftCard />
             <GeoAttendancePanel onClockUpdate={load} />
             {renderCheckInHero('Admin')}
             {renderQuickStats()}
             {renderLeaveForm('Your leave goes to admin for approval.')}
           </>
+        )}
+
+        {managerTab === 'shifts' && (
+          <ShiftManagementPanel teamMembers={teamMembers} onUpdate={load} />
         )}
 
         {managerTab === 'team' && (
@@ -675,7 +692,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
                 </div>
               )}
             </div>
-            {renderHistory()}
+            <AttendanceHistoryPanel profile={profile} mode="manager" teamMembers={teamMembers} />
           </>
         )}
       </div>
@@ -713,6 +730,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
 
       {employeeTab === 'today' && (
         <>
+          <MyShiftCard />
           <GeoAttendancePanel onClockUpdate={load} />
           {renderCheckInHero('Your manager')}
           {renderQuickStats()}
@@ -726,7 +744,12 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
 
       {employeeTab === 'leave' && renderLeaveForm('Your manager will be notified and can approve the request.')}
 
-      {employeeTab === 'history' && renderHistory()}
+      {employeeTab === 'history' && (
+        <>
+          {renderHistory()}
+          <AttendanceHistoryPanel profile={profile} mode="employee" />
+        </>
+      )}
     </div>
   );
 }

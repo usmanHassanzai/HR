@@ -698,3 +698,136 @@
   color: var(--text-secondary);
   line-height: 1.45;
 }
+
+/* Shift management */
+.shift-card__hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.35rem;
+}
+
+.shift-card__time {
+  font-size: 1.05rem;
+  color: var(--accent-primary);
+  font-weight: 700;
+}
+
+.shift-day-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.shift-day-btn {
+  padding: 0.4rem 0.65rem;
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.shift-day-btn--active {
+  background: var(--accent-primary);
+  color: var(--btn-primary-text);
+  border-color: transparent;
+}
+
+.shift-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.shift-list__item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--surface-muted);
+}
+
+.shift-list__meta {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin-top: 0.2rem;
+}
+
+.shift-list__actions {
+  display: flex;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.shift-section-label {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin: 1rem 0 0.75rem;
+}
+
+.attendance-history-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+}
+
+.attendance-history-view-toggle {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.attendance-history-view-toggle .attendance-tab {
+  flex: unset;
+  padding: 0.45rem 0.85rem;
+}
+
+.attendance-history-table--detailed td {
+  vertical-align: top;
+}
+
+.attendance-history-sub {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.attendance-monthly-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.attendance-month-block {
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  overflow: hidden;
+}
+
+.attendance-month-block summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  background: var(--surface-muted);
+  font-size: 0.9rem;
+}
+
+.attendance-month-block summary span {
+  color: var(--text-secondary);
+}
+
+.attendance-month-block table {
+  margin: 0;
+}

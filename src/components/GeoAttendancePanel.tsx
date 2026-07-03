@@ -140,7 +140,7 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
         }
       }
 
-      if (result.action === 'clock_in' || result.action === 'clock_out' ||
+      if (result.action === 'clock_in' || result.action === 'clock_out' || result.action === 'clock_out_shift_end' ||
           result.action === 'already_clocked_in' || result.action === 'already_clocked_out') {
         await loadToday();
         onClockUpdate?.();
@@ -167,8 +167,8 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
         {enabled && <span className="badge badge-on-track" style={{ marginLeft: '0.5rem', fontSize: '0.65rem' }}>Active</span>}
       </h3>
       <p className="attendance-card__subtitle">
-        When you enter your team&apos;s GPS zone, you are automatically marked <strong>present</strong> with clock-in time.
-        When you leave, you are automatically clocked out. Keep this app open and allow location access.
+        When you enter your team&apos;s GPS zone during your shift, attendance starts automatically with exact clock-in time.
+        You are clocked out when you leave the zone or when your shift ends. On mobile, enable location and allow background access for best results.
       </p>
 
       {workSite && (

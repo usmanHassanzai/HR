@@ -38,6 +38,8 @@ export interface AttendanceRecord {
   clock_in_at?: string | null;
   clock_out_at?: string | null;
   attendance_source?: string;
+  shift_id?: string | null;
+  work_minutes?: number | null;
   notes: string | null;
   marked_by: string | null;
   reviewed_by: string | null;

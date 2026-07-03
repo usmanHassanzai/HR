@@ -15,7 +15,7 @@ export interface OfficeLocation {
 }
 
 export interface GeoPingResult {
-  action: 'clock_in' | 'clock_out' | 'already_clocked_in' | 'already_clocked_out' | 'outside_office' | 'none' | 'skipped';
+  action: 'clock_in' | 'clock_out' | 'clock_out_shift_end' | 'already_clocked_in' | 'already_clocked_out' | 'outside_office' | 'shift_not_started' | 'not_work_day' | 'none' | 'skipped';
   inside_office?: boolean;
   office_name?: string;
   distance_meters?: number;
@@ -23,6 +23,10 @@ export interface GeoPingResult {
   clock_out_at?: string;
   record_id?: string;
   reason?: string;
+  shift_name?: string;
+  shift_start?: string;
+  shift_end?: string;
+  work_minutes?: number;
 }
 
 const GEO_ENABLED_KEY = 'scorr-geo-attendance';
@@ -135,10 +139,28 @@ export function geoActionLabel(action: GeoPingResult['action']): string {
   switch (action) {
     case 'clock_in': return 'Clocked in at office';
     case 'clock_out': return 'Clocked out (left office)';
+    case 'clock_out_shift_end': return 'Clocked out (shift ended)';
     case 'already_clocked_in': return 'Already clocked in today';
     case 'already_clocked_out': return 'Already clocked out today';
     case 'outside_office': return 'Outside office premises';
+    case 'shift_not_started': return 'Shift has not started yet';
+    case 'not_work_day': return 'Not scheduled to work today';
     case 'skipped': return 'Geo attendance not applicable';
     default: return 'Location checked';
+  }
+}
+
+/** Request background location on Android (best-effort for attendance when app minimized). */
+export async function ensureBackgroundLocationReady(): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return;
+  const perm = await Geolocation.checkPermissions();
+  if (perm.location === 'denied') {
+    throw new Error('Location blocked. Enable Location → Allow all the time in app settings.');
+  }
+  if (perm.location !== 'granted') {
+    const req = await Geolocation.requestPermissions();
+    if (req.location !== 'granted') {
+      throw new Error('Location permission required for automatic attendance.');
+    }
   }
 }
