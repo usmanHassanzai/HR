@@ -16,7 +16,7 @@
  * Generate keystore:
  *   keytool -genkey -v -keystore scorr-release.keystore -alias scorr -keyalg RSA -keysize 2048 -validity 10000
  *
- * Usage: node scripts/build-android-apk.mjs [--release]
+ * Usage: node scripts/build-android-apk.mjs [--release] [--skip-web]
  */
 import { execSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -27,6 +27,7 @@ const root = new URL('..', import.meta.url).pathname;
 const androidDir = join(root, 'android');
 const downloadsDir = join(root, 'public', 'downloads');
 const release = process.argv.includes('--release');
+const skipWeb = process.argv.includes('--skip-web');
 const androidSdk = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT || join(homedir(), 'Android', 'Sdk');
 const localProps = join(androidDir, 'local.properties');
 const keystoreProps = join(androidDir, 'keystore.properties');
@@ -130,11 +131,15 @@ ensureJava();
 ensureSdk();
 
 console.log('Step 1/4: App icons');
-run('node scripts/generate-app-icons.mjs');
+if (!skipWeb) {
+  run('node scripts/generate-app-icons.mjs');
+}
 run('node scripts/sync-android-icons.mjs');
 
 console.log('\nStep 2/4: Web build + Capacitor sync');
-run('npm run build');
+if (!skipWeb) {
+  run('npm run build');
+}
 run('npx cap sync android');
 
 if (release) patchReleaseSigning();

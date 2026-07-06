@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, supabaseSignup } from '../lib/supabase';
 import { Profile } from '../utils/kpiHelpers';
-import { Users, UserPlus, Trash2, Loader2, AlertCircle, CheckCircle, Download, FileSpreadsheet, FileText, BarChart3, Palette, Trophy, KeyRound, CalendarCheck, MapPin, Radio } from 'lucide-react';
+import { Users, UserPlus, Trash2, Loader2, AlertCircle, CheckCircle, Download, FileSpreadsheet, FileText, BarChart3, Palette, Trophy, KeyRound, CalendarCheck, MapPin, Radio, Building2, Settings } from 'lucide-react';
 import { fetchQuarterlyReportData, fetchMonthlyReportData, exportToCsv, exportToExcel, exportToPdf } from '../utils/exportReport';
 import Analytics from './Analytics';
 import BrandingSettings from './BrandingSettings';
@@ -10,6 +10,8 @@ import AttendanceLeavePanel from './AttendanceLeavePanel';
 import AdminResetPasswordModal from './AdminResetPasswordModal';
 import OfficeLocationSettings from './OfficeLocationSettings';
 import EmployeeLocationTracking from './EmployeeLocationTracking';
+import DepartmentWeightagesPanel from './DepartmentWeightagesPanel';
+import ManagerKpiConfig from './ManagerKpiConfig';
 import DashboardTabNav from './DashboardTabNav';
 import { isDemoProfile } from '../utils/demoMode';
 
@@ -21,7 +23,7 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
   const [users, setUsers] = useState<Profile[]>([]);
   const [managers, setManagers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'users' | 'export' | 'analytics' | 'branding' | 'rewards' | 'attendance' | 'office' | 'tracking'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'kpis' | 'export' | 'analytics' | 'branding' | 'rewards' | 'attendance' | 'office' | 'tracking' | 'departments'>('users');
 
   // User Form States
   const [email, setEmail] = useState('');
@@ -188,6 +190,8 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
         onTabChange={(id) => setActiveTab(id as typeof activeTab)}
         tabs={[
           { id: 'users', label: 'Users', mobileLabel: 'Users', icon: <Users size={16} /> },
+          { id: 'departments', label: 'Departments', mobileLabel: 'Depts', icon: <Building2 size={16} /> },
+          { id: 'kpis', label: 'Assign Task', mobileLabel: 'Tasks', icon: <Settings size={16} /> },
           { id: 'export', label: 'Reports', mobileLabel: 'Reports', icon: <Download size={16} /> },
           { id: 'analytics', label: 'Analytics', mobileLabel: 'Analytics', icon: <BarChart3 size={16} /> },
           { id: 'branding', label: 'Branding', mobileLabel: 'Brand', icon: <Palette size={16} /> },
@@ -270,6 +274,10 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
         <OfficeLocationSettings />
       ) : activeTab === 'tracking' ? (
         <EmployeeLocationTracking profile={profile} mode="admin" />
+      ) : activeTab === 'departments' ? (
+        <DepartmentWeightagesPanel />
+      ) : activeTab === 'kpis' ? (
+        <ManagerKpiConfig assignerId={profile.id} isAdmin />
       ) : (
         <div className="responsive-grid-wide" style={{ gap: '2rem' }}>
           

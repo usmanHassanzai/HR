@@ -28,6 +28,7 @@ export interface Kpi {
   weight: number;
   category: string | null;
   department?: string | null;
+  department_id?: string | null;
   start_date?: string | null;
   end_date?: string | null;
   completion_status?: 'pending' | 'completed';

@@ -145,6 +145,16 @@ async function main() {
   await sql(schema, 'schema.sql');
   ok('schema.sql applied');
 
+  // ── 4b. Department weightages (7 default departments + auto KPI weights) ─────
+  inf('Applying department_weightages.sql...');
+  const deptSql = fs.readFileSync(path.join(ROOT, 'supabase', 'migrations', 'department_weightages.sql'), 'utf8');
+  try {
+    await sql(deptSql, 'department_weightages.sql');
+    ok('department_weightages.sql applied');
+  } catch (e) {
+    warn(`department_weightages.sql partial: ${e.message.slice(0, 200)}`);
+  }
+
   // ── 5. Apply seed ─────────────────────────────────────────────────────────────
   inf('Applying seed.sql...');
   const seed = fs.readFileSync(path.join(ROOT, 'supabase', 'seed.sql'), 'utf8');

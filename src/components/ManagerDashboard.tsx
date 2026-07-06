@@ -4,11 +4,12 @@ import { Profile } from '../utils/kpiHelpers';
 import Leaderboard from './Leaderboard';
 import EmployeeDashboard from './EmployeeDashboard';
 import ManagerKpiConfig from './ManagerKpiConfig';
-import { Users, BarChart3, ShieldAlert, KeyRound, Trophy, Settings, CalendarCheck, Radio } from 'lucide-react';
+import { Users, BarChart3, ShieldAlert, KeyRound, Trophy, Settings, CalendarCheck, Radio, Building2 } from 'lucide-react';
 import ChangePasswordModal from './ChangePasswordModal';
 import ManagerRewardsPanel from './ManagerRewardsPanel';
 import AttendanceLeavePanel from './AttendanceLeavePanel';
 import EmployeeLocationTracking from './EmployeeLocationTracking';
+import DepartmentWeightagesPanel from './DepartmentWeightagesPanel';
 import DashboardTabNav from './DashboardTabNav';
 
 interface ManagerDashboardProps {
@@ -17,7 +18,7 @@ interface ManagerDashboardProps {
 
 export default function ManagerDashboard({ profile }: ManagerDashboardProps) {
   const [selectedEmployee, setSelectedEmployee] = useState<Profile | null>(null);
-  const [activeTab, setActiveTab] = useState<'team' | 'kpis' | 'rewards' | 'personal' | 'attendance' | 'tracking'>('team');
+  const [activeTab, setActiveTab] = useState<'team' | 'kpis' | 'departments' | 'rewards' | 'personal' | 'attendance' | 'tracking'>('team');
   const [alertCount, setAlertCount] = useState(0);
   const [showChangePassword, setShowChangePassword] = useState(false);
 
@@ -72,6 +73,7 @@ export default function ManagerDashboard({ profile }: ManagerDashboardProps) {
         tabs={[
           { id: 'team', label: 'Team Performance', mobileLabel: 'Team', icon: <Users size={16} /> },
           { id: 'kpis', label: 'Assign Task', mobileLabel: 'Tasks', icon: <Settings size={16} /> },
+          { id: 'departments', label: 'Departments', mobileLabel: 'Depts', icon: <Building2 size={16} /> },
           { id: 'rewards', label: 'Team Rewards', mobileLabel: 'Rewards', icon: <Trophy size={16} /> },
           { id: 'attendance', label: 'Attendance & Leave', mobileLabel: 'Leave', icon: <CalendarCheck size={16} /> },
           { id: 'tracking', label: 'Live Tracking', mobileLabel: 'GPS', icon: <Radio size={16} /> },
@@ -114,7 +116,9 @@ export default function ManagerDashboard({ profile }: ManagerDashboardProps) {
             <Leaderboard managerId={profile.id} onSelectEmployee={handleSelectEmployee} />
           </div>
         ) : activeTab === 'kpis' ? (
-          <ManagerKpiConfig managerId={profile.id} />
+          <ManagerKpiConfig assignerId={profile.id} />
+        ) : activeTab === 'departments' ? (
+          <DepartmentWeightagesPanel />
         ) : activeTab === 'rewards' ? (
           <ManagerRewardsPanel managerId={profile.id} onGoToPersonal={() => setActiveTab('personal')} />
         ) : activeTab === 'attendance' ? (
