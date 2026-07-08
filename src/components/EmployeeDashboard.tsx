@@ -230,6 +230,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
 
         <RewardsPointsCard
           userId={activeUser.id}
+          title={isReadOnly ? `${activeUser.full_name}'s rewards points` : 'Your rewards points'}
           showViewLink={!isReadOnly}
           onViewRewards={!isReadOnly ? () => setActiveTab('rewards') : undefined}
         />

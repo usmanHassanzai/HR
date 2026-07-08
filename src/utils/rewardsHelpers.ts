@@ -51,3 +51,51 @@ export async function fetchRewardsSummary(userId: string): Promise<RewardsSummar
 
   return computeRewardsSummary(ledgerRes.data || [], redemRes.data || []);
 }
+
+export interface TeamMemberRewards {
+  id: string;
+  full_name: string;
+  email: string;
+  summary: RewardsSummary;
+}
+
+export async function fetchTeamRewardsSummaries(managerId: string): Promise<TeamMemberRewards[]> {
+  const { data: reports, error } = await supabase.rpc('get_direct_reports', { p_manager_id: managerId });
+  if (error || !reports?.length) return [];
+
+  const ids = (reports as { id: string; full_name: string; email: string }[]).map((r) => r.id);
+  const [ledgerRes, redemRes] = await Promise.all([
+    supabase
+      .from('points_ledger')
+      .select('employee_id, month, kpi_score, points_earned')
+      .in('employee_id', ids)
+      .order('month', { ascending: false }),
+    supabase.from('reward_redemptions').select('employee_id, points_used').in('employee_id', ids),
+  ]);
+
+  const ledgerByUser = new Map<string, { month: string; kpi_score: number; points_earned: number }[]>();
+  for (const row of ledgerRes.data || []) {
+    const list = ledgerByUser.get(row.employee_id) || [];
+    list.push(row);
+    ledgerByUser.set(row.employee_id, list);
+  }
+
+  const redemptionsByUser = new Map<string, { points_used: number }[]>();
+  for (const row of redemRes.data || []) {
+    const list = redemptionsByUser.get(row.employee_id) || [];
+    list.push(row);
+    redemptionsByUser.set(row.employee_id, list);
+  }
+
+  return (reports as { id: string; full_name: string; email: string }[])
+    .map((member) => ({
+      id: member.id,
+      full_name: member.full_name,
+      email: member.email,
+      summary: computeRewardsSummary(
+        ledgerByUser.get(member.id) || [],
+        redemptionsByUser.get(member.id) || [],
+      ),
+    }))
+    .sort((a, b) => b.summary.balance - a.summary.balance);
+}

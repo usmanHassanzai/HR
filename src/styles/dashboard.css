@@ -217,6 +217,143 @@
   margin-top: 0.15rem;
 }
 
+.dash-team-points {
+  padding: 1.25rem 1.5rem !important;
+}
+
+.dash-team-points--loading {
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dash-team-points__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.dash-team-points__head h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 1.05rem;
+  font-family: var(--font-display);
+}
+
+.dash-team-points__count {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.dash-team-points__desc {
+  margin: 0 0 1rem;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.dash-team-points__empty {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 1.5rem 0;
+}
+
+.dash-team-points__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.dash-team-points__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  background: var(--dash-surface-muted);
+}
+
+.dash-team-points__row--top {
+  border-color: rgba(234, 179, 8, 0.35);
+}
+
+.dash-team-points__identity {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex: 1;
+  min-width: 180px;
+}
+
+.dash-team-points__rank {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.dash-team-points__identity strong {
+  display: block;
+  font-size: 0.9rem;
+}
+
+.dash-team-points__identity span {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.dash-team-points__metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.dash-team-points__metrics div {
+  min-width: 4.5rem;
+}
+
+.dash-team-points__metrics strong {
+  display: block;
+  font-size: 0.95rem;
+}
+
+.dash-team-points__metrics span {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.dash-team-points__balance {
+  color: var(--color-warning);
+  font-size: 1.05rem !important;
+}
+
+.dash-team-points__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(45, 212, 168, 0.12);
+  color: var(--color-success);
+}
+
 .dash-metric-row {
   display: flex;
   justify-content: space-between;

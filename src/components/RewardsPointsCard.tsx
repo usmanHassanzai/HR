@@ -5,11 +5,12 @@ import { REWARD_CATALOG_COST, tierColorForScore } from '../utils/rewardsTiers';
 
 interface RewardsPointsCardProps {
   userId: string;
+  title?: string;
   onViewRewards?: () => void;
   showViewLink?: boolean;
 }
 
-export default function RewardsPointsCard({ userId, onViewRewards, showViewLink = true }: RewardsPointsCardProps) {
+export default function RewardsPointsCard({ userId, title = 'Your rewards points', onViewRewards, showViewLink = true }: RewardsPointsCardProps) {
   const [summary, setSummary] = useState<RewardsSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -42,7 +43,7 @@ export default function RewardsPointsCard({ userId, onViewRewards, showViewLink 
   return (
     <div className="glass-panel dash-points-card">
       <div className="dash-points-card__head">
-        <span className="dash-eyebrow"><Trophy size={14} /> Rewards points</span>
+        <span className="dash-eyebrow"><Trophy size={14} /> {title}</span>
         {summary.canRedeem && <span className="dash-points-card__badge">Redeem available</span>}
       </div>
 

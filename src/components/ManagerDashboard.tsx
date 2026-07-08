@@ -11,6 +11,7 @@ import AttendanceLeavePanel from './AttendanceLeavePanel';
 import EmployeeLocationTracking from './EmployeeLocationTracking';
 import DepartmentWeightagesPanel from './DepartmentWeightagesPanel';
 import RewardsPointsCard from './RewardsPointsCard';
+import TeamEmployeePointsPanel from './TeamEmployeePointsPanel';
 import DashboardTabNav from './DashboardTabNav';
 
 interface ManagerDashboardProps {
@@ -96,7 +97,12 @@ export default function ManagerDashboard({ profile }: ManagerDashboardProps) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem' }}>
             <RewardsPointsCard
               userId={profile.id}
+              title="Your rewards points"
               onViewRewards={() => setActiveTab('personal')}
+            />
+            <TeamEmployeePointsPanel
+              managerId={profile.id}
+              onSelectEmployee={handleSelectEmployee}
             />
             <div className="dash-insight-grid">
               <div className="glass-panel dash-insight-card dash-insight-card--accent">

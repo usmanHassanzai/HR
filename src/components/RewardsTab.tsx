@@ -28,11 +28,6 @@ interface Redemption {
   rewards_catalog?: { name: string; icon: string };
 }
 
-interface LeaderboardRow {
-  full_name: string;
-  total_points: number;
-}
-
 interface RewardsTabProps {
   userId: string;
   isReadOnly?: boolean;
@@ -45,7 +40,6 @@ export default function RewardsTab({ userId, isReadOnly, viewerRole = 'employee'
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
   const [ledger, setLedger] = useState<LedgerRow[]>([]);
   const [redemptions, setRedemptions] = useState<Redemption[]>([]);
-  const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [redeeming, setRedeeming] = useState<string | null>(null);
   const [msg, setMsg] = useState('');
@@ -54,16 +48,14 @@ export default function RewardsTab({ userId, isReadOnly, viewerRole = 'employee'
 
   const fetchAll = async () => {
     setLoading(true);
-    const [catRes, ledgerRes, redemRes, lbRes] = await Promise.all([
+    const [catRes, ledgerRes, redemRes] = await Promise.all([
       supabase.from('rewards_catalog').select('*').eq('active', true).order('point_cost'),
       supabase.from('points_ledger').select('*').eq('employee_id', userId).order('month', { ascending: false }),
       supabase.from('reward_redemptions').select('*, rewards_catalog(name, icon)').eq('employee_id', userId).order('redeemed_at', { ascending: false }),
-      supabase.rpc('get_points_leaderboard'),
     ]);
     if (catRes.data) setCatalog(catRes.data);
     if (ledgerRes.data) setLedger(ledgerRes.data);
     if (redemRes.data) setRedemptions(redemRes.data);
-    if (lbRes.data) setLeaderboard(lbRes.data);
     setLoading(false);
   };
 
@@ -234,19 +226,11 @@ export default function RewardsTab({ userId, isReadOnly, viewerRole = 'employee'
         </div>
       )}
 
-      {/* Leaderboard */}
-      {leaderboard.length > 0 && (
+      {viewerRole === 'employee' && !isReadOnly && (
         <div className="glass-panel rewards-section">
-          <h3 className="rewards-section-title"><Trophy size={20} /> Points Leaderboard</h3>
-          <div className="leaderboard-list">
-            {leaderboard.slice(0, 10).map((row, i) => (
-              <div key={i} className={`leaderboard-row ${i === 0 ? 'leaderboard-row--gold' : i === 1 ? 'leaderboard-row--silver' : ''}`}>
-                <span className="leaderboard-rank">{i + 1}</span>
-                <span className="leaderboard-name">{row.full_name}</span>
-                <span className="leaderboard-pts"><Star size={13} /> {row.total_points.toLocaleString()}</span>
-              </div>
-            ))}
-          </div>
+          <p className="rewards-section-desc" style={{ margin: 0 }}>
+            You can only view your own points balance. Contact your manager for team rewards questions.
+          </p>
         </div>
       )}
     </div>
