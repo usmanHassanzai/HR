@@ -5,6 +5,7 @@ import TaskList from './TaskList';
 import { RefreshCw, BarChart2, Sparkles, Trophy, KeyRound, CheckCircle2, CalendarCheck } from 'lucide-react';
 import ExportButton from './ExportButton';
 import RewardsTab from './RewardsTab';
+import RewardsPointsCard from './RewardsPointsCard';
 import AttendanceLeavePanel from './AttendanceLeavePanel';
 import ChangePasswordModal from './ChangePasswordModal';
 import { emailKpiCompleted, emailKpiOverdue } from '../utils/kpiEmail';
@@ -226,6 +227,12 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
             <strong style={{ color: 'var(--color-danger)' }}>{kpis.filter(k => k.status === 'off_track').length} / {kpis.length}</strong>
           </div>
         </div>
+
+        <RewardsPointsCard
+          userId={activeUser.id}
+          showViewLink={!isReadOnly}
+          onViewRewards={!isReadOnly ? () => setActiveTab('rewards') : undefined}
+        />
       </div>
 
       <div className="dash-section-head">

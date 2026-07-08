@@ -10,6 +10,7 @@ import ManagerRewardsPanel from './ManagerRewardsPanel';
 import AttendanceLeavePanel from './AttendanceLeavePanel';
 import EmployeeLocationTracking from './EmployeeLocationTracking';
 import DepartmentWeightagesPanel from './DepartmentWeightagesPanel';
+import RewardsPointsCard from './RewardsPointsCard';
 import DashboardTabNav from './DashboardTabNav';
 
 interface ManagerDashboardProps {
@@ -93,6 +94,10 @@ export default function ManagerDashboard({ profile }: ManagerDashboardProps) {
       <div className="dashboard-tab-content">
         {activeTab === 'team' ? (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem' }}>
+            <RewardsPointsCard
+              userId={profile.id}
+              onViewRewards={() => setActiveTab('personal')}
+            />
             <div className="dash-insight-grid">
               <div className="glass-panel dash-insight-card dash-insight-card--accent">
                 <span className="dash-eyebrow">Direct reports</span>

@@ -126,6 +126,97 @@
   padding: 1.35rem 1.5rem !important;
 }
 
+.dash-points-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 1.25rem 1.5rem !important;
+  border-left: 5px solid var(--color-warning) !important;
+  background: var(--dash-rewards-hero-bg);
+}
+
+.dash-points-card--loading {
+  min-height: 140px;
+  align-items: center;
+  justify-content: center;
+}
+
+.dash-points-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.dash-points-card__badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(45, 212, 168, 0.15);
+  color: var(--color-success);
+}
+
+.dash-points-card__balance {
+  font-size: 2.25rem;
+  font-weight: 800;
+  font-family: var(--font-display);
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.dash-points-card__meta {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.dash-points-card__stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+}
+
+.dash-points-card__stat {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: var(--border-radius-sm);
+  background: var(--dash-surface-muted);
+}
+
+.dash-points-card__stat strong {
+  display: block;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.dash-points-card__stat span {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.dash-points-card__progress-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.35rem;
+}
+
+.dash-points-card__progress-head strong {
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.dash-points-card__link {
+  align-self: flex-start;
+  margin-top: 0.15rem;
+}
+
 .dash-metric-row {
   display: flex;
   justify-content: space-between;
