@@ -9,7 +9,10 @@ import RewardsPointsCard from './RewardsPointsCard';
 import AttendanceLeavePanel from './AttendanceLeavePanel';
 import ChangePasswordModal from './ChangePasswordModal';
 import { emailKpiCompleted, emailKpiOverdue } from '../utils/kpiEmail';
+import EmployeeKpiBoardSummary from './EmployeeKpiBoardSummary';
 import DashboardTabNav from './DashboardTabNav';
+import { formatKpiWeight } from '../utils/kpiWeightHelpers';
+import { kpiAchievedPct, kpiScoreContribution, statusTrafficLight, trafficLightLabel } from '../utils/kpiScoreHelpers';
 
 interface EmployeeDashboardProps {
   profile: Profile;
@@ -236,6 +239,11 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
         />
       </div>
 
+      <EmployeeKpiBoardSummary
+        kpis={kpis}
+        employeeName={isReadOnly ? activeUser.full_name : undefined}
+      />
+
       <div className="dash-section-head">
         <h3><BarChart2 size={22} /> My KPI tasks</h3>
         
@@ -255,16 +263,18 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
         <div className="dashboard-grid" style={{ marginTop: '0' }}>
           {kpis.map((kpi) => {
             const statusClass = getCardStatusClass(kpi.status);
+            const light = statusTrafficLight(kpi.completion_status === 'completed' ? 'completed' : kpi.status);
+            const achieved = kpiAchievedPct(kpi);
+            const contribution = kpiScoreContribution(kpi);
             return (
-              <div key={kpi.id} className={`glass-panel kpi-card ${statusClass}`}>
+              <div key={kpi.id} className={`glass-panel kpi-card ${statusClass} kpi-card--${light}`}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
                   <span className="kpi-dept">{kpi.department || kpi.category || 'General'}</span>
-                  <span className={`badge badge-${kpi.completion_status === 'completed' ? 'on-track' : statusClass}`} style={{ fontSize: '0.65rem' }}>
-                    {kpi.completion_status === 'completed' ? 'completed' : kpi.status.replace('_', ' ')}
-                  </span>
+                  <span className={`kpi-traffic kpi-traffic--${light}`}>{trafficLightLabel(light)}</span>
                 </div>
 
                 <h4>{kpi.name}</h4>
+                <span className="dept-weight-badge">{formatKpiWeight(kpi.weight)} weight</span>
 
                 {kpi.ai_narrative ? (
                   <p className="kpi-ai-note" style={{ marginBottom: '1rem' }}>
@@ -274,6 +284,10 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
                 ) : kpi.description ? (
                   <p className="kpi-desc" style={{ marginBottom: '1.25rem' }}>{kpi.description}</p>
                 ) : null}
+
+                <p className="kpi-score-line">
+                  {achieved}% achieved × {formatKpiWeight(kpi.weight)} = <strong>{contribution} pts</strong>
+                </p>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '0.75rem', flexWrap: 'wrap', gap: '0.75rem' }}>
                   <div>

@@ -1,0 +1,128 @@
+.company-register {
+  max-width: 640px;
+  margin: 2rem auto;
+  padding: 2rem;
+}
+
+.company-register__section {
+  margin-bottom: 1.75rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.company-register__section:last-of-type {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.company-register__section-title {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  margin: 0 0 1rem;
+  color: var(--accent-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.company-register__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 560px) {
+  .company-register__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.company-register__field span {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.company-register__field input,
+.company-register__field select,
+.company-register__field textarea {
+  width: 100%;
+}
+
+.company-register__plans {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.65rem;
+}
+
+@media (max-width: 560px) {
+  .company-register__plans {
+    grid-template-columns: 1fr;
+  }
+}
+
+.company-register__plan {
+  text-align: left;
+  padding: 0.85rem 1rem;
+  border-radius: var(--border-radius-sm);
+  border: 2px solid var(--border-subtle);
+  background: transparent;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.company-register__plan:hover {
+  border-color: var(--accent-primary);
+}
+
+.company-register__plan--selected {
+  border-color: var(--accent-primary);
+  background: rgba(45, 212, 168, 0.08);
+}
+
+.company-register__plan strong {
+  display: block;
+  font-size: 0.9rem;
+  margin-bottom: 0.2rem;
+}
+
+.company-register__plan small {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.company-register__success-icon {
+  color: var(--color-warning);
+  margin-bottom: 1rem;
+}
+
+.company-register__waiting-steps {
+  text-align: left;
+  margin: 1.25rem 0;
+  padding: 1rem 1.25rem;
+  background: rgba(251, 191, 36, 0.08);
+  border-radius: var(--border-radius-sm);
+  border-left: 3px solid var(--color-warning);
+}
+
+.company-register__waiting-steps li {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
+}
+
+.platform-reg-detail {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  display: grid;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+}
+
+.platform-reg-detail strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}

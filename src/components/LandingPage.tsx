@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import Login from './Login';
+import CompanyRegister from './CompanyRegister';
 import ThemeToggle from './ThemeToggle';
 import ScorrWordmark from './ScorrWordmark';
 import MobileAppDownload from './MobileAppDownload';
@@ -104,6 +105,7 @@ function AnimatedCounter({ target, suffix = '' }: { target: number; suffix?: str
 
 export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
   const [navScrolled, setNavScrolled] = useState(false);
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const revealRef = useReveal();
 
   useEffect(() => {
@@ -129,9 +131,9 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
         </div>
         <div className="landing-nav__cta">
           <ThemeToggle />
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => scrollTo('login')}>Sign In</button>
-          <button type="button" className="btn btn-primary btn-sm" onClick={() => scrollTo('login')}>
-            Get Started <ArrowRight size={14} />
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setAuthMode('login'); scrollTo('login'); }}>Sign In</button>
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => { setAuthMode('register'); scrollTo('login'); }}>
+            Register Company <ArrowRight size={14} />
           </button>
         </div>
       </nav>
@@ -330,23 +332,47 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
 
       {/* Login */}
       <section id="login" className="landing-login-section">
-        <div className="landing-login-grid">
+        <div className={`landing-login-grid ${authMode === 'register' ? 'landing-login-grid--register' : ''}`}>
           <div className="landing-reveal">
             <div className="landing-section__eyebrow">Get Started</div>
-            <h2 className="landing-section__title" style={{ textAlign: 'left' }}>Sign in to Scorr</h2>
+            <h2 className="landing-section__title" style={{ textAlign: 'left' }}>
+              {authMode === 'register' ? 'Register your company' : 'Sign in to Scorr'}
+            </h2>
             <p style={{ marginBottom: '1.5rem' }}>
-              Access your dashboard at <strong style={{ color: 'var(--landing-accent)' }}>scorr.walfia.ai</strong>. Use the demo buttons in the sign-in panel to explore each role — demo data only, never real production users.
+              {authMode === 'register' ? (
+                <>Each company gets isolated data — your own admins, managers, and employees. Registration is reviewed by <strong>Samiya Kayani</strong> before access is granted.</>
+              ) : (
+                <>Access your company dashboard at <strong style={{ color: 'var(--landing-accent)' }}>scorr.walfia.ai</strong>. Demo sandbox lasts <strong>3 days</strong> and is hidden from all company views.</>
+              )}
             </p>
-            <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-              {['Employee — KPIs, attendance & rewards', 'Manager — assign tasks, approve leave', 'Admin — users, reports & branding'].map((t) => (
-                <li key={t} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                  <Check size={16} style={{ color: 'var(--landing-accent)' }} /> {t}
-                </li>
-              ))}
-            </ul>
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+              <button type="button" className={`btn btn-sm ${authMode === 'login' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setAuthMode('login')}>Sign In</button>
+              <button type="button" className={`btn btn-sm ${authMode === 'register' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setAuthMode('register')}>Register Company</button>
+            </div>
+            {authMode === 'register' ? (
+              <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                {['Fill organization & contact details', 'Choose subscription plan', 'Wait for admin approval notification', 'Sign in and add your team'].map((t) => (
+                  <li key={t} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                    <Check size={16} style={{ color: 'var(--landing-accent)' }} /> {t}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                {['Employee — KPIs, attendance & rewards', 'Manager — assign tasks, approve leave', 'Admin — users, reports & branding'].map((t) => (
+                  <li key={t} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                    <Check size={16} style={{ color: 'var(--landing-accent)' }} /> {t}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
           <div className="landing-login-card-wrap landing-reveal landing-reveal--delay-2">
-            <Login onLoginSuccess={onLoginSuccess} embedded showDemoShortcuts />
+            {authMode === 'register' ? (
+              <CompanyRegister onBack={() => setAuthMode('login')} onRegistered={() => setAuthMode('login')} />
+            ) : (
+              <Login onLoginSuccess={onLoginSuccess} embedded showDemoShortcuts demoSectionLabel="3-day demo sandbox" />
+            )}
           </div>
         </div>
       </section>

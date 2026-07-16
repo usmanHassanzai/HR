@@ -14,6 +14,10 @@ export interface Profile {
   health_score_updated_at?: string;
   created_at: string;
   is_demo?: boolean;
+  company_id?: string | null;
+  department_id?: string | null;
+  is_platform_owner?: boolean;
+  demo_expires_at?: string | null;
 }
 
 export interface Kpi {
@@ -29,6 +33,7 @@ export interface Kpi {
   category: string | null;
   department?: string | null;
   department_id?: string | null;
+  indicator_id?: string | null;
   start_date?: string | null;
   end_date?: string | null;
   completion_status?: 'pending' | 'completed';

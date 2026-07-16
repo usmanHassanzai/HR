@@ -15,6 +15,8 @@ interface LoginProps {
   appMode?: boolean;
   /** Label above demo shortcut buttons */
   demoSectionLabel?: string;
+  /** Override sign-in card title */
+  title?: string;
 }
 
 export default function Login({
@@ -23,6 +25,7 @@ export default function Login({
   showDemoShortcuts = true,
   appMode = false,
   demoSectionLabel,
+  title,
 }: LoginProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -63,7 +66,7 @@ export default function Login({
         
         <div className="login-brand">
           <BrandLogo variant="login" alt={appMode ? 'Scorr' : 'Scorr — scorr.walfia.ai'} />
-          <p className="login-brand-sub">{appMode ? 'Sign in to your workspace' : embedded ? 'Sign in to continue' : isNativeApp() ? 'Scorr HR — sign in' : 'Sign in to continue'}</p>
+          <p className="login-brand-sub">{title ?? (appMode ? 'Sign in to your workspace' : embedded ? 'Sign in to continue' : isNativeApp() ? 'Scorr HR — sign in' : 'Sign in to continue')}</p>
         </div>
 
         {error && (

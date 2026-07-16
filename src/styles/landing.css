@@ -690,6 +690,19 @@
   .landing-login-grid { grid-template-columns: 1fr; }
 }
 
+.landing-login-grid--register {
+  grid-template-columns: 1fr;
+  max-width: 720px;
+}
+
+.landing-login-grid--register .landing-reveal:first-child {
+  text-align: center;
+}
+
+.landing-login-grid--register .landing-section__title {
+  text-align: center !important;
+}
+
 .landing-login-card-wrap .login-card {
   max-width: 100%;
 }

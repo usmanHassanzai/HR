@@ -108,7 +108,7 @@ export default function ManagerDashboard({ profile }: ManagerDashboardProps) {
               <div className="glass-panel dash-insight-card dash-insight-card--accent">
                 <span className="dash-eyebrow">Direct reports</span>
                 <h3>Team Overview</h3>
-                <p>View rankings and performance metrics for employees in your organization.</p>
+                <p>View rankings and performance for employees in <strong>your department</strong> only.</p>
               </div>
 
               <div className="glass-panel dash-insight-card dash-insight-card--warning">
@@ -129,7 +129,7 @@ export default function ManagerDashboard({ profile }: ManagerDashboardProps) {
         ) : activeTab === 'kpis' ? (
           <ManagerKpiConfig assignerId={profile.id} />
         ) : activeTab === 'departments' ? (
-          <DepartmentWeightagesPanel />
+          <DepartmentWeightagesPanel managerMode />
         ) : activeTab === 'rewards' ? (
           <ManagerRewardsPanel managerId={profile.id} onGoToPersonal={() => setActiveTab('personal')} />
         ) : activeTab === 'attendance' ? (

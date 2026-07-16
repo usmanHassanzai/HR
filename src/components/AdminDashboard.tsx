@@ -14,6 +14,8 @@ import DepartmentWeightagesPanel from './DepartmentWeightagesPanel';
 import ManagerKpiConfig from './ManagerKpiConfig';
 import DashboardTabNav from './DashboardTabNav';
 import { isDemoProfile } from '../utils/demoMode';
+import { Department } from '../utils/departmentHelpers';
+import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
 
 interface AdminDashboardProps {
   profile: Profile;
@@ -31,6 +33,8 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState<'employee' | 'manager' | 'admin'>('employee');
   const [managerId, setManagerId] = useState('');
+  const [departmentId, setDepartmentId] = useState('');
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [userFormLoading, setUserFormLoading] = useState(false);
   const [userFormMsg, setUserFormMsg] = useState({ type: '', text: '' });
 
@@ -44,8 +48,10 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const { data: allUsers, error: usersError } = await supabase
-        .rpc('get_all_users_admin');
+      const [{ data: allUsers, error: usersError }, { data: depts }] = await Promise.all([
+        supabase.rpc('get_all_users_admin'),
+        supabase.rpc('get_departments'),
+      ]);
 
       if (usersError) console.error('Error fetching users:', usersError);
       else {
@@ -53,6 +59,7 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
         setUsers(usersList);
         setManagers(usersList.filter((u) => u.role === 'manager' || u.role === 'admin'));
       }
+      setDepartments((depts as Department[]) || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -63,6 +70,12 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useSupabaseRealtime(
+    'admin-users-sync',
+    [{ table: 'users' }, { table: 'departments' }],
+    fetchData,
+  );
 
   const handleExport = async (format: 'csv' | 'excel' | 'pdf', period: 'quarterly' | 'monthly' = 'quarterly') => {
     setExportLoading(true);
@@ -90,6 +103,10 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
       setUserFormMsg({ type: 'error', text: 'All fields are required.' });
       return;
     }
+    if (role !== 'admin' && !departmentId) {
+      setUserFormMsg({ type: 'error', text: 'Select a department for managers and employees.' });
+      return;
+    }
 
     setUserFormLoading(true);
     setUserFormMsg({ type: '', text: '' });
@@ -105,7 +122,9 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
         options: {
           data: {
             full_name: fullName,
-            role: role
+            role: role,
+            company_id: profile.company_id ?? undefined,
+            department_id: role !== 'admin' ? departmentId : undefined,
           }
         }
       });
@@ -117,16 +136,15 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
       }
 
       if (signupData.user) {
-        // 2. Assign manager (runs on the main admin-authenticated client).
-        if (managerId && role !== 'admin') {
+        const updates: { manager_id?: string; department_id?: string } = {};
+        if (managerId && role !== 'admin') updates.manager_id = managerId;
+        if (role !== 'admin' && departmentId) updates.department_id = departmentId;
+        if (Object.keys(updates).length > 0) {
           const { error: updateError } = await supabase
             .from('users')
-            .update({ manager_id: managerId })
+            .update(updates)
             .eq('id', signupData.user.id);
-          
-          if (updateError) {
-            console.error('Error setting user manager:', updateError.message);
-          }
+          if (updateError) console.error('Error updating user:', updateError.message);
         }
 
         // Clear the throwaway signup client's in-memory session.
@@ -138,6 +156,7 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
         setFullName('');
         setRole('employee');
         setManagerId('');
+        setDepartmentId('');
         
         // Refresh users list
         fetchData();
@@ -173,6 +192,13 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
       alert(err.message);
     }
   };
+
+  const deptName = (id: string | null | undefined) =>
+    departments.find((d) => d.id === id)?.name ?? '—';
+
+  const managersInDept = managers.filter(
+    (m) => m.role === 'manager' && (!departmentId || m.department_id === departmentId)
+  );
 
   return (
     <div className="animate-fade-in dashboard-with-mobile-nav" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -305,6 +331,11 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
                               Reports to: {userManager.full_name}
                             </span>
                           )}
+                          {u.department_id && (
+                            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                              Dept: {deptName(u.department_id)}
+                            </span>
+                          )}
                         </div>
                       </div>
 
@@ -402,7 +433,10 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
 
               <div className="form-group" style={{ margin: 0 }}>
                 <label>System Role</label>
-                <select value={role} onChange={(e) => setRole(e.target.value as any)}>
+                <select value={role} onChange={(e) => {
+                  setRole(e.target.value as 'employee' | 'manager' | 'admin');
+                  setManagerId('');
+                }}>
                   <option value="employee">Employee</option>
                   <option value="manager">Manager</option>
                   <option value="admin">Admin</option>
@@ -411,11 +445,23 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
 
               {role !== 'admin' && (
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label>Assign Manager</label>
+                  <label>Department *</label>
+                  <select value={departmentId} onChange={(e) => { setDepartmentId(e.target.value); setManagerId(''); }} required>
+                    <option value="">— Select department —</option>
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {role === 'employee' && (
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label>Assign Manager (same department)</label>
                   <select value={managerId} onChange={(e) => setManagerId(e.target.value)}>
                     <option value="">-- None --</option>
-                    {managers.map(m => (
-                      <option key={m.id} value={m.id}>{m.full_name} ({m.role})</option>
+                    {managersInDept.map(m => (
+                      <option key={m.id} value={m.id}>{m.full_name}</option>
                     ))}
                   </select>
                 </div>

@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Building2, Loader2, Plus, Save, Trash2, Info } from 'lucide-react';
+import { Building2, Loader2, Plus, Save, Trash2, Info, CheckCircle } from 'lucide-react';
 import '../styles/attendance.css';
 import '../styles/departments.css';
 import { supabase } from '../lib/supabase';
 import { Department, formatWeightPct, sumWeights, weightsValid } from '../utils/departmentHelpers';
+import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
+import DepartmentKpiIndicatorsEditor from './DepartmentKpiIndicatorsEditor';
+import KpiBoardReferencePanel from './KpiBoardReferencePanel';
 
 interface EditableDept extends Department {
   isNew?: boolean;
 }
 
-export default function DepartmentWeightagesPanel() {
+export default function DepartmentWeightagesPanel({ managerMode = false }: { managerMode?: boolean }) {
   const [rows, setRows] = useState<EditableDept[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -22,7 +25,7 @@ export default function DepartmentWeightagesPanel() {
     const { data, error } = await supabase.rpc('get_departments');
     if (error) {
       if (/does not exist|departments/i.test(error.message)) {
-        setMsg('Run migration: node scripts/department-weightages-migration.mjs');
+        setMsg('Run: npm run departments:setup');
       } else {
         setMsg(error.message);
       }
@@ -34,6 +37,15 @@ export default function DepartmentWeightagesPanel() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+
+  useSupabaseRealtime(
+    'departments-sync',
+    [
+      { table: 'departments' },
+      { table: 'department_kpi_indicators' },
+    ],
+    load,
+  );
 
   const total = sumWeights(rows);
   const valid = weightsValid(rows);
@@ -81,7 +93,7 @@ export default function DepartmentWeightagesPanel() {
       setRows((prev) => prev.filter((r) => r.id !== row.id));
       return;
     }
-    if (!confirm(`Remove "${row.name}" from active departments?`)) return;
+    if (!confirm(`Deactivate "${row.name}"?`)) return;
     setSaving(true);
     const { error } = await supabase.rpc('deactivate_department', { p_department_id: row.id });
     setSaving(false);
@@ -91,7 +103,7 @@ export default function DepartmentWeightagesPanel() {
 
   const save = async () => {
     if (!valid) {
-      setMsg(`Weightages must sum to 100% (currently ${total.toFixed(1)}%).`);
+      setMsg(`Org weightages must sum to 100% (currently ${total.toFixed(1)}%).`);
       return;
     }
     setSaving(true);
@@ -105,7 +117,7 @@ export default function DepartmentWeightagesPanel() {
     setSaving(false);
     if (error) setMsg(error.message);
     else {
-      setMsg('Department weightages saved. KPI weights recalculated automatically.');
+      setMsg('Department org weightages saved.');
       await load();
     }
   };
@@ -121,48 +133,68 @@ export default function DepartmentWeightagesPanel() {
   return (
     <div className="dept-weight-page">
       {msg && (
-        <div className={`rewards-toast ${/failed|error|must|Run migration/i.test(msg) ? 'rewards-toast--error' : 'rewards-toast--success'}`}>
+        <div className={`rewards-toast ${/failed|error|must|Run/i.test(msg) ? 'rewards-toast--error' : 'rewards-toast--success'}`}>
           {msg}
         </div>
       )}
 
+      <KpiBoardReferencePanel />
+
       <div className="attendance-card">
         <h3 className="attendance-card__title">
-          <Building2 size={18} /> Department KPI weightages
+          <Building2 size={18} /> Functional Departments — Open & Active
         </h3>
         <p className="attendance-card__subtitle">
-          Manage departments and their default share of KPI scoring (must total <strong>100%</strong>).
-          When assigning tasks, admin and manager set the <strong>exact KPI weight</strong> per employee — suggested values use these department shares and task duration.
+          {managerMode ? (
+            <>Your department KPI board is stored in <strong>Supabase</strong> and syncs instantly on every device.</>
+          ) : (
+            <>Each company has isolated data in Supabase. Departments use their own table + KPI indicator table — changes sync live across web and mobile.</>
+          )}
         </p>
 
+        {!managerMode && (
         <div className="dept-weight-info">
           <Info size={16} />
-          <span>
-            Auto formula: KPI weight = department % × (task days ÷ total days in that department for the employee)
-          </span>
+          <span>Org-level shares must total 100%. Each department KPI board also totals 100% per employee.</span>
         </div>
+        )}
 
+        {!managerMode && (
         <div className="dept-weight-total" data-valid={valid}>
-          <span>Total allocation</span>
+          <span>Total org allocation</span>
           <strong>{formatWeightPct(total)}</strong>
           {!valid && <span className="dept-weight-total__warn">Must equal 100%</span>}
         </div>
+        )}
 
-        <div className="dept-weight-table-wrap">
-          <table className="attendance-history-table dept-weight-table">
-            <thead>
-              <tr>
-                <th>Department</th>
-                <th>Weight %</th>
-                <th>Active KPIs</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.id}>
-                  <td><strong>{r.name}</strong></td>
-                  <td>
+        {rows.length === 0 ? (
+          <div className="dept-empty-state">
+            <p>{managerMode
+              ? 'No department assigned to your manager account. Ask your company admin to assign you to a department in Users.'
+              : 'No departments found.'}</p>
+            {!managerMode && (
+            <button type="button" className="btn btn-primary" onClick={() => setMsg('Run on server: npm run departments:setup')}>
+              Setup departments
+            </button>
+            )}
+          </div>
+        ) : (
+          <div className="dept-cards-grid">
+            {rows.map((r) => (
+              <div key={r.id} className="dept-card glass-panel">
+                <div className="dept-card__head">
+                  <div>
+                    <span className="dept-card__badge"><CheckCircle size={12} /> Open</span>
+                    <h4>{r.name}</h4>
+                    <span className="dept-card__meta">
+                      Org share: {formatWeightPct(r.org_weight_pct)}
+                      {(r.indicator_count ?? 0) > 0 && ` · ${r.indicator_count} KPI metrics`}
+                    </span>
+                  </div>
+                  <div className="dept-card__org-weight">
+                    {!managerMode && (
+                    <>
+                    <label>Org %</label>
                     <input
                       type="number"
                       min={0}
@@ -172,19 +204,24 @@ export default function DepartmentWeightagesPanel() {
                       onChange={(e) => updatePct(r.id, Number(e.target.value))}
                       className="dept-weight-input"
                     />
-                  </td>
-                  <td>{r.active_kpi_count ?? 0}</td>
-                  <td>
-                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => void removeRow(r)} disabled={saving}>
+                    </>
+                    )}
+                  </div>
+                  {!r.isNew && !managerMode && (
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => void removeRow(r)} disabled={saving} title="Deactivate">
                       <Trash2 size={14} />
                     </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  )}
+                </div>
+                {!r.isNew && (
+                  <DepartmentKpiIndicatorsEditor departmentId={r.id} departmentName={r.name} defaultOpen />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
 
+        {!managerMode && (
         <div className="dept-weight-actions">
           <div className="dept-weight-add">
             <input
@@ -200,12 +237,13 @@ export default function DepartmentWeightagesPanel() {
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             <button type="button" className="btn btn-secondary" onClick={distributeEvenly}>Split evenly</button>
-            <button type="button" className="btn btn-primary" disabled={saving || !valid} onClick={() => void save()}>
+            <button type="button" className="btn btn-primary" disabled={saving || !valid || rows.length === 0} onClick={() => void save()}>
               {saving ? <Loader2 size={16} className="spin-icon" /> : <Save size={16} />}
-              Save weightages
+              Save org weightages
             </button>
           </div>
         </div>
+        )}
       </div>
     </div>
   );

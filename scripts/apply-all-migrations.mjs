@@ -14,6 +14,16 @@ const MIGRATIONS = [
   'shift_attendance_v2_fix.sql',
   'department_weightages.sql',
   'kpi_assign_manual_weight.sql',
+  'department_kpi_indicators.sql',
+  'employee_kpi_weight_100.sql',
+  'ensure_departments_open.sql',
+  'seed_new_department_kpis.sql',
+  'multi_tenant_companies.sql',
+  'company_registration_fields.sql',
+  'manager_department_access.sql',
+  'platform_delete_company.sql',
+  'tenant_isolation_realtime.sql',
+  'fix_live_deploy.sql',
 ];
 
 async function runMigration(filename) {
