@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Lock, Mail, Loader2 } from 'lucide-react';
+import { Lock, Mail, Loader2, LogIn, Building2 } from 'lucide-react';
 import BrandLogo from './BrandLogo';
 import DemoLoginShortcuts from './DemoLoginShortcuts';
+import CompanyRegister from './CompanyRegister';
 import { isNativeApp } from '../utils/nativePlatform';
 
 interface LoginProps {
@@ -17,6 +18,46 @@ interface LoginProps {
   demoSectionLabel?: string;
   /** Override sign-in card title */
   title?: string;
+  /** Allow switching to company registration from the login screen */
+  enableCompanyRegister?: boolean;
+  /** Controlled auth mode when company registration is enabled */
+  authMode?: 'login' | 'register';
+  onAuthModeChange?: (mode: 'login' | 'register') => void;
+}
+
+function AuthModeTabs({
+  mode,
+  onChange,
+  compact = false,
+}: {
+  mode: 'login' | 'register';
+  onChange: (mode: 'login' | 'register') => void;
+  compact?: boolean;
+}) {
+  return (
+    <div className={`auth-mode-tabs${compact ? ' auth-mode-tabs--compact' : ''}`} role="tablist" aria-label="Authentication mode">
+      <button
+        type="button"
+        role="tab"
+        aria-selected={mode === 'login'}
+        className={`auth-mode-tabs__btn${mode === 'login' ? ' auth-mode-tabs__btn--active' : ''}`}
+        onClick={() => onChange('login')}
+      >
+        <LogIn size={16} />
+        Sign In
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={mode === 'register'}
+        className={`auth-mode-tabs__btn${mode === 'register' ? ' auth-mode-tabs__btn--active' : ''}`}
+        onClick={() => onChange('register')}
+      >
+        <Building2 size={16} />
+        Register Company
+      </button>
+    </div>
+  );
 }
 
 export default function Login({
@@ -26,7 +67,18 @@ export default function Login({
   appMode = false,
   demoSectionLabel,
   title,
+  enableCompanyRegister = false,
+  authMode: authModeProp,
+  onAuthModeChange,
 }: LoginProps) {
+  const [internalMode, setInternalMode] = useState<'login' | 'register'>('login');
+  const authMode = authModeProp ?? internalMode;
+
+  const setAuthMode = (mode: 'login' | 'register') => {
+    onAuthModeChange?.(mode);
+    if (authModeProp === undefined) setInternalMode(mode);
+  };
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -60,95 +112,114 @@ export default function Login({
     }
   };
 
+  const loginSubtitle =
+    title ??
+    (appMode
+      ? 'Sign in to your workspace'
+      : embedded
+        ? authMode === 'register'
+          ? 'Create your organization account'
+          : 'Sign in to continue'
+        : isNativeApp()
+          ? 'Scorr HR — sign in'
+          : 'Sign in to your company workspace');
 
-  const card = (
-      <div className={`glass-panel login-card animate-fade-in ${embedded ? 'login-card--embedded' : ''} ${appMode ? 'login-card--app' : ''}`}>
-        
-        <div className="login-brand">
-          <BrandLogo variant="login" alt={appMode ? 'Scorr' : 'Scorr — scorr.walfia.ai'} />
-          <p className="login-brand-sub">{title ?? (appMode ? 'Sign in to your workspace' : embedded ? 'Sign in to continue' : isNativeApp() ? 'Scorr HR — sign in' : 'Sign in to continue')}</p>
-        </div>
+  const loginCard = (
+    <div className={`glass-panel login-card animate-fade-in ${embedded ? 'login-card--embedded' : ''} ${appMode ? 'login-card--app' : ''}`}>
+      {enableCompanyRegister && (
+        <AuthModeTabs mode={authMode} onChange={setAuthMode} compact={embedded || appMode} />
+      )}
 
-        {error && (
-          <div style={{ 
-            background: 'var(--color-danger-bg)', 
-            color: 'var(--color-danger)', 
-            padding: '0.75rem 1rem', 
-            borderRadius: 'var(--border-radius-sm)', 
-            fontSize: '0.875rem', 
-            marginBottom: '1.5rem',
-            borderLeft: '3px solid var(--color-danger)'
-          }}>
-            {error}
+      {authMode === 'register' && enableCompanyRegister ? (
+        <CompanyRegister
+          embedded
+          onBack={() => setAuthMode('login')}
+          onRegistered={() => setAuthMode('login')}
+        />
+      ) : (
+        <>
+          <div className="login-brand">
+            <BrandLogo variant="login" alt={appMode ? 'Scorr' : 'Scorr — scorr.walfia.ai'} />
+            <p className="login-brand-sub">{loginSubtitle}</p>
           </div>
-        )}
 
-        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div className="form-group" style={{ margin: 0 }}>
-            <label htmlFor="email" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Mail size={14} /> Email Address
-            </label>
-            <input
-              id="email"
-              type="email"
-              placeholder="name@company.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={loading}
-              required
+          {error && (
+            <div className="login-error-banner">{error}</div>
+          )}
+
+          <form onSubmit={handleLogin} className="login-form">
+            <div className="form-group login-form__group">
+              <label htmlFor="email">
+                <Mail size={14} /> Email Address
+              </label>
+              <input
+                id="email"
+                type="email"
+                placeholder="name@company.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
+                required
+              />
+            </div>
+
+            <div className="form-group login-form__group">
+              <label htmlFor="password">
+                <Lock size={14} /> Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
+                required
+              />
+            </div>
+
+            <button type="submit" className="btn btn-primary login-form__submit" disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 size={16} className="spin-icon" />
+                  Signing in...
+                </>
+              ) : (
+                'Sign In'
+              )}
+            </button>
+          </form>
+
+          {enableCompanyRegister && (
+            <div className="login-register-cta">
+              <p>New organization?</p>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setAuthMode('register')}>
+                <Building2 size={14} /> Register your company
+              </button>
+            </div>
+          )}
+
+          {showDemoShortcuts && (
+            <DemoLoginShortcuts
+              onLoginSuccess={onLoginSuccess}
+              showDisclaimer={!appMode}
+              sectionLabel={demoSectionLabel ?? (appMode ? 'Demo accounts' : '3-day demo sandbox')}
             />
-          </div>
-
-          <div className="form-group" style={{ margin: 0 }}>
-            <label htmlFor="password" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Lock size={14} /> Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={loading}
-              required
-            />
-          </div>
-
-          <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '0.5rem' }} disabled={loading}>
-            {loading ? (
-              <>
-                <Loader2 size={16} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
-                Signing in...
-              </>
-            ) : (
-              'Sign In'
-            )}
-          </button>
-        </form>
-
-        {/* CSS Spin Keyframe style */}
-        <style dangerouslySetInnerHTML={{__html: `@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}} />
-
-        {showDemoShortcuts && (
-          <DemoLoginShortcuts
-            onLoginSuccess={onLoginSuccess}
-            showDisclaimer={!appMode}
-            sectionLabel={demoSectionLabel ?? (appMode ? 'Demo accounts' : 'Demo Sandbox')}
-          />
-        )}
-
-      </div>
+          )}
+        </>
+      )}
+    </div>
   );
 
-  if (embedded) return card;
+  if (embedded) return loginCard;
 
   if (appMode) {
-    return <div className="app-login-screen">{card}</div>;
+    return <div className="app-login-screen">{loginCard}</div>;
   }
 
   return (
     <div className="login-page">
-      {card}
+      {loginCard}
     </div>
   );
 }

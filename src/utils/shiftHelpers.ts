@@ -48,6 +48,24 @@ export interface AttendanceHistoryRow {
   notes: string | null;
 }
 
+export interface TeamAttendanceHistoryRow extends AttendanceHistoryRow {
+  user_id: string;
+  employee_name: string;
+  employee_role: string;
+  department_name: string | null;
+}
+
+export interface MonthlyAttendanceReport {
+  report_id: string;
+  report_year: number;
+  report_month: number;
+  department_id: string | null;
+  department_name: string | null;
+  record_count: number;
+  employee_count: number;
+  generated_at: string;
+}
+
 export const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
 
 export function formatShiftTime(t: string | null | undefined): string {

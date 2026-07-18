@@ -4,7 +4,7 @@ import { Profile, Kpi, calculateHealthScore } from '../utils/kpiHelpers';
 import TaskList from './TaskList';
 import { RefreshCw, BarChart2, Sparkles, Trophy, KeyRound, CheckCircle2, CalendarCheck } from 'lucide-react';
 import ExportButton from './ExportButton';
-import RewardsTab from './RewardsTab';
+import EmployeeRewardsPanel from './EmployeeRewardsPanel';
 import RewardsPointsCard from './RewardsPointsCard';
 import AttendanceLeavePanel from './AttendanceLeavePanel';
 import ChangePasswordModal from './ChangePasswordModal';
@@ -133,7 +133,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
   };
 
   return (
-    <div className={`animate-fade-in ${!isReadOnly && !hideChangePassword ? 'dashboard-with-mobile-nav' : ''}`} style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+    <div className={`animate-fade-in dashboard-with-mobile-nav${!isReadOnly && !hideChangePassword ? '' : ' dashboard-with-mobile-nav--nested'}`}>
       
       {/* Read-Only Banner for Managers */}
       {isReadOnly && (
@@ -180,7 +180,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
       )}
 
       {activeTab === 'rewards' && !isReadOnly ? (
-        <RewardsTab userId={activeUser.id} viewerRole={profile.role === 'manager' ? 'manager' : 'employee'} />
+        <EmployeeRewardsPanel userId={activeUser.id} />
       ) : null}
 
       {activeTab === 'attendance' && !isReadOnly ? (

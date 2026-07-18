@@ -31,7 +31,7 @@ export default function CompanyPendingScreen({ company, onLogout }: CompanyPendi
               </p>
               <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
                 Your registration has been received. The platform admin (<strong>Samiya Kayani</strong>) will review your organization details.
-                You cannot use the system until approved — we will notify you here when access is granted.
+                You cannot use the system until approved — this page updates automatically when access is granted.
               </p>
             </div>
           </>

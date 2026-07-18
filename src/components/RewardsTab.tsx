@@ -32,11 +32,13 @@ interface RewardsTabProps {
   userId: string;
   isReadOnly?: boolean;
   viewerRole?: 'employee' | 'manager';
+  /** Hide top balance hero when parent already shows summary stats */
+  embedded?: boolean;
 }
 
 const POINTS_PER_REWARD = REWARD_CATALOG_COST;
 
-export default function RewardsTab({ userId, isReadOnly, viewerRole = 'employee' }: RewardsTabProps) {
+export default function RewardsTab({ userId, isReadOnly, viewerRole = 'employee', embedded = false }: RewardsTabProps) {
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
   const [ledger, setLedger] = useState<LedgerRow[]>([]);
   const [redemptions, setRedemptions] = useState<Redemption[]>([]);
@@ -99,9 +101,11 @@ export default function RewardsTab({ userId, isReadOnly, viewerRole = 'employee'
   }
 
   return (
-    <div className="rewards-page animate-fade-in">
-      {!isReadOnly && <RewardsWorkflowBanner variant={viewerRole === 'manager' ? 'manager' : 'employee'} />}
+    <div className={`rewards-page animate-fade-in${embedded ? ' rewards-page--embedded' : ''}`}>
+      {!isReadOnly && !embedded && <RewardsWorkflowBanner variant={viewerRole === 'manager' ? 'manager' : 'employee'} />}
 
+      {!embedded && (
+      <>
       {/* Hero balance */}
       <div className="rewards-hero">
         <div className="rewards-hero-glow" />
@@ -128,6 +132,8 @@ export default function RewardsTab({ userId, isReadOnly, viewerRole = 'employee'
           </div>
         </div>
       </div>
+      </>
+      )}
 
       {msg && <div className="rewards-toast rewards-toast--success">{msg}</div>}
 

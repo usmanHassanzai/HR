@@ -27,7 +27,6 @@ body.native-app #root,
   display: block;
 }
 
-/* Primary scroll surface — all app content lives inside this */
 .native-scroll-root {
   position: absolute;
   inset: 0;
@@ -41,7 +40,6 @@ body.native-app #root,
   scroll-behavior: auto;
 }
 
-/* Login */
 .app-login-screen {
   min-height: min(100%, 100dvh);
   padding: max(0.75rem, env(safe-area-inset-top))
@@ -62,7 +60,6 @@ body.native-app #root,
   min-height: 48px;
 }
 
-/* Dashboard — natural document flow inside scroll root */
 body.app-shell .native-scroll-root .dashboard-container,
 body.native-app .native-scroll-root .dashboard-container {
   display: block;
@@ -72,7 +69,7 @@ body.native-app .native-scroll-root .dashboard-container {
   overflow: visible;
   padding: max(0.5rem, env(safe-area-inset-top))
     max(0.75rem, env(safe-area-inset-right))
-    calc(5.5rem + env(safe-area-inset-bottom, 0px))
+    max(1.25rem, env(safe-area-inset-bottom))
     max(0.75rem, env(safe-area-inset-left));
 }
 
@@ -94,99 +91,55 @@ body.native-app .native-scroll-root .app-header {
   position: sticky;
   top: 0;
   z-index: 800;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
 }
 
-/* Mobile app header — name + role always visible, never clipped */
-.app-header--shell {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 0.75rem;
-  flex-wrap: nowrap;
-  padding: 0.75rem 0.85rem !important;
+body.app-shell .native-scroll-root .dashboard-container--admin > .app-header,
+body.native-app .native-scroll-root .dashboard-container--admin > .app-header {
+  margin-bottom: 0;
+  border-radius: 0 !important;
 }
 
-.app-header__top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  min-width: 0;
-  width: 100%;
+body.app-shell .admin-shell__topbar,
+body.native-app .admin-shell__topbar {
+  position: sticky;
+  top: calc(var(--app-shell-header-h, 9.25rem) + env(safe-area-inset-top, 0px));
+  z-index: 790;
+  padding: 0.65rem 0.85rem;
+  gap: 0.65rem;
 }
 
-.app-header--shell .header-brand {
-  flex: 0 1 auto;
-  min-width: 0;
-  max-width: 55%;
+body.app-shell .admin-shell__page-desc,
+body.native-app .admin-shell__page-desc {
+  display: none;
 }
 
-.app-header--shell .brand-logo--header {
-  height: clamp(36px, 9vw, 44px);
-  max-width: 100%;
+body.app-shell .admin-shell__page-title,
+body.native-app .admin-shell__page-title {
+  font-size: 1.05rem;
 }
 
-.app-header--shell .header-actions--icons {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin-left: auto;
+body.app-shell .admin-shell__page-eyebrow,
+body.native-app .admin-shell__page-eyebrow {
+  font-size: 0.62rem;
 }
 
-.app-header__profile {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  width: 100%;
-  padding: 0.7rem 0.85rem;
-  background: var(--dash-surface-muted, rgba(255, 255, 255, 0.04));
-  border-radius: var(--border-radius-sm);
-  border: 1px solid var(--border-color);
-  box-sizing: border-box;
+body.app-shell .admin-shell__hamburger,
+body.native-app .admin-shell__hamburger {
+  width: 2.45rem;
+  height: 2.45rem;
 }
 
-.app-header__profile-text {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.4rem;
-  min-width: 0;
-  flex: 1;
+body.app-shell .mobile-dash-nav,
+body.native-app .mobile-dash-nav {
+  top: calc(var(--app-shell-header-h, 9.25rem) + env(safe-area-inset-top, 0px));
 }
 
-.app-header__name {
-  display: block;
-  font-size: 1rem;
-  font-weight: 700;
-  line-height: 1.3;
-  color: var(--text-primary);
-  word-break: break-word;
-  overflow-wrap: anywhere;
-  white-space: normal;
-  max-width: 100%;
-}
-
-.app-header__role {
-  font-size: 0.72rem !important;
-  display: inline-flex !important;
-  align-items: center;
-  gap: 0.25rem;
-  flex-shrink: 0;
-}
-
-.app-header--shell .header-avatar {
-  display: flex !important;
-  width: 42px;
-  height: 42px;
-  flex-shrink: 0;
-}
-
-.app-header--shell .header-user-name {
-  overflow: visible;
-  text-overflow: unset;
-  white-space: normal;
+body.app-shell .native-scroll-root .dashboard-container--admin,
+body.native-app .native-scroll-root .dashboard-container--admin {
+  padding-left: 0;
+  padding-right: 0;
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 body.app-shell .native-scroll-root .dashboard-with-mobile-nav,
@@ -206,16 +159,6 @@ body.native-app .native-scroll-root .team-points-table-wrap {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   max-width: 100%;
-}
-
-body.app-shell .mobile-bottom-nav,
-body.native-app .mobile-bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 950;
-  padding-bottom: calc(0.45rem + env(safe-area-inset-bottom, 0px));
 }
 
 body.app-shell input,

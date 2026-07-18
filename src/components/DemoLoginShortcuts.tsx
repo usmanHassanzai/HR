@@ -81,7 +81,7 @@ export default function DemoLoginShortcuts({
             border: '1px solid rgba(251, 191, 36, 0.2)',
           }}
         >
-          Demo accounts are isolated. Anything you change here only affects demo data — not your real company setup.
+          Demo accounts are isolated for 3 days. Anything you change here only affects demo data — not your real company setup.
         </p>
       )}
 

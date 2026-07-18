@@ -268,9 +268,13 @@ RETURNS TABLE(
 ) AS $$
 DECLARE
     v_caller UUID := auth.uid();
+    v_caller_role public.user_role;
 BEGIN
     IF v_caller IS NULL THEN RAISE EXCEPTION 'Not authenticated'; END IF;
-    IF NOT public.is_admin(v_caller) AND (SELECT role FROM public.users WHERE id = v_caller) <> 'manager'::public.user_role THEN
+
+    SELECT u.role INTO v_caller_role FROM public.users u WHERE u.id = v_caller;
+
+    IF NOT public.is_admin(v_caller) AND v_caller_role <> 'manager'::public.user_role THEN
         RAISE EXCEPTION 'Only managers and admins can view live tracking';
     END IF;
 

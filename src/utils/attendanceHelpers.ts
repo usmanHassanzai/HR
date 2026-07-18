@@ -54,6 +54,7 @@ export interface PendingAttendanceRecord {
   attendance_date: string;
   status: AttendanceStatus;
   approval_status: ApprovalStatus;
+  clock_in_at?: string | null;
   employee_name: string;
   employee_email: string;
 }

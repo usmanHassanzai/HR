@@ -63,11 +63,11 @@ export interface PlatformNotification {
   created_at: string;
 }
 
-export const PLATFORM_OWNER_EMAIL = 'samiya@walfia.ai';
+export const PLATFORM_OWNER_EMAIL = 'info@walfia.ai';
 export const PLATFORM_PATH = '/platform';
 
 export const SUBSCRIPTION_PLANS: { id: SubscriptionPlan; label: string; description: string }[] = [
-  { id: 'trial', label: 'Free Trial', description: '3-day demo — upgrade after approval' },
+  { id: 'trial', label: 'Free Trial (3 days)', description: 'Full platform access for 3 days — no credit card' },
   { id: 'starter', label: 'Starter', description: 'Up to 25 employees · $12/user/mo' },
   { id: 'professional', label: 'Professional', description: 'Unlimited employees · $18/user/mo' },
   { id: 'enterprise', label: 'Enterprise', description: 'Custom volume pricing & SSO' },

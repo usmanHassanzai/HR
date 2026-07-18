@@ -16,6 +16,8 @@ import {
 interface CompanyRegisterProps {
   onBack: () => void;
   onRegistered: () => void;
+  /** Render inside login card without extra outer spacing */
+  embedded?: boolean;
 }
 
 const INITIAL: CompanyRegistrationForm = {
@@ -36,7 +38,7 @@ const INITIAL: CompanyRegistrationForm = {
   notes: '',
 };
 
-export default function CompanyRegister({ onBack, onRegistered }: CompanyRegisterProps) {
+export default function CompanyRegister({ onBack, onRegistered, embedded = false }: CompanyRegisterProps) {
   const [form, setForm] = useState<CompanyRegistrationForm>(INITIAL);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -116,7 +118,7 @@ export default function CompanyRegister({ onBack, onRegistered }: CompanyRegiste
 
   if (success) {
     return (
-      <div className="glass-panel company-register" style={{ textAlign: 'center' }}>
+      <div className={`${embedded ? '' : 'glass-panel '}company-register company-register--success`} style={{ textAlign: 'center' }}>
         <Clock size={52} className="company-register__success-icon" />
         <h2 style={{ fontFamily: 'var(--font-display)', marginBottom: '0.75rem' }}>Please wait for admin approval</h2>
         <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '0.5rem' }}>
@@ -139,18 +141,24 @@ export default function CompanyRegister({ onBack, onRegistered }: CompanyRegiste
   }
 
   return (
-    <div className="glass-panel company-register">
-      <button type="button" className="btn btn-secondary btn-sm" onClick={onBack} style={{ marginBottom: '1rem' }}>
-        <ArrowLeft size={14} /> Back
-      </button>
+    <div className={`${embedded ? '' : 'glass-panel '}company-register${embedded ? ' company-register--embedded' : ''}`}>
+      {!embedded && (
+        <button type="button" className="btn btn-secondary btn-sm" onClick={onBack} style={{ marginBottom: '1rem' }}>
+          <ArrowLeft size={14} /> Back
+        </button>
+      )}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-        <Building2 size={28} style={{ color: 'var(--accent-primary)' }} />
-        <h2 style={{ fontFamily: 'var(--font-display)', margin: 0 }}>Organization registration</h2>
+      <div className="company-register__head">
+        <div className="company-register__head-icon">
+          <Building2 size={22} />
+        </div>
+        <div>
+          <h2 className="company-register__title">Register your organization</h2>
+          <p className="company-register__intro">
+            Start with a <strong>3-day free trial</strong>. Your application is reviewed before full access is granted.
+          </p>
+        </div>
       </div>
-      <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-        Fill in your organization details. After submission, wait for admin approval before accessing your company workspace.
-      </p>
 
       {error && (
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', color: 'var(--color-danger)', marginBottom: '1rem', fontSize: '0.9rem' }}>

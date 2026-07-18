@@ -30,8 +30,11 @@ export default function BrandLogo({
   const useInline = isBundledLogo(url);
 
   if (useInline) {
+    const wordmarkVariant =
+      variant === 'header' || variant === 'login' || variant === 'preview' ? variant === 'preview' ? 'header' : variant : 'default';
     return (
       <ScorrWordmark
+        variant={wordmarkVariant}
         className={`brand-logo brand-logo--${variant} brand-logo--default ${className}`.trim()}
       />
     );

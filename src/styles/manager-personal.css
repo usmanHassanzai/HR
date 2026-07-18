@@ -1,0 +1,451 @@
+/* ── Manager My KPIs & Points ── */
+
+.mgr-personal-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+.mgr-personal-header {
+  padding: 1.25rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--accent-primary) 9%, var(--dash-card-bg)) 0%,
+    var(--dash-card-bg) 55%
+  );
+  border: 1px solid var(--dash-card-border);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--dash-card-shadow);
+}
+
+.mgr-personal-header__main {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.mgr-personal-header__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 11px;
+  background: var(--accent-gradient);
+  color: #fff;
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--accent-primary) 35%, transparent);
+  flex-shrink: 0;
+}
+
+.mgr-personal-header__title {
+  margin: 0 0 0.3rem;
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.mgr-personal-header__subtitle {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  max-width: 42rem;
+}
+
+.mgr-personal-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.6rem;
+}
+
+.mgr-personal-stat {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 10px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+}
+
+.mgr-personal-stat__label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  width: 100%;
+}
+
+.mgr-personal-stat strong {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  color: var(--text-primary);
+}
+
+.mgr-personal-stat--accent strong { color: var(--accent-primary); }
+.mgr-personal-stat--success strong { color: var(--color-success); }
+.mgr-personal-stat--gold strong { color: #d97706; }
+
+.mgr-personal-tabs {
+  margin: 0 !important;
+}
+
+.mgr-personal-tab-badge {
+  margin-left: 0.35rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+  color: var(--accent-primary);
+}
+
+.mgr-personal-tab-badge--gold {
+  background: color-mix(in srgb, #fbbf24 20%, transparent);
+  color: #d97706;
+}
+
+.mgr-personal-overview {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.mgr-personal-card {
+  padding: 1.25rem 1.35rem;
+  background: var(--dash-card-bg);
+  border: 1px solid var(--dash-card-border);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--dash-card-shadow);
+}
+
+.mgr-personal-card h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mgr-personal-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.mgr-personal-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.mgr-personal-health {
+  display: flex;
+  align-items: center;
+  gap: 1.15rem;
+}
+
+.mgr-personal-health__ring {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 5.5rem;
+  height: 5.5rem;
+  border-radius: 999px;
+  border: 4px solid var(--accent-primary);
+  flex-shrink: 0;
+}
+
+.mgr-personal-health__value {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.mgr-personal-health__eyebrow {
+  display: block;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.mgr-personal-health h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1.15rem;
+}
+
+.mgr-personal-health p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.mgr-personal-metrics {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.65rem;
+}
+
+.mgr-personal-metric {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.mgr-personal-metric:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.mgr-personal-metric strong {
+  font-family: var(--font-display);
+  font-size: 1rem;
+}
+
+.mgr-personal-metric--accent { color: var(--accent-primary); }
+.mgr-personal-metric--success { color: var(--color-success); }
+.mgr-personal-metric--warn { color: var(--color-warning); }
+.mgr-personal-metric--danger { color: var(--color-danger); }
+
+.mgr-personal-points-mini {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, #fbbf24 8%, var(--dash-card-bg)),
+    var(--dash-card-bg)
+  );
+}
+
+.mgr-personal-points-mini__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #d97706;
+  font-weight: 700;
+}
+
+.mgr-personal-points-mini__balance {
+  font-family: var(--font-display);
+  font-size: 1.85rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.mgr-personal-points-mini p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  flex: 1;
+}
+
+.mgr-personal-points-mini__badge {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.mgr-personal-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.85rem;
+}
+
+.mgr-personal-kpi-card {
+  padding: 1rem 1.1rem;
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-elevated);
+  border-left: 3px solid var(--border-color);
+}
+
+.mgr-personal-kpi-card--green { border-left-color: var(--color-success); }
+.mgr-personal-kpi-card--yellow { border-left-color: var(--color-warning); }
+.mgr-personal-kpi-card--red { border-left-color: var(--color-danger); }
+
+.mgr-personal-kpi-card__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.mgr-personal-kpi-card__dept {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.mgr-personal-kpi-card h4 {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-display);
+  font-size: 0.98rem;
+}
+
+.mgr-personal-kpi-card__note,
+.mgr-personal-kpi-card__desc {
+  display: flex;
+  gap: 0.35rem;
+  margin: 0.65rem 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.mgr-personal-kpi-card__score {
+  margin: 0.5rem 0 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.mgr-personal-kpi-card__foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.85rem;
+}
+
+.mgr-personal-kpi-card__redo {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.7rem;
+  color: var(--color-warning);
+}
+
+.mgr-personal-bottom-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+.mgr-personal-guide p {
+  margin: 0.5rem 0 0.85rem;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.mgr-personal-guide ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.mgr-personal-guide li {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.mgr-personal-guide .badge {
+  flex-shrink: 0;
+  width: 5.5rem;
+  justify-content: center;
+}
+
+.mgr-personal-rewards-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.mgr-personal-rewards-wrap .rewards-page {
+  gap: 1rem;
+}
+
+.mgr-personal-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 3rem 1rem;
+  color: var(--text-muted);
+}
+
+.mgr-personal-loading--inline {
+  padding: 2rem 1rem;
+}
+
+.mgr-personal-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.5rem;
+  padding: 2.5rem 1rem;
+  color: var(--text-muted);
+}
+
+.mgr-personal-empty h4 {
+  margin: 0;
+  font-family: var(--font-display);
+  color: var(--text-primary);
+}
+
+.mgr-personal-empty p {
+  margin: 0;
+  font-size: 0.85rem;
+  max-width: 22rem;
+}
+
+@media (max-width: 960px) {
+  .mgr-personal-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .mgr-personal-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .mgr-personal-header {
+    padding: 1rem 1.1rem;
+  }
+
+  .mgr-personal-card {
+    padding: 1rem 1.05rem;
+  }
+
+  .mgr-personal-health {
+    flex-direction: column;
+    text-align: center;
+  }
+}

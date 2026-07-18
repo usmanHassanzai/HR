@@ -1,0 +1,450 @@
+/* ── Manager Team Rewards ── */
+
+.mgr-rewards-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+.mgr-rewards-header {
+  padding: 1.25rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, #fbbf24 8%, var(--dash-card-bg)) 0%,
+    var(--dash-card-bg) 55%
+  );
+  border: 1px solid var(--dash-card-border);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--dash-card-shadow);
+}
+
+.mgr-rewards-header__main {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.mgr-rewards-header__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 11px;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(251, 191, 36, 0.4);
+  flex-shrink: 0;
+}
+
+.mgr-rewards-header__title {
+  margin: 0 0 0.3rem;
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.mgr-rewards-header__subtitle {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  max-width: 40rem;
+}
+
+.mgr-rewards-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.6rem;
+}
+
+.mgr-rewards-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 10px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border-color);
+}
+
+.mgr-rewards-stat__label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.mgr-rewards-stat strong {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  color: var(--text-primary);
+}
+
+.mgr-rewards-stat--accent strong { color: var(--accent-primary); }
+.mgr-rewards-stat--warning strong { color: var(--color-warning); }
+.mgr-rewards-stat--gold strong { color: #d97706; }
+
+.mgr-rewards-alert {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.8rem 1rem;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  border: 1px solid transparent;
+}
+
+.mgr-rewards-alert--success {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  border-color: color-mix(in srgb, var(--color-success) 28%, transparent);
+}
+
+.mgr-rewards-alert--error {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  border-color: color-mix(in srgb, var(--color-danger) 28%, transparent);
+}
+
+.mgr-rewards-layout {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 1.15rem;
+  align-items: start;
+}
+
+.mgr-rewards-card {
+  padding: 1.25rem 1.35rem;
+  background: var(--dash-card-bg);
+  border: 1px solid var(--dash-card-border);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--dash-card-shadow);
+}
+
+.mgr-rewards-card h3 {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.mgr-rewards-card > p {
+  margin: 0 0 1rem;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.mgr-rewards-count-badge {
+  margin-left: auto;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-warning) 18%, transparent);
+  color: var(--color-warning);
+}
+
+.mgr-rewards-own {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1.15rem 1.25rem;
+  border-radius: var(--border-radius-md);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--accent-primary) 10%, var(--dash-card-bg)),
+    var(--dash-card-bg)
+  );
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 22%, var(--border-color));
+  box-shadow: var(--dash-card-shadow);
+}
+
+.mgr-rewards-own__eyebrow {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--accent-primary);
+}
+
+.mgr-rewards-own__balance {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+  background: linear-gradient(135deg, var(--text-primary), var(--accent-primary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.mgr-rewards-own__meta {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.mgr-rewards-workflow-compact {
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border-color);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.mgr-rewards-workflow-compact strong {
+  color: var(--text-primary);
+}
+
+.mgr-rewards-queue {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.mgr-rewards-queue-item {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--surface-muted);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mgr-rewards-queue-item:hover {
+  border-color: color-mix(in srgb, var(--accent-primary) 30%, var(--border-color));
+  box-shadow: 0 2px 12px color-mix(in srgb, var(--accent-primary) 8%, transparent);
+}
+
+.mgr-rewards-queue-item--pending {
+  border-left: 3px solid var(--color-warning);
+}
+
+.mgr-rewards-queue-item--approved {
+  border-left: 3px solid var(--accent-primary);
+}
+
+.mgr-rewards-queue-item--fulfilled {
+  border-left: 3px solid var(--color-success);
+  opacity: 0.9;
+}
+
+.mgr-rewards-queue-item__icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  width: 2.25rem;
+  text-align: center;
+}
+
+.mgr-rewards-queue-item__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.mgr-rewards-queue-item__body strong {
+  display: block;
+  font-size: 0.9rem;
+  margin-bottom: 0.1rem;
+}
+
+.mgr-rewards-queue-item__body span {
+  display: block;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.mgr-rewards-queue-item__pts {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--color-warning);
+  flex-shrink: 0;
+}
+
+.mgr-rewards-queue-item__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.mgr-rewards-status {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+}
+
+.mgr-rewards-status--pending {
+  background: color-mix(in srgb, var(--color-warning) 18%, transparent);
+  color: var(--color-warning);
+}
+
+.mgr-rewards-status--approved {
+  background: color-mix(in srgb, var(--accent-primary) 18%, transparent);
+  color: var(--accent-primary);
+}
+
+.mgr-rewards-status--fulfilled {
+  background: color-mix(in srgb, var(--color-success) 18%, transparent);
+  color: var(--color-success);
+}
+
+.mgr-rewards-table-wrap {
+  overflow-x: auto;
+}
+
+.mgr-rewards-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+}
+
+.mgr-rewards-table th {
+  padding: 0.7rem 1rem;
+  text-align: left;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  background: var(--dash-table-head-bg);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.mgr-rewards-table td {
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+}
+
+.mgr-rewards-table tbody tr {
+  transition: background 0.15s ease;
+}
+
+.mgr-rewards-table tbody tr:hover {
+  background: color-mix(in srgb, var(--accent-primary) 4%, transparent);
+}
+
+.mgr-rewards-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.mgr-rewards-table__member {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.mgr-rewards-table__avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.15rem;
+  height: 2.15rem;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: color-mix(in srgb, #fbbf24 16%, transparent);
+  color: #d97706;
+  border: 1px solid color-mix(in srgb, #fbbf24 30%, transparent);
+  flex-shrink: 0;
+}
+
+.mgr-rewards-table__member strong {
+  display: block;
+  font-size: 0.88rem;
+}
+
+.mgr-rewards-table__member span {
+  display: block;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.mgr-rewards-table__pts {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--accent-primary);
+}
+
+.mgr-rewards-table__top {
+  background: color-mix(in srgb, #fbbf24 6%, transparent);
+}
+
+.mgr-rewards-empty {
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.mgr-rewards-empty svg {
+  opacity: 0.45;
+  margin-bottom: 0.65rem;
+}
+
+.mgr-rewards-empty h4 {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-display);
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.mgr-rewards-empty p {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.mgr-rewards-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  min-height: 280px;
+  color: var(--accent-primary);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 960px) {
+  .mgr-rewards-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .mgr-rewards-header {
+    padding: 1rem 1.1rem;
+  }
+
+  .mgr-rewards-card {
+    padding: 1rem 1.1rem;
+  }
+
+  .mgr-rewards-queue-item {
+    flex-wrap: wrap;
+  }
+
+  .mgr-rewards-queue-item__actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

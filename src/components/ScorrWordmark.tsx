@@ -1,8 +1,19 @@
 /** Inline Scorr wordmark — scales crisply at any size, no external fetch. */
-export default function ScorrWordmark({ className = '' }: { className?: string }) {
+export type ScorrWordmarkVariant = 'default' | 'header' | 'login';
+
+interface ScorrWordmarkProps {
+  className?: string;
+  variant?: ScorrWordmarkVariant;
+}
+
+export default function ScorrWordmark({ className = '', variant = 'default' }: ScorrWordmarkProps) {
+  const taglineSize = variant === 'header' ? 30 : variant === 'login' ? 24 : 20;
+  const taglineWeight = variant === 'header' || variant === 'login' ? 600 : 500;
+  const taglineSpacing = variant === 'header' ? 3.5 : 4.5;
+
   return (
     <svg
-      className={className}
+      className={`scorr-wordmark scorr-wordmark--${variant} brand-logo ${className}`.trim()}
       viewBox="25 30 640 165"
       role="img"
       aria-label="Scorr — Performance · Rewards"
@@ -28,10 +39,26 @@ export default function ScorrWordmark({ className = '' }: { className?: string }
       <rect x="144" y="74" width="28" height="106" rx="5" fill="url(#scorr-bar3)" />
       <circle cx="158" cy="68" r="8" fill="#00E5A0" />
       <line x1="86" y1="122" x2="158" y2="62" stroke="#00E5A0" strokeWidth="3" strokeLinecap="round" />
-      <text x="228" y="142" fontFamily="Outfit, Inter, Arial Black, sans-serif" fontSize="82" fontWeight="700" fill="#FFFFFF" letterSpacing="-2">
+      <text
+        className="scorr-wordmark__title"
+        x="228"
+        y="142"
+        fontFamily="Outfit, Inter, Arial Black, sans-serif"
+        fontSize={variant === 'header' ? 88 : 82}
+        fontWeight="700"
+        letterSpacing="-2"
+      >
         scorr
       </text>
-      <text x="230" y="180" fontFamily="Inter, Arial, sans-serif" fontSize="18" fontWeight="500" fill="#94A3B8" letterSpacing="5">
+      <text
+        className="scorr-wordmark__tagline"
+        x="230"
+        y="180"
+        fontFamily="Inter, Arial, sans-serif"
+        fontSize={taglineSize}
+        fontWeight={taglineWeight}
+        letterSpacing={taglineSpacing}
+      >
         PERFORMANCE · REWARDS
       </text>
     </svg>

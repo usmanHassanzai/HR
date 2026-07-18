@@ -24,11 +24,14 @@ interface AssignManagerLocationPanelProps {
   /** Pre-select this office when opened from an office row */
   initialOfficeId?: string;
   onAssigned?: () => void;
+  /** Hide duplicate headings when nested in OfficeLocationSettings */
+  embedded?: boolean;
 }
 
 export default function AssignManagerLocationPanel({
   initialOfficeId,
   onAssigned,
+  embedded = false,
 }: AssignManagerLocationPanelProps) {
   const [managers, setManagers] = useState<Profile[]>([]);
   const [offices, setOffices] = useState<OfficeLocation[]>([]);
@@ -38,7 +41,7 @@ export default function AssignManagerLocationPanel({
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState('');
-  const [quickOffice, setQuickOffice] = useState({ name: '', latitude: '', longitude: '', radius_meters: '150' });
+  const [quickOffice, setQuickOffice] = useState({ name: '', latitude: '', longitude: '', radius_meters: '50' });
   const [quickSaving, setQuickSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -48,7 +51,7 @@ export default function AssignManagerLocationPanel({
       supabase.rpc('get_office_locations'),
       supabase.rpc('get_manager_work_sites'),
     ]);
-    setManagers(((usersRes.data || []) as Profile[]).filter((u) => u.role === 'manager'));
+    setManagers(((usersRes.data || []) as Profile[]).filter((u) => u.role === 'manager' && !u.is_demo));
     setOffices((officesRes.data || []) as OfficeLocation[]);
     if (sitesRes.error) setMsg(sitesRes.error.message);
     else setAssignments((sitesRes.data || []) as ManagerSiteRow[]);
@@ -128,7 +131,7 @@ export default function AssignManagerLocationPanel({
       p_address: null,
       p_latitude: parseFloat(quickOffice.latitude),
       p_longitude: parseFloat(quickOffice.longitude),
-      p_radius_meters: parseInt(quickOffice.radius_meters, 10) || 150,
+      p_radius_meters: parseInt(quickOffice.radius_meters, 10) || 50,
       p_active: true,
     });
     setQuickSaving(false);
@@ -137,19 +140,26 @@ export default function AssignManagerLocationPanel({
       return;
     }
     setMsg('Office saved from live GPS! Select it below and assign to a manager.');
-    setQuickOffice({ name: '', latitude: '', longitude: '', radius_meters: '150' });
+    setQuickOffice({ name: '', latitude: '', longitude: '', radius_meters: '50' });
     await load();
   };
 
   return (
-    <div className="attendance-card geo-attendance-panel" id="assign-manager-location">
-      <h3 className="attendance-card__title">
-        <UserCheck size={18} /> Step 2 — Assign office to manager
-      </h3>
-      <p className="attendance-card__subtitle">
-        Pick a <strong>manager</strong> and the <strong>office location</strong> you created above.
-        Every employee under that manager will automatically use the same GPS zone for attendance.
-      </p>
+    <div
+      className={`attendance-card geo-attendance-panel${embedded ? ' admin-office-assign-embed' : ''}`}
+      id="assign-manager-location"
+    >
+      {!embedded && (
+        <>
+          <h3 className="attendance-card__title">
+            <UserCheck size={18} /> Step 2 — Assign office to manager
+          </h3>
+          <p className="attendance-card__subtitle">
+            Pick a <strong>manager</strong> and the <strong>office location</strong> you created above.
+            Every employee under that manager will automatically use the same GPS zone for attendance.
+          </p>
+        </>
+      )}
 
       {msg && (
         <div className={`rewards-toast ${msg.includes('Please') || msg.includes('fail') || msg.includes('Only') ? 'rewards-toast--error' : 'rewards-toast--success'}`} style={{ marginBottom: '1rem' }}>

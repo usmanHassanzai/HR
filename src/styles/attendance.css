@@ -831,3 +831,46 @@
 .attendance-month-block table {
   margin: 0;
 }
+
+.attendance-month-report-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--border-radius-sm);
+  background: var(--color-success-bg, rgba(34, 197, 94, 0.12));
+  color: var(--color-success, #16a34a);
+  font-size: 0.82rem;
+}
+
+.attendance-monthly-reports-list {
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--border-radius-sm);
+  background: var(--surface-muted);
+}
+
+.attendance-monthly-reports-list h4 {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.attendance-monthly-reports-list ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.attendance-month-report-tag {
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: var(--accent-primary);
+  color: var(--btn-primary-text, #fff);
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}

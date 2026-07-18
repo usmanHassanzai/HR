@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Profile } from '../utils/kpiHelpers';
 import NotificationCenter from './NotificationCenter';
-import { LogOut, User, Shield, Briefcase } from 'lucide-react';
+import { LogOut, User, Shield, Briefcase, Building2 } from 'lucide-react';
 import { BrandingConfig, loadBranding, usesBundledWordmark } from '../lib/branding';
 import { isDemoProfile } from '../utils/demoMode';
+import { usePlatformOwnerAccess } from '../utils/usePlatformOwnerAccess';
 import BrandLogo from './BrandLogo';
 import ThemeToggle from './ThemeToggle';
 import { isAppShell } from '../utils/nativePlatform';
@@ -15,9 +16,20 @@ interface HeaderProps {
   onNavigateHome?: () => void;
 }
 
+function userInitials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('') || '?';
+}
+
 export default function Header({ profile, onLogout, onNavigateHome }: HeaderProps) {
   const demoMode = isDemoProfile(profile);
+  const { isOwner: platformOwner } = usePlatformOwnerAccess(profile);
   const [branding, setBranding] = useState<BrandingConfig>(loadBranding(demoMode));
+  const shellLayout = isAppShell();
 
   useEffect(() => {
     setBranding(loadBranding(demoMode));
@@ -77,69 +89,68 @@ export default function Header({ profile, onLogout, onNavigateHome }: HeaderProp
     </div>
   );
 
-  const iconActions = (
-    <>
+  const toolbar = (
+    <div className="app-header__toolbar">
       <ThemeToggle compact />
       <NotificationCenter userId={profile.id} />
       <button
-        className="btn btn-secondary"
+        type="button"
+        className="app-header__icon-btn app-header__icon-btn--logout"
         onClick={handleLogout}
-        style={{
-          padding: '0.65rem',
-          borderRadius: '50%',
-          width: '40px',
-          height: '40px',
-          color: 'var(--color-danger)',
-          borderColor: 'transparent',
-        }}
-        title="Sign Out"
+        title="Sign out"
+        aria-label="Sign out"
       >
-        <LogOut size={16} />
+        <LogOut size={17} />
       </button>
-    </>
+    </div>
   );
 
-  /* APK / installed app — own row for name + role so nothing is clipped */
-  if (isAppShell()) {
+  const platformLink = platformOwner && profile.role === 'admin' ? (
+    <a
+      href="/platform"
+      className="app-header__platform-link"
+      title="Registered Companies"
+      aria-label="Registered Companies"
+    >
+      <Building2 size={16} />
+      <span className="app-header__platform-label">Companies</span>
+    </a>
+  ) : null;
+
+  const profileBlock = (
+    <div className="app-header__profile" aria-label="Signed in user">
+      <div className="app-header__avatar" aria-hidden="true">
+        {userInitials(profile.full_name)}
+      </div>
+      <div className="app-header__profile-text">
+        <span className="app-header__name">{profile.full_name}</span>
+        {getRoleBadge(profile.role)}
+      </div>
+    </div>
+  );
+
+  if (shellLayout) {
     return (
-      <header className="glass-panel app-header app-header--shell">
-        <div className="app-header__top">
+      <header className="glass-panel app-header app-header--dashboard app-header--stacked">
+        <div className="app-header__brand-row">
           {brandBlock}
-          <div className="header-actions header-actions--icons">{iconActions}</div>
+          {toolbar}
         </div>
-        <div className="app-header__profile" aria-label="Signed in user">
-          <div className="header-avatar">
-            <User size={18} />
-          </div>
-          <div className="app-header__profile-text">
-            <span className="app-header__name">{profile.full_name}</span>
-            {getRoleBadge(profile.role)}
-          </div>
+        <div className="app-header__user-row">
+          {platformLink}
+          {profileBlock}
         </div>
       </header>
     );
   }
 
   return (
-    <header className="glass-panel app-header animate-fade-in">
-      {brandBlock}
-
-      <div className="header-actions">
-        <div className="header-user">
-          <div className="header-user-text">
-            <div className="header-user-name">{profile.full_name}</div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2px' }}>
-              {getRoleBadge(profile.role)}
-            </div>
-          </div>
-          <div className="header-avatar">
-            <User size={18} />
-          </div>
-        </div>
-
-        <div className="header-divider" />
-
-        {iconActions}
+    <header className="glass-panel app-header app-header--dashboard app-header--inline animate-fade-in">
+      <div className="app-header__start">{brandBlock}</div>
+      <div className="app-header__end">
+        {platformLink}
+        {profileBlock}
+        {toolbar}
       </div>
     </header>
   );

@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase, supabaseSignup } from '../lib/supabase';
 import { Profile } from '../utils/kpiHelpers';
-import { Users, UserPlus, Trash2, Loader2, AlertCircle, CheckCircle, Download, FileSpreadsheet, FileText, BarChart3, Palette, Trophy, KeyRound, CalendarCheck, MapPin, Radio, Building2, Settings } from 'lucide-react';
+import { Users, UserPlus, Trash2, Loader2, AlertCircle, CheckCircle, Download, FileSpreadsheet, FileText, BarChart3, Palette, Trophy, KeyRound, CalendarCheck, MapPin, Radio, Building2, Settings, Shield, Search } from 'lucide-react';
+import '../styles/admin-dashboard.css';
 import { fetchQuarterlyReportData, fetchMonthlyReportData, exportToCsv, exportToExcel, exportToPdf } from '../utils/exportReport';
 import Analytics from './Analytics';
 import BrandingSettings from './BrandingSettings';
@@ -9,23 +10,49 @@ import AdminRewards from './AdminRewards';
 import AttendanceLeavePanel from './AttendanceLeavePanel';
 import AdminResetPasswordModal from './AdminResetPasswordModal';
 import OfficeLocationSettings from './OfficeLocationSettings';
-import EmployeeLocationTracking from './EmployeeLocationTracking';
+import AdminLiveTracking from './AdminLiveTracking';
 import DepartmentWeightagesPanel from './DepartmentWeightagesPanel';
 import ManagerKpiConfig from './ManagerKpiConfig';
-import DashboardTabNav from './DashboardTabNav';
+import AdminSidebarNav, { getAdminNavMeta, findAdminNavIcon, type AdminNavGroup } from './AdminSidebarNav';
+import AdminHamburgerButton from './AdminHamburgerButton';
 import { isDemoProfile } from '../utils/demoMode';
 import { Department } from '../utils/departmentHelpers';
 import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
+import { usePlatformOwnerAccess } from '../utils/usePlatformOwnerAccess';
+import PlatformCompaniesConsole from './PlatformCompaniesConsole';
 
 interface AdminDashboardProps {
   profile: Profile;
 }
 
+function userInitials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? '')
+    .join('') || '?';
+}
+
+function roleBadgeClass(role: Profile['role']): string {
+  if (role === 'admin') return 'admin-role-badge admin-role-badge--admin';
+  if (role === 'manager') return 'admin-role-badge admin-role-badge--manager';
+  return 'admin-role-badge admin-role-badge--employee';
+}
+
+function avatarClass(role: Profile['role']): string {
+  const base = 'admin-user-card__avatar';
+  if (role === 'admin') return `${base} admin-user-card__avatar--admin`;
+  if (role === 'manager') return `${base} admin-user-card__avatar--manager`;
+  return base;
+}
+
 export default function AdminDashboard({ profile }: AdminDashboardProps) {
+  const { isOwner: platformOwner, checking: platformOwnerChecking } = usePlatformOwnerAccess(profile);
   const [users, setUsers] = useState<Profile[]>([]);
   const [managers, setManagers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'users' | 'kpis' | 'export' | 'analytics' | 'branding' | 'rewards' | 'attendance' | 'office' | 'tracking' | 'departments'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'kpis' | 'export' | 'analytics' | 'branding' | 'rewards' | 'attendance' | 'office' | 'tracking' | 'departments' | 'companies'>('users');
 
   // User Form States
   const [email, setEmail] = useState('');
@@ -44,6 +71,18 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
   // Export states
   const [exportLoading, setExportLoading] = useState(false);
   const [exportMsg, setExportMsg] = useState('');
+
+  // User directory filters
+  const [userSearch, setUserSearch] = useState('');
+  const [userRoleFilter, setUserRoleFilter] = useState<'all' | 'admin' | 'manager' | 'employee'>('all');
+  const [userDeptFilter, setUserDeptFilter] = useState('all');
+
+  const [navOpen, setNavOpen] = useState(false);
+
+  const handleAdminTabChange = (id: string) => {
+    setActiveTab(id as typeof activeTab);
+    setNavOpen(false);
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -68,13 +107,15 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (platformOwnerChecking) return;
+    void fetchData();
+  }, [platformOwnerChecking]);
 
   useSupabaseRealtime(
     'admin-users-sync',
     [{ table: 'users' }, { table: 'departments' }],
     fetchData,
+    !platformOwnerChecking,
   );
 
   const handleExport = async (format: 'csv' | 'excel' | 'pdf', period: 'quarterly' | 'monthly' = 'quarterly') => {
@@ -125,6 +166,7 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
             role: role,
             company_id: profile.company_id ?? undefined,
             department_id: role !== 'admin' ? departmentId : undefined,
+            manager_id: role === 'employee' && managerId ? managerId : undefined,
           }
         }
       });
@@ -137,14 +179,19 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
 
       if (signupData.user) {
         const updates: { manager_id?: string; department_id?: string } = {};
-        if (managerId && role !== 'admin') updates.manager_id = managerId;
+        if (managerId && role === 'employee') updates.manager_id = managerId;
         if (role !== 'admin' && departmentId) updates.department_id = departmentId;
         if (Object.keys(updates).length > 0) {
           const { error: updateError } = await supabase
             .from('users')
             .update(updates)
             .eq('id', signupData.user.id);
-          if (updateError) console.error('Error updating user:', updateError.message);
+          if (updateError) {
+            setUserFormMsg({ type: 'error', text: `User created but profile update failed: ${updateError.message}` });
+            await supabaseSignup.auth.signOut();
+            setUserFormLoading(false);
+            return;
+          }
         }
 
         // Clear the throwaway signup client's in-memory session.
@@ -166,6 +213,16 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
     } finally {
       setUserFormLoading(false);
     }
+  };
+
+  const handleUpdateUserDepartment = async (userId: string, newDeptId: string) => {
+    if (isDemoProfile(profile)) return;
+    const { error } = await supabase
+      .from('users')
+      .update({ department_id: newDeptId || null })
+      .eq('id', userId);
+    if (error) alert(`Error: ${error.message}`);
+    else fetchData();
   };
 
   const handleDeleteUser = async (userId: string) => {
@@ -200,8 +257,80 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
     (m) => m.role === 'manager' && (!departmentId || m.department_id === departmentId)
   );
 
+  const managerCount = users.filter((u) => u.role === 'manager').length;
+  const employeeCount = users.filter((u) => u.role === 'employee').length;
+
+  const filteredUsers = useMemo(() => {
+    const q = userSearch.trim().toLowerCase();
+    return users.filter((u) => {
+      if (userRoleFilter !== 'all' && u.role !== userRoleFilter) return false;
+      if (userDeptFilter !== 'all' && u.department_id !== userDeptFilter) return false;
+      if (!q) return true;
+      return (
+        u.full_name.toLowerCase().includes(q) ||
+        u.email.toLowerCase().includes(q) ||
+        deptName(u.department_id).toLowerCase().includes(q)
+      );
+    });
+  }, [users, userSearch, userRoleFilter, userDeptFilter, departments]);
+
+  const orgAdminTabs = [
+    { id: 'users', label: 'Users', icon: <Users size={18} />, description: 'Accounts, roles & access' },
+    { id: 'departments', label: 'Departments', icon: <Building2 size={18} />, description: 'Structure & weightages' },
+    { id: 'kpis', label: 'Assign Task', icon: <Settings size={18} />, description: 'KPI assignments by dept' },
+    { id: 'export', label: 'Reports', icon: <Download size={18} />, description: 'Monthly & quarterly exports' },
+    { id: 'analytics', label: 'Analytics', icon: <BarChart3 size={18} />, description: 'Trends & attainment' },
+    { id: 'rewards', label: 'Rewards', icon: <Trophy size={18} />, description: 'Points & redemptions' },
+    { id: 'attendance', label: 'Attendance', icon: <CalendarCheck size={18} />, description: 'Leave & approvals' },
+    { id: 'tracking', label: 'Live Tracking', icon: <Radio size={18} />, description: 'Field team locations' },
+    { id: 'office', label: 'Office GPS', icon: <MapPin size={18} />, description: 'Geofence & check-ins' },
+    { id: 'branding', label: 'Branding', icon: <Palette size={18} />, description: 'Logo & company theme' },
+  ];
+
+  const navGroups: AdminNavGroup[] = useMemo(() => {
+    const groups: AdminNavGroup[] = [];
+    if (platformOwner) {
+      groups.push({
+        label: 'Platform',
+        items: [{
+          id: 'companies',
+          label: 'Registered Companies',
+          icon: <Shield size={18} />,
+          description: 'Approve new sign-ups',
+        }],
+      });
+    }
+    groups.push(
+      {
+        label: 'Organization',
+        items: orgAdminTabs.filter((t) => ['users', 'departments', 'branding'].includes(t.id)),
+      },
+      {
+        label: 'Performance',
+        items: orgAdminTabs.filter((t) => ['kpis', 'analytics', 'export', 'rewards'].includes(t.id)),
+      },
+      {
+        label: 'Workforce',
+        items: orgAdminTabs.filter((t) => ['attendance', 'tracking', 'office'].includes(t.id)),
+      },
+    );
+    return groups;
+  }, [platformOwner]);
+
+  const pageMeta = getAdminNavMeta(activeTab);
+  const pageIcon = findAdminNavIcon(navGroups, activeTab);
+
+  if (platformOwnerChecking) {
+    return (
+      <div className="admin-dashboard-loading">
+        <Loader2 className="animate-spin" size={28} />
+        <span>Loading admin console…</span>
+      </div>
+    );
+  }
+
   return (
-    <div className="animate-fade-in dashboard-with-mobile-nav" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+    <div className="admin-shell animate-fade-in">
 
       {resetPasswordUser && (
         <AdminResetPasswordModal
@@ -211,85 +340,122 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
         />
       )}
 
-      <DashboardTabNav
+      <AdminSidebarNav
+        groups={navGroups}
         activeTab={activeTab}
-        onTabChange={(id) => setActiveTab(id as typeof activeTab)}
-        tabs={[
-          { id: 'users', label: 'Users', mobileLabel: 'Users', icon: <Users size={16} /> },
-          { id: 'departments', label: 'Departments', mobileLabel: 'Depts', icon: <Building2 size={16} /> },
-          { id: 'kpis', label: 'Assign Task', mobileLabel: 'Tasks', icon: <Settings size={16} /> },
-          { id: 'export', label: 'Reports', mobileLabel: 'Reports', icon: <Download size={16} /> },
-          { id: 'analytics', label: 'Analytics', mobileLabel: 'Analytics', icon: <BarChart3 size={16} /> },
-          { id: 'branding', label: 'Branding', mobileLabel: 'Brand', icon: <Palette size={16} /> },
-          { id: 'rewards', label: 'Rewards', mobileLabel: 'Rewards', icon: <Trophy size={16} /> },
-          { id: 'attendance', label: 'Leave Approvals', mobileLabel: 'Leave', icon: <CalendarCheck size={16} /> },
-          { id: 'office', label: 'Office GPS', mobileLabel: 'GPS', icon: <MapPin size={16} /> },
-          { id: 'tracking', label: 'Live Tracking', mobileLabel: 'Track', icon: <Radio size={16} /> },
-        ]}
+        onTabChange={handleAdminTabChange}
+        navOpen={navOpen}
+        onNavOpenChange={setNavOpen}
+        platformOwner={platformOwner}
+        stats={{ users: users.length, departments: departments.length, managers: managerCount }}
       />
 
-      <div className="dashboard-tab-content">
-      {activeTab === 'export' ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '680px' }}>
+      {navOpen && (
+        <div
+          className="admin-shell__backdrop admin-shell__backdrop--visible"
+          onClick={() => setNavOpen(false)}
+          aria-hidden={false}
+        />
+      )}
 
+      <div className="admin-shell__main">
+        <header className="admin-shell__topbar">
+          <AdminHamburgerButton open={navOpen} onClick={() => setNavOpen(!navOpen)} />
+          <div className="admin-shell__page-head">
+            {pageIcon && (
+              <div className="admin-shell__page-icon">{pageIcon}</div>
+            )}
+            <div>
+              <p className="admin-shell__page-eyebrow">Admin console</p>
+              <h1 className="admin-shell__page-title">{pageMeta.label}</h1>
+              <p className="admin-shell__page-desc">{pageMeta.description}</p>
+            </div>
+          </div>
+          <div className="admin-shell__topbar-stats">
+            <div className="admin-shell__stat-pill admin-shell__stat-pill--accent">
+              <Users size={14} />
+              <div>
+                <strong>{users.length}</strong>
+                <span>Users</span>
+              </div>
+            </div>
+            <div className="admin-shell__stat-pill">
+              <Building2 size={14} />
+              <div>
+                <strong>{departments.length}</strong>
+                <span>Depts</span>
+              </div>
+            </div>
+            <div className="admin-shell__stat-pill">
+              <Users size={14} />
+              <div>
+                <strong>{employeeCount}</strong>
+                <span>Staff</span>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div className="admin-shell__content">
+          <div className="admin-shell__panel">
+      {activeTab === 'companies' && platformOwner ? (
+        <PlatformCompaniesConsole profile={profile} embedded />
+      ) : activeTab === 'export' ? (
+        <div className="admin-reports-page">
           {exportMsg && (
-            <div style={{
-              background: exportMsg.includes('failed') ? 'var(--color-danger-bg)' : 'var(--color-success-bg)',
-              color: exportMsg.includes('failed') ? 'var(--color-danger)' : 'var(--color-success)',
-              padding: '0.75rem 1rem', borderRadius: 'var(--border-radius-sm)', fontSize: '0.85rem',
-            }}>
-              {exportMsg}
+            <div className={`admin-dashboard__alert ${exportMsg.includes('failed') ? 'admin-dashboard__alert--error' : 'admin-dashboard__alert--success'}`}>
+              {exportMsg.includes('failed') ? <AlertCircle size={16} /> : <CheckCircle size={16} />}
+              <span>{exportMsg}</span>
             </div>
           )}
 
-          {/* Monthly report */}
-          <div className="glass-panel" style={{ borderLeft: '4px solid var(--accent-primary)' }}>
-            <h3 style={{ fontSize: '1.1rem', fontFamily: 'var(--font-display)', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Download size={16} style={{ color: 'var(--accent-primary)' }} />
-              Monthly Report
-            </h3>
-            <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
-              KPI snapshot, submission log, and AI insights for the <strong>current calendar month</strong>.
-            </p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
-              <button className="btn btn-primary" onClick={() => handleExport('excel', 'monthly')} disabled={exportLoading}>
-                {exportLoading ? <Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} /> : <FileSpreadsheet size={15} />}
-                Excel
-              </button>
-              <button className="btn btn-secondary" onClick={() => handleExport('pdf', 'monthly')} disabled={exportLoading}>
-                <FileText size={15} /> PDF
-              </button>
-              <button className="btn btn-secondary" onClick={() => handleExport('csv', 'monthly')} disabled={exportLoading}>
-                <Download size={15} /> CSV
-              </button>
+          <div className="admin-reports-grid">
+            <div className="admin-report-card">
+              <div className="admin-report-card__icon">
+                <FileSpreadsheet size={18} />
+              </div>
+              <h4>Monthly report</h4>
+              <p>KPI snapshot, submission log, and AI insights for the <strong>current calendar month</strong>.</p>
+              <div className="admin-report-card__actions">
+                <button className="btn btn-primary" onClick={() => handleExport('excel', 'monthly')} disabled={exportLoading}>
+                  {exportLoading ? <Loader2 size={15} className="spin-icon" /> : <FileSpreadsheet size={15} />}
+                  Excel
+                </button>
+                <button className="btn btn-secondary" onClick={() => handleExport('pdf', 'monthly')} disabled={exportLoading}>
+                  <FileText size={15} /> PDF
+                </button>
+                <button className="btn btn-secondary" onClick={() => handleExport('csv', 'monthly')} disabled={exportLoading}>
+                  <Download size={15} /> CSV
+                </button>
+              </div>
             </div>
-          </div>
 
-          {/* Quarterly report */}
-          <div className="glass-panel">
-            <h3 style={{ fontSize: '1.1rem', fontFamily: 'var(--font-display)', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Download size={16} />
-              Quarterly Report
-            </h3>
-            <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
-              Full organizational KPI report including AI insights, suggested targets, and submission history for the <strong>current quarter</strong>.
-            </p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
-              <button className="btn btn-primary" onClick={() => handleExport('excel', 'quarterly')} disabled={exportLoading}>
-                {exportLoading ? <Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} /> : <FileSpreadsheet size={15} />}
-                Excel
-              </button>
-              <button className="btn btn-secondary" onClick={() => handleExport('pdf', 'quarterly')} disabled={exportLoading}>
-                <FileText size={15} /> PDF
-              </button>
-              <button className="btn btn-secondary" onClick={() => handleExport('csv', 'quarterly')} disabled={exportLoading}>
-                <Download size={15} /> CSV
-              </button>
+            <div className="admin-report-card admin-report-card--quarterly">
+              <div className="admin-report-card__icon">
+                <BarChart3 size={18} />
+              </div>
+              <h4>Quarterly report</h4>
+              <p>Full organizational KPI report with AI insights, suggested targets, and submission history for the <strong>current quarter</strong>.</p>
+              <div className="admin-report-card__actions">
+                <button className="btn btn-primary" onClick={() => handleExport('excel', 'quarterly')} disabled={exportLoading}>
+                  {exportLoading ? <Loader2 size={15} className="spin-icon" /> : <FileSpreadsheet size={15} />}
+                  Excel
+                </button>
+                <button className="btn btn-secondary" onClick={() => handleExport('pdf', 'quarterly')} disabled={exportLoading}>
+                  <FileText size={15} /> PDF
+                </button>
+                <button className="btn btn-secondary" onClick={() => handleExport('csv', 'quarterly')} disabled={exportLoading}>
+                  <Download size={15} /> CSV
+                </button>
+              </div>
             </div>
           </div>
         </div>
       ) : activeTab === 'analytics' ? (
-        <Analytics title="Organization-Wide Analytics" />
+        <Analytics
+          title="Analytics"
+          subtitle="Organization-wide KPI health, trends, forecasts, and attainment by category and department."
+        />
       ) : activeTab === 'branding' ? (
         <BrandingSettings isDemo={isDemoProfile(profile)} />
       ) : activeTab === 'rewards' ? (
@@ -299,185 +465,299 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
       ) : activeTab === 'office' ? (
         <OfficeLocationSettings />
       ) : activeTab === 'tracking' ? (
-        <EmployeeLocationTracking profile={profile} mode="admin" />
+        <AdminLiveTracking />
       ) : activeTab === 'departments' ? (
         <DepartmentWeightagesPanel />
       ) : activeTab === 'kpis' ? (
         <ManagerKpiConfig assignerId={profile.id} isAdmin />
       ) : (
-        <div className="responsive-grid-wide" style={{ gap: '2rem' }}>
-          
-          {/* User Directory List */}
-          <div className="glass-panel dash-panel" style={{ flex: 2 }}>
-            <h3 className="dash-panel-title">User Directory ({users.length})</h3>
+        <div className="admin-users-layout">
+          <div className="admin-users-panel">
+            <div className="admin-users-panel__head">
+              <div>
+                <h3><Users size={18} /> User directory</h3>
+                <p>{filteredUsers.length} of {users.length} users shown</p>
+              </div>
+            </div>
+
+            <div className="admin-users-toolbar">
+              <div className="admin-users-toolbar__search form-group">
+                <Search size={16} className="admin-users-toolbar__search-icon" />
+                <input
+                  type="search"
+                  className="form-input"
+                  placeholder="Search name, email, or department…"
+                  value={userSearch}
+                  onChange={(e) => setUserSearch(e.target.value)}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label" style={{ fontSize: '0.72rem' }}>Role</label>
+                <select
+                  className="form-input"
+                  value={userRoleFilter}
+                  onChange={(e) => setUserRoleFilter(e.target.value as typeof userRoleFilter)}
+                >
+                  <option value="all">All roles</option>
+                  <option value="admin">Admin</option>
+                  <option value="manager">Manager</option>
+                  <option value="employee">Employee</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label" style={{ fontSize: '0.72rem' }}>Department</label>
+                <select
+                  className="form-input"
+                  value={userDeptFilter}
+                  onChange={(e) => setUserDeptFilter(e.target.value)}
+                >
+                  <option value="all">All departments</option>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
 
             {loading ? (
               <div className="dash-loading">
-                <Loader2 className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
+                <Loader2 className="animate-spin spin-icon" />
+              </div>
+            ) : filteredUsers.length === 0 ? (
+              <div className="admin-users-empty">
+                {users.length === 0 ? 'No users yet. Add your first team member using the form.' : 'No users match your filters.'}
               </div>
             ) : (
-              <div className="dash-user-list">
-                {users.map(u => {
-                  const userManager = users.find(m => m.id === u.manager_id);
-                  return (
-                    <div key={u.id} className="dash-user-row">
-                      <div>
-                        <strong className="dash-user-row__name">{u.full_name}</strong>
-                        <span className="dash-user-row__email">{u.email}</span>
-                        <div className="dash-user-row__meta">
-                          <span className="badge badge-on-track" style={{ fontSize: '0.65rem', padding: '2px 8px' }}>{u.role}</span>
-                          {userManager && (
-                            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                              Reports to: {userManager.full_name}
-                            </span>
-                          )}
-                          {u.department_id && (
-                            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                              Dept: {deptName(u.department_id)}
-                            </span>
-                          )}
+              <>
+                <div className="admin-users-table-wrap">
+                  <table className="admin-users-table">
+                    <thead>
+                      <tr>
+                        <th>Member</th>
+                        <th>Role</th>
+                        <th>Department</th>
+                        <th>Manager</th>
+                        <th aria-label="Actions" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredUsers.map((u) => {
+                        const userManager = users.find((m) => m.id === u.manager_id);
+                        return (
+                          <tr key={u.id}>
+                            <td>
+                              <div className="admin-users-table__member">
+                                <div className={avatarClass(u.role)} aria-hidden>
+                                  {userInitials(u.full_name)}
+                                </div>
+                                <div>
+                                  <strong>{u.full_name}</strong>
+                                  <span>{u.email}</span>
+                                </div>
+                              </div>
+                            </td>
+                            <td><span className={roleBadgeClass(u.role)}>{u.role}</span></td>
+                            <td>
+                              {(u.role === 'manager' || u.role === 'employee') && !isDemoProfile(profile) ? (
+                                <select
+                                  className="admin-user-card__dept-select"
+                                  value={u.department_id ?? ''}
+                                  onChange={(e) => handleUpdateUserDepartment(u.id, e.target.value)}
+                                >
+                                  <option value="">— None —</option>
+                                  {departments.map((d) => (
+                                    <option key={d.id} value={d.id}>{d.name}</option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <span className="admin-user-card__meta-item">{deptName(u.department_id)}</span>
+                              )}
+                            </td>
+                            <td>
+                              <span className="admin-user-card__meta-item">
+                                {userManager?.full_name ?? '—'}
+                              </span>
+                            </td>
+                            <td>
+                              <div className="admin-user-card__actions">
+                                <button
+                                  className="btn btn-secondary"
+                                  onClick={() => setResetPasswordUser({ id: u.id, name: u.full_name })}
+                                  title="Reset password"
+                                >
+                                  <KeyRound size={14} />
+                                </button>
+                                <button
+                                  className="btn btn-secondary btn--danger"
+                                  onClick={() => handleDeleteUser(u.id)}
+                                  title="Delete user"
+                                  disabled={u.id === profile.id}
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="admin-users-mobile-list">
+                  {filteredUsers.map((u) => {
+                    const userManager = users.find((m) => m.id === u.manager_id);
+                    return (
+                      <div key={u.id} className="admin-user-card">
+                        <div className={avatarClass(u.role)} aria-hidden>
+                          {userInitials(u.full_name)}
+                        </div>
+                        <div className="admin-user-card__body">
+                          <strong className="admin-user-card__name">{u.full_name}</strong>
+                          <span className="admin-user-card__email">{u.email}</span>
+                          <div className="admin-user-card__meta">
+                            <span className={roleBadgeClass(u.role)}>{u.role}</span>
+                            {userManager && (
+                              <span className="admin-user-card__meta-item">
+                                Reports to {userManager.full_name}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="admin-user-card__actions">
+                          <button
+                            className="btn btn-secondary"
+                            onClick={() => setResetPasswordUser({ id: u.id, name: u.full_name })}
+                            title="Reset password"
+                          >
+                            <KeyRound size={14} />
+                          </button>
+                          <button
+                            className="btn btn-secondary btn--danger"
+                            onClick={() => handleDeleteUser(u.id)}
+                            title="Delete user"
+                            disabled={u.id === profile.id}
+                          >
+                            <Trash2 size={14} />
+                          </button>
                         </div>
                       </div>
-
-                      <div className="dash-user-row__actions">
-                      <button
-                        className="btn btn-secondary"
-                        onClick={() => setResetPasswordUser({ id: u.id, name: u.full_name })}
-                        style={{ padding: '0.45rem', borderRadius: '50%', borderColor: 'transparent' }}
-                        title="Reset Password"
-                      >
-                        <KeyRound size={14} />
-                      </button>
-                      <button 
-                        className="btn btn-secondary" 
-                        onClick={() => handleDeleteUser(u.id)}
-                        style={{ padding: '0.45rem', borderRadius: '50%', color: 'var(--color-danger)', borderColor: 'transparent' }}
-                        title="Delete User"
-                        disabled={u.id === profile.id}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              </>
             )}
           </div>
 
-          {/* Add User Form — production admins only */}
-          <div className="glass-panel" style={{ flex: 1, height: 'fit-content' }}>
+          <div className="admin-add-user-panel">
             {isDemoProfile(profile) ? (
               <>
-                <h3 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-display)', marginBottom: '0.75rem' }}>Production user setup</h3>
-                <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                <div className="admin-add-user-panel__head">
+                  <UserPlus size={18} />
+                  <h3>Production user setup</h3>
+                </div>
+                <p className="admin-add-user-panel__desc">
                   Demo admin can only manage the 3 sandbox accounts shown in the directory. To add real employees, sign in with your production admin account.
                 </p>
               </>
             ) : (
               <>
-            <h3 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-display)', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <UserPlus size={20} /> Add New User
-            </h3>
-
-            {userFormMsg.text && (
-              <div style={{
-                background: userFormMsg.type === 'success' ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
-                color: userFormMsg.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)',
-                padding: '0.75rem 1rem',
-                borderRadius: 'var(--border-radius-sm)',
-                fontSize: '0.85rem',
-                marginBottom: '1rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem'
-              }}>
-                {userFormMsg.type === 'success' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
-                <span>{userFormMsg.text}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleCreateUser} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div className="form-group" style={{ margin: 0 }}>
-                <label>Full Name</label>
-                <input 
-                  type="text" 
-                  placeholder="e.g. John Doe"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  required 
-                />
-              </div>
-
-              <div className="form-group" style={{ margin: 0 }}>
-                <label>Email Address</label>
-                <input 
-                  type="email" 
-                  placeholder="name@company.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required 
-                />
-              </div>
-
-              <div className="form-group" style={{ margin: 0 }}>
-                <label>Password</label>
-                <input 
-                  type="password" 
-                  placeholder="Min 6 characters"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required 
-                />
-              </div>
-
-              <div className="form-group" style={{ margin: 0 }}>
-                <label>System Role</label>
-                <select value={role} onChange={(e) => {
-                  setRole(e.target.value as 'employee' | 'manager' | 'admin');
-                  setManagerId('');
-                }}>
-                  <option value="employee">Employee</option>
-                  <option value="manager">Manager</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
-
-              {role !== 'admin' && (
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label>Department *</label>
-                  <select value={departmentId} onChange={(e) => { setDepartmentId(e.target.value); setManagerId(''); }} required>
-                    <option value="">— Select department —</option>
-                    {departments.map((d) => (
-                      <option key={d.id} value={d.id}>{d.name}</option>
-                    ))}
-                  </select>
+                <div className="admin-add-user-panel__head">
+                  <UserPlus size={18} />
+                  <h3>Add new user</h3>
                 </div>
-              )}
+                <p className="admin-add-user-panel__desc">
+                  Create login credentials and assign role, department, and reporting manager.
+                </p>
 
-              {role === 'employee' && (
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label>Assign Manager (same department)</label>
-                  <select value={managerId} onChange={(e) => setManagerId(e.target.value)}>
-                    <option value="">-- None --</option>
-                    {managersInDept.map(m => (
-                      <option key={m.id} value={m.id}>{m.full_name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
+                {userFormMsg.text && (
+                  <div className={`admin-dashboard__alert ${userFormMsg.type === 'success' ? 'admin-dashboard__alert--success' : 'admin-dashboard__alert--error'}`} style={{ marginBottom: '1rem' }}>
+                    {userFormMsg.type === 'success' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+                    <span>{userFormMsg.text}</span>
+                  </div>
+                )}
 
-              <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '0.5rem' }} disabled={userFormLoading}>
-                {userFormLoading ? <Loader2 size={16} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} /> : 'Register User'}
-              </button>
-            </form>
+                <form onSubmit={handleCreateUser} className="admin-add-user-form">
+                  <div className="form-group">
+                    <label>Full name</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. John Doe"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Email address</label>
+                    <input
+                      type="email"
+                      placeholder="name@company.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Password</label>
+                    <input
+                      type="password"
+                      placeholder="Min 6 characters"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>System role</label>
+                    <select value={role} onChange={(e) => {
+                      setRole(e.target.value as 'employee' | 'manager' | 'admin');
+                      setManagerId('');
+                    }}>
+                      <option value="employee">Employee</option>
+                      <option value="manager">Manager</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+
+                  {role !== 'admin' && (
+                    <div className="form-group">
+                      <label>{role === 'manager' ? 'Assign department to manager *' : 'Department *'}</label>
+                      <select value={departmentId} onChange={(e) => { setDepartmentId(e.target.value); setManagerId(''); }} required>
+                        <option value="">— Select department —</option>
+                        {departments.map((d) => (
+                          <option key={d.id} value={d.id}>{d.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {role === 'employee' && (
+                    <div className="form-group">
+                      <label>Assign manager (same department)</label>
+                      <select value={managerId} onChange={(e) => setManagerId(e.target.value)}>
+                        <option value="">— None —</option>
+                        {managersInDept.map((m) => (
+                          <option key={m.id} value={m.id}>{m.full_name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '0.25rem' }} disabled={userFormLoading}>
+                    {userFormLoading ? <Loader2 size={16} className="spin-icon" /> : 'Register user'}
+                  </button>
+                </form>
               </>
             )}
           </div>
-
         </div>
       )}
 
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -1,0 +1,267 @@
+/* ── App-wide responsive layout (laptop + mobile) ── */
+
+:root {
+  --app-content-max: 1280px;
+  --app-content-pad-x: 1.25rem;
+  --app-content-pad-y: 1.5rem;
+  --app-tab-gap: 0.35rem;
+}
+
+html {
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  overflow-x: hidden;
+  min-height: 100dvh;
+}
+
+#root {
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+/* ── Main dashboard shell ── */
+.dashboard-container {
+  max-width: var(--app-content-max);
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--app-content-pad-y) var(--app-content-pad-x) 3rem;
+  box-sizing: border-box;
+}
+
+.dashboard-container--admin {
+  max-width: none;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+}
+
+.dashboard-container--admin > .demo-mode-banner {
+  margin-left: var(--app-content-pad-x, 1.25rem);
+  margin-right: var(--app-content-pad-x, 1.25rem);
+  margin-top: var(--app-content-pad-y, 1rem);
+}
+
+@media (max-width: 768px) {
+  .dashboard-container--admin > .demo-mode-banner {
+    margin-left: 0.85rem;
+    margin-right: 0.85rem;
+  }
+}
+
+.dashboard-main {
+  width: 100%;
+  min-width: 0;
+}
+
+.dashboard-tab-content {
+  width: 100%;
+  min-width: 0;
+}
+
+/* ── Laptop: 769px – 1279px ── */
+@media (min-width: 769px) and (max-width: 1279px) {
+  :root {
+    --app-content-max: min(1180px, calc(100vw - 2rem));
+    --app-content-pad-x: 1.35rem;
+    --app-content-pad-y: 1.35rem;
+  }
+
+  .tab-bar--desktop {
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .tab-bar--desktop .tab-btn {
+    flex: 1 1 calc(33.333% - 0.4rem);
+    min-width: 9.5rem;
+    max-width: 100%;
+    justify-content: center;
+    text-align: center;
+    font-size: 0.8rem;
+    padding: 0.52rem 0.7rem;
+  }
+
+  .tab-bar--desktop .tab-btn--utility {
+    margin-left: 0;
+    flex: 1 1 calc(33.333% - 0.4rem);
+  }
+
+  /* Many main tabs — allow horizontal scroll instead of tall wrap */
+  .tab-bar--desktop.tab-bar--many {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .tab-bar--desktop.tab-bar--many::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab-bar--desktop.tab-bar--many .tab-btn,
+  .tab-bar--desktop.tab-bar--many .tab-btn--utility {
+    flex: 0 0 auto;
+    min-width: max-content;
+    max-width: none;
+  }
+
+  .tab-bar--inline-mobile .tab-btn {
+    flex: 1 1 auto;
+    min-width: 7.5rem;
+  }
+
+  .dashboard-tab-content {
+    gap: 1.35rem;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+    gap: 1.15rem;
+  }
+
+  .dash-hero-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  }
+}
+
+/* ── Large laptop / desktop: 1280px+ ── */
+@media (min-width: 1280px) {
+  :root {
+    --app-content-max: 1360px;
+    --app-content-pad-x: 1.75rem;
+    --app-content-pad-y: 1.5rem;
+  }
+
+  .tab-bar--desktop {
+    flex-wrap: nowrap;
+  }
+
+  .tab-bar--desktop .tab-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    justify-content: center;
+    white-space: nowrap;
+  }
+
+  .tab-bar--desktop .tab-btn--utility {
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+}
+
+/* ── Mobile: ≤768px ── */
+@media (max-width: 768px) {
+  :root {
+    --app-content-pad-x: 0.85rem;
+    --app-content-pad-y: 0.85rem;
+  }
+
+  .dashboard-container:not(.dashboard-container--admin) {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .dashboard-with-mobile-nav {
+    padding-bottom: 0;
+  }
+
+  .dashboard-tab-content {
+    gap: 1.15rem;
+  }
+
+  /* Nested section tabs — horizontal scroll instead of cramped wrap */
+  .tab-bar--inline-mobile {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 0.35rem;
+    padding-bottom: 0.15rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .tab-bar--inline-mobile::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab-bar--inline-mobile .tab-btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    min-width: max-content;
+    font-size: 0.76rem;
+    padding: 0.48rem 0.75rem;
+  }
+
+  .tab-bar--inline-mobile .tab-btn--utility {
+    margin-left: 0;
+    flex: 0 0 auto;
+  }
+
+  /* Professional page headers — stack on small screens */
+  .mgr-attendance-header,
+  .mgr-rewards-header,
+  .mgr-kpi-header,
+  .mgr-personal-header,
+  .emp-rewards-header,
+  .emp-attendance-header,
+  .admin-attendance-header,
+  .admin-tracking-header {
+    padding: 1rem 1.05rem !important;
+  }
+
+  .mgr-attendance-header__main,
+  .mgr-rewards-header__main,
+  .mgr-kpi-header__main,
+  .mgr-personal-header__main,
+  .emp-rewards-header__main,
+  .emp-attendance-header__main,
+  .admin-attendance-header__main,
+  .admin-tracking-header__main {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  /* Tables always scroll horizontally on small screens */
+  .team-points-table-wrap,
+  .admin-tracking-table-wrap,
+  .mgr-rewards-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 -0.15rem;
+    padding: 0 0.15rem;
+  }
+
+  .attendance-history-table {
+    min-width: 640px;
+  }
+
+  .admin-tracking-table {
+    min-width: 720px;
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --app-content-pad-x: 0.65rem;
+  }
+}
+
+/* ── Ultra-wide: cap readable line length ── */
+@media (min-width: 1600px) {
+  :root {
+    --app-content-max: 1420px;
+  }
+}
+
+/* Native app scroll root */
+.native-scroll-root {
+  min-height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}

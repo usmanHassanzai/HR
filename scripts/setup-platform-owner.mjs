@@ -9,7 +9,7 @@ const REF = supabaseProjectRef();
 const BASE = 'https://api.supabase.com/v1';
 const H = { Authorization: `Bearer ${PAT}`, 'Content-Type': 'application/json' };
 
-const EMAIL = process.env.PLATFORM_OWNER_EMAIL || 'samiya@walfia.ai';
+const EMAIL = process.env.PLATFORM_OWNER_EMAIL || 'info@walfia.ai';
 const PASSWORD = process.env.PLATFORM_OWNER_PASSWORD || 'SamiyaOwner2026!';
 const NAME = process.env.PLATFORM_OWNER_NAME || 'Samiya Kayani';
 

@@ -639,3 +639,61 @@
   padding: 3rem 0;
   color: var(--accent-primary);
 }
+
+/* ── Laptop & mobile panel tuning ── */
+@media (min-width: 769px) and (max-width: 1279px) {
+  .dashboard-main .glass-panel,
+  .dashboard-main .dash-panel {
+    padding: 1.2rem 1.25rem;
+  }
+
+  .dash-health-card {
+    padding: 1.25rem !important;
+  }
+
+  .dash-section-head {
+    gap: 0.65rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-main .glass-panel,
+  .dashboard-main .dash-panel {
+    padding: 1rem 1.05rem;
+  }
+
+  .dash-health-card {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1.1rem !important;
+  }
+
+  .dash-health-ring {
+    width: 84px;
+    height: 84px;
+  }
+
+  .dash-points-card__stats {
+    grid-template-columns: 1fr;
+  }
+
+  .dash-team-points__row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .dash-team-points__metrics {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .dash-user-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .dash-user-row__actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

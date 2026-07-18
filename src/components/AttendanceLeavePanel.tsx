@@ -17,18 +17,24 @@ import {
   approvalBadgeClass,
 } from '../utils/attendanceHelpers';
 import { emailLeaveRequestNotifications } from '../utils/attendanceEmail';
-import { downloadAttendanceCsv } from '../utils/exportAttendance';
 import GeoAttendancePanel from './GeoAttendancePanel';
 import MyShiftCard from './MyShiftCard';
 import ShiftManagementPanel from './ShiftManagementPanel';
-import AttendanceHistoryPanel from './AttendanceHistoryPanel';
+import AdminAttendanceDirectory from './AdminAttendanceDirectory';
+import ManagerTeamAttendanceDirectory from './ManagerTeamAttendanceDirectory';
+import EmployeeAttendanceHistory from './EmployeeAttendanceHistory';
+import { Department } from '../utils/departmentHelpers';
 import { formatClockTime } from '../utils/geoAttendance';
-import { formatWorkDuration } from '../utils/shiftHelpers';
+import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
 import {
   Clock, Loader2, CheckCircle, XCircle, Palmtree,
-  UserCheck, Users, Download, Inbox, History, ClipboardList, CalendarClock,
+  UserCheck, Users, Inbox, History, ClipboardList, CalendarClock,
+  CalendarCheck, Building2, AlertCircle, CheckCircle2,
 } from 'lucide-react';
 import '../styles/attendance.css';
+import '../styles/admin-attendance.css';
+import '../styles/manager-attendance.css';
+import '../styles/employee-attendance.css';
 
 interface AttendanceLeavePanelProps {
   profile: Profile;
@@ -37,16 +43,7 @@ interface AttendanceLeavePanelProps {
 
 type EmployeeTab = 'today' | 'leave' | 'history';
 type ManagerTab = 'approvals' | 'today' | 'team' | 'shifts' | 'history';
-
-function Toast({ msg }: { msg: string }) {
-  if (!msg) return null;
-  const isError = /failed|error|not enough/i.test(msg);
-  return (
-    <div className={`rewards-toast ${isError ? 'rewards-toast--error' : 'rewards-toast--success'}`}>
-      {msg}
-    </div>
-  );
-}
+type AdminTab = 'leave' | 'history';
 
 function ApprovalActions({
   onApprove,
@@ -82,9 +79,11 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
   const [pendingAttendance, setPendingAttendance] = useState<PendingAttendanceRecord[]>([]);
   const [pendingLeaves, setPendingLeaves] = useState<PendingLeaveRequest[]>([]);
   const [teamMembers, setTeamMembers] = useState<Profile[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
 
   const [employeeTab, setEmployeeTab] = useState<EmployeeTab>('today');
   const [managerTab, setManagerTab] = useState<ManagerTab>('approvals');
+  const [adminTab, setAdminTab] = useState<AdminTab>('leave');
 
   const [leaveType, setLeaveType] = useState<LeaveType>('annual');
   const [leaveStart, setLeaveStart] = useState('');
@@ -97,12 +96,10 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
   const [markStatus, setMarkStatus] = useState<AttendanceStatus>('present');
 
   const now = new Date();
-  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
-  const [exporting, setExporting] = useState(false);
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
 
   const userId = profile.id;
-  const monthLabel = new Date(selectedYear, selectedMonth - 1, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
   const todayStr = new Date().toISOString().slice(0, 10);
   const checkedInToday = myAttendance.some((a) => a.attendance_date === todayStr);
   const pendingCount = pendingLeaves.length + pendingAttendance.length;
@@ -151,7 +148,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
   const loadPendingLeavesForAdmin = async (): Promise<PendingLeaveRequest[]> => {
     const { data: users, error: usersErr } = await supabase.rpc('get_all_users_admin');
     if (usersErr) throw new Error(usersErr.message);
-    const members = ((users || []) as Profile[]).filter((u) => u.role !== 'admin');
+    const members = ((users || []) as Profile[]).filter((u) => u.role !== 'admin' && !u.is_demo);
 
     const { data, error } = await supabase
       .from('leave_requests')
@@ -177,23 +174,28 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
     setMsg('');
     try {
       if (mode === 'admin') {
-        setPendingLeaves(await loadPendingLeavesForAdmin());
+        const [{ data: deptData }, pending] = await Promise.all([
+          supabase.rpc('get_departments'),
+          loadPendingLeavesForAdmin(),
+        ]);
+        setDepartments((deptData || []) as Department[]);
+        setPendingLeaves(pending);
         setPendingAttendance([]);
         return;
       }
 
       const [balRes, yearSumRes, monthSumRes, yearLeaveRes, monthLeaveRes, attRes, leaveRes] = await Promise.all([
         supabase.rpc('get_leave_balance', { p_user_id: userId }),
-        supabase.rpc('get_my_attendance_summary', { p_year: selectedYear }),
-        supabase.rpc('get_my_attendance_summary', { p_year: selectedYear, p_month: selectedMonth }),
-        supabase.rpc('get_my_leave_summary', { p_year: selectedYear }),
-        supabase.rpc('get_my_leave_summary', { p_year: selectedYear, p_month: selectedMonth }),
+        supabase.rpc('get_my_attendance_summary', { p_year: currentYear }),
+        supabase.rpc('get_my_attendance_summary', { p_year: currentYear, p_month: currentMonth }),
+        supabase.rpc('get_my_leave_summary', { p_year: currentYear }),
+        supabase.rpc('get_my_leave_summary', { p_year: currentYear, p_month: currentMonth }),
         supabase
           .from('attendance_records')
           .select('*')
           .eq('user_id', userId)
-          .gte('attendance_date', `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`)
-          .lte('attendance_date', `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${new Date(selectedYear, selectedMonth, 0).getDate()}`)
+          .gte('attendance_date', `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`)
+          .lte('attendance_date', `${currentYear}-${String(currentMonth).padStart(2, '0')}-${new Date(currentYear, currentMonth, 0).getDate()}`)
           .order('attendance_date', { ascending: false }),
         supabase
           .from('leave_requests')
@@ -232,15 +234,28 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
         const { data: pAtt } = await supabase.rpc('get_pending_attendance_for_manager');
         setPendingAttendance((pAtt || []) as PendingAttendanceRecord[]);
         setPendingLeaves(await loadPendingLeavesForManager(team));
+
+        const { data: deptData } = await supabase.rpc('get_departments');
+        setDepartments((deptData || []) as Department[]);
       }
     } catch (e: unknown) {
       setMsg(e instanceof Error ? e.message : 'Failed to load attendance data');
     } finally {
       setLoading(false);
     }
-  }, [userId, mode, markUserId, selectedYear, selectedMonth]);
+  }, [userId, mode, markUserId, currentYear, currentMonth]);
 
   useEffect(() => { load(); }, [load]);
+
+  useSupabaseRealtime(
+    `attendance-sync-${userId}`,
+    [
+      { table: 'attendance_records' },
+      { table: 'leave_requests' },
+      { table: 'users' },
+    ],
+    load,
+  );
 
   const checkInToday = async () => {
     setSubmitting(true);
@@ -318,28 +333,6 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
     else {
       setMsg(approve ? 'Leave approved.' : 'Leave rejected.');
       load();
-    }
-  };
-
-  const exportCsv = async () => {
-    setExporting(true);
-    try {
-      const lastDay = new Date(selectedYear, selectedMonth, 0).getDate();
-      const start = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
-      const end = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-      const { data, error } = await supabase
-        .from('attendance_records')
-        .select('*')
-        .eq('user_id', userId)
-        .gte('attendance_date', start)
-        .lte('attendance_date', end)
-        .order('attendance_date', { ascending: true });
-      if (error) throw error;
-      downloadAttendanceCsv((data || []) as AttendanceRecord[], profile.full_name, monthLabel);
-    } catch (e: unknown) {
-      setMsg(e instanceof Error ? e.message : 'CSV export failed');
-    } finally {
-      setExporting(false);
     }
   };
 
@@ -424,87 +417,6 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
     </div>
   );
 
-  const renderPeriodBar = (showExport = true) => (
-    <div className="attendance-period-bar">
-      <div className="form-group">
-        <label>Month</label>
-        <select value={selectedMonth} onChange={(e) => setSelectedMonth(Number(e.target.value))}>
-          {Array.from({ length: 12 }, (_, i) => (
-            <option key={i + 1} value={i + 1}>
-              {new Date(selectedYear, i, 1).toLocaleString('default', { month: 'long' })}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="form-group">
-        <label>Year</label>
-        <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}>
-          {[selectedYear - 1, selectedYear, selectedYear + 1].map((y) => (
-            <option key={y} value={y}>{y}</option>
-          ))}
-        </select>
-      </div>
-      {showExport && (
-        <button type="button" className="btn btn-secondary" disabled={exporting} onClick={exportCsv}>
-          {exporting ? <Loader2 size={16} className="spin-icon" /> : <Download size={16} />}
-          Export CSV
-        </button>
-      )}
-    </div>
-  );
-
-  const renderHistory = () => (
-    <div className="attendance-card">
-      <h3 className="attendance-card__title"><History size={18} /> History — {monthLabel}</h3>
-      {renderPeriodBar()}
-      <h4 style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', margin: '0 0 0.75rem' }}>Attendance</h4>
-      {myAttendance.length === 0 ? (
-        <p className="attendance-empty">No attendance records for this month.</p>
-      ) : (
-        <div className="team-points-table-wrap" style={{ marginBottom: '1.25rem' }}>
-          <table className="attendance-history-table">
-            <thead>
-              <tr><th>Date</th><th>Status</th><th>Clock in</th><th>Clock out</th><th>Duration</th><th>Approval</th></tr>
-            </thead>
-            <tbody>
-              {myAttendance.map((r) => (
-                <tr key={r.id}>
-                  <td>{r.attendance_date}</td>
-                  <td>{ATTENDANCE_STATUS_LABEL[r.status]}</td>
-                  <td>{formatClockTime(r.clock_in_at)}{r.attendance_source === 'geo' && r.clock_in_at ? ' · GPS' : ''}</td>
-                  <td>{formatClockTime(r.clock_out_at)}</td>
-                  <td>{formatWorkDuration(r.work_minutes)}</td>
-                  <td><span className={`badge ${approvalBadgeClass(r.approval_status)}`}>{APPROVAL_LABEL[r.approval_status]}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      <h4 style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', margin: '0 0 0.75rem' }}>Leave requests</h4>
-      {myLeaves.length === 0 ? (
-        <p className="attendance-empty">No leave requests yet.</p>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          {myLeaves.map((r) => (
-            <div key={r.id} className="attendance-leave-chip">
-              <div className="attendance-leave-chip__info">
-                <strong>{LEAVE_TYPE_LABEL[r.leave_type]}</strong>
-                <span>{r.start_date} → {r.end_date} · {r.days_count} day{r.days_count !== 1 ? 's' : ''}</span>
-              </div>
-              <span className={`badge ${approvalBadgeClass(r.status)}`}>{APPROVAL_LABEL[r.status]}</span>
-            </div>
-          ))}
-        </div>
-      )}
-      {yearLeaveSummary && (
-        <p style={{ marginTop: '1rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-          Year total: {yearLeaveSummary.total_days_taken} days ({yearLeaveSummary.annual_days_taken} annual, {yearLeaveSummary.sick_days_taken} sick)
-        </p>
-      )}
-    </div>
-  );
-
   const renderLeaveApprovals = (emptyText: string) => (
     pendingLeaves.length === 0 ? (
       <div className="attendance-empty">
@@ -544,26 +456,82 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
     );
   }
 
-  /* ── Admin: leave approvals only ── */
+  /* ── Admin: leave + company attendance ── */
   if (mode === 'admin') {
     return (
-      <div className="attendance-page animate-fade-in">
-        <Toast msg={msg} />
-        <div className="attendance-admin-header">
-          <h3>Leave approvals</h3>
-          <p>Review requests from employees and managers. One tap to approve or reject.</p>
+      <div className="admin-attendance-page animate-fade-in">
+        <header className="admin-attendance-header glass-panel">
+          <div className="admin-attendance-header__main">
+            <div className="admin-attendance-header__icon">
+              <CalendarCheck size={22} />
+            </div>
+            <div>
+              <h2 className="admin-attendance-header__title">Attendance &amp; Leave</h2>
+              <p className="admin-attendance-header__subtitle">
+                Review leave requests and browse every employee&apos;s attendance history by department. All check-ins
+                are stored in Supabase with date and time — download individual or department reports anytime.
+              </p>
+            </div>
+          </div>
+
+          <div className="admin-attendance-stats">
+            <div className="admin-attendance-stat">
+              <Inbox size={16} />
+              <span className="admin-attendance-stat__label">Pending leave</span>
+              <strong>{pendingLeaves.length}</strong>
+            </div>
+            <div className="admin-attendance-stat">
+              <Building2 size={16} />
+              <span className="admin-attendance-stat__label">Departments</span>
+              <strong>{departments.length}</strong>
+            </div>
+            <div className="admin-attendance-stat">
+              <Users size={16} />
+              <span className="admin-attendance-stat__label">Scope</span>
+              <strong style={{ fontSize: '0.88rem' }}>Company</strong>
+            </div>
+          </div>
+        </header>
+
+        {msg && (
+          <div
+            className={`admin-attendance-alert ${/failed|error|not enough/i.test(msg) ? 'admin-attendance-alert--error' : 'admin-attendance-alert--success'}`}
+            role="alert"
+          >
+            {/failed|error|not enough/i.test(msg) ? <AlertCircle size={18} /> : <CheckCircle2 size={18} />}
+            <span>{msg}</span>
+          </div>
+        )}
+
+        <div className="admin-attendance-tabs tab-bar tab-bar--inline-mobile">
+          <button
+            type="button"
+            className={`tab-btn ${adminTab === 'leave' ? 'tab-btn--active' : ''}`}
+            onClick={() => setAdminTab('leave')}
+          >
+            <Inbox size={16} /> Leave approvals
+            {pendingLeaves.length > 0 && <span className="admin-attendance-count-badge">{pendingLeaves.length}</span>}
+          </button>
+          <button
+            type="button"
+            className={`tab-btn ${adminTab === 'history' ? 'tab-btn--active' : ''}`}
+            onClick={() => setAdminTab('history')}
+          >
+            <History size={16} /> Attendance history
+          </button>
         </div>
-        <div className="attendance-card">
-          <h3 className="attendance-card__title">
-            <Inbox size={18} /> Pending requests
-            {pendingLeaves.length > 0 && (
-              <span className="badge badge-at-risk" style={{ marginLeft: '0.5rem', fontSize: '0.75rem' }}>
-                {pendingLeaves.length}
-              </span>
-            )}
-          </h3>
-          {renderLeaveApprovals('All caught up — no pending leave requests.')}
-        </div>
+
+        {adminTab === 'leave' && (
+          <section className="admin-attendance-card glass-panel">
+            <h3>
+              <Inbox size={18} /> Pending leave requests
+            </h3>
+            <p>Review time-off requests from employees and managers across all departments.</p>
+            {renderLeaveApprovals('All caught up — no pending leave requests.')}
+          </section>
+        )}
+
+        {adminTab === 'history' && <AdminAttendanceDirectory departments={departments} />}
       </div>
     );
   }
@@ -571,42 +539,88 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
   /* ── Manager ── */
   if (mode === 'manager') {
     return (
-      <div className="attendance-page animate-fade-in">
-        <Toast msg={msg} />
+      <div className="mgr-attendance-page animate-fade-in">
+        <header className="mgr-attendance-header">
+          <div className="mgr-attendance-header__main">
+            <div className="mgr-attendance-header__icon">
+              <CalendarCheck size={22} />
+            </div>
+            <div>
+              <h2 className="mgr-attendance-header__title">Attendance &amp; Leave</h2>
+              <p className="mgr-attendance-header__subtitle">
+                Approve team leave and check-ins, mark attendance, manage shifts, and download each employee&apos;s
+                history as a separate monthly or yearly report.
+              </p>
+            </div>
+          </div>
 
-        <div className="attendance-tabs">
+          <div className="mgr-attendance-stats">
+            <div className={`mgr-attendance-stat${pendingCount > 0 ? ' mgr-attendance-stat--warn' : ''}`}>
+              <Inbox size={16} />
+              <span className="mgr-attendance-stat__label">Pending approvals</span>
+              <strong>{pendingCount}</strong>
+            </div>
+            <div className="mgr-attendance-stat">
+              <Users size={16} />
+              <span className="mgr-attendance-stat__label">Team members</span>
+              <strong>{teamMembers.length}</strong>
+            </div>
+            <div className="mgr-attendance-stat">
+              <ClipboardList size={16} />
+              <span className="mgr-attendance-stat__label">Leave requests</span>
+              <strong>{pendingLeaves.length}</strong>
+            </div>
+            <div className="mgr-attendance-stat">
+              <Clock size={16} />
+              <span className="mgr-attendance-stat__label">Check-ins to review</span>
+              <strong>{pendingAttendance.length}</strong>
+            </div>
+          </div>
+        </header>
+
+        {msg && (
+          <div
+            className={`mgr-attendance-alert ${/failed|error|not enough/i.test(msg) ? 'mgr-attendance-alert--error' : 'mgr-attendance-alert--success'}`}
+            role="alert"
+          >
+            {/failed|error|not enough/i.test(msg) ? <AlertCircle size={18} /> : <CheckCircle2 size={18} />}
+            <span>{msg}</span>
+          </div>
+        )}
+
+        <div className="mgr-attendance-tabs tab-bar tab-bar--inline-mobile">
           <button
             type="button"
-            className={`attendance-tab ${managerTab === 'approvals' ? 'attendance-tab--active' : ''}`}
+            className={`tab-btn ${managerTab === 'approvals' ? 'tab-btn--active' : ''}`}
             onClick={() => setManagerTab('approvals')}
           >
             <ClipboardList size={16} /> Approvals
-            {pendingCount > 0 && <span className="attendance-tab__count">{pendingCount}</span>}
+            {pendingCount > 0 && <span className="mgr-attendance-count-badge">{pendingCount}</span>}
           </button>
           <button
             type="button"
-            className={`attendance-tab ${managerTab === 'today' ? 'attendance-tab--active' : ''}`}
+            className={`tab-btn ${managerTab === 'today' ? 'tab-btn--active' : ''}`}
             onClick={() => setManagerTab('today')}
           >
             <UserCheck size={16} /> My day
           </button>
           <button
             type="button"
-            className={`attendance-tab ${managerTab === 'team' ? 'attendance-tab--active' : ''}`}
+            className={`tab-btn ${managerTab === 'team' ? 'tab-btn--active' : ''}`}
             onClick={() => setManagerTab('team')}
           >
             <Users size={16} /> Team
           </button>
           <button
             type="button"
-            className={`attendance-tab ${managerTab === 'shifts' ? 'attendance-tab--active' : ''}`}
+            className={`tab-btn ${managerTab === 'shifts' ? 'tab-btn--active' : ''}`}
             onClick={() => setManagerTab('shifts')}
           >
             <CalendarClock size={16} /> Shifts
           </button>
           <button
             type="button"
-            className={`attendance-tab ${managerTab === 'history' ? 'attendance-tab--active' : ''}`}
+            className={`tab-btn ${managerTab === 'history' ? 'tab-btn--active' : ''}`}
             onClick={() => setManagerTab('history')}
           >
             <History size={16} /> History
@@ -614,14 +628,20 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
         </div>
 
         {managerTab === 'approvals' && (
-          <div className="attendance-card">
-            <h3 className="attendance-card__title">Needs your action</h3>
-            <p className="attendance-card__subtitle">Approve leave and check-ins from your team.</p>
+          <section className="mgr-attendance-card">
+            <h3>
+              <Inbox size={18} /> Needs your action
+            </h3>
+            <p className="mgr-attendance-card__subtitle">Approve leave and check-ins from your direct reports.</p>
 
             {pendingLeaves.length === 0 && pendingAttendance.length === 0 ? (
-              <div className="attendance-empty"><Inbox size={32} />Nothing waiting for approval.</div>
+              <div className="mgr-attendance-empty">
+                <Inbox size={32} strokeWidth={1.25} />
+                <h4>All caught up</h4>
+                <p>No leave or attendance items waiting for your approval.</p>
+              </div>
             ) : (
-              <div className="attendance-approval-list">
+              <div className="mgr-attendance-approval-list">
                 {pendingLeaves.map((r) => (
                   <div key={r.id} className="attendance-approval-item">
                     <div className="attendance-approval-item__main">
@@ -629,7 +649,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
                       <span className="attendance-approval-item__meta">
                         {LEAVE_TYPE_LABEL[r.leave_type]} · {r.start_date} to {r.end_date} · {r.days_count} days
                       </span>
-                      {r.reason && <span className="attendance-approval-item__reason">"{r.reason}"</span>}
+                      {r.reason && <span className="attendance-approval-item__reason">&ldquo;{r.reason}&rdquo;</span>}
                     </div>
                     <ApprovalActions disabled={submitting} onApprove={() => reviewLeave(r.id, true)} onReject={() => reviewLeave(r.id, false)} />
                   </div>
@@ -640,6 +660,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
                       <span className="attendance-approval-item__name">Check-in · {r.employee_name || 'Employee'}</span>
                       <span className="attendance-approval-item__meta">
                         {r.attendance_date} · {ATTENDANCE_STATUS_LABEL[r.status]}
+                        {r.clock_in_at ? ` · In ${formatClockTime(r.clock_in_at)}` : ''}
                       </span>
                     </div>
                     <ApprovalActions disabled={submitting} onApprove={() => reviewAtt(r.id, true)} onReject={() => reviewAtt(r.id, false)} />
@@ -647,7 +668,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
                 ))}
               </div>
             )}
-          </div>
+          </section>
         )}
 
         {managerTab === 'today' && (
@@ -661,49 +682,55 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
         )}
 
         {managerTab === 'shifts' && (
-          <ShiftManagementPanel teamMembers={teamMembers} onUpdate={load} />
+          <section className="mgr-attendance-card">
+            <ShiftManagementPanel teamMembers={teamMembers} onUpdate={load} />
+          </section>
         )}
 
         {managerTab === 'team' && (
-          <>
-            <div className="attendance-card">
-              <h3 className="attendance-card__title"><Users size={18} /> Mark team attendance</h3>
-              <p className="attendance-card__subtitle">Record attendance for a team member on a specific date.</p>
-              {teamMembers.length === 0 ? (
-                <p className="attendance-empty">No team members assigned yet.</p>
-              ) : (
-                <div className="attendance-form-grid">
-                  <div className="form-group">
-                    <label>Team member</label>
-                    <select value={markUserId} onChange={(e) => setMarkUserId(e.target.value)}>
-                      {teamMembers.map((m) => (
-                        <option key={m.id} value={m.id}>{m.full_name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Date</label>
-                    <input type="date" value={markDate} onChange={(e) => setMarkDate(e.target.value)} />
-                  </div>
-                  <div className="form-group">
-                    <label>Status</label>
-                    <select value={markStatus} onChange={(e) => setMarkStatus(e.target.value as AttendanceStatus)}>
-                      {(Object.keys(ATTENDANCE_STATUS_LABEL) as AttendanceStatus[]).map((s) => (
-                        <option key={s} value={s}>{ATTENDANCE_STATUS_LABEL[s]}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <button type="button" className="btn btn-primary" disabled={submitting} onClick={markTeamAttendance}>
-                    Save
-                  </button>
+          <section className="mgr-attendance-card">
+            <h3>
+              <Users size={18} /> Mark team attendance
+            </h3>
+            <p className="mgr-attendance-card__subtitle">Record attendance for a team member on a specific date.</p>
+            {teamMembers.length === 0 ? (
+              <div className="mgr-attendance-empty">
+                <Users size={32} strokeWidth={1.25} />
+                <h4>No team members</h4>
+                <p>Assign employees to your team to mark their attendance here.</p>
+              </div>
+            ) : (
+              <div className="attendance-form-grid">
+                <div className="form-group">
+                  <label>Team member</label>
+                  <select value={markUserId} onChange={(e) => setMarkUserId(e.target.value)}>
+                    {teamMembers.map((m) => (
+                      <option key={m.id} value={m.id}>{m.full_name}</option>
+                    ))}
+                  </select>
                 </div>
-              )}
-            </div>
-          </>
+                <div className="form-group">
+                  <label>Date</label>
+                  <input type="date" value={markDate} onChange={(e) => setMarkDate(e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label>Status</label>
+                  <select value={markStatus} onChange={(e) => setMarkStatus(e.target.value as AttendanceStatus)}>
+                    {(Object.keys(ATTENDANCE_STATUS_LABEL) as AttendanceStatus[]).map((s) => (
+                      <option key={s} value={s}>{ATTENDANCE_STATUS_LABEL[s]}</option>
+                    ))}
+                  </select>
+                </div>
+                <button type="button" className="btn btn-primary" disabled={submitting} onClick={markTeamAttendance}>
+                  Save
+                </button>
+              </div>
+            )}
+          </section>
         )}
 
         {managerTab === 'history' && (
-          <AttendanceHistoryPanel profile={profile} mode="manager" teamMembers={teamMembers} />
+          <ManagerTeamAttendanceDirectory profile={profile} teamMembers={teamMembers} />
         )}
       </div>
     );
@@ -711,27 +738,73 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
 
   /* ── Employee ── */
   return (
-    <div className="attendance-page animate-fade-in">
-      <Toast msg={msg} />
+    <div className="emp-attendance-page animate-fade-in">
+      <header className="emp-attendance-header">
+        <div className="emp-attendance-header__main">
+          <div className="emp-attendance-header__icon">
+            <CalendarCheck size={22} />
+          </div>
+          <div>
+            <h2 className="emp-attendance-header__title">Attendance &amp; Leave</h2>
+            <p className="emp-attendance-header__subtitle">
+              Clock in with GPS, request time off, and review your full attendance history — download daily or monthly
+              records anytime.
+            </p>
+          </div>
+        </div>
 
-      <div className="attendance-tabs">
+        <div className="emp-attendance-stats">
+          <div className="emp-attendance-stat emp-attendance-stat--accent">
+            <UserCheck size={16} />
+            <span className="emp-attendance-stat__label">Today</span>
+            <strong>{checkedInToday ? 'Checked in' : 'Not yet'}</strong>
+          </div>
+          <div className="emp-attendance-stat">
+            <CalendarCheck size={16} />
+            <span className="emp-attendance-stat__label">YTD attendance</span>
+            <strong>{summary ? `${summary.attendance_rate}%` : '—'}</strong>
+          </div>
+          <div className="emp-attendance-stat">
+            <Palmtree size={16} />
+            <span className="emp-attendance-stat__label">Annual leave left</span>
+            <strong>{balance ? balance.annual_remaining : '—'}</strong>
+          </div>
+          <div className="emp-attendance-stat">
+            <Inbox size={16} />
+            <span className="emp-attendance-stat__label">Leave requests</span>
+            <strong>{myLeaves.length}</strong>
+          </div>
+        </div>
+      </header>
+
+      {msg && (
+        <div
+          className={`emp-attendance-alert ${/failed|error|not enough/i.test(msg) ? 'emp-attendance-alert--error' : 'emp-attendance-alert--success'}`}
+          role="alert"
+        >
+          {/failed|error|not enough/i.test(msg) ? <AlertCircle size={18} /> : <CheckCircle2 size={18} />}
+          <span>{msg}</span>
+        </div>
+      )}
+
+      <div className="emp-attendance-tabs tab-bar tab-bar--inline-mobile">
         <button
           type="button"
-          className={`attendance-tab ${employeeTab === 'today' ? 'attendance-tab--active' : ''}`}
+          className={`tab-btn ${employeeTab === 'today' ? 'tab-btn--active' : ''}`}
           onClick={() => setEmployeeTab('today')}
         >
           <UserCheck size={16} /> Today
         </button>
         <button
           type="button"
-          className={`attendance-tab ${employeeTab === 'leave' ? 'attendance-tab--active' : ''}`}
+          className={`tab-btn ${employeeTab === 'leave' ? 'tab-btn--active' : ''}`}
           onClick={() => setEmployeeTab('leave')}
         >
           <Palmtree size={16} /> Request leave
         </button>
         <button
           type="button"
-          className={`attendance-tab ${employeeTab === 'history' ? 'attendance-tab--active' : ''}`}
+          className={`tab-btn ${employeeTab === 'history' ? 'tab-btn--active' : ''}`}
           onClick={() => setEmployeeTab('history')}
         >
           <History size={16} /> History
@@ -745,9 +818,11 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
           {renderCheckInHero('Your manager')}
           {renderQuickStats()}
           {summary && (
-            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-              Year-to-date attendance: {summary.attendance_rate}% ({summary.present_approved} approved days)
-            </p>
+            <section className="emp-attendance-card">
+              <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                Year-to-date attendance: <strong>{summary.attendance_rate}%</strong> ({summary.present_approved} approved days)
+              </p>
+            </section>
           )}
         </>
       )}
@@ -756,8 +831,34 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
 
       {employeeTab === 'history' && (
         <>
-          {renderHistory()}
-          <AttendanceHistoryPanel profile={profile} mode="employee" />
+          <EmployeeAttendanceHistory profile={profile} />
+          {myLeaves.length > 0 && (
+            <section className="emp-attendance-card">
+              <h3>
+                <Palmtree size={18} /> My leave requests
+              </h3>
+              <p className="emp-attendance-card__subtitle">Track the status of your time-off requests.</p>
+              <div className="emp-attendance-leave-list">
+                {myLeaves.map((r) => (
+                  <div key={r.id} className="emp-attendance-leave-item">
+                    <div>
+                      <strong>{LEAVE_TYPE_LABEL[r.leave_type]}</strong>
+                      <span>
+                        {r.start_date} → {r.end_date} · {r.days_count} day{r.days_count !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    <span className={`badge ${approvalBadgeClass(r.status)}`}>{APPROVAL_LABEL[r.status]}</span>
+                  </div>
+                ))}
+              </div>
+              {yearLeaveSummary && (
+                <p style={{ marginTop: '1rem', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                  Year total: {yearLeaveSummary.total_days_taken} days ({yearLeaveSummary.annual_days_taken} annual,{' '}
+                  {yearLeaveSummary.sick_days_taken} sick)
+                </p>
+              )}
+            </section>
+          )}
         </>
       )}
     </div>

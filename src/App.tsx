@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { Profile } from './utils/kpiHelpers';
 import LandingPage from './components/LandingPage';
@@ -9,9 +9,10 @@ import PlatformOwnerPortal from './components/PlatformOwnerPortal';
 import CompanyPendingScreen from './components/CompanyPendingScreen';
 import { isAppShell, isNativeApp } from './utils/nativePlatform';
 import { SplashScreen } from '@capacitor/splash-screen';
-import { applyBranding, loadBranding } from './lib/branding';
+import { applyBranding, fetchCompanyBranding, loadBranding } from './lib/branding';
 import { isDemoProfile } from './utils/demoMode';
-import { isPlatformOwner, isPlatformRoute, fetchMyCompany, Company } from './utils/companyHelpers';
+import { isPlatformRoute, fetchMyCompany, Company } from './utils/companyHelpers';
+import { useSupabaseRealtime } from './utils/useSupabaseRealtime';
 import Header from './components/Header';
 import EmployeeDashboard from './components/EmployeeDashboard';
 import ManagerDashboard from './components/ManagerDashboard';
@@ -46,14 +47,19 @@ function App() {
         return;
       }
 
-      setProfile(data);
-      setError('');
-      applyBranding(loadBranding(isDemoProfile(data)));
+      const { data: sessionInfo } = await supabase.rpc('get_my_session_info');
+      const sessionRow = Array.isArray(sessionInfo) ? sessionInfo[0] : sessionInfo;
+      const mergedProfile = sessionRow?.is_platform_owner
+        ? { ...data, is_platform_owner: true as const }
+        : data;
 
-      if (isPlatformOwner(data) && !isPlatformRoute()) {
-        window.location.href = '/platform';
-        return;
-      }
+      setProfile(mergedProfile);
+      setError('');
+
+      const remoteBranding = await fetchCompanyBranding(isDemoProfile(data));
+      applyBranding(remoteBranding ?? loadBranding(isDemoProfile(data)));
+
+      // Platform owner uses Admin Dashboard → Registered Companies tab (not org admin tools)
 
       const { data: expired } = await supabase.rpc('is_demo_expired');
       setDemoExpired(expired === true);
@@ -105,6 +111,28 @@ function App() {
       void SplashScreen.hide();
     }
   }, [loading]);
+
+  const refreshCompanyStatus = useCallback(async () => {
+    if (!session?.user?.id || !profile?.company_id || isDemoProfile(profile)) return;
+    try {
+      const co = await fetchMyCompany(supabase);
+      setCompany(co);
+      if (co?.status === 'active') {
+        await fetchUserProfile(session.user.id);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [session?.user?.id, profile?.company_id, profile]);
+
+  useSupabaseRealtime(
+    `company-status-${profile?.company_id ?? 'none'}`,
+    profile?.company_id
+      ? [{ table: 'companies', filter: `id=eq.${profile.company_id}` }]
+      : [],
+    refreshCompanyStatus,
+    !!profile?.company_id && company?.status !== 'active',
+  );
 
   const handleLoginSuccess = async (activeSession: any) => {
     setSession(activeSession);
@@ -211,7 +239,7 @@ function App() {
 
   return (
     <NativeScrollRoot>
-      <div className="dashboard-container">
+      <div className={`dashboard-container${profile.role === 'admin' ? ' dashboard-container--admin' : ''}`}>
         {isDemoProfile(profile) && <DemoModeBanner />}
         <Header profile={profile} onLogout={handleLogout} />
 
@@ -219,7 +247,7 @@ function App() {
           <GeoAttendanceTracker profile={profile} />
         )}
 
-        <main className="dashboard-main" style={{ marginTop: '1rem' }}>
+        <main className="dashboard-main" style={{ marginTop: profile.role === 'admin' ? 0 : '1rem' }}>
           {profile.role === 'admin' && <AdminDashboard profile={profile} />}
           {profile.role === 'manager' && <ManagerDashboard profile={profile} />}
           {profile.role === 'employee' && <EmployeeDashboard profile={profile} />}

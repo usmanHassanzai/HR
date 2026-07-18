@@ -1,0 +1,14 @@
+{
+  "android": {
+    "available": true,
+    "filename": "scorr.apk",
+    "appName": "Scorr",
+    "appId": "ai.walfia.scorr",
+    "version": "0.0.0",
+    "buildType": "debug",
+    "sizeBytes": 71452686,
+    "sizeLabel": "68.1 MB",
+    "updatedAt": "2026-07-18T11:58:25.000Z",
+    "updatedLabel": "July 18, 2026"
+  }
+}

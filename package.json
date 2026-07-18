@@ -17,6 +17,7 @@
     "build:all": "node scripts/build-all-platforms.mjs --migrate",
     "migrate:all": "node scripts/apply-all-migrations.mjs",
     "fix:company-registration": "node scripts/fix-company-registration.mjs",
+    "fix:department-weights": "node scripts/fix-department-weights.mjs",
     "departments:setup": "node scripts/ensure-departments.mjs",
     "migrate:seed-dept-kpis": "node scripts/seed-new-department-kpis.mjs",
     "migrate:multi-tenant": "node scripts/migrate-multi-tenant.mjs",

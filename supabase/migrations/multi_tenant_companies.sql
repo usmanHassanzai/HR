@@ -1,7 +1,10 @@
 -- Multi-tenant SaaS: companies register → platform owner approves → isolated data per company
 -- Demo accounts (is_demo) stay invisible to companies and platform owner dashboard
 
-CREATE TYPE public.company_status AS ENUM ('pending', 'active', 'rejected', 'suspended');
+DO $$ BEGIN
+    CREATE TYPE public.company_status AS ENUM ('pending', 'active', 'rejected', 'suspended');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 CREATE TABLE IF NOT EXISTS public.companies (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),

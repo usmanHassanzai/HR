@@ -147,6 +147,28 @@ export function categoryAttainment(kpis: Kpi[]): CategoryScore[] {
   }));
 }
 
+/** Average attainment grouped by department name on KPI records. */
+export function departmentAttainment(kpis: Kpi[]): CategoryScore[] {
+  const map = new Map<string, { current: number; n: number }>();
+  for (const k of kpis) {
+    const dept = (k.department || 'General').trim() || 'General';
+    const e = map.get(dept) || { current: 0, n: 0 };
+    const attain = k.target_value === 0 ? 1 : Number(k.current_value) / Number(k.target_value);
+    const normalized = k.direction === 'lower_better' ? (attain === 0 ? 1 : 1 / attain) : attain;
+    e.current += Math.min(1.5, Math.max(0, normalized));
+    e.n += 1;
+    map.set(dept, e);
+  }
+  return Array.from(map.entries())
+    .map(([category, e]) => ({
+      category,
+      current: e.current,
+      target: e.n,
+      attainment: Math.round((e.current / e.n) * 100),
+    }))
+    .sort((a, b) => b.attainment - a.attainment);
+}
+
 export interface PeriodComparison {
   label: string;
   current: number;

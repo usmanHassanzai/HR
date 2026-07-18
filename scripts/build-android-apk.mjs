@@ -168,11 +168,34 @@ mkdirSync(downloadsDir, { recursive: true });
 const apkDest = join(downloadsDir, 'scorr.apk');
 copyFileSync(apkSrc, apkDest);
 
+const apkBytes = readFileSync(apkDest).length;
+const pkgJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+const buildInfo = {
+  android: {
+    available: true,
+    filename: 'scorr.apk',
+    appName: 'Scorr',
+    appId: 'ai.walfia.scorr',
+    version: pkgJson.version || '0.0.0',
+    buildType: task === 'assembleRelease' ? 'release' : 'debug',
+    sizeBytes: apkBytes,
+    sizeLabel: `${(apkBytes / 1024 / 1024).toFixed(1)} MB`,
+    updatedAt: new Date().toISOString(),
+    updatedLabel: new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    }),
+  },
+};
+writeFileSync(join(downloadsDir, 'build-info.json'), `${JSON.stringify(buildInfo, null, 2)}\n`);
+
 console.log(`\nStep 4/4: Copied to public/downloads/scorr.apk`);
+console.log(`Updated public/downloads/build-info.json`);
 console.log(`
 Done! Users can download from your website:
   https://scorr.walfia.ai/#download-app
 
 Deploy the site (npm run build && vercel --prod) to publish the APK.
-APK size: ${(readFileSync(apkDest).length / 1024 / 1024).toFixed(1)} MB
+APK size: ${buildInfo.android.sizeLabel}
 `);

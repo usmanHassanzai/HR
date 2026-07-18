@@ -84,6 +84,18 @@ export function weightsValid(depts: { org_weight_pct: number }[]): boolean {
   return Math.abs(sumWeights(depts) - 100) <= 0.05;
 }
 
+/** Equal org shares that sum to 100% (remainder on last department). */
+export function equalOrgShares(count: number): number[] {
+  if (count <= 0) return [];
+  const each = Math.trunc((10000 / count)) / 100;
+  let remainder = 100;
+  return Array.from({ length: count }, (_, i) => {
+    const pct = i === count - 1 ? remainder : each;
+    remainder -= pct;
+    return pct;
+  });
+}
+
 export function indicatorWeightsValid(indicators: { weight_pct: number }[]): boolean {
   return Math.abs(sumIndicatorWeights(indicators) - 100) <= 0.05;
 }

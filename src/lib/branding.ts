@@ -80,8 +80,36 @@ export function loadBranding(isDemo = false): BrandingConfig {
 export function saveBranding(config: BrandingConfig, isDemo = false): void {
   localStorage.setItem(getBrandingStorageKey(isDemo), JSON.stringify(config));
   applyBranding(config);
-  // Notify listeners (e.g. Header) within the same tab.
   window.dispatchEvent(new CustomEvent('branding-updated', { detail: config }));
+}
+
+/** Load branding from Supabase company settings (falls back to localStorage). */
+export async function fetchCompanyBranding(isDemo = false): Promise<BrandingConfig | null> {
+  if (isDemo) return loadBranding(true);
+  try {
+    const { supabase } = await import('./supabase');
+    const { data, error } = await supabase.rpc('get_company_branding');
+    if (error || !data || (typeof data === 'object' && Object.keys(data as object).length === 0)) {
+      return null;
+    }
+    const merged = { ...DEFAULT_BRANDING, ...(data as Partial<BrandingConfig>) };
+    saveBranding(merged, false);
+    return merged;
+  } catch {
+    return null;
+  }
+}
+
+/** Persist branding to Supabase + local cache. */
+export async function persistCompanyBranding(config: BrandingConfig, isDemo = false): Promise<void> {
+  saveBranding(config, isDemo);
+  if (isDemo) return;
+  try {
+    const { supabase } = await import('./supabase');
+    await supabase.rpc('save_company_branding', { p_branding: config });
+  } catch {
+    // localStorage still applied; DB save may fail for non-admins
+  }
 }
 
 /** Convert #rrggbb to an "r, g, b" string for rgba() usage. */

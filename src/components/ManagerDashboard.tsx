@@ -3,13 +3,13 @@ import { supabase } from '../lib/supabase';
 import { Profile } from '../utils/kpiHelpers';
 import Leaderboard from './Leaderboard';
 import EmployeeDashboard from './EmployeeDashboard';
+import ManagerPersonalPanel from './ManagerPersonalPanel';
 import ManagerKpiConfig from './ManagerKpiConfig';
-import { Users, BarChart3, ShieldAlert, KeyRound, Trophy, Settings, CalendarCheck, Radio, Building2 } from 'lucide-react';
+import { Users, BarChart3, ShieldAlert, KeyRound, Trophy, Settings, CalendarCheck, Radio } from 'lucide-react';
 import ChangePasswordModal from './ChangePasswordModal';
 import ManagerRewardsPanel from './ManagerRewardsPanel';
 import AttendanceLeavePanel from './AttendanceLeavePanel';
-import EmployeeLocationTracking from './EmployeeLocationTracking';
-import DepartmentWeightagesPanel from './DepartmentWeightagesPanel';
+import AdminLiveTracking from './AdminLiveTracking';
 import RewardsPointsCard from './RewardsPointsCard';
 import TeamEmployeePointsPanel from './TeamEmployeePointsPanel';
 import DashboardTabNav from './DashboardTabNav';
@@ -20,7 +20,7 @@ interface ManagerDashboardProps {
 
 export default function ManagerDashboard({ profile }: ManagerDashboardProps) {
   const [selectedEmployee, setSelectedEmployee] = useState<Profile | null>(null);
-  const [activeTab, setActiveTab] = useState<'team' | 'kpis' | 'departments' | 'rewards' | 'personal' | 'attendance' | 'tracking'>('team');
+  const [activeTab, setActiveTab] = useState<'team' | 'kpis' | 'rewards' | 'personal' | 'attendance' | 'tracking'>('team');
   const [alertCount, setAlertCount] = useState(0);
   const [showChangePassword, setShowChangePassword] = useState(false);
 
@@ -74,8 +74,7 @@ export default function ManagerDashboard({ profile }: ManagerDashboardProps) {
         onTabChange={(id) => setActiveTab(id as typeof activeTab)}
         tabs={[
           { id: 'team', label: 'Team Performance', mobileLabel: 'Team', icon: <Users size={16} /> },
-          { id: 'kpis', label: 'Assign Task', mobileLabel: 'Tasks', icon: <Settings size={16} /> },
-          { id: 'departments', label: 'Departments', mobileLabel: 'Depts', icon: <Building2 size={16} /> },
+          { id: 'kpis', label: 'KPI Tasks', mobileLabel: 'KPIs', icon: <Settings size={16} /> },
           { id: 'rewards', label: 'Team Rewards', mobileLabel: 'Rewards', icon: <Trophy size={16} /> },
           { id: 'attendance', label: 'Attendance & Leave', mobileLabel: 'Leave', icon: <CalendarCheck size={16} /> },
           { id: 'tracking', label: 'Live Tracking', mobileLabel: 'GPS', icon: <Radio size={16} /> },
@@ -108,7 +107,7 @@ export default function ManagerDashboard({ profile }: ManagerDashboardProps) {
               <div className="glass-panel dash-insight-card dash-insight-card--accent">
                 <span className="dash-eyebrow">Direct reports</span>
                 <h3>Team Overview</h3>
-                <p>View rankings and performance for employees in <strong>your department</strong> only.</p>
+                <p>View rankings and assign KPI tasks to employees on <strong>your team</strong> (direct reports).</p>
               </div>
 
               <div className="glass-panel dash-insight-card dash-insight-card--warning">
@@ -127,17 +126,15 @@ export default function ManagerDashboard({ profile }: ManagerDashboardProps) {
             <Leaderboard managerId={profile.id} onSelectEmployee={handleSelectEmployee} />
           </div>
         ) : activeTab === 'kpis' ? (
-          <ManagerKpiConfig assignerId={profile.id} />
-        ) : activeTab === 'departments' ? (
-          <DepartmentWeightagesPanel managerMode />
+          <ManagerKpiConfig assignerId={profile.id} managerDepartmentId={profile.department_id} />
         ) : activeTab === 'rewards' ? (
           <ManagerRewardsPanel managerId={profile.id} onGoToPersonal={() => setActiveTab('personal')} />
         ) : activeTab === 'attendance' ? (
           <AttendanceLeavePanel profile={profile} mode="manager" />
         ) : activeTab === 'tracking' ? (
-          <EmployeeLocationTracking profile={profile} mode="manager" />
+          <AdminLiveTracking mode="manager" profile={profile} />
         ) : (
-          <EmployeeDashboard profile={profile} hideChangePassword />
+          <ManagerPersonalPanel profile={profile} />
         )}
       </div>
     </div>
