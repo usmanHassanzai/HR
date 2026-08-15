@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { Profile } from './utils/kpiHelpers';
+import AppLoginScreen from './components/AppLoginScreen';
 import NativeScrollRoot from './components/NativeScrollRoot';
 import DemoModeBanner from './components/DemoModeBanner';
 import CompanyPendingScreen from './components/CompanyPendingScreen';
@@ -216,6 +217,14 @@ function App() {
 
   // Same login experience as mobile web (Landing → Sign in), not a separate APK-only layout
   if (!session || !profile) {
+    // APK / installed app: only Sign In + Register Company (no marketing website)
+    if (isAppShell()) {
+      return (
+        <NativeScrollRoot>
+          <AppLoginScreen onLoginSuccess={handleLoginSuccess} />
+        </NativeScrollRoot>
+      );
+    }
     return (
       <Suspense fallback={<RouteFallback />}>
         <LandingPage onLoginSuccess={handleLoginSuccess} />

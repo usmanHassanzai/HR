@@ -4,11 +4,11 @@
     "filename": "scorr.apk",
     "appName": "Scorr",
     "appId": "ai.walfia.scorr",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "buildType": "debug",
-    "sizeBytes": 86500765,
+    "sizeBytes": 86500691,
     "sizeLabel": "82.5 MB",
-    "updatedAt": "2026-08-15T09:29:43.440Z",
+    "updatedAt": "2026-08-15T09:53:10.200Z",
     "updatedLabel": "August 15, 2026"
   },
   "ios": {
@@ -16,11 +16,12 @@
     "installMethod": "pwa",
     "appName": "Scorr",
     "appId": "ai.walfia.scorr",
-    "version": "1.2.0",
-    "updatedAt": "2026-08-15T08:38:22.866Z",
+    "version": "1.2.1",
+    "updatedAt": "2026-08-15T10:08:27.482Z",
     "updatedLabel": "August 15, 2026",
-    "pwaUrl": "https://scorr.walfia.ai",
+    "pwaUrl": "https://scorr.walfia.ai/?app=1",
     "ipaAvailable": false,
-    "ipaFilename": "scorr.ipa"
+    "ipaFilename": "scorr.ipa",
+    "notes": "Home Screen app opens Sign In / Register only (no marketing site)"
   }
 }

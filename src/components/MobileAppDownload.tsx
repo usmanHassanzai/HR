@@ -47,7 +47,7 @@ function assetUrl(path: string): string {
   return path;
 }
 
-const DEFAULT_PWA_URL = 'https://scorr.walfia.ai';
+const DEFAULT_PWA_URL = 'https://scorr.walfia.ai/?app=1';
 
 function isStandalonePwa(): boolean {
   return window.matchMedia('(display-mode: standalone)').matches
@@ -251,9 +251,8 @@ export default function MobileAppDownload() {
 
           <h3>iPhone &amp; iPad app</h3>
           <p>
-            Apple does not allow website APK-style installs. Instead, open Scorr in <strong>Safari</strong> and
-            tap <strong>Add to Home Screen</strong> — you get a full-screen app icon with the same dashboards
-            and GPS attendance as Android.
+            Install from <strong>Safari</strong> → <strong>Add to Home Screen</strong>. The iOS app opens to
+            <strong> Sign In / Register Company</strong> only — not the full marketing website — same as Android.
           </p>
 
           {iosInfo && iosReady && (
@@ -273,8 +272,8 @@ export default function MobileAppDownload() {
           <ol className="landing-download-steps">
             <li>Open <strong>{pwaHost}</strong> in <strong>Safari</strong> on your iPhone</li>
             <li>Tap <strong>Share</strong> (square with arrow up)</li>
-            <li>Scroll → <strong>Add to Home Screen</strong></li>
-            <li>Tap <strong>Add</strong> — launch Scorr from your home screen</li>
+            <li>Scroll → <strong>Add to Home Screen</strong> → <strong>Add</strong></li>
+            <li>Open the Scorr icon — you see Sign In / Register only</li>
             <li>Sign in and allow <strong>Location</strong> for auto attendance</li>
           </ol>
 

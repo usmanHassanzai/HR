@@ -14,6 +14,13 @@ export function isAppShell(): boolean {
   if (typeof window === 'undefined') return false;
   if (window.matchMedia('(display-mode: standalone)').matches) return true;
   if ((window.navigator as Navigator & { standalone?: boolean }).standalone) return true;
+  // Deep link / install URL used for iOS home-screen installs
+  try {
+    const q = new URLSearchParams(window.location.search);
+    if (q.get('app') === '1' || q.get('mode') === 'app') return true;
+  } catch {
+    /* ignore */
+  }
   return false;
 }
 

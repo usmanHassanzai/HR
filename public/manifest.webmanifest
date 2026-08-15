@@ -2,7 +2,7 @@
   "name": "Scorr — scorr.walfia.ai",
   "short_name": "Scorr",
   "description": "Scorr KPI scoreboard for employees, managers, and admins at scorr.walfia.ai",
-  "start_url": "/",
+  "start_url": "/?app=1",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
