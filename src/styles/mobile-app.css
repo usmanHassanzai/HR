@@ -36,7 +36,7 @@ body.native-app #root,
   overflow-y: auto;
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
-  touch-action: pan-y pan-x;
+  touch-action: pan-y;
   scroll-behavior: auto;
 }
 
@@ -77,7 +77,10 @@ body.app-shell .native-scroll-root .dashboard-main,
 body.native-app .native-scroll-root .dashboard-main {
   display: block;
   height: auto;
-  overflow: visible;
+  overflow-x: hidden;
+  overflow-y: visible;
+  min-width: 0;
+  max-width: 100%;
 }
 
 body.app-shell .native-scroll-root .dashboard-tab-content,
@@ -181,5 +184,22 @@ body.native-app .animate-fade-in {
   body.native-app .native-scroll-root .dashboard-container {
     padding-left: max(0.65rem, env(safe-area-inset-left));
     padding-right: max(0.65rem, env(safe-area-inset-right));
+  }
+
+  body.app-shell .native-scroll-root .dashboard-container--admin,
+  body.native-app .native-scroll-root .dashboard-container--admin {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  body.app-shell .dept-weight-page,
+  body.native-app .dept-weight-page {
+    gap: 0.85rem;
+  }
+
+  body.app-shell .admin-shell__panel,
+  body.native-app .admin-shell__panel {
+    padding-left: 0.7rem;
+    padding-right: 0.7rem;
   }
 }

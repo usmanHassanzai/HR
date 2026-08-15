@@ -3,8 +3,9 @@
 | File | Platform | Install method |
 |------|----------|----------------|
 | `scorr.apk` | Android | Download from landing page → Install |
-| `build-info.json` | — | Version, size, and build date shown on the website |
-| `scorr.ipa` | iOS | TestFlight / Xcode only (not direct install like APK) |
+| `Scorr-Client-Feature-Guide.pdf` | All | Client feature documentation (PDF) |
+| `build-info.json` | — | Version, size, and build date for Android + iOS |
+| `scorr.ipa` | iOS (developer) | Mac/Xcode/TestFlight only — not direct public install |
 
 ## Android
 
@@ -12,26 +13,24 @@
 npm run build:android:apk
 ```
 
-This copies `scorr.apk` to `public/downloads/` and refreshes `build-info.json`.
-Deploy the site so `/downloads/scorr.apk` is live on the landing page.
-
 ## iOS
 
-**Option A — iPhone users (no Mac):** Safari → Share → Add to Home Screen
+**iPhone users (recommended — no Mac needed):**
 
-**Option B — Native iOS (Mac + Xcode):**
-
-```bash
-node scripts/build-ios-ipa.mjs          # sync project (any OS)
-node scripts/build-ios-ipa.mjs --archive  # IPA on macOS only
-```
-
-Or open Xcode:
+1. Open **https://scorr.walfia.ai** in Safari
+2. Share → **Add to Home Screen**
+3. Open Scorr from the home screen icon
 
 ```bash
-npm run cap:ios
+npm run build:ios:ipa
 ```
 
-**Option C — GitHub Actions:** Actions → Build iOS (runs on macOS)
+Syncs the Capacitor iOS project and updates `build-info.json` for the website.
 
-For TestFlight, set `VITE_TESTFLIGHT_URL` in Vercel env vars after publishing.
+**Native IPA (Mac + Apple Developer account):**
+
+```bash
+npm run build:ios:release
+```
+
+Or GitHub Actions → **Build iOS** on `macos-latest`.

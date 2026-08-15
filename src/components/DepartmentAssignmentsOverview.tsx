@@ -1,8 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Trash2, Building2, ChevronDown, ChevronRight, User, Calendar } from 'lucide-react';
 import { Kpi } from '../utils/kpiHelpers';
-import { formatWeightPct } from '../utils/departmentHelpers';
-import { formatKpiWeight } from '../utils/kpiWeightHelpers';
+import { formatKpiWeight, KPI_WEIGHT_CAP } from '../utils/kpiWeightHelpers';
 import { DepartmentAssignmentSection } from '../utils/assignTaskHelpers';
 
 type Props = {
@@ -80,9 +79,8 @@ export default function DepartmentAssignmentsOverview({
                     )}
                     {' · '}
                     {section.taskCount} task{section.taskCount !== 1 ? 's' : ''}
-                    {section.orgWeight != null && (
-                      <> · {formatWeightPct(section.orgWeight)} org weight</>
-                    )}
+                    {' · '}
+                    KPI weights {KPI_WEIGHT_CAP}%
                   </p>
                 </div>
               </button>

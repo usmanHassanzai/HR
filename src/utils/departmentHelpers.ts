@@ -72,6 +72,23 @@ export function formatWeightPct(pct: number): string {
   return `${Number(pct).toFixed(1)}%`;
 }
 
+export function roundWeight(n: number): number {
+  return Math.round((Number(n) || 0) * 100) / 100;
+}
+
+/** Clamp a single department org % to 0–100 (each department is independent). */
+export function clampDeptOrgWeight(value: number): number {
+  const n = Number.isFinite(value) ? value : 0;
+  return roundWeight(Math.min(Math.max(0, n), 100));
+}
+
+/** Clamp a department org % so the company total cannot exceed 100%. */
+export function clampOrgWeight(value: number, otherTotal: number): number {
+  const maxAllowed = Math.max(0, roundWeight(100 - otherTotal));
+  const n = Number.isFinite(value) ? value : 0;
+  return roundWeight(Math.min(Math.max(0, n), 100, maxAllowed));
+}
+
 export function sumWeights(depts: { org_weight_pct: number }[]): number {
   return depts.reduce((s, d) => s + Number(d.org_weight_pct || 0), 0);
 }

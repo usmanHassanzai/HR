@@ -6,6 +6,7 @@ export interface AdminNavItem {
   label: string;
   icon: ReactNode;
   description?: string;
+  badge?: number;
 }
 
 export interface AdminNavGroup {
@@ -20,6 +21,7 @@ interface AdminSidebarNavProps {
   navOpen: boolean;
   onNavOpenChange: (open: boolean) => void;
   platformOwner?: boolean;
+  organizationName?: string | null;
   stats?: { users: number; departments: number; managers: number };
 }
 
@@ -41,6 +43,7 @@ export default function AdminSidebarNav({
   navOpen,
   onNavOpenChange,
   platformOwner,
+  organizationName,
   stats,
 }: AdminSidebarNavProps) {
   useCloseOnEscape(navOpen, () => onNavOpenChange(false));
@@ -70,8 +73,8 @@ export default function AdminSidebarNav({
           <LayoutDashboard size={20} />
         </div>
         <div className="admin-shell__sidebar-brand-text">
-          <strong>Scorr Admin</strong>
-          <span>Control center</span>
+          <strong>{organizationName?.trim() || 'Scorr Admin'}</strong>
+          <span>{organizationName?.trim() ? 'Admin control center' : 'Control center'}</span>
         </div>
         <button
           type="button"
@@ -100,6 +103,11 @@ export default function AdminSidebarNav({
                     >
                       <span className="admin-shell__nav-icon">{item.icon}</span>
                       <span className="admin-shell__nav-label">{item.label}</span>
+                      {item.badge != null && item.badge > 0 && (
+                        <span className="admin-shell__nav-badge" aria-label={`${item.badge} new`}>
+                          {item.badge > 9 ? '9+' : item.badge}
+                        </span>
+                      )}
                     </button>
                   </li>
                 );
@@ -142,11 +150,13 @@ export function getAdminNavMeta(id: string): { label: string; description: strin
     users: { label: 'Users', description: 'Manage accounts, roles, departments, and access.' },
     departments: { label: 'Departments', description: 'Configure departments and organizational weightages.' },
     kpis: { label: 'Assign Task', description: 'Assign and review KPI tasks across departments.' },
+    kpiPoints: { label: 'KPI Points', description: 'View KPI scores and rewards points for every department, manager, and employee.' },
     export: { label: 'Reports', description: 'Export monthly and quarterly organization reports.' },
     analytics: { label: 'Analytics', description: 'KPI health, trends, forecasts, and attainment.' },
     branding: { label: 'Branding', description: 'Customize logo, colors, and company identity.' },
     rewards: { label: 'Rewards', description: 'Configure points, tiers, and redemption workflows.' },
     attendance: { label: 'Attendance', description: 'Leave requests, approvals, and attendance history.' },
+    dailyReports: { label: 'Daily Reports', description: 'Read manager and employee daily work submissions by department.' },
     office: { label: 'Office GPS', description: 'Set office location and geofence for check-ins.' },
     tracking: { label: 'Live Tracking', description: 'Real-time team location and field activity.' },
   };

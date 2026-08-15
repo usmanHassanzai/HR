@@ -12,10 +12,9 @@ if (!isSupabaseConfigured) {
   );
 }
 
-// Avoid crashing the bundle when env vars are missing (e.g. Vercel build without secrets).
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder'
+  supabaseAnonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder',
 );
 
 /**

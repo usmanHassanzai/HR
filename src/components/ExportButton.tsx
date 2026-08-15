@@ -1,8 +1,6 @@
 // src/components/ExportButton.tsx
 import { useState } from 'react';
 import { FileDown, Loader2 } from 'lucide-react';
-import jsPDF from 'jspdf';
-import * as XLSX from 'xlsx';
 import { Kpi } from '../utils/kpiHelpers';
 
 interface ExportButtonProps {
@@ -17,6 +15,7 @@ export default function ExportButton({ kpis, userName }: ExportButtonProps) {
   const exportPDF = async () => {
     setLoadingPdf(true);
     try {
+      const { default: jsPDF } = await import('jspdf');
       const doc = new jsPDF();
       doc.setFontSize(18);
       doc.setTextColor(80, 80, 200);
@@ -59,6 +58,7 @@ export default function ExportButton({ kpis, userName }: ExportButtonProps) {
   const exportExcel = async () => {
     setLoadingExcel(true);
     try {
+      const XLSX = await import('xlsx');
       const rows = kpis.map(k => ({
         'Department': k.department || k.category || k.name,
         'Description': k.description || '',
@@ -84,7 +84,7 @@ export default function ExportButton({ kpis, userName }: ExportButtonProps) {
     <div style={{ display: 'flex', gap: '0.5rem' }}>
       <button
         className="btn btn-secondary"
-        onClick={exportPDF}
+        onClick={() => void exportPDF()}
         disabled={loadingPdf}
         title="Export as PDF"
         style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem' }}
@@ -96,7 +96,7 @@ export default function ExportButton({ kpis, userName }: ExportButtonProps) {
       </button>
       <button
         className="btn btn-secondary"
-        onClick={exportExcel}
+        onClick={() => void exportExcel()}
         disabled={loadingExcel}
         title="Export as Excel"
         style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem' }}

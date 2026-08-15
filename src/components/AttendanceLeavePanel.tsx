@@ -6,7 +6,6 @@ import {
   LeaveBalance,
   LeaveRequest,
   PendingLeaveRequest,
-  PendingAttendanceRecord,
   AttendanceSummary,
   LeaveSummary,
   AttendanceStatus,
@@ -24,7 +23,6 @@ import AdminAttendanceDirectory from './AdminAttendanceDirectory';
 import ManagerTeamAttendanceDirectory from './ManagerTeamAttendanceDirectory';
 import EmployeeAttendanceHistory from './EmployeeAttendanceHistory';
 import { Department } from '../utils/departmentHelpers';
-import { formatClockTime } from '../utils/geoAttendance';
 import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
 import {
   Clock, Loader2, CheckCircle, XCircle, Palmtree,
@@ -43,7 +41,7 @@ interface AttendanceLeavePanelProps {
 
 type EmployeeTab = 'today' | 'leave' | 'history';
 type ManagerTab = 'approvals' | 'today' | 'team' | 'shifts' | 'history';
-type AdminTab = 'leave' | 'history';
+type AdminTab = 'leave' | 'shifts' | 'history';
 
 function ApprovalActions({
   onApprove,
@@ -76,7 +74,6 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
   const [monthLeaveSummary, setMonthLeaveSummary] = useState<LeaveSummary | null>(null);
   const [myAttendance, setMyAttendance] = useState<AttendanceRecord[]>([]);
   const [myLeaves, setMyLeaves] = useState<LeaveRequest[]>([]);
-  const [pendingAttendance, setPendingAttendance] = useState<PendingAttendanceRecord[]>([]);
   const [pendingLeaves, setPendingLeaves] = useState<PendingLeaveRequest[]>([]);
   const [teamMembers, setTeamMembers] = useState<Profile[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -102,7 +99,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
   const userId = profile.id;
   const todayStr = new Date().toISOString().slice(0, 10);
   const checkedInToday = myAttendance.some((a) => a.attendance_date === todayStr);
-  const pendingCount = pendingLeaves.length + pendingAttendance.length;
+  const pendingCount = pendingLeaves.length;
 
   const mapLeaveRows = (rows: LeaveRequest[], members: Profile[]): PendingLeaveRequest[] => {
     const info = new Map(members.map((m) => [m.id, m]));
@@ -174,13 +171,19 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
     setMsg('');
     try {
       if (mode === 'admin') {
-        const [{ data: deptData }, pending] = await Promise.all([
+        const [{ data: deptData }, { data: usersData, error: usersErr }, pending] = await Promise.all([
           supabase.rpc('get_departments'),
+          supabase.rpc('get_all_users_admin'),
           loadPendingLeavesForAdmin(),
         ]);
+        if (usersErr) throw new Error(usersErr.message);
         setDepartments((deptData || []) as Department[]);
+        setTeamMembers(
+          ((usersData || []) as Profile[]).filter(
+            (u) => (u.role === 'employee' || u.role === 'manager') && !u.is_demo,
+          ),
+        );
         setPendingLeaves(pending);
-        setPendingAttendance([]);
         return;
       }
 
@@ -231,8 +234,6 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
         setTeamMembers(team);
         if (team[0] && !markUserId) setMarkUserId(team[0].id);
 
-        const { data: pAtt } = await supabase.rpc('get_pending_attendance_for_manager');
-        setPendingAttendance((pAtt || []) as PendingAttendanceRecord[]);
         setPendingLeaves(await loadPendingLeavesForManager(team));
 
         const { data: deptData } = await supabase.rpc('get_departments');
@@ -264,7 +265,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
     setSubmitting(false);
     if (error) setMsg(error.message);
     else {
-      setMsg('Checked in! Waiting for approval.');
+      setMsg('Checked in successfully — approved automatically.');
       load();
     }
   };
@@ -316,15 +317,6 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
     }
   };
 
-  const reviewAtt = async (id: string, approve: boolean) => {
-    const { error } = await supabase.rpc('review_attendance', { p_record_id: id, p_approve: approve });
-    if (error) setMsg(error.message);
-    else {
-      setMsg(approve ? 'Attendance approved.' : 'Attendance rejected.');
-      load();
-    }
-  };
-
   const reviewLeave = async (id: string, approve: boolean) => {
     setSubmitting(true);
     const { error } = await supabase.rpc('review_leave_request', { p_request_id: id, p_approve: approve });
@@ -365,11 +357,11 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
     </div>
   );
 
-  const renderCheckInHero = (approverLabel: string) => (
+  const renderCheckInHero = (_approverLabel?: string) => (
     <div className="attendance-hero">
       <h3 className="attendance-hero__title">Today — {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</h3>
       <p className="attendance-hero__hint">
-        Tap check-in once per working day. {approverLabel} will approve your record.
+        Tap check-in once per working day. Your attendance is approved automatically.
       </p>
       <button
         type="button"
@@ -468,8 +460,8 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
             <div>
               <h2 className="admin-attendance-header__title">Attendance &amp; Leave</h2>
               <p className="admin-attendance-header__subtitle">
-                Review leave requests and browse every employee&apos;s attendance history by department. All check-ins
-                are stored in Supabase with date and time — download individual or department reports anytime.
+                Review leave requests and browse every employee&apos;s attendance history by department.
+                Check-ins are approved automatically and stored with date and time — download reports anytime.
               </p>
             </div>
           </div>
@@ -514,6 +506,13 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
           </button>
           <button
             type="button"
+            className={`tab-btn ${adminTab === 'shifts' ? 'tab-btn--active' : ''}`}
+            onClick={() => setAdminTab('shifts')}
+          >
+            <CalendarClock size={16} /> Shifts
+          </button>
+          <button
+            type="button"
             className={`tab-btn ${adminTab === 'history' ? 'tab-btn--active' : ''}`}
             onClick={() => setAdminTab('history')}
           >
@@ -528,6 +527,16 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
             </h3>
             <p>Review time-off requests from employees and managers across all departments.</p>
             {renderLeaveApprovals('All caught up — no pending leave requests.')}
+          </section>
+        )}
+
+        {adminTab === 'shifts' && (
+          <section className="admin-attendance-card glass-panel">
+            <h3>
+              <CalendarClock size={18} /> Create &amp; assign shifts
+            </h3>
+            <p>Create schedules and assign them directly to any manager or employee in your organization.</p>
+            <ShiftManagementPanel mode="admin" teamMembers={teamMembers} onUpdate={load} />
           </section>
         )}
 
@@ -548,8 +557,8 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
             <div>
               <h2 className="mgr-attendance-header__title">Attendance &amp; Leave</h2>
               <p className="mgr-attendance-header__subtitle">
-                Approve team leave and check-ins, mark attendance, manage shifts, and download each employee&apos;s
-                history as a separate monthly or yearly report.
+                Approve team leave, mark attendance, manage shifts, and download each employee&apos;s
+                history as a separate monthly or yearly report. Check-ins are approved automatically.
               </p>
             </div>
           </div>
@@ -571,9 +580,9 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
               <strong>{pendingLeaves.length}</strong>
             </div>
             <div className="mgr-attendance-stat">
-              <Clock size={16} />
-              <span className="mgr-attendance-stat__label">Check-ins to review</span>
-              <strong>{pendingAttendance.length}</strong>
+              <CheckCircle size={16} />
+              <span className="mgr-attendance-stat__label">Check-ins</span>
+              <strong>Auto-approved</strong>
             </div>
           </div>
         </header>
@@ -632,13 +641,13 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
             <h3>
               <Inbox size={18} /> Needs your action
             </h3>
-            <p className="mgr-attendance-card__subtitle">Approve leave and check-ins from your direct reports.</p>
+            <p className="mgr-attendance-card__subtitle">Approve leave requests from your direct reports. Check-ins are approved automatically.</p>
 
-            {pendingLeaves.length === 0 && pendingAttendance.length === 0 ? (
+            {pendingLeaves.length === 0 ? (
               <div className="mgr-attendance-empty">
                 <Inbox size={32} strokeWidth={1.25} />
                 <h4>All caught up</h4>
-                <p>No leave or attendance items waiting for your approval.</p>
+                <p>No leave requests waiting for your approval.</p>
               </div>
             ) : (
               <div className="mgr-attendance-approval-list">
@@ -652,18 +661,6 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
                       {r.reason && <span className="attendance-approval-item__reason">&ldquo;{r.reason}&rdquo;</span>}
                     </div>
                     <ApprovalActions disabled={submitting} onApprove={() => reviewLeave(r.id, true)} onReject={() => reviewLeave(r.id, false)} />
-                  </div>
-                ))}
-                {pendingAttendance.map((r) => (
-                  <div key={r.id} className="attendance-approval-item attendance-approval-item--attendance">
-                    <div className="attendance-approval-item__main">
-                      <span className="attendance-approval-item__name">Check-in · {r.employee_name || 'Employee'}</span>
-                      <span className="attendance-approval-item__meta">
-                        {r.attendance_date} · {ATTENDANCE_STATUS_LABEL[r.status]}
-                        {r.clock_in_at ? ` · In ${formatClockTime(r.clock_in_at)}` : ''}
-                      </span>
-                    </div>
-                    <ApprovalActions disabled={submitting} onApprove={() => reviewAtt(r.id, true)} onReject={() => reviewAtt(r.id, false)} />
                   </div>
                 ))}
               </div>

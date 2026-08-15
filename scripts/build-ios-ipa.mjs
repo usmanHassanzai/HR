@@ -15,8 +15,9 @@
  *   node scripts/build-ios-ipa.mjs --archive # full IPA (macOS only)
  */
 import { execSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
+import { formatUpdatedLabel, packageVersion, writeBuildInfo } from './build-info-utils.mjs';
 
 const root = new URL('..', import.meta.url).pathname;
 const iosDir = join(root, 'ios', 'App');
@@ -42,7 +43,28 @@ run('node scripts/sync-ios-icons.mjs');
 
 console.log('\nStep 2/4: Web build + Capacitor sync (ios)');
 run('npm run build');
+for (const name of ['scorr.apk', 'scorr.ipa']) {
+  const p = join(root, 'dist', 'downloads', name);
+  if (existsSync(p)) unlinkSync(p);
+}
 run('npx cap sync ios');
+
+const now = new Date();
+writeBuildInfo(root, {
+  ios: {
+    available: true,
+    installMethod: 'pwa',
+    appName: 'Scorr',
+    appId: 'ai.walfia.scorr',
+    version: packageVersion(root),
+    updatedAt: now.toISOString(),
+    updatedLabel: formatUpdatedLabel(now),
+    pwaUrl: 'https://scorr.walfia.ai',
+    ipaAvailable: false,
+    ipaFilename: 'scorr.ipa',
+  },
+});
+console.log('Updated public/downloads/build-info.json (iOS PWA install)');
 
 if (!isMac) {
   console.log(`
@@ -116,9 +138,29 @@ mkdirSync(downloadsDir, { recursive: true });
 const ipaDest = join(downloadsDir, 'scorr.ipa');
 copyFileSync(ipaSrc, ipaDest);
 
-const sizeMb = (readFileSync(ipaDest).length / 1024 / 1024).toFixed(1);
+const ipaBytes = readFileSync(ipaDest).length;
+const exportedAt = new Date();
+writeBuildInfo(root, {
+  ios: {
+    available: true,
+    installMethod: 'ipa',
+    appName: 'Scorr',
+    appId: 'ai.walfia.scorr',
+    version: packageVersion(root),
+    updatedAt: exportedAt.toISOString(),
+    updatedLabel: formatUpdatedLabel(exportedAt),
+    pwaUrl: 'https://scorr.walfia.ai',
+    ipaAvailable: true,
+    ipaFilename: 'scorr.ipa',
+    sizeBytes: ipaBytes,
+    sizeLabel: `${(ipaBytes / 1024 / 1024).toFixed(1)} MB`,
+  },
+});
+
+const sizeMb = (ipaBytes / 1024 / 1024).toFixed(1);
 console.log(`
 Done! IPA copied to public/downloads/scorr.ipa (${sizeMb} MB)
+Updated public/downloads/build-info.json (iOS IPA)
 
 Note: iOS cannot install IPA from a website like Android APK.
 Use one of:

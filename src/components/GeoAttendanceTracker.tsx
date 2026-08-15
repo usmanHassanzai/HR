@@ -5,10 +5,9 @@ import { supabase } from '../lib/supabase';
 import { Profile } from '../utils/kpiHelpers';
 import {
   GeoPingResult,
+  bootstrapAttendanceLocation,
   ensureBackgroundLocationReady,
-  isGeoAttendanceEnabled,
   requestCurrentPosition,
-  setGeoAttendanceEnabled,
 } from '../utils/geoAttendance';
 import { isNativeApp } from '../utils/nativePlatform';
 
@@ -17,25 +16,19 @@ interface GeoAttendanceTrackerProps {
   onUpdate?: () => void;
 }
 
-const POLL_MS_FOREGROUND = 60000;
-const POLL_MS_BACKGROUND = 120000;
+const POLL_MS_FOREGROUND = 30000;
+const POLL_MS_BACKGROUND = 60000;
 
 function isClockEvent(action: GeoPingResult['action']): boolean {
   return action === 'clock_in' || action === 'clock_out' || action === 'clock_out_shift_end';
 }
 
 export default function GeoAttendanceTracker({ profile, onUpdate }: GeoAttendanceTrackerProps) {
-  const [enabled, setEnabled] = useState(() => isGeoAttendanceEnabled());
   const [appActive, setAppActive] = useState(true);
   const busy = useRef(false);
   const timerRef = useRef<number | null>(null);
   const watchIdRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    const sync = () => setEnabled(isGeoAttendanceEnabled());
-    window.addEventListener('scorr-geo-toggle', sync);
-    return () => window.removeEventListener('scorr-geo-toggle', sync);
-  }, []);
+  const browserWatchRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!isNativeApp()) return;
@@ -47,24 +40,15 @@ export default function GeoAttendanceTracker({ profile, onUpdate }: GeoAttendanc
     };
   }, []);
 
-  const isEligible = profile.role === 'employee' || profile.role === 'manager';
+  const isEligible = profile.role === 'employee' || profile.role === 'manager' || profile.role === 'admin';
 
   useEffect(() => {
-    if (!isEligible || !enabled) {
-      if (timerRef.current != null) {
-        window.clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-      if (watchIdRef.current) {
-        void Geolocation.clearWatch({ id: watchIdRef.current });
-        watchIdRef.current = null;
-      }
-      return;
-    }
+    if (!isEligible) return;
 
     const pollMs = isNativeApp() && !appActive ? POLL_MS_BACKGROUND : POLL_MS_FOREGROUND;
 
     const ping = async (lat: number, lng: number, accuracy: number | null) => {
+      if (profile.role === 'admin') return; // admins get location warm-up only
       if (busy.current) return;
       busy.current = true;
       try {
@@ -75,7 +59,10 @@ export default function GeoAttendanceTracker({ profile, onUpdate }: GeoAttendanc
         });
         if (rpcError) return;
         const result = data as GeoPingResult;
-        if (isClockEvent(result.action)) onUpdate?.();
+        if (isClockEvent(result.action)) {
+          window.dispatchEvent(new CustomEvent('scorr-geo-clock', { detail: result }));
+          onUpdate?.();
+        }
       } finally {
         busy.current = false;
       }
@@ -86,16 +73,20 @@ export default function GeoAttendanceTracker({ profile, onUpdate }: GeoAttendanc
         const pos = await requestCurrentPosition();
         await ping(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy ?? null);
       } catch {
-        // silent — GeoAttendancePanel shows manual errors
+        // silent — OS may still be prompting
       }
     };
 
     void (async () => {
-      if (isNativeApp()) {
-        try {
-          await ensureBackgroundLocationReady();
-        } catch {
-          // user may fix permissions from panel
+      try {
+        await bootstrapAttendanceLocation();
+      } catch {
+        if (isNativeApp()) {
+          try {
+            await ensureBackgroundLocationReady();
+          } catch {
+            /* OS denied — cannot grant silently */
+          }
         }
       }
       await runPing();
@@ -113,6 +104,14 @@ export default function GeoAttendanceTracker({ profile, onUpdate }: GeoAttendanc
       ).then((id) => {
         watchIdRef.current = id;
       });
+    } else if (navigator.geolocation) {
+      browserWatchRef.current = navigator.geolocation.watchPosition(
+        (pos) => {
+          void ping(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy ?? null);
+        },
+        () => undefined,
+        { enableHighAccuracy: true, maximumAge: 15000, timeout: 30000 },
+      );
     }
 
     return () => {
@@ -124,22 +123,14 @@ export default function GeoAttendanceTracker({ profile, onUpdate }: GeoAttendanc
         void Geolocation.clearWatch({ id: watchIdRef.current });
         watchIdRef.current = null;
       }
+      if (browserWatchRef.current != null) {
+        navigator.geolocation.clearWatch(browserWatchRef.current);
+        browserWatchRef.current = null;
+      }
     };
-  }, [isEligible, enabled, appActive, onUpdate]);
+  }, [isEligible, appActive, onUpdate, profile.role]);
 
-  if (!isEligible) return null;
   return null;
-}
-
-export function useGeoAttendanceToggle() {
-  const [enabled, setEnabledState] = useState(isGeoAttendanceEnabled);
-
-  const toggle = (value: boolean) => {
-    setGeoAttendanceEnabled(value);
-    setEnabledState(value);
-  };
-
-  return { enabled, setEnabled: toggle };
 }
 
 export { geoActionLabel } from '../utils/geoAttendance';

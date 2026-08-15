@@ -48,11 +48,11 @@
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Scorr uses your location for GPS attendance — automatic clock-in when you arrive at the office and clock-out when you leave.</string>
+	<string>Scorr uses your location for automatic GPS attendance when you arrive at or leave the office.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Scorr uses your location for GPS attendance while the app is open so your team can track on-site presence.</string>
+	<string>Scorr needs always-on location for automatic attendance clock-in and clock-out even when the app is in the background.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
-	<string>Scorr uses your location for automatic attendance when you are at the office.</string>
+	<string>Scorr needs always-on location for automatic attendance clock-in and clock-out even when the app is in the background.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>

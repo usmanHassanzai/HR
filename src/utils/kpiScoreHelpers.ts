@@ -21,12 +21,16 @@ export function kpiScoreContribution(kpi: Kpi): number {
   return Math.round((achieved / 100) * weight * 100) / 100;
 }
 
-/** Weighted KPI board score for an employee (max 100 when all KPIs at 100% achieved). */
+/** Weighted KPI board score for an employee (sum of contributions across all assigned KPIs). */
 export function employeeWeightedKpiScore(kpis: Kpi[]): number {
-  const active = kpis.filter((k) => k.completion_status !== 'completed');
-  const list = active.length > 0 ? active : kpis;
-  if (list.length === 0) return 0;
-  return Math.round(list.reduce((s, k) => s + kpiScoreContribution(k), 0));
+  if (kpis.length === 0) return 0;
+  return Math.round(kpis.reduce((s, k) => s + kpiScoreContribution(k), 0));
+}
+
+/** Total contribution points earned from all assigned KPIs. */
+export function employeeTotalKpiPoints(kpis: Kpi[]): number {
+  if (kpis.length === 0) return 0;
+  return Math.round(kpis.reduce((s, k) => s + kpiScoreContribution(k), 0) * 100) / 100;
 }
 
 export function statusTrafficLight(status: string): 'green' | 'yellow' | 'red' {

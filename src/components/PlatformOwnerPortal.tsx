@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { usePortalSessionGuard } from '../utils/usePortalSessionGuard';
 import { Profile } from '../utils/kpiHelpers';
 import { isPlatformOwner } from '../utils/companyHelpers';
 import Login from './Login';
@@ -13,6 +14,7 @@ export default function PlatformOwnerPortal() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [alert, setAlert] = useState<{ kind: AlertKind; text: string } | null>(null);
+  usePortalSessionGuard(Boolean(session && profile));
 
   const loadProfile = async (userId: string) => {
     const { data, error } = await supabase.from('users').select('*').eq('id', userId).single();

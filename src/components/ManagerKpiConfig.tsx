@@ -960,14 +960,14 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
                       <option value="">— Select department —</option>
                       {departments.map((d) => (
                         <option key={d.id} value={d.id}>
-                          {d.name} · {d.org_weight_pct}% org · {d.indicator_count ?? 0} KPI{d.indicator_count !== 1 ? 's' : ''}
+                          {d.name} · {d.indicator_count ?? 0} KPI{d.indicator_count !== 1 ? 's' : ''}
                         </option>
                       ))}
                     </select>
                   </div>
                   {selectedDept && (
                     <div className="assign-task-dept-preview">
-                      <strong>{selectedDept.name}</strong> — org weight {selectedDept.org_weight_pct}%.
+                      <strong>{selectedDept.name}</strong> — KPI board weights total {KPI_WEIGHT_CAP}%.
                       {indicatorsLoading ? ' Loading KPIs…' : ` ${indicators.length} KPI metric${indicators.length !== 1 ? 's' : ''} available.`}
                     </div>
                   )}

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabase';
 import { Notification } from '../utils/kpiHelpers';
+import { markNotificationsRead } from '../utils/notificationHelpers';
 import { Bell, AlertCircle, Info, Calendar, Flame, Check } from 'lucide-react';
 
 interface NotificationCenterProps {
@@ -13,6 +14,7 @@ export default function NotificationCenter({ userId }: NotificationCenterProps) 
   const [isOpen, setIsOpen] = useState(false);
   const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0, left: undefined as number | undefined, mobile: false });
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const seenInsertIds = useRef<Set<string>>(new Set());
 
   const updateDropdownPosition = () => {
     if (!buttonRef.current) return;
@@ -35,7 +37,6 @@ export default function NotificationCenter({ userId }: NotificationCenterProps) 
     }
   };
 
-  // Re-position whenever it opens or viewport changes
   useEffect(() => {
     if (!isOpen) return;
     updateDropdownPosition();
@@ -47,12 +48,10 @@ export default function NotificationCenter({ userId }: NotificationCenterProps) 
     };
   }, [isOpen]);
 
-  // Close on outside click
   useEffect(() => {
     if (!isOpen) return;
     function handleClick(e: MouseEvent) {
       if (buttonRef.current && !buttonRef.current.contains(e.target as Node)) {
-        // check if click is inside the portal dropdown
         const portal = document.getElementById('notification-portal');
         if (portal && !portal.contains(e.target as Node)) {
           setIsOpen(false);
@@ -63,27 +62,33 @@ export default function NotificationCenter({ userId }: NotificationCenterProps) 
     return () => document.removeEventListener('mousedown', handleClick);
   }, [isOpen]);
 
-  // Fetch notifications
   const fetchNotifications = async () => {
     const { data } = await supabase
       .from('notifications')
       .select('*')
       .eq('user_id', userId)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(80);
     setNotifications(data || []);
   };
 
   useEffect(() => {
-    fetchNotifications();
+    void fetchNotifications();
     const sub = supabase
       .channel(`notifications:${userId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, (payload) => {
         const newRow = payload.new as Notification;
         const oldRow = payload.old as Notification;
         if (payload.eventType === 'INSERT' && newRow.user_id === userId) {
-          setNotifications((prev) => [newRow, ...prev]);
-          if ('Notification' in window && window.Notification.permission === 'granted') {
-            new window.Notification(newRow.title, { body: newRow.message });
+          if (seenInsertIds.current.has(newRow.id)) return;
+          seenInsertIds.current.add(newRow.id);
+          setNotifications((prev) => (prev.some((n) => n.id === newRow.id) ? prev : [newRow, ...prev]));
+          if (!newRow.is_read && 'Notification' in window && window.Notification.permission === 'granted') {
+            try {
+              new window.Notification(newRow.title, { body: newRow.message, tag: newRow.id });
+            } catch {
+              /* ignore */
+            }
           }
         } else if (payload.eventType === 'UPDATE' && newRow.user_id === userId) {
           setNotifications((prev) => prev.map((n) => (n.id === newRow.id ? newRow : n)));
@@ -92,20 +97,27 @@ export default function NotificationCenter({ userId }: NotificationCenterProps) 
         }
       })
       .subscribe();
-    return () => { supabase.removeChannel(sub); };
+
+    const onMarked = () => { void fetchNotifications(); };
+    window.addEventListener('scorr-notifications-read', onMarked);
+
+    return () => {
+      supabase.removeChannel(sub);
+      window.removeEventListener('scorr-notifications-read', onMarked);
+    };
   }, [userId]);
 
-  const markRead = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    await supabase.from('notifications').update({ is_read: true }).eq('id', id);
+  const markRead = async (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
+    await markNotificationsRead([id]);
   };
 
   const markAllRead = async () => {
     const ids = notifications.filter((n) => !n.is_read).map((n) => n.id);
     if (!ids.length) return;
-    await supabase.from('notifications').update({ is_read: true }).in('id', ids);
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    await markNotificationsRead(ids);
   };
 
   const getIcon = (type: string) => {
@@ -129,17 +141,15 @@ export default function NotificationCenter({ userId }: NotificationCenterProps) 
           : { top: dropdownPos.top, right: dropdownPos.right }
       }
     >
-      {/* Header row */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
         <h4 style={{ margin: 0, fontSize: '0.95rem' }}>Notifications {unread > 0 && <span style={{ fontSize: '0.75rem', color: 'var(--accent-primary)' }}>({unread} unread)</span>}</h4>
         {unread > 0 && (
-          <button onClick={markAllRead} style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600 }}>
+          <button type="button" onClick={() => void markAllRead()} style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600 }}>
             Mark all read
           </button>
         )}
       </div>
 
-      {/* Items */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
         {notifications.length === 0 ? (
           <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem', padding: '1.5rem 0' }}>No notifications yet.</p>
@@ -147,6 +157,21 @@ export default function NotificationCenter({ userId }: NotificationCenterProps) 
           notifications.map((n) => (
             <div
               key={n.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => {
+                void markRead(n.id);
+                if ((n.title || '').toLowerCase().includes('daily report')) {
+                  window.dispatchEvent(new CustomEvent('scorr-open-admin-tab', { detail: { tab: 'dailyReports' } }));
+                  setIsOpen(false);
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  (e.currentTarget as HTMLDivElement).click();
+                }
+              }}
               style={{
                 padding: '0.75rem',
                 borderRadius: 'var(--border-radius-sm)',
@@ -155,6 +180,7 @@ export default function NotificationCenter({ userId }: NotificationCenterProps) 
                 display: 'flex',
                 alignItems: 'flex-start',
                 gap: '0.5rem',
+                cursor: 'pointer',
               }}
             >
               <div style={{ marginTop: 2 }}>{getIcon(n.type)}</div>
@@ -168,7 +194,7 @@ export default function NotificationCenter({ userId }: NotificationCenterProps) 
                 </div>
               </div>
               {!n.is_read && (
-                <button onClick={(e) => markRead(n.id, e)} title="Mark as read" style={{ background: 'none', border: 'none', color: 'var(--color-success)', cursor: 'pointer', padding: 2 }}>
+                <button type="button" onClick={(e) => void markRead(n.id, e)} title="Mark as read" style={{ background: 'none', border: 'none', color: 'var(--color-success)', cursor: 'pointer', padding: 2 }}>
                   <Check size={14} />
                 </button>
               )}
@@ -183,6 +209,7 @@ export default function NotificationCenter({ userId }: NotificationCenterProps) 
     <>
       <button
         ref={buttonRef}
+        type="button"
         className="btn btn-secondary"
         style={{ padding: '0.65rem', borderRadius: '50%', position: 'relative', width: 40, height: 40 }}
         onClick={() => setIsOpen((v) => !v)}
@@ -203,7 +230,6 @@ export default function NotificationCenter({ userId }: NotificationCenterProps) 
         )}
       </button>
 
-      {/* Render dropdown at root DOM level so it always escapes any stacking context */}
       {createPortal(dropdown, document.body)}
     </>
   );

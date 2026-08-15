@@ -13,6 +13,7 @@ dist-ssr
 *.local
 .env
 .env.*
+!.env.example
 
 # Editor directories and files
 .vscode/*
@@ -25,9 +26,11 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+.cache/
 
 # Capacitor native build artifacts
 android/.gradle
+android/.kotlin
 android/app/build
 android/build
 android/local.properties
@@ -36,3 +39,11 @@ ios/App/Pods
 ios/App/App/build
 *.keystore
 .tools/
+
+# Large mobile binaries (rebuild with npm run build:android:apk)
+public/downloads/*.apk
+public/downloads/*.aab
+public/downloads/*.ipa
+*.apk
+*.aab
+*.ipa

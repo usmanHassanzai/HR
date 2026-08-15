@@ -10,12 +10,17 @@ import {
   Sparkles,
   TrendingUp,
   Info,
+  BarChart2,
 } from 'lucide-react';
 import { MONTHLY_POINTS_TIERS, REWARD_CATALOG_COST, tierColorForScore } from '../utils/rewardsTiers';
+import { employeeTotalKpiPoints } from '../utils/kpiScoreHelpers';
+import { Kpi } from '../utils/kpiHelpers';
 import '../styles/employee-rewards.css';
 
 interface EmployeeRewardsPanelProps {
   userId: string;
+  /** Optional precomputed total; if omitted, fetched from KPIs. */
+  kpiPoints?: number | null;
 }
 
 interface CatalogItem {
@@ -50,10 +55,11 @@ function redemptionStatusClass(status: string): string {
   return 'emp-rewards-status emp-rewards-status--fulfilled';
 }
 
-export default function EmployeeRewardsPanel({ userId }: EmployeeRewardsPanelProps) {
+export default function EmployeeRewardsPanel({ userId, kpiPoints: kpiPointsProp = null }: EmployeeRewardsPanelProps) {
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
   const [ledger, setLedger] = useState<LedgerRow[]>([]);
   const [redemptions, setRedemptions] = useState<Redemption[]>([]);
+  const [kpiPoints, setKpiPoints] = useState<number>(kpiPointsProp ?? 0);
   const [loading, setLoading] = useState(true);
   const [redeeming, setRedeeming] = useState<string | null>(null);
   const [msg, setMsg] = useState('');
@@ -61,7 +67,7 @@ export default function EmployeeRewardsPanel({ userId }: EmployeeRewardsPanelPro
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    const [catRes, ledgerRes, redemRes] = await Promise.all([
+    const [catRes, ledgerRes, redemRes, kpiRes] = await Promise.all([
       supabase.from('rewards_catalog').select('*').eq('active', true).order('point_cost'),
       supabase.from('points_ledger').select('*').eq('employee_id', userId).order('month', { ascending: false }),
       supabase
@@ -69,16 +75,26 @@ export default function EmployeeRewardsPanel({ userId }: EmployeeRewardsPanelPro
         .select('*, rewards_catalog(name, icon)')
         .eq('employee_id', userId)
         .order('redeemed_at', { ascending: false }),
+      supabase.from('kpis').select('*').eq('user_id', userId),
     ]);
     if (catRes.data) setCatalog(catRes.data);
     if (ledgerRes.data) setLedger(ledgerRes.data);
     if (redemRes.data) setRedemptions(redemRes.data);
+    if (kpiPointsProp != null) {
+      setKpiPoints(kpiPointsProp);
+    } else if (!kpiRes.error) {
+      setKpiPoints(employeeTotalKpiPoints((kpiRes.data || []) as Kpi[]));
+    }
     setLoading(false);
-  }, [userId]);
+  }, [userId, kpiPointsProp]);
 
   useEffect(() => {
     void fetchAll();
   }, [fetchAll]);
+
+  useEffect(() => {
+    if (kpiPointsProp != null) setKpiPoints(kpiPointsProp);
+  }, [kpiPointsProp]);
 
   const totalPoints = ledger.reduce((s, r) => s + r.points_earned, 0);
   const usedPoints = redemptions.reduce((s, r) => s + r.points_used, 0);
@@ -142,12 +158,17 @@ export default function EmployeeRewardsPanel({ userId }: EmployeeRewardsPanelPro
         </div>
 
         <div className="emp-rewards-stats">
+          <div className="emp-rewards-stat emp-rewards-stat--accent">
+            <BarChart2 size={16} />
+            <span className="emp-rewards-stat__label">Total KPI points</span>
+            <strong>{kpiPoints.toLocaleString()}</strong>
+          </div>
           <div className="emp-rewards-stat emp-rewards-stat--gold">
             <Sparkles size={16} />
             <span className="emp-rewards-stat__label">Points balance</span>
             <strong>{balance.toLocaleString()}</strong>
           </div>
-          <div className="emp-rewards-stat emp-rewards-stat--accent">
+          <div className="emp-rewards-stat">
             <Star size={16} />
             <span className="emp-rewards-stat__label">This month</span>
             <strong>{thisMonthEntry?.points_earned ? `+${thisMonthEntry.points_earned}` : '—'}</strong>
@@ -170,8 +191,9 @@ export default function EmployeeRewardsPanel({ userId }: EmployeeRewardsPanelPro
       <div className="emp-rewards-info">
         <Info size={16} />
         <span>
-          Points <strong>never expire</strong>. {rewardsEarned} lifetime reward{rewardsEarned !== 1 ? 's' : ''} earned
-          · {usedPoints.toLocaleString()} pts redeemed so far.
+          <strong>{kpiPoints.toLocaleString()} KPI points</strong> from your current tasks · Rewards balance{' '}
+          <strong>{balance.toLocaleString()}</strong> · Points <strong>never expire</strong> · {rewardsEarned}{' '}
+          lifetime reward{rewardsEarned !== 1 ? 's' : ''} earned · {usedPoints.toLocaleString()} pts redeemed so far.
         </span>
       </div>
 

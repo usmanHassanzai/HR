@@ -1079,6 +1079,52 @@
   color: var(--landing-accent);
 }
 
+.landing-guide-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem 1.25rem;
+  margin-top: 1.75rem;
+  padding: 1.15rem 1.35rem;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--landing-accent) 6%, var(--bg-card));
+  border: 1px solid color-mix(in srgb, var(--landing-accent) 20%, var(--border-color));
+}
+
+.landing-guide-strip__icon {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 12px;
+  color: var(--landing-accent);
+  background: color-mix(in srgb, var(--landing-accent) 12%, transparent);
+  flex-shrink: 0;
+}
+
+.landing-guide-strip__copy {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.landing-guide-strip__copy h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1.05rem;
+  color: var(--text-primary);
+}
+
+.landing-guide-strip__copy p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.landing-guide-strip .landing-download-btn {
+  margin: 0;
+  width: auto;
+}
+
 /* Trust bar */
 .landing-trust-bar {
   display: flex;

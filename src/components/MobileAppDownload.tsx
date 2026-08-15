@@ -3,7 +3,6 @@ import {
   Smartphone,
   Download,
   Apple,
-  Share,
   CheckCircle,
   AlertCircle,
   Loader2,
@@ -11,24 +10,36 @@ import {
   Package,
   Calendar,
   Shield,
+  Home,
+  FileText,
 } from 'lucide-react';
 
 const APK_PATH = '/downloads/scorr.apk';
 const BUILD_INFO_PATH = '/downloads/build-info.json';
 const IPA_PATH = '/downloads/scorr.ipa';
+const USER_GUIDE_PATH = '/downloads/Scorr-Client-Feature-Guide.pdf';
 const TESTFLIGHT_URL = import.meta.env.VITE_TESTFLIGHT_URL as string | undefined;
 
-interface AndroidBuildInfo {
+interface PlatformBuildInfo {
   available?: boolean;
   filename?: string;
+  ipaFilename?: string;
   appName?: string;
   appId?: string;
   version?: string;
   buildType?: string;
+  installMethod?: 'pwa' | 'ipa' | 'testflight';
   sizeBytes?: number;
   sizeLabel?: string;
   updatedAt?: string;
   updatedLabel?: string;
+  pwaUrl?: string;
+  ipaAvailable?: boolean;
+}
+
+interface BuildInfoFile {
+  android?: PlatformBuildInfo;
+  ios?: PlatformBuildInfo;
 }
 
 function assetUrl(path: string): string {
@@ -36,7 +47,7 @@ function assetUrl(path: string): string {
   return path;
 }
 
-const APP_URL = typeof window !== 'undefined' ? window.location.origin : 'https://scorr.walfia.ai';
+const DEFAULT_PWA_URL = 'https://scorr.walfia.ai';
 
 function isStandalonePwa(): boolean {
   return window.matchMedia('(display-mode: standalone)').matches
@@ -52,12 +63,11 @@ function isAndroid(): boolean {
   return /Android/i.test(navigator.userAgent);
 }
 
-async function fetchBuildInfo(): Promise<AndroidBuildInfo | null> {
+async function fetchBuildInfo(): Promise<BuildInfoFile | null> {
   try {
     const r = await fetch(assetUrl(BUILD_INFO_PATH), { cache: 'no-store' });
     if (!r.ok) return null;
-    const data = await r.json();
-    return data?.android ?? null;
+    return await r.json();
   } catch {
     return null;
   }
@@ -88,13 +98,16 @@ async function checkBinary(path: string, types: string[]): Promise<boolean> {
   try {
     const r = await fetch(assetUrl(path), { method: 'HEAD', cache: 'no-store' });
     const type = r.headers.get('content-type') || '';
-    return r.ok && !type.includes('text/html') && types.some((t) => type.includes(t));
+    const length = Number(r.headers.get('content-length') || 0);
+    if (!r.ok || type.includes('text/html')) return false;
+    if (types.some((t) => type.includes(t))) return true;
+    return length > 1_000_000;
   } catch {
     return false;
   }
 }
 
-const ANDROID_FEATURES = [
+const APP_FEATURES = [
   'Admin, manager & employee dashboards',
   'Hamburger navigation on mobile',
   'GPS attendance & live tracking',
@@ -102,11 +115,16 @@ const ANDROID_FEATURES = [
 ];
 
 export default function MobileAppDownload() {
-  const [buildInfo, setBuildInfo] = useState<AndroidBuildInfo | null>(null);
+  const [buildInfo, setBuildInfo] = useState<BuildInfoFile | null>(null);
   const [apkReady, setApkReady] = useState<boolean | null>(null);
   const [ipaReady, setIpaReady] = useState<boolean | null>(null);
   const [installed, setInstalled] = useState(false);
   const [iosHint, setIosHint] = useState(false);
+
+  const androidInfo = buildInfo?.android;
+  const iosInfo = buildInfo?.ios;
+  const pwaUrl = iosInfo?.pwaUrl || DEFAULT_PWA_URL;
+  const pwaHost = pwaUrl.replace(/^https?:\/\//, '');
 
   useEffect(() => {
     setInstalled(isStandalonePwa());
@@ -115,30 +133,30 @@ export default function MobileAppDownload() {
       const info = await fetchBuildInfo();
       setBuildInfo(info);
       const headOk = await checkApkAvailable();
-      setApkReady(headOk || info?.available === true);
+      setApkReady(headOk || info?.android?.available === true);
+      const ipaHead = await checkBinary(IPA_PATH, ['octet-stream', 'zip', 'ipa', 'application']);
+      setIpaReady(ipaHead || info?.ios?.ipaAvailable === true);
     })();
-
-    void checkBinary(IPA_PATH, ['octet-stream', 'zip', 'ipa']).then(setIpaReady);
   }, []);
 
   const downloadApk = () => {
     window.location.href = assetUrl(APK_PATH);
   };
 
-  const showIosInstall = () => {
+  const downloadIpa = () => {
+    window.location.href = assetUrl(IPA_PATH);
+  };
+
+  const openPwaInstall = () => {
     setIosHint(true);
     if (isIos() && !isStandalonePwa()) {
       window.scrollTo({ top: document.getElementById('download-app')?.offsetTop ?? 0, behavior: 'smooth' });
-    }
-  };
-
-  const openSafariInstall = () => {
-    if (isIos()) {
-      showIosInstall();
       return;
     }
-    window.open(APP_URL, '_blank', 'noopener,noreferrer');
+    window.open(pwaUrl, '_blank', 'noopener,noreferrer');
   };
+
+  const iosReady = iosInfo?.available !== false;
 
   return (
     <section id="download-app" className="landing-section landing-section--alt">
@@ -146,7 +164,7 @@ export default function MobileAppDownload() {
         <div className="landing-section__eyebrow">Mobile App</div>
         <h2 className="landing-section__title">Download Scorr for Android &amp; iOS</h2>
         <p>
-          Install the native Android app or add Scorr to your iPhone home screen — same login, KPIs,
+          Android installs via APK. iPhone &amp; iPad install from Safari in one tap — same login, KPIs,
           hamburger dashboards, GPS attendance, and rewards on the go.
         </p>
       </div>
@@ -168,16 +186,16 @@ export default function MobileAppDownload() {
             updated mobile layout for admin, manager, and employee roles.
           </p>
 
-          {buildInfo && apkReady && (
+          {androidInfo && apkReady && (
             <div className="landing-download-meta">
-              <span><Package size={14} /> v{buildInfo.version} · {buildInfo.sizeLabel}</span>
-              <span><Calendar size={14} /> Updated {buildInfo.updatedLabel}</span>
-              <span><Shield size={14} /> {buildInfo.appId}</span>
+              <span><Package size={14} /> v{androidInfo.version} · {androidInfo.sizeLabel}</span>
+              <span><Calendar size={14} /> Updated {androidInfo.updatedLabel}</span>
+              <span><Shield size={14} /> {androidInfo.appId}</span>
             </div>
           )}
 
           <ul className="landing-download-features">
-            {ANDROID_FEATURES.map((item) => (
+            {APP_FEATURES.map((item) => (
               <li key={item}><CheckCircle size={14} /> {item}</li>
             ))}
           </ul>
@@ -197,14 +215,14 @@ export default function MobileAppDownload() {
             <>
               <button type="button" className="btn btn-primary landing-download-btn" onClick={downloadApk}>
                 <Download size={18} /> Download Android APK
-                {buildInfo?.sizeLabel ? ` (${buildInfo.sizeLabel})` : ''}
+                {androidInfo?.sizeLabel ? ` (${androidInfo.sizeLabel})` : ''}
               </button>
               <a
                 href={assetUrl(APK_PATH)}
                 className="landing-download-direct"
                 download="scorr.apk"
               >
-                Direct link · scorr.walfia.ai/downloads/scorr.apk
+                Direct link · {pwaHost}/downloads/scorr.apk
               </a>
             </>
           ) : (
@@ -226,20 +244,37 @@ export default function MobileAppDownload() {
             <div className="landing-download-card__icon landing-download-card__icon--ios">
               <Apple size={28} />
             </div>
-            <span className="landing-download-badge landing-download-badge--pwa">Safari · Home Screen</span>
+            {iosReady && (
+              <span className="landing-download-badge landing-download-badge--live">iOS app ready</span>
+            )}
           </div>
 
           <h3>iPhone &amp; iPad app</h3>
           <p>
-            Same native-style experience as Android — sign-in, dashboards, GPS attendance, and rewards.
-            Install in <strong>one tap</strong> from Safari (no App Store required).
+            Apple does not allow website APK-style installs. Instead, open Scorr in <strong>Safari</strong> and
+            tap <strong>Add to Home Screen</strong> — you get a full-screen app icon with the same dashboards
+            and GPS attendance as Android.
           </p>
 
+          {iosInfo && iosReady && (
+            <div className="landing-download-meta">
+              <span><Package size={14} /> v{iosInfo.version} · Home Screen app</span>
+              <span><Calendar size={14} /> Updated {iosInfo.updatedLabel}</span>
+              <span><Shield size={14} /> {iosInfo.appId}</span>
+            </div>
+          )}
+
+          <ul className="landing-download-features">
+            {APP_FEATURES.map((item) => (
+              <li key={item}><CheckCircle size={14} /> {item}</li>
+            ))}
+          </ul>
+
           <ol className="landing-download-steps">
-            <li>Open <strong>{APP_URL.replace('https://', '')}</strong> in <strong>Safari</strong></li>
+            <li>Open <strong>{pwaHost}</strong> in <strong>Safari</strong> on your iPhone</li>
             <li>Tap <strong>Share</strong> (square with arrow up)</li>
             <li>Scroll → <strong>Add to Home Screen</strong></li>
-            <li>Tap <strong>Add</strong> — open Scorr from your home screen</li>
+            <li>Tap <strong>Add</strong> — launch Scorr from your home screen</li>
             <li>Sign in and allow <strong>Location</strong> for auto attendance</li>
           </ol>
 
@@ -248,18 +283,28 @@ export default function MobileAppDownload() {
               <CheckCircle size={18} /> Scorr is installed on this device
             </div>
           ) : isIos() ? (
-            <button type="button" className="btn btn-primary landing-download-btn" onClick={showIosInstall}>
-              <Share size={18} /> Install Scorr on this iPhone
+            <button type="button" className="btn btn-primary landing-download-btn" onClick={openPwaInstall}>
+              <Home size={18} /> Install Scorr on this iPhone
             </button>
           ) : (
-            <button type="button" className="btn btn-primary landing-download-btn" onClick={openSafariInstall}>
-              <Apple size={18} /> Get iOS install instructions
+            <button type="button" className="btn btn-primary landing-download-btn" onClick={openPwaInstall}>
+              <Apple size={18} /> Open iOS install page
             </button>
           )}
+
+          <a href={pwaUrl} className="landing-download-direct">
+            Install URL · {pwaHost}
+          </a>
 
           {iosHint && isIos() && !installed && (
             <p className="landing-download-note landing-download-note--highlight">
               Tap <strong>Share</strong> at the bottom of Safari → <strong>Add to Home Screen</strong>
+            </p>
+          )}
+
+          {isIos() && !installed && iosReady && (
+            <p className="landing-download-note landing-download-note--highlight">
+              You&apos;re on iPhone — use Share → Add to Home Screen to install Scorr.
             </p>
           )}
 
@@ -275,17 +320,46 @@ export default function MobileAppDownload() {
           )}
 
           {ipaReady && (
-            <p className="landing-download-footnote">
-              Developer IPA available — use TestFlight or Xcode for device install (iOS does not allow direct APK-style downloads).
-            </p>
+            <>
+              <button type="button" className="btn btn-secondary landing-download-btn" onClick={downloadIpa}>
+                <Download size={18} /> Download developer IPA
+                {iosInfo?.sizeLabel ? ` (${iosInfo.sizeLabel})` : ''}
+              </button>
+              <p className="landing-download-footnote">
+                IPA files require registered devices or TestFlight — for IT teams and Xcode installs.
+              </p>
+            </>
           )}
 
           {!TESTFLIGHT_URL && !ipaReady && (
             <p className="landing-download-footnote">
-              For a native App Store build, use TestFlight or Xcode on macOS.
+              Native App Store / TestFlight builds require an Apple Developer account on macOS.
+              Home Screen install works for all iPhone users today.
             </p>
           )}
         </div>
+      </div>
+
+      <div className="landing-guide-strip landing-reveal">
+        <div className="landing-guide-strip__icon">
+          <FileText size={22} />
+        </div>
+        <div className="landing-guide-strip__copy">
+          <h3>Scorr user guide (PDF)</h3>
+          <p>
+            Step-by-step: register your organization, understand Admin / Manager / Employee roles,
+            and add new users.
+          </p>
+        </div>
+        <a
+          className="btn btn-secondary landing-download-btn"
+          href={USER_GUIDE_PATH}
+          download="Scorr-Client-Feature-Guide.pdf"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <Download size={16} /> Download PDF guide
+        </a>
       </div>
     </section>
   );

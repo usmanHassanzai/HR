@@ -323,3 +323,21 @@
 .admin-office-assign-embed > .attendance-card__subtitle {
   display: none;
 }
+
+.admin-office-assign-block {
+  margin-bottom: 0.5rem;
+}
+
+.admin-office-assign-block--managers {
+  margin-top: 1.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.admin-office-assign-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  grid-column: 1 / -1;
+}

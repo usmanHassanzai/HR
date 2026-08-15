@@ -52,6 +52,28 @@ const MIGRATIONS = [
   'platform_owner_org_admin_access.sql',
   'restore_platform_rpcs_and_auth_trigger.sql',
   'auto_equal_department_weights.sql',
+  'daily_work_reports.sql',
+  'fix_live_tracking_matrix.sql',
+  'save_department_org_weights.sql',
+  'department_org_weight_per_dept_100.sql',
+  'departments_unique_per_company.sql',
+  'office_locations_company_scope.sql',
+  'fix_org_user_isolation.sql',
+  'admin_assign_shifts.sql',
+  'admin_org_kpi_points_total.sql',
+  'team_points_board.sql',
+  'admin_org_kpi_points_board.sql',
+  'admin_update_user_account.sql',
+  'geo_auto_reenter_attendance.sql',
+  'daily_report_admin_notifications.sql',
+  'fix_notification_mark_read.sql',
+  'attendance_auto_approve_checkin.sql',
+  'geo_visit_history_and_radius_fix.sql',
+  'employee_office_assignment.sql',
+  'fix_shift_timezone_geo_reenter.sql',
+  'sync_office_live_pin_to_assignments.sql',
+  // Must be last: earlier drop_stale_functions_mid.sql removes this RPC
+  'platform_delete_company.sql',
 ];
 
 async function runMigration(filename) {

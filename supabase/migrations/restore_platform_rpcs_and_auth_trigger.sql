@@ -140,12 +140,49 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
+-- Platform owner: permanently delete a company and its non-demo users
+CREATE OR REPLACE FUNCTION public.platform_delete_company(p_company_id UUID)
+RETURNS VOID AS $$
+DECLARE
+    rec RECORD;
+BEGIN
+    IF NOT public.is_platform_owner(auth.uid()) THEN
+        RAISE EXCEPTION 'Unauthorized: platform owner only';
+    END IF;
+
+    IF p_company_id IS NULL THEN
+        RAISE EXCEPTION 'Company id is required';
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM public.companies WHERE id = p_company_id) THEN
+        RAISE EXCEPTION 'Company not found';
+    END IF;
+
+    FOR rec IN
+        SELECT u.id FROM public.users u
+        WHERE u.company_id = p_company_id
+          AND u.is_demo = false
+          AND u.is_platform_owner = false
+    LOOP
+        DELETE FROM auth.users WHERE id = rec.id;
+    END LOOP;
+
+    DELETE FROM public.users
+    WHERE company_id = p_company_id
+      AND is_demo = false
+      AND is_platform_owner = false;
+
+    DELETE FROM public.companies WHERE id = p_company_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth;
+
 GRANT EXECUTE ON FUNCTION public.get_my_company() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.platform_get_companies() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.platform_get_notifications() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.platform_approve_company(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.platform_reject_company(UUID, TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.platform_mark_notification_read(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.platform_delete_company(UUID) TO authenticated;
 
 -- Signup trigger: drop_stale_functions_mid.sql CASCADE removes this; migrations never restored it.
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;

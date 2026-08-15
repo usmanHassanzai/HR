@@ -19,6 +19,7 @@ import {
   Users,
 } from 'lucide-react';
 import { tierColorForScore } from '../utils/rewardsTiers';
+import AdminOrgKpiPointsBoard from './AdminOrgKpiPointsBoard';
 import '../styles/admin-rewards.css';
 
 interface CatalogItem {
@@ -57,10 +58,11 @@ export default function AdminRewards() {
   const [monthly, setMonthly] = useState<MonthlyRow[]>([]);
   const [redemptions, setRedemptions] = useState<Redemption[]>([]);
   const [orgUserCount, setOrgUserCount] = useState(0);
+  const [orgKpiPointsTotal, setOrgKpiPointsTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [msg, setMsg] = useState('');
-  const [activeTab, setActiveTab] = useState<'monthly' | 'redemptions' | 'catalog'>('monthly');
+  const [activeTab, setActiveTab] = useState<'board' | 'monthly' | 'redemptions' | 'catalog'>('board');
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: '', description: '', icon: '🎁', point_cost: 1000 });
 
@@ -84,7 +86,7 @@ export default function AdminRewards() {
     const allowedIds = orgUsers.map((u) => u.id);
     setOrgUserCount(allowedIds.length);
 
-    const [catRes, ledgerRes, redemRes] = await Promise.all([
+    const [catRes, ledgerRes, redemRes, boardRes] = await Promise.all([
       supabase.from('rewards_catalog').select('*').order('point_cost'),
       allowedIds.length
         ? supabase
@@ -102,7 +104,18 @@ export default function AdminRewards() {
             .order('redeemed_at', { ascending: false })
             .limit(50)
         : Promise.resolve({ data: [], error: null }),
+      supabase.rpc('get_org_kpi_points_board'),
     ]);
+
+    if (boardRes.data) {
+      const total = ((boardRes.data as { kpi_points?: number }[]) || []).reduce(
+        (s, r) => s + (Number(r.kpi_points) || 0),
+        0,
+      );
+      setOrgKpiPointsTotal(Math.round(total * 100) / 100);
+    } else {
+      setOrgKpiPointsTotal(0);
+    }
 
     if (catRes.data) setCatalog(catRes.data);
 
@@ -231,6 +244,11 @@ export default function AdminRewards() {
         </div>
 
         <div className="admin-rewards-stats">
+          <div className="admin-rewards-stat admin-rewards-stat--accent">
+            <Trophy size={16} />
+            <span className="admin-rewards-stat__label">Org KPI points</span>
+            <strong>{orgKpiPointsTotal.toLocaleString()}</strong>
+          </div>
           <div className="admin-rewards-stat">
             <Gift size={16} />
             <span className="admin-rewards-stat__label">Active rewards</span>
@@ -255,6 +273,13 @@ export default function AdminRewards() {
       </header>
 
       <div className="admin-rewards-tabs tab-bar tab-bar--inline-mobile">
+        <button
+          type="button"
+          className={`tab-btn ${activeTab === 'board' ? 'tab-btn--active' : ''}`}
+          onClick={() => setActiveTab('board')}
+        >
+          <Users size={16} /> Org KPI points
+        </button>
         <button
           type="button"
           className={`tab-btn ${activeTab === 'monthly' ? 'tab-btn--active' : ''}`}
@@ -291,6 +316,8 @@ export default function AdminRewards() {
           </button>
         </div>
       )}
+
+      {activeTab === 'board' && <AdminOrgKpiPointsBoard />}
 
       {activeTab === 'monthly' && (
         <section className="admin-rewards-card glass-panel">

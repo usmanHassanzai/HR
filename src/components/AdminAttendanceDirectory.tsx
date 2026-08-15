@@ -34,6 +34,12 @@ function initials(name: string): string {
     .join('');
 }
 
+function roleLabel(role: string): string {
+  if (role === 'manager') return 'Manager';
+  if (role === 'admin') return 'Admin';
+  return 'Employee';
+}
+
 function mapRowToRecord(r: TeamAttendanceHistoryRow) {
   return {
     id: r.id,
@@ -323,13 +329,24 @@ export default function AdminAttendanceDirectory({ departments }: AdminAttendanc
                     >
                       <span className="admin-attendance-employee__avatar">{initials(group.user.full_name)}</span>
                       <span className="admin-attendance-employee__info">
-                        <strong>{group.user.full_name}</strong>
-                        <span>{group.user.role} · {group.user.email}</span>
-                      </span>
-                      <span className="admin-attendance-employee__stats">
-                        <span>{daysPresent} day{daysPresent !== 1 ? 's' : ''}</span>
-                        <span>{formatWorkDuration(totalMins)} logged</span>
-                        <span>{group.rows.length} record{group.rows.length !== 1 ? 's' : ''}</span>
+                        <span className="admin-attendance-employee__name-row">
+                          <strong>{group.user.full_name}</strong>
+                          <span className={`admin-attendance-employee__role admin-attendance-employee__role--${group.user.role}`}>
+                            {roleLabel(group.user.role)}
+                          </span>
+                        </span>
+                        <span className="admin-attendance-employee__email">{group.user.email}</span>
+                        <span className="admin-attendance-employee__stats">
+                          <span className="admin-attendance-employee__stat">
+                            {daysPresent} day{daysPresent !== 1 ? 's' : ''}
+                          </span>
+                          <span className="admin-attendance-employee__stat">
+                            {formatWorkDuration(totalMins)} logged
+                          </span>
+                          <span className="admin-attendance-employee__stat">
+                            {group.rows.length} record{group.rows.length !== 1 ? 's' : ''}
+                          </span>
+                        </span>
                       </span>
                       <ChevronDown
                         size={18}

@@ -2,6 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { StatusBar, Style } from '@capacitor/status-bar';
+import { supabase } from '../lib/supabase';
 
 export function isNativeApp(): boolean {
   return Capacitor.isNativePlatform();
@@ -49,8 +50,13 @@ export async function initNativeApp(): Promise<void> {
 
   if (isAndroidApp()) {
     App.addListener('backButton', ({ canGoBack }) => {
-      if (canGoBack) window.history.back();
-      else App.exitApp();
+      if (canGoBack) {
+        window.history.back();
+        return;
+      }
+      void supabase.auth.signOut({ scope: 'local' }).finally(() => {
+        void App.exitApp();
+      });
     });
   }
 

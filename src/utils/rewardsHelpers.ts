@@ -99,3 +99,35 @@ export async function fetchTeamRewardsSummaries(managerId: string): Promise<Team
     }))
     .sort((a, b) => b.summary.balance - a.summary.balance);
 }
+
+export interface TeamPointsBoardRow {
+  user_id: string;
+  full_name: string;
+  email: string;
+  role: string;
+  department_id: string | null;
+  department_name: string | null;
+  total_earned: number;
+  used_points: number;
+  balance: number;
+  this_month_points: number | null;
+  this_month_score: number | null;
+  is_self: boolean;
+}
+
+/** Own points + teammates (same manager / department / direct reports). */
+export async function fetchTeamPointsBoard(): Promise<TeamPointsBoardRow[]> {
+  const { data, error } = await supabase.rpc('get_team_points_board');
+  if (error) {
+    console.error('get_team_points_board', error.message);
+    return [];
+  }
+  return ((data as TeamPointsBoardRow[]) || []).map((row) => ({
+    ...row,
+    total_earned: Number(row.total_earned) || 0,
+    used_points: Number(row.used_points) || 0,
+    balance: Number(row.balance) || 0,
+    this_month_points: row.this_month_points == null ? null : Number(row.this_month_points),
+    this_month_score: row.this_month_score == null ? null : Number(row.this_month_score),
+  }));
+}

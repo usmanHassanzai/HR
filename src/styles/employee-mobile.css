@@ -1,0 +1,389 @@
+/* Employee dashboard — mobile only professional layout */
+
+@media (max-width: 768px) {
+  .dashboard-container:has(.emp-dash) {
+    padding-left: max(0.75rem, env(safe-area-inset-left));
+    padding-right: max(0.75rem, env(safe-area-inset-right));
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .emp-dash {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    min-width: 0;
+  }
+
+  .emp-dash .dashboard-tab-content,
+  .emp-dash > .emp-points-stack {
+    min-width: 0;
+  }
+
+  .emp-dash .mobile-banner-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    padding: 0.95rem 1rem;
+    border-radius: 14px;
+  }
+
+  .emp-dash .mobile-banner-row .btn {
+    width: 100%;
+    justify-content: center;
+    min-height: 44px;
+  }
+
+  /* Health + metrics hero */
+  .emp-dash .dash-hero-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .emp-dash .dash-health-card {
+    padding: 1.1rem 1rem;
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.85rem;
+  }
+
+  .emp-dash .dash-health-ring {
+    width: 5.5rem;
+    height: 5.5rem;
+  }
+
+  .emp-dash .dash-health-ring__value {
+    font-size: 1.25rem;
+  }
+
+  .emp-dash .dash-metrics-panel {
+    padding: 0.85rem 0.9rem;
+    border-radius: 14px;
+  }
+
+  .emp-dash .dash-metric-row {
+    padding: 0.55rem 0;
+    font-size: 0.85rem;
+  }
+
+  .emp-dash .emp-points-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+
+  /* KPI section */
+  .emp-dash .dash-section-head {
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    align-items: flex-start;
+  }
+
+  .emp-dash .dash-section-head > div:last-child {
+    width: 100%;
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .emp-dash .dash-section-head .btn {
+    flex: 1;
+    justify-content: center;
+    min-height: 42px;
+  }
+
+  .emp-dash .dashboard-grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+    margin-top: 0 !important;
+  }
+
+  .emp-dash .kpi-card {
+    border-radius: 14px;
+    padding: 1rem 0.95rem;
+  }
+
+  .emp-dash .kpi-card h4 {
+    font-size: 1rem;
+    line-height: 1.3;
+  }
+
+  .emp-dash .kpi-score-line {
+    font-size: 0.85rem;
+  }
+
+  .emp-dash .kpi-card .btn {
+    width: 100%;
+    justify-content: center;
+    min-height: 44px;
+  }
+
+  .emp-dash .responsive-grid-wide {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .emp-dash .dash-info-panel {
+    padding: 1rem 0.95rem;
+    border-radius: 14px;
+  }
+
+  .emp-dash .employee-kpi-board-summary {
+    border-radius: 14px;
+    padding: 1rem 0.95rem;
+  }
+
+  .emp-dash .employee-kpi-board-summary__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .emp-dash .team-points-table-wrap,
+  .emp-dash .team-points-board {
+    border-radius: 14px;
+  }
+
+  .emp-dash .team-points-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Attendance */
+  .emp-attendance-header {
+    border-radius: 14px !important;
+    padding: 1rem 0.95rem !important;
+    gap: 0.85rem;
+  }
+
+  .emp-attendance-header__icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 11px;
+  }
+
+  .emp-attendance-header__title {
+    font-size: 1.15rem !important;
+    letter-spacing: -0.02em;
+  }
+
+  .emp-attendance-header__subtitle {
+    font-size: 0.8rem !important;
+    line-height: 1.45;
+  }
+
+  .emp-attendance-stats {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem !important;
+  }
+
+  .emp-attendance-stat {
+    min-width: 0;
+    padding: 0.7rem 0.75rem;
+    border-radius: 12px;
+  }
+
+  .emp-attendance-stat strong {
+    font-size: 0.98rem;
+  }
+
+  .emp-attendance-stat__label {
+    font-size: 0.62rem;
+  }
+
+  .emp-attendance-tabs {
+    gap: 0.4rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .emp-attendance-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .emp-attendance-tabs .tab-btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    min-height: 42px;
+    border-radius: 999px;
+    padding: 0.45rem 0.85rem;
+    font-size: 0.8rem;
+  }
+
+  .emp-attendance-card {
+    border-radius: 14px;
+    padding: 1rem 0.95rem;
+  }
+
+  .emp-attendance-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .emp-attendance-filters .form-group {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .emp-attendance-filters input,
+  .emp-attendance-filters select,
+  .emp-attendance-card input,
+  .emp-attendance-card select,
+  .emp-attendance-card textarea,
+  .attendance-hero__btn,
+  .attendance-form-grid input,
+  .attendance-form-grid select {
+    font-size: 16px;
+    min-height: 44px;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .emp-attendance-filters__actions {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .emp-attendance-filters__actions .btn {
+    flex: 1;
+    justify-content: center;
+    min-height: 44px;
+  }
+
+  .emp-attendance-month-block {
+    border-radius: 12px;
+  }
+
+  .emp-attendance-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .emp-attendance-view-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Rewards */
+  .emp-rewards-header {
+    border-radius: 14px !important;
+    padding: 1rem 0.95rem !important;
+    gap: 0.85rem;
+  }
+
+  .emp-rewards-header__icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 11px;
+  }
+
+  .emp-rewards-header__title {
+    font-size: 1.15rem !important;
+  }
+
+  .emp-rewards-header__subtitle {
+    font-size: 0.8rem !important;
+    line-height: 1.45;
+  }
+
+  .emp-rewards-stats {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem !important;
+  }
+
+  .emp-rewards-stat {
+    min-width: 0;
+    padding: 0.7rem 0.75rem;
+    border-radius: 12px;
+  }
+
+  .emp-rewards-stat strong {
+    font-size: 0.98rem;
+  }
+
+  .emp-rewards-layout {
+    grid-template-columns: 1fr !important;
+    gap: 0.85rem;
+  }
+
+  .emp-rewards-card {
+    border-radius: 14px;
+    padding: 1rem 0.95rem;
+  }
+
+  .emp-rewards-catalog-item,
+  .emp-rewards-redemption {
+    border-radius: 12px;
+    flex-wrap: wrap;
+  }
+
+  .emp-rewards-catalog-item__foot {
+    width: 100%;
+  }
+
+  .emp-rewards-catalog-item__foot .btn {
+    width: 100%;
+    justify-content: center;
+    min-height: 42px;
+  }
+
+  .emp-rewards-balance-card {
+    border-radius: 14px;
+  }
+
+  /* Daily report */
+  .emp-dash .dwr-panel,
+  .emp-dash .dwr-hero,
+  .emp-dash .dwr-compose,
+  .emp-dash .dwr-history {
+    border-radius: 14px;
+  }
+
+  .emp-dash .dwr-textarea {
+    font-size: 16px;
+    min-height: 140px;
+  }
+
+  .emp-dash .dwr-compose__footer .btn {
+    width: 100%;
+    justify-content: center;
+    min-height: 44px;
+  }
+
+  /* Shared glass panels */
+  .emp-dash .glass-panel {
+    border-radius: 14px;
+  }
+
+  .emp-dash .attendance-hero {
+    border-radius: 14px;
+    padding: 1.1rem 1rem;
+  }
+
+  .emp-dash .attendance-hero__btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .emp-attendance-stats,
+  .emp-rewards-stats {
+    gap: 0.4rem !important;
+  }
+
+  .emp-attendance-stat strong,
+  .emp-rewards-stat strong {
+    font-size: 0.92rem;
+  }
+
+  .emp-dash .dash-health-ring {
+    width: 5rem;
+    height: 5rem;
+  }
+}

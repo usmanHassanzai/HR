@@ -1,0 +1,316 @@
+/* Manager dashboard — mobile only professional layout */
+
+@media (max-width: 768px) {
+  .dashboard-container:has(.mgr-dash) {
+    padding-left: max(0.75rem, env(safe-area-inset-left));
+    padding-right: max(0.75rem, env(safe-area-inset-right));
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .mgr-dash {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    min-width: 0;
+  }
+
+  .mgr-dash__team {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+
+  .mgr-dash .dashboard-tab-content {
+    min-width: 0;
+  }
+
+  .mgr-dash .dash-insight-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .mgr-dash .dash-insight-card {
+    padding: 1rem 1.05rem;
+    border-radius: 14px;
+  }
+
+  .mgr-dash .dash-insight-card h3 {
+    font-size: 1.05rem;
+    margin: 0.35rem 0 0.45rem;
+  }
+
+  .mgr-dash .dash-insight-card p {
+    font-size: 0.82rem;
+    line-height: 1.45;
+  }
+
+  /* Shared page headers */
+  .mgr-attendance-header,
+  .mgr-rewards-header,
+  .mgr-kpi-header,
+  .mgr-personal-header {
+    border-radius: 14px !important;
+    padding: 1rem 0.95rem !important;
+    gap: 0.85rem;
+  }
+
+  .mgr-attendance-header__icon,
+  .mgr-rewards-header__icon,
+  .mgr-kpi-header__icon,
+  .mgr-personal-header__icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 11px;
+  }
+
+  .mgr-attendance-header__title,
+  .mgr-rewards-header__title,
+  .mgr-kpi-header__title,
+  .mgr-personal-header__title {
+    font-size: 1.15rem !important;
+    letter-spacing: -0.02em;
+  }
+
+  .mgr-attendance-header__subtitle,
+  .mgr-rewards-header__subtitle,
+  .mgr-kpi-header__subtitle,
+  .mgr-personal-header__subtitle {
+    font-size: 0.8rem !important;
+    line-height: 1.45;
+  }
+
+  /* Stat strips — 2×2 cards */
+  .mgr-attendance-stats,
+  .mgr-rewards-stats,
+  .mgr-kpi-stats,
+  .mgr-personal-stats {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem !important;
+  }
+
+  .mgr-attendance-stat,
+  .mgr-rewards-stat,
+  .mgr-kpi-stat,
+  .mgr-personal-stat {
+    min-width: 0;
+    padding: 0.7rem 0.75rem;
+    border-radius: 12px;
+  }
+
+  .mgr-attendance-stat strong,
+  .mgr-rewards-stat strong,
+  .mgr-kpi-stat strong,
+  .mgr-personal-stat strong {
+    font-size: 0.98rem;
+    word-break: break-word;
+  }
+
+  .mgr-attendance-stat__label,
+  .mgr-rewards-stat__label,
+  .mgr-kpi-stat__label,
+  .mgr-personal-stat__label {
+    font-size: 0.62rem;
+  }
+
+  /* Cards & panels */
+  .mgr-attendance-card,
+  .mgr-rewards-card,
+  .mgr-kpi-card,
+  .mgr-personal-card {
+    border-radius: 14px;
+    padding: 1rem 0.95rem;
+  }
+
+  .mgr-attendance-tabs,
+  .mgr-kpi-tabs,
+  .mgr-personal-tabs {
+    gap: 0.4rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 0.15rem;
+  }
+
+  .mgr-attendance-tabs::-webkit-scrollbar,
+  .mgr-kpi-tabs::-webkit-scrollbar,
+  .mgr-personal-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mgr-attendance-tabs .tab-btn,
+  .mgr-kpi-tabs .tab-btn,
+  .mgr-personal-tabs .tab-btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    min-height: 42px;
+    border-radius: 999px;
+    padding: 0.45rem 0.85rem;
+    font-size: 0.8rem;
+  }
+
+  /* Forms — prevent iOS zoom, full width */
+  .mgr-kpi-form input,
+  .mgr-kpi-form select,
+  .mgr-kpi-form textarea,
+  .mgr-attendance-filters input,
+  .mgr-attendance-filters select,
+  .mgr-attendance-card input,
+  .mgr-attendance-card select,
+  .mgr-attendance-card textarea {
+    font-size: 16px;
+    min-height: 44px;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .mgr-kpi-form__dates {
+    grid-template-columns: 1fr !important;
+    gap: 0.65rem;
+  }
+
+  /* Rewards queue */
+  .mgr-rewards-queue-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    padding: 0.9rem;
+    border-radius: 12px;
+  }
+
+  .mgr-rewards-queue-item__actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.45rem;
+  }
+
+  .mgr-rewards-queue-item__actions .btn {
+    width: 100%;
+    min-height: 42px;
+    justify-content: center;
+  }
+
+  .mgr-rewards-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 12px;
+    margin: 0;
+  }
+
+  .mgr-rewards-table {
+    min-width: 640px;
+  }
+
+  /* Personal KPI cards */
+  .mgr-personal-kpi-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem;
+  }
+
+  .mgr-personal-health {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.85rem;
+  }
+
+  .mgr-personal-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .mgr-personal-card__head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.65rem;
+  }
+
+  .mgr-personal-card__actions {
+    width: 100%;
+  }
+
+  .mgr-personal-card__actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Attendance team list */
+  .mgr-attendance-employee {
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .mgr-attendance-employee__stats {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .mgr-attendance-employee__body {
+    padding: 0.85rem;
+  }
+
+  .mgr-attendance-alert {
+    border-radius: 12px;
+    font-size: 0.85rem;
+  }
+
+  /* Leaderboard / points boards inside manager team tab */
+  .mgr-dash .team-points-board,
+  .mgr-dash .rewards-points-card,
+  .mgr-dash .leaderboard-panel,
+  .mgr-dash .glass-panel {
+    border-radius: 14px;
+  }
+
+  .mgr-dash .team-points-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Daily report inside manager */
+  .mgr-dash .dwr-panel,
+  .mgr-dash .dwr-hero,
+  .mgr-dash .dwr-compose,
+  .mgr-dash .dwr-history {
+    border-radius: 14px;
+  }
+
+  .mgr-dash .dwr-textarea {
+    font-size: 16px;
+    min-height: 140px;
+  }
+
+  /* Live tracking inside manager */
+  .mgr-dash .admin-tracking-header {
+    border-radius: 14px !important;
+    padding: 1rem 0.95rem !important;
+  }
+
+  .mgr-dash .admin-tracking-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .mgr-attendance-stats,
+  .mgr-rewards-stats,
+  .mgr-kpi-stats,
+  .mgr-personal-stats {
+    gap: 0.4rem !important;
+  }
+
+  .mgr-attendance-stat strong,
+  .mgr-rewards-stat strong,
+  .mgr-kpi-stat strong,
+  .mgr-personal-stat strong {
+    font-size: 0.92rem;
+  }
+
+  .mgr-rewards-queue-item__actions {
+    grid-template-columns: 1fr;
+  }
+}

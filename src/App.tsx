@@ -1,11 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { Profile } from './utils/kpiHelpers';
-import LandingPage from './components/LandingPage';
 import AppLoginScreen from './components/AppLoginScreen';
 import NativeScrollRoot from './components/NativeScrollRoot';
 import DemoModeBanner from './components/DemoModeBanner';
-import PlatformOwnerPortal from './components/PlatformOwnerPortal';
 import CompanyPendingScreen from './components/CompanyPendingScreen';
 import { isAppShell, isNativeApp } from './utils/nativePlatform';
 import { SplashScreen } from '@capacitor/splash-screen';
@@ -13,12 +11,25 @@ import { applyBranding, fetchCompanyBranding, loadBranding } from './lib/brandin
 import { isDemoProfile } from './utils/demoMode';
 import { isPlatformRoute, fetchMyCompany, Company } from './utils/companyHelpers';
 import { useSupabaseRealtime } from './utils/useSupabaseRealtime';
+import { usePortalSessionGuard } from './utils/usePortalSessionGuard';
 import Header from './components/Header';
-import EmployeeDashboard from './components/EmployeeDashboard';
-import ManagerDashboard from './components/ManagerDashboard';
-import AdminDashboard from './components/AdminDashboard';
 import GeoAttendanceTracker from './components/GeoAttendanceTracker';
 import { Loader2, AlertCircle } from 'lucide-react';
+
+const LandingPage = lazy(() => import('./components/LandingPage'));
+const PlatformOwnerPortal = lazy(() => import('./components/PlatformOwnerPortal'));
+const EmployeeDashboard = lazy(() => import('./components/EmployeeDashboard'));
+const ManagerDashboard = lazy(() => import('./components/ManagerDashboard'));
+const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
+
+function RouteFallback() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '60vh', gap: '1rem' }}>
+      <Loader2 size={32} className="animate-spin" style={{ color: 'var(--accent-primary)', animation: 'spin 1.5s linear infinite' }} />
+      <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Loading…</span>
+    </div>
+  );
+}
 
 function App() {
   const [session, setSession] = useState<any>(null);
@@ -27,6 +38,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [demoExpired, setDemoExpired] = useState(false);
+  usePortalSessionGuard(Boolean(session));
 
   const fetchUserProfile = async (userId: string) => {
     try {
@@ -154,7 +166,9 @@ function App() {
   if (isPlatformRoute()) {
     return (
       <NativeScrollRoot>
-        <PlatformOwnerPortal />
+        <Suspense fallback={<RouteFallback />}>
+          <PlatformOwnerPortal />
+        </Suspense>
       </NativeScrollRoot>
     );
   }
@@ -209,7 +223,11 @@ function App() {
         </NativeScrollRoot>
       );
     }
-    return <LandingPage onLoginSuccess={handleLoginSuccess} />;
+    return (
+      <Suspense fallback={<RouteFallback />}>
+        <LandingPage onLoginSuccess={handleLoginSuccess} />
+      </Suspense>
+    );
   }
 
   if (demoExpired && isDemoProfile(profile)) {
@@ -241,16 +259,20 @@ function App() {
     <NativeScrollRoot>
       <div className={`dashboard-container${profile.role === 'admin' ? ' dashboard-container--admin' : ''}`}>
         {isDemoProfile(profile) && <DemoModeBanner />}
-        <Header profile={profile} onLogout={handleLogout} />
+        <Header profile={profile} organizationName={company?.name} onLogout={handleLogout} />
 
-        {(profile.role === 'employee' || profile.role === 'manager') && (
+        {(profile.role === 'employee' || profile.role === 'manager' || profile.role === 'admin') && (
           <GeoAttendanceTracker profile={profile} />
         )}
 
         <main className="dashboard-main" style={{ marginTop: profile.role === 'admin' ? 0 : '1rem' }}>
-          {profile.role === 'admin' && <AdminDashboard profile={profile} />}
-          {profile.role === 'manager' && <ManagerDashboard profile={profile} />}
-          {profile.role === 'employee' && <EmployeeDashboard profile={profile} />}
+          <Suspense fallback={<RouteFallback />}>
+            {profile.role === 'admin' && (
+              <AdminDashboard profile={profile} organizationName={company?.name} />
+            )}
+            {profile.role === 'manager' && <ManagerDashboard profile={profile} />}
+            {profile.role === 'employee' && <EmployeeDashboard profile={profile} />}
+          </Suspense>
         </main>
       </div>
     </NativeScrollRoot>

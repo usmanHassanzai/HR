@@ -12,6 +12,7 @@ import { isAppShell } from '../utils/nativePlatform';
 
 interface HeaderProps {
   profile: Profile;
+  organizationName?: string | null;
   onLogout: () => void;
   onNavigateHome?: () => void;
 }
@@ -25,11 +26,12 @@ function userInitials(name: string): string {
     .join('') || '?';
 }
 
-export default function Header({ profile, onLogout, onNavigateHome }: HeaderProps) {
+export default function Header({ profile, organizationName, onLogout, onNavigateHome }: HeaderProps) {
   const demoMode = isDemoProfile(profile);
   const { isOwner: platformOwner } = usePlatformOwnerAccess(profile);
   const [branding, setBranding] = useState<BrandingConfig>(loadBranding(demoMode));
   const shellLayout = isAppShell();
+  const orgName = organizationName?.trim() || (demoMode ? 'Demo Organization' : '');
 
   useEffect(() => {
     setBranding(loadBranding(demoMode));
@@ -40,6 +42,12 @@ export default function Header({ profile, onLogout, onNavigateHome }: HeaderProp
     window.addEventListener('branding-updated', handler);
     return () => window.removeEventListener('branding-updated', handler);
   }, []);
+
+  useEffect(() => {
+    if (orgName) {
+      document.title = `${orgName} — Scorr`;
+    }
+  }, [orgName]);
 
   const handleLogout = async () => {
     try {
@@ -73,18 +81,42 @@ export default function Header({ profile, onLogout, onNavigateHome }: HeaderProp
     }
   };
 
+  const roleLabel =
+    profile.role === 'admin' ? 'Admin' : profile.role === 'manager' ? 'Manager' : 'Employee';
+
   const brandBlock = (
     <div
       onClick={onNavigateHome}
-      className="header-brand"
+      className={`header-brand${orgName ? ' header-brand--org' : ''}`}
       style={{ cursor: onNavigateHome ? 'pointer' : 'default' }}
     >
-      <BrandLogo src={branding.logoUrl} variant="header" alt={branding.brandName} />
-      {!usesBundledWordmark(branding) && (
-        <div className="header-brand-text">
-          <h2>{branding.brandName}</h2>
-          <span>{branding.tagline}</span>
-        </div>
+      {orgName ? (
+        <>
+          <BrandLogo
+            src={branding.logoUrl}
+            variant="icon"
+            alt={orgName}
+            className="brand-logo--org-mark"
+          />
+          <div className="header-brand-text">
+            <h2 className="header-brand-text__org">{orgName}</h2>
+            <span className="header-brand-text__admin">
+              {profile.full_name}
+              <span className="header-brand-text__sep">·</span>
+              {roleLabel}
+            </span>
+          </div>
+        </>
+      ) : (
+        <>
+          <BrandLogo src={branding.logoUrl} variant="header" alt={branding.brandName} />
+          {!usesBundledWordmark(branding) && (
+            <div className="header-brand-text">
+              <h2>{branding.brandName}</h2>
+              <span>{branding.tagline}</span>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -129,9 +161,18 @@ export default function Header({ profile, onLogout, onNavigateHome }: HeaderProp
     </div>
   );
 
+  const headerRoleClass =
+    profile.role === 'admin'
+      ? ' app-header--admin'
+      : profile.role === 'manager'
+        ? ' app-header--manager'
+        : profile.role === 'employee'
+          ? ' app-header--employee'
+          : '';
+
   if (shellLayout) {
     return (
-      <header className="glass-panel app-header app-header--dashboard app-header--stacked">
+      <header className={`glass-panel app-header app-header--dashboard app-header--stacked${headerRoleClass}`}>
         <div className="app-header__brand-row">
           {brandBlock}
           {toolbar}
@@ -145,7 +186,7 @@ export default function Header({ profile, onLogout, onNavigateHome }: HeaderProp
   }
 
   return (
-    <header className="glass-panel app-header app-header--dashboard app-header--inline animate-fade-in">
+    <header className={`glass-panel app-header app-header--dashboard app-header--inline animate-fade-in${headerRoleClass}`}>
       <div className="app-header__start">{brandBlock}</div>
       <div className="app-header__end">
         {platformLink}

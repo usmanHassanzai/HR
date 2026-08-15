@@ -43,7 +43,7 @@ export default function OfficeLocationSettings() {
     address: '',
     latitude: '',
     longitude: '',
-    radius_meters: '50',
+    radius_meters: '150',
     active: true,
   });
 
@@ -71,7 +71,7 @@ export default function OfficeLocationSettings() {
   }, [load]);
 
   const resetForm = () => {
-    setForm({ id: null, name: '', address: '', latitude: '', longitude: '', radius_meters: '50', active: true });
+    setForm({ id: null, name: '', address: '', latitude: '', longitude: '', radius_meters: '150', active: true });
   };
 
   const editOffice = (o: OfficeLocation) => {
@@ -88,9 +88,9 @@ export default function OfficeLocationSettings() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const setCoords = (lat: string, lng: string) => {
+  const setCoords = (lat: string, lng: string, _accuracy?: number | null) => {
     setForm((f) => ({ ...f, latitude: lat, longitude: lng }));
-    showMsg('Live GPS captured — review coordinates and save the office zone.');
+    showMsg('Current location captured — this exact spot will be the office check-in center when you save.');
   };
 
   const startAssign = (officeId: string) => {
@@ -122,13 +122,17 @@ export default function OfficeLocationSettings() {
       p_address: form.address.trim() || null,
       p_latitude: parseFloat(form.latitude),
       p_longitude: parseFloat(form.longitude),
-      p_radius_meters: parseInt(form.radius_meters, 10) || 50,
+      p_radius_meters: parseInt(form.radius_meters, 10) || 150,
       p_active: form.active,
     });
     setSaving(false);
     if (error) showMsg(error.message);
     else {
-      showMsg(wasNew ? `"${savedName}" saved to Supabase. Assign it to a manager next.` : 'Office zone updated.');
+      showMsg(
+        wasNew
+          ? `"${savedName}" saved at your current location. Everyone assigned to it will use this exact pin.`
+          : `"${savedName}" updated. Assigned people now use this exact live pin.`,
+      );
       resetForm();
       await load();
       if (wasNew) {
@@ -173,7 +177,7 @@ export default function OfficeLocationSettings() {
             <h2 className="admin-office-header__title">Office GPS zones</h2>
             <p className="admin-office-header__subtitle">
               Define geofenced office locations for automatic attendance. Capture live GPS, save the zone, then assign
-              each office to a manager — their entire team uses the same check-in area.
+              it to all employees, any individual, or a manager&apos;s team.
             </p>
           </div>
         </div>
@@ -207,7 +211,7 @@ export default function OfficeLocationSettings() {
           1 · Capture &amp; save zone
         </span>
         <span className={`admin-office-step ${activeTab === 'assign' ? 'admin-office-step--active' : ''}`}>
-          2 · Assign to manager
+          2 · Assign people
         </span>
         <span className={`admin-office-step ${activeTab === 'offices' ? 'admin-office-step--active' : ''}`}>
           3 · Manage offices
@@ -227,7 +231,7 @@ export default function OfficeLocationSettings() {
           className={`tab-btn ${activeTab === 'assign' ? 'tab-btn--active' : ''}`}
           onClick={() => setActiveTab('assign')}
         >
-          <UserCheck size={16} /> Assign managers
+          <UserCheck size={16} /> Assign people
         </button>
         <button
           type="button"
@@ -259,7 +263,11 @@ export default function OfficeLocationSettings() {
           <p>Stand at the office entrance, capture live GPS, fine-tune on the map, then save to Supabase.</p>
 
           <div className="admin-office-form-section">
-            <p className="admin-office-form-section__title">Step 1 · Live GPS</p>
+            <p className="admin-office-form-section__title">Step 1 · Stand at office &amp; capture live GPS</p>
+            <p style={{ margin: '0 0 0.75rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              The location where you stand becomes the center of the check-in zone. Saving updates everyone already
+              assigned to this office.
+            </p>
             <LiveGpsCapture latitude={form.latitude} longitude={form.longitude} onCapture={setCoords} />
           </div>
 
@@ -276,7 +284,7 @@ export default function OfficeLocationSettings() {
                 <MapLocationPicker
                   latitude={form.latitude}
                   longitude={form.longitude}
-                  radiusMeters={parseInt(form.radius_meters, 10) || 50}
+                  radiusMeters={parseInt(form.radius_meters, 10) || 150}
                   onLocationChange={setCoords}
                 />
               </Suspense>
@@ -372,14 +380,14 @@ export default function OfficeLocationSettings() {
       {activeTab === 'assign' && (
         <section className="admin-office-card glass-panel">
           <h3>
-            <UserCheck size={18} /> Assign office to manager
+            <UserCheck size={18} /> Assign office GPS
           </h3>
           <p>
-            Each manager gets one GPS zone. All employees on their team automatically check in within that geofence.
+            Assign a zone to every employee at once, to any individual, or to a manager so their team inherits it.
           </p>
           <div className="admin-office-info">
             <Info size={16} />
-            <span>Create at least one active office under <strong>Create zone</strong> before assigning managers.</span>
+            <span>Create at least one active office under <strong>Create zone</strong> before assigning people.</span>
           </div>
           <AssignManagerLocationPanel
             key={assignKey}
@@ -395,7 +403,7 @@ export default function OfficeLocationSettings() {
           <h3>
             <MapPin size={18} /> Saved office zones
           </h3>
-          <p>All geofenced locations stored in Supabase. Edit coordinates, assign managers, or remove unused zones.</p>
+          <p>All geofenced locations stored in Supabase. Edit coordinates, assign people, or remove unused zones.</p>
 
           {offices.length === 0 ? (
             <div className="admin-office-empty">
@@ -425,8 +433,8 @@ export default function OfficeLocationSettings() {
                     <p className="admin-office-item__meta">
                       <Users size={12} style={{ verticalAlign: '-2px', marginRight: '0.25rem' }} />
                       {assigned.length > 0
-                        ? `${assigned.length} manager${assigned.length !== 1 ? 's' : ''} assigned`
-                        : 'Not assigned to a manager yet'}
+                        ? `${assigned.length} manager${assigned.length !== 1 ? 's' : ''} (team zone)`
+                        : 'No manager team zone yet'}
                     </p>
                     <div className="admin-office-item__actions">
                       {o.active && (

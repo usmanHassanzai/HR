@@ -315,16 +315,20 @@ export default function ManagerTeamAttendanceDirectory({
                 >
                   <span className="mgr-attendance-employee__avatar">{initials(group.user.full_name)}</span>
                   <span className="mgr-attendance-employee__info">
-                    <strong>{group.user.full_name}</strong>
-                    <span>{group.user.email}</span>
-                  </span>
-                  <span className="mgr-attendance-employee__stats">
-                    <span>
-                      {daysPresent} day{daysPresent !== 1 ? 's' : ''} present
+                    <span className="mgr-attendance-employee__name-row">
+                      <strong>{group.user.full_name}</strong>
                     </span>
-                    <span>{formatWorkDuration(totalMins)} logged</span>
-                    <span>
-                      {group.rows.length} record{group.rows.length !== 1 ? 's' : ''}
+                    <span className="mgr-attendance-employee__email">{group.user.email}</span>
+                    <span className="mgr-attendance-employee__stats">
+                      <span className="mgr-attendance-employee__stat">
+                        {daysPresent} day{daysPresent !== 1 ? 's' : ''} present
+                      </span>
+                      <span className="mgr-attendance-employee__stat">
+                        {formatWorkDuration(totalMins)} logged
+                      </span>
+                      <span className="mgr-attendance-employee__stat">
+                        {group.rows.length} record{group.rows.length !== 1 ? 's' : ''}
+                      </span>
                     </span>
                   </span>
                   <ChevronDown

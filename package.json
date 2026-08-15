@@ -1,7 +1,7 @@
 {
   "name": "scorr",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -32,6 +32,7 @@
     "migrate:employee-kpi-100": "node scripts/employee-kpi-weight-migration.mjs",
     "mobile:setup": "node scripts/setup-mobile.mjs",
     "mobile:icons": "node scripts/generate-app-icons.mjs",
+    "docs:client-guide": "node scripts/generate-client-guide-pdf.mjs",
     "mobile:jdk": "node scripts/install-portable-jdk.mjs",
     "prepare:deploy": "node scripts/build-all-platforms.mjs --migrate",
     "cap:sync": "cap sync",

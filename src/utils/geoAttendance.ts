@@ -19,6 +19,9 @@ export interface GeoPingResult {
   inside_office?: boolean;
   office_name?: string;
   distance_meters?: number;
+  radius_meters?: number;
+  effective_radius_meters?: number;
+  accuracy_meters?: number;
   clock_in_at?: string;
   clock_out_at?: string;
   record_id?: string;
@@ -29,19 +32,69 @@ export interface GeoPingResult {
   work_minutes?: number;
 }
 
-const GEO_ENABLED_KEY = 'scorr-geo-attendance';
-
-export function isGeoAttendanceEnabled(): boolean {
-  try {
-    return localStorage.getItem(GEO_ENABLED_KEY) === 'true';
-  } catch {
-    return false;
-  }
+export interface AttendanceVisit {
+  id: string;
+  visit_number: number;
+  clock_in_at: string;
+  clock_out_at: string | null;
+  work_minutes: number | null;
+  site_name: string | null;
+  notes: string | null;
 }
 
-export function setGeoAttendanceEnabled(enabled: boolean): void {
-  localStorage.setItem(GEO_ENABLED_KEY, enabled ? 'true' : 'false');
-  window.dispatchEvent(new CustomEvent('scorr-geo-toggle', { detail: enabled }));
+/** Match server geofence: radius + GPS accuracy buffer (min 40m, max +120m). */
+export function effectiveGeofenceRadius(radiusMeters: number, accuracyMeters?: number | null): number {
+  const accuracy = accuracyMeters == null || Number.isNaN(accuracyMeters) ? 40 : accuracyMeters;
+  return radiusMeters + Math.min(120, Math.max(40, accuracy));
+}
+
+const GEO_ENABLED_KEY = 'scorr-geo-attendance';
+
+/** Always on — attendance GPS cannot be turned off in-app. */
+export function isGeoAttendanceEnabled(): boolean {
+  try {
+    localStorage.setItem(GEO_ENABLED_KEY, 'true');
+  } catch {
+    /* ignore */
+  }
+  return true;
+}
+
+/** Kept for callers; always forces ON. */
+export function setGeoAttendanceEnabled(_enabled: boolean): void {
+  try {
+    localStorage.setItem(GEO_ENABLED_KEY, 'true');
+  } catch {
+    /* ignore */
+  }
+  window.dispatchEvent(new CustomEvent('scorr-geo-toggle', { detail: true }));
+}
+
+/**
+ * Auto-request location as soon as the user is signed in.
+ * Phones/browsers still show one system Allow dialog — apps cannot grant location silently.
+ */
+export async function bootstrapAttendanceLocation(): Promise<void> {
+  setGeoAttendanceEnabled(true);
+
+  if (Capacitor.isNativePlatform()) {
+    await ensureBackgroundLocationReady();
+    await requestCurrentPosition().catch(() => undefined);
+    return;
+  }
+
+  if (!navigator.geolocation || !window.isSecureContext) return;
+
+  try {
+    if (navigator.permissions?.query) {
+      const status = await navigator.permissions.query({ name: 'geolocation' });
+      if (status.state === 'denied') return;
+    }
+  } catch {
+    /* Permissions API unsupported — still try getCurrentPosition */
+  }
+
+  await requestCurrentPosition().catch(() => undefined);
 }
 
 /** Haversine distance in meters (client-side preview). */
@@ -75,22 +128,59 @@ export function requestCurrentPosition(): Promise<GeolocationPosition> {
   return requestBrowserPosition();
 }
 
-async function requestNativePosition(): Promise<GeolocationPosition> {
+/**
+ * Fresh high-accuracy GPS for saving an office pin.
+ * Takes several readings and keeps the most accurate — becomes the check-in center.
+ */
+export async function requestFreshOfficePosition(): Promise<GeolocationPosition> {
+  const samples: GeolocationPosition[] = [];
+  const attempts = 4;
+
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const pos = Capacitor.isNativePlatform()
+        ? await requestNativePosition({ maximumAge: 0, timeout: 20000 })
+        : await requestBrowserPosition({ maximumAge: 0, timeout: 20000 });
+      samples.push(pos);
+      const acc = pos.coords.accuracy;
+      if (acc != null && acc <= 25) break;
+    } catch (err) {
+      if (i === attempts - 1 && samples.length === 0) throw err;
+    }
+    if (i < attempts - 1) {
+      await new Promise((r) => setTimeout(r, 700));
+    }
+  }
+
+  if (samples.length === 0) {
+    throw new Error('Could not get a fresh GPS reading. Enable location and try again.');
+  }
+
+  samples.sort((a, b) => (a.coords.accuracy ?? 9999) - (b.coords.accuracy ?? 9999));
+  return samples[0];
+}
+
+async function requestNativePosition(opts?: {
+  maximumAge?: number;
+  timeout?: number;
+}): Promise<GeolocationPosition> {
   const perm = await Geolocation.checkPermissions();
-  if (perm.location === 'denied') {
-    throw new Error('Location blocked. Open Settings → Apps → Scorr → Permissions → Location → Allow.');
+  if (perm.location === 'denied' && perm.coarseLocation === 'denied') {
+    throw new Error('Location blocked. Open Settings → Apps → Scorr → Permissions → Location → Allow all the time.');
   }
   if (perm.location !== 'granted') {
-    const req = await Geolocation.requestPermissions();
-    if (req.location !== 'granted') {
-      throw new Error('Location permission required for GPS attendance. Allow location when prompted.');
+    const req = await Geolocation.requestPermissions({
+      permissions: ['location', 'coarseLocation'],
+    });
+    if (req.location !== 'granted' && req.coarseLocation !== 'granted') {
+      throw new Error('Location permission required for GPS attendance. Allow location when the system asks.');
     }
   }
 
   const pos = await Geolocation.getCurrentPosition({
     enableHighAccuracy: true,
-    timeout: 25000,
-    maximumAge: 10000,
+    timeout: opts?.timeout ?? 25000,
+    maximumAge: opts?.maximumAge ?? 10000,
   });
 
   return {
@@ -107,19 +197,22 @@ async function requestNativePosition(): Promise<GeolocationPosition> {
   } as GeolocationPosition;
 }
 
-function requestBrowserPosition(): Promise<GeolocationPosition> {
+function requestBrowserPosition(opts?: {
+  maximumAge?: number;
+  timeout?: number;
+}): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
       reject(new Error('Geolocation is not supported on this device. Use a phone or laptop with GPS.'));
       return;
     }
     if (!window.isSecureContext) {
-      reject(new Error('Location requires HTTPS. Open the app via https://walfiaai.vercel.app'));
+      reject(new Error('Location requires HTTPS. Open the app via https://scorr.walfia.ai'));
       return;
     }
     navigator.geolocation.getCurrentPosition(resolve, (err) => {
       if (err.code === err.PERMISSION_DENIED) {
-        reject(new Error('Location blocked. Allow location permission for this site in your browser settings, then try again.'));
+        reject(new Error('Location blocked. Allow location for this site when the browser asks, then reload.'));
       } else if (err.code === err.POSITION_UNAVAILABLE) {
         reject(new Error('Could not detect GPS. Move near a window, enable device location, and try again.'));
       } else if (err.code === err.TIMEOUT) {
@@ -129,8 +222,8 @@ function requestBrowserPosition(): Promise<GeolocationPosition> {
       }
     }, {
       enableHighAccuracy: true,
-      timeout: 25000,
-      maximumAge: 10000,
+      timeout: opts?.timeout ?? 25000,
+      maximumAge: opts?.maximumAge ?? 10000,
     });
   });
 }
@@ -140,9 +233,9 @@ export function geoActionLabel(action: GeoPingResult['action']): string {
     case 'clock_in': return 'Clocked in at office';
     case 'clock_out': return 'Clocked out (left office)';
     case 'clock_out_shift_end': return 'Clocked out (shift ended)';
-    case 'already_clocked_in': return 'Already clocked in today';
-    case 'already_clocked_out': return 'Already clocked out today';
-    case 'outside_office': return 'Outside office premises';
+    case 'already_clocked_in': return 'On site · visit in progress';
+    case 'already_clocked_out': return 'Away from office · visit saved';
+    case 'outside_office': return 'Outside office zone';
     case 'shift_not_started': return 'Shift has not started yet';
     case 'not_work_day': return 'Not scheduled to work today';
     case 'skipped': return 'Geo attendance not applicable';
@@ -150,17 +243,28 @@ export function geoActionLabel(action: GeoPingResult['action']): string {
   }
 }
 
-/** Request background location on Android (best-effort for attendance when app minimized). */
+/** Request location (incl. background where the OS allows) for attendance while minimized. */
 export async function ensureBackgroundLocationReady(): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
+
   const perm = await Geolocation.checkPermissions();
-  if (perm.location === 'denied') {
-    throw new Error('Location blocked. Enable Location → Allow all the time in app settings.');
+  if (perm.location === 'denied' && perm.coarseLocation === 'denied') {
+    throw new Error('Location blocked. Open Settings → Scorr → Location → Allow all the time.');
   }
+
   if (perm.location !== 'granted') {
-    const req = await Geolocation.requestPermissions();
-    if (req.location !== 'granted') {
+    const req = await Geolocation.requestPermissions({
+      permissions: ['location', 'coarseLocation'],
+    });
+    if (req.location !== 'granted' && req.coarseLocation !== 'granted') {
       throw new Error('Location permission required for automatic attendance.');
     }
+  }
+
+  // Re-prompt so Android can offer "Allow all the time" after when-in-use is granted.
+  try {
+    await Geolocation.requestPermissions({ permissions: ['location'] });
+  } catch {
+    /* already granted or not supported */
   }
 }

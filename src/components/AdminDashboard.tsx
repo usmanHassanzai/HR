@@ -1,14 +1,18 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase, supabaseSignup } from '../lib/supabase';
 import { Profile } from '../utils/kpiHelpers';
-import { Users, UserPlus, Trash2, Loader2, AlertCircle, CheckCircle, Download, FileSpreadsheet, FileText, BarChart3, Palette, Trophy, KeyRound, CalendarCheck, MapPin, Radio, Building2, Settings, Shield, Search } from 'lucide-react';
+import { Users, UserPlus, Trash2, Loader2, AlertCircle, CheckCircle, Download, FileSpreadsheet, FileText, BarChart3, Palette, Trophy, KeyRound, CalendarCheck, MapPin, Radio, Building2, Settings, Shield, Search, ClipboardList, Coins, Pencil, Mail } from 'lucide-react';
+import AdminDailyWorkReports from './AdminDailyWorkReports';
 import '../styles/admin-dashboard.css';
 import { fetchQuarterlyReportData, fetchMonthlyReportData, exportToCsv, exportToExcel, exportToPdf } from '../utils/exportReport';
 import Analytics from './Analytics';
 import BrandingSettings from './BrandingSettings';
 import AdminRewards from './AdminRewards';
+import AdminEmailPasswordsPanel from './AdminEmailPasswordsPanel';
+import AdminOrgKpiPointsBoard from './AdminOrgKpiPointsBoard';
 import AttendanceLeavePanel from './AttendanceLeavePanel';
 import AdminResetPasswordModal from './AdminResetPasswordModal';
+import AdminEditUserModal from './AdminEditUserModal';
 import OfficeLocationSettings from './OfficeLocationSettings';
 import AdminLiveTracking from './AdminLiveTracking';
 import DepartmentWeightagesPanel from './DepartmentWeightagesPanel';
@@ -20,9 +24,61 @@ import { Department } from '../utils/departmentHelpers';
 import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
 import { usePlatformOwnerAccess } from '../utils/usePlatformOwnerAccess';
 import PlatformCompaniesConsole from './PlatformCompaniesConsole';
+import AdminDailyReportAlert from './AdminDailyReportAlert';
+import { markNotificationsRead } from '../utils/notificationHelpers';
 
 interface AdminDashboardProps {
   profile: Profile;
+  organizationName?: string | null;
+}
+
+const ADD_USER_DRAFT_KEY = 'scorr-add-user-draft';
+
+type AddUserDraft = {
+  email: string;
+  password: string;
+  fullName: string;
+  role: 'employee' | 'manager' | 'admin';
+  managerId: string;
+  departmentId: string;
+};
+
+const EMPTY_ADD_USER_DRAFT: AddUserDraft = {
+  email: '',
+  password: '',
+  fullName: '',
+  role: 'employee',
+  managerId: '',
+  departmentId: '',
+};
+
+function readAddUserDraft(): AddUserDraft {
+  try {
+    const raw = localStorage.getItem(ADD_USER_DRAFT_KEY) || sessionStorage.getItem(ADD_USER_DRAFT_KEY);
+    if (!raw) return EMPTY_ADD_USER_DRAFT;
+    return { ...EMPTY_ADD_USER_DRAFT, ...JSON.parse(raw) };
+  } catch {
+    return EMPTY_ADD_USER_DRAFT;
+  }
+}
+
+function writeAddUserDraft(draft: AddUserDraft) {
+  try {
+    const payload = JSON.stringify(draft);
+    localStorage.setItem(ADD_USER_DRAFT_KEY, payload);
+    sessionStorage.setItem(ADD_USER_DRAFT_KEY, payload);
+  } catch {
+    /* ignore */
+  }
+}
+
+function clearAddUserDraft() {
+  try {
+    localStorage.removeItem(ADD_USER_DRAFT_KEY);
+    sessionStorage.removeItem(ADD_USER_DRAFT_KEY);
+  } catch {
+    /* ignore */
+  }
 }
 
 function userInitials(name: string): string {
@@ -47,26 +103,29 @@ function avatarClass(role: Profile['role']): string {
   return base;
 }
 
-export default function AdminDashboard({ profile }: AdminDashboardProps) {
+export default function AdminDashboard({ profile, organizationName }: AdminDashboardProps) {
   const { isOwner: platformOwner, checking: platformOwnerChecking } = usePlatformOwnerAccess(profile);
   const [users, setUsers] = useState<Profile[]>([]);
   const [managers, setManagers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'users' | 'kpis' | 'export' | 'analytics' | 'branding' | 'rewards' | 'attendance' | 'office' | 'tracking' | 'departments' | 'companies'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'kpis' | 'export' | 'analytics' | 'branding' | 'rewards' | 'kpiPoints' | 'attendance' | 'office' | 'tracking' | 'departments' | 'companies' | 'dailyReports'>('users');
 
-  // User Form States
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState<'employee' | 'manager' | 'admin'>('employee');
-  const [managerId, setManagerId] = useState('');
-  const [departmentId, setDepartmentId] = useState('');
+  // User Form States (restored if the admin switches apps mid-entry)
+  const [email, setEmail] = useState(() => readAddUserDraft().email);
+  const [password, setPassword] = useState(() => readAddUserDraft().password);
+  const [fullName, setFullName] = useState(() => readAddUserDraft().fullName);
+  const [role, setRole] = useState<'employee' | 'manager' | 'admin'>(() => readAddUserDraft().role);
+  const [managerId, setManagerId] = useState(() => readAddUserDraft().managerId);
+  const [departmentId, setDepartmentId] = useState(() => readAddUserDraft().departmentId);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [userFormLoading, setUserFormLoading] = useState(false);
   const [userFormMsg, setUserFormMsg] = useState({ type: '', text: '' });
 
-  // Password reset modal state
+  // Password reset / edit user modals
   const [resetPasswordUser, setResetPasswordUser] = useState<{ id: string; name: string } | null>(null);
+  const [editUser, setEditUser] = useState<Profile | null>(null);
+  const [sendLoginEmail, setSendLoginEmail] = useState(true);
+  const [emailingUserId, setEmailingUserId] = useState<string | null>(null);
 
   // Export states
   const [exportLoading, setExportLoading] = useState(false);
@@ -78,11 +137,55 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
   const [userDeptFilter, setUserDeptFilter] = useState('all');
 
   const [navOpen, setNavOpen] = useState(false);
+  const [dailyReportUnread, setDailyReportUnread] = useState(0);
+
+  useEffect(() => {
+    writeAddUserDraft({ email, password, fullName, role, managerId, departmentId });
+  }, [email, password, fullName, role, managerId, departmentId]);
+
+  const markDailyReportNotificationsRead = useCallback(async () => {
+    const { data } = await supabase
+      .from('notifications')
+      .select('id, title')
+      .eq('user_id', profile.id)
+      .eq('is_read', false)
+      .limit(80);
+    const ids = (data || [])
+      .filter((n) => (n.title || '').toLowerCase().includes('daily report'))
+      .map((n) => n.id);
+    if (!ids.length) {
+      setDailyReportUnread(0);
+      return;
+    }
+    await markNotificationsRead(ids);
+    setDailyReportUnread(0);
+  }, [profile.id]);
 
   const handleAdminTabChange = (id: string) => {
     setActiveTab(id as typeof activeTab);
     setNavOpen(false);
+    if (id === 'dailyReports') void markDailyReportNotificationsRead();
   };
+
+  useEffect(() => {
+    const openTab = (e: Event) => {
+      const detail = (e as CustomEvent<{ tab?: string }>).detail;
+      if (detail?.tab === 'dailyReports') {
+        setActiveTab('dailyReports');
+        setNavOpen(false);
+        void markDailyReportNotificationsRead();
+      } else if (detail?.tab) {
+        setActiveTab(detail.tab as typeof activeTab);
+        setNavOpen(false);
+      }
+    };
+    window.addEventListener('scorr-open-admin-tab', openTab);
+    return () => window.removeEventListener('scorr-open-admin-tab', openTab);
+  }, [markDailyReportNotificationsRead]);
+
+  const onDailyReportUnreadChange = useCallback((count: number) => {
+    setDailyReportUnread(count);
+  }, []);
 
   const fetchData = async () => {
     setLoading(true);
@@ -166,7 +269,7 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
             role: role,
             company_id: profile.company_id ?? undefined,
             department_id: role !== 'admin' ? departmentId : undefined,
-            manager_id: role === 'employee' && managerId ? managerId : undefined,
+            manager_id: (role === 'employee' || role === 'manager') && managerId ? managerId : undefined,
           }
         }
       });
@@ -179,7 +282,7 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
 
       if (signupData.user) {
         const updates: { manager_id?: string; department_id?: string } = {};
-        if (managerId && role === 'employee') updates.manager_id = managerId;
+        if (managerId && (role === 'employee' || role === 'manager')) updates.manager_id = managerId;
         if (role !== 'admin' && departmentId) updates.department_id = departmentId;
         if (Object.keys(updates).length > 0) {
           const { error: updateError } = await supabase
@@ -197,13 +300,31 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
         // Clear the throwaway signup client's in-memory session.
         await supabaseSignup.auth.signOut();
 
-        setUserFormMsg({ type: 'success', text: `Successfully registered user profile for ${fullName}.` });
+        let emailNote = '';
+        if (sendLoginEmail) {
+          try {
+            const { emailLoginCredentials } = await import('../utils/credentialEmail');
+            await emailLoginCredentials({
+              to: email.trim(),
+              fullName: fullName.trim(),
+              password,
+              role,
+              departmentName: role !== 'admin' ? deptName(departmentId) : undefined,
+            });
+            emailNote = ' Login details emailed via Scorr.';
+          } catch (mailErr) {
+            emailNote = ` Account created, but email failed: ${mailErr instanceof Error ? mailErr.message : 'unknown error'}.`;
+          }
+        }
+
+        setUserFormMsg({ type: 'success', text: `Successfully registered ${fullName}.${emailNote}` });
         setEmail('');
         setPassword('');
         setFullName('');
         setRole('employee');
         setManagerId('');
         setDepartmentId('');
+        clearAddUserDraft();
         
         // Refresh users list
         fetchData();
@@ -223,6 +344,76 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
       .eq('id', userId);
     if (error) alert(`Error: ${error.message}`);
     else fetchData();
+  };
+
+  const handleUpdateUserManager = async (userId: string, newManagerId: string) => {
+    if (isDemoProfile(profile)) return;
+    const { error } = await supabase
+      .from('users')
+      .update({ manager_id: newManagerId || null })
+      .eq('id', userId);
+    if (error) alert(`Error: ${error.message}`);
+    else fetchData();
+  };
+
+  const deptName = (id: string | null | undefined) =>
+    departments.find((d) => d.id === id)?.name ?? '—';
+
+  /** Label shown in assign-manager dropdowns: name + Admin/Manager designation. */
+  const supervisorOptionLabel = (m: Profile) => {
+    const roleLabel = m.role === 'admin' ? 'Admin' : 'Manager';
+    const dept = m.role === 'manager' && m.department_id ? deptName(m.department_id) : '';
+    if (dept && dept !== '—') return `${m.full_name} — ${roleLabel} · ${dept}`;
+    return `${m.full_name} — ${roleLabel}`;
+  };
+
+  /** Admins + managers that can supervise an employee or manager. */
+  const assignableSupervisors = (member: Profile) => {
+    const list = users
+      .filter((m) => (m.role === 'manager' || m.role === 'admin') && m.id !== member.id)
+      .sort((a, b) => a.full_name.localeCompare(b.full_name));
+    const admins = list.filter((m) => m.role === 'admin');
+    const sameDept = list.filter(
+      (m) => m.role === 'manager' && member.department_id && m.department_id === member.department_id,
+    );
+    const otherManagers = list.filter(
+      (m) => m.role === 'manager' && (!member.department_id || m.department_id !== member.department_id),
+    );
+    return {
+      admins,
+      sameDept,
+      otherManagers,
+      all: [...admins, ...sameDept, ...otherManagers],
+    };
+  };
+
+  const handleEmailPassword = async (user: Profile) => {
+    if (isDemoProfile(profile)) return;
+    if (!user.email?.trim()) {
+      alert('This user has no email address.');
+      return;
+    }
+    const ok = window.confirm(
+      `Email a new temporary password to ${user.full_name} (${user.email})?\n\nTheir current password will stop working.`,
+    );
+    if (!ok) return;
+
+    setEmailingUserId(user.id);
+    try {
+      const { resetAndEmailLoginCredentials } = await import('../utils/credentialEmail');
+      await resetAndEmailLoginCredentials({
+        userId: user.id,
+        email: user.email,
+        fullName: user.full_name,
+        role: user.role,
+        departmentName: user.role !== 'admin' ? deptName(user.department_id) : undefined,
+      });
+      alert(`Password emailed to ${user.full_name}.`);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to email password.');
+    } finally {
+      setEmailingUserId(null);
+    }
   };
 
   const handleDeleteUser = async (userId: string) => {
@@ -250,12 +441,12 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
     }
   };
 
-  const deptName = (id: string | null | undefined) =>
-    departments.find((d) => d.id === id)?.name ?? '—';
-
-  const managersInDept = managers.filter(
-    (m) => m.role === 'manager' && (!departmentId || m.department_id === departmentId)
-  );
+  const supervisorsForForm = managers
+    .filter((m) => m.role === 'admin' || m.role === 'manager')
+    .sort((a, b) => {
+      if (a.role === b.role) return a.full_name.localeCompare(b.full_name);
+      return a.role === 'admin' ? -1 : 1;
+    });
 
   const managerCount = users.filter((u) => u.role === 'manager').length;
   const employeeCount = users.filter((u) => u.role === 'employee').length;
@@ -277,14 +468,16 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
   const orgAdminTabs = [
     { id: 'users', label: 'Users', icon: <Users size={18} />, description: 'Accounts, roles & access' },
     { id: 'departments', label: 'Departments', icon: <Building2 size={18} />, description: 'Structure & weightages' },
+    { id: 'kpiPoints', label: 'KPI Points', icon: <Coins size={18} />, description: 'Every dept, manager & employee' },
+    { id: 'branding', label: 'Branding', icon: <Palette size={18} />, description: 'Logo & company theme' },
     { id: 'kpis', label: 'Assign Task', icon: <Settings size={18} />, description: 'KPI assignments by dept' },
     { id: 'export', label: 'Reports', icon: <Download size={18} />, description: 'Monthly & quarterly exports' },
     { id: 'analytics', label: 'Analytics', icon: <BarChart3 size={18} />, description: 'Trends & attainment' },
     { id: 'rewards', label: 'Rewards', icon: <Trophy size={18} />, description: 'Points & redemptions' },
     { id: 'attendance', label: 'Attendance', icon: <CalendarCheck size={18} />, description: 'Leave & approvals' },
+    { id: 'dailyReports', label: 'Daily Reports', icon: <ClipboardList size={18} />, description: 'Staff daily work logs', badge: dailyReportUnread },
     { id: 'tracking', label: 'Live Tracking', icon: <Radio size={18} />, description: 'Field team locations' },
     { id: 'office', label: 'Office GPS', icon: <MapPin size={18} />, description: 'Geofence & check-ins' },
-    { id: 'branding', label: 'Branding', icon: <Palette size={18} />, description: 'Logo & company theme' },
   ];
 
   const navGroups: AdminNavGroup[] = useMemo(() => {
@@ -303,7 +496,7 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
     groups.push(
       {
         label: 'Organization',
-        items: orgAdminTabs.filter((t) => ['users', 'departments', 'branding'].includes(t.id)),
+        items: orgAdminTabs.filter((t) => ['users', 'departments', 'kpiPoints', 'branding'].includes(t.id)),
       },
       {
         label: 'Performance',
@@ -311,11 +504,11 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
       },
       {
         label: 'Workforce',
-        items: orgAdminTabs.filter((t) => ['attendance', 'tracking', 'office'].includes(t.id)),
+        items: orgAdminTabs.filter((t) => ['attendance', 'dailyReports', 'tracking', 'office'].includes(t.id)),
       },
     );
     return groups;
-  }, [platformOwner]);
+  }, [platformOwner, dailyReportUnread]);
 
   const pageMeta = getAdminNavMeta(activeTab);
   const pageIcon = findAdminNavIcon(navGroups, activeTab);
@@ -332,11 +525,28 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
   return (
     <div className="admin-shell animate-fade-in">
 
+      <AdminDailyReportAlert
+        userId={profile.id}
+        onOpenReports={() => handleAdminTabChange('dailyReports')}
+        onUnreadChange={onDailyReportUnreadChange}
+      />
+
       {resetPasswordUser && (
         <AdminResetPasswordModal
           userId={resetPasswordUser.id}
           userName={resetPasswordUser.name}
           onClose={() => setResetPasswordUser(null)}
+        />
+      )}
+
+      {editUser && !isDemoProfile(profile) && (
+        <AdminEditUserModal
+          user={editUser}
+          currentAdminId={profile.id}
+          departments={departments}
+          allUsers={users}
+          onClose={() => setEditUser(null)}
+          onSaved={() => { void fetchData(); }}
         />
       )}
 
@@ -347,6 +557,7 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
         navOpen={navOpen}
         onNavOpenChange={setNavOpen}
         platformOwner={platformOwner}
+        organizationName={organizationName}
         stats={{ users: users.length, departments: departments.length, managers: managerCount }}
       />
 
@@ -395,6 +606,25 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
             </div>
           </div>
         </header>
+
+        <div className="admin-shell__mobile-stats" aria-label="Organization stats">
+          <div>
+            <strong>{users.length}</strong>
+            <span>Users</span>
+          </div>
+          <div>
+            <strong>{departments.length}</strong>
+            <span>Depts</span>
+          </div>
+          <div>
+            <strong>{managerCount}</strong>
+            <span>Managers</span>
+          </div>
+          <div>
+            <strong>{employeeCount}</strong>
+            <span>Staff</span>
+          </div>
+        </div>
 
         <div className="admin-shell__content">
           <div className="admin-shell__panel">
@@ -451,6 +681,8 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
             </div>
           </div>
         </div>
+      ) : activeTab === 'kpiPoints' ? (
+        <AdminOrgKpiPointsBoard />
       ) : activeTab === 'analytics' ? (
         <Analytics
           title="Analytics"
@@ -462,6 +694,8 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
         <AdminRewards />
       ) : activeTab === 'attendance' ? (
         <AttendanceLeavePanel profile={profile} mode="admin" />
+      ) : activeTab === 'dailyReports' ? (
+        <AdminDailyWorkReports />
       ) : activeTab === 'office' ? (
         <OfficeLocationSettings />
       ) : activeTab === 'tracking' ? (
@@ -471,6 +705,13 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
       ) : activeTab === 'kpis' ? (
         <ManagerKpiConfig assignerId={profile.id} isAdmin />
       ) : (
+        <div className="admin-users-page">
+          {!isDemoProfile(profile) && (
+            <AdminEmailPasswordsPanel
+              users={users}
+              departments={departments}
+            />
+          )}
         <div className="admin-users-layout">
           <div className="admin-users-panel">
             <div className="admin-users-panel__head">
@@ -536,13 +777,14 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
                         <th>Member</th>
                         <th>Role</th>
                         <th>Department</th>
-                        <th>Manager</th>
+                        <th>Manager / Admin</th>
                         <th aria-label="Actions" />
                       </tr>
                     </thead>
                     <tbody>
                       {filteredUsers.map((u) => {
-                        const userManager = users.find((m) => m.id === u.manager_id);
+                        const mgrChoices = assignableSupervisors(u);
+                        const canAssignSupervisor = (u.role === 'employee' || u.role === 'manager') && !isDemoProfile(profile);
                         return (
                           <tr key={u.id}>
                             <td>
@@ -574,12 +816,68 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
                               )}
                             </td>
                             <td>
-                              <span className="admin-user-card__meta-item">
-                                {userManager?.full_name ?? '—'}
-                              </span>
+                              {canAssignSupervisor ? (
+                                <select
+                                  className="admin-user-card__dept-select admin-user-card__mgr-select"
+                                  value={u.manager_id ?? ''}
+                                  onChange={(e) => handleUpdateUserManager(u.id, e.target.value)}
+                                  aria-label={`Assign manager for ${u.full_name}`}
+                                >
+                                  <option value="">— Unassigned —</option>
+                                  {mgrChoices.admins.length > 0 && (
+                                    <optgroup label="Admins">
+                                      {mgrChoices.admins.map((m) => (
+                                        <option key={m.id} value={m.id}>{supervisorOptionLabel(m)}</option>
+                                      ))}
+                                    </optgroup>
+                                  )}
+                                  {mgrChoices.sameDept.length > 0 && (
+                                    <optgroup label="Managers · same department">
+                                      {mgrChoices.sameDept.map((m) => (
+                                        <option key={m.id} value={m.id}>{supervisorOptionLabel(m)}</option>
+                                      ))}
+                                    </optgroup>
+                                  )}
+                                  {mgrChoices.otherManagers.length > 0 && (
+                                    <optgroup label={mgrChoices.sameDept.length ? 'Managers · other departments' : 'Managers'}>
+                                      {mgrChoices.otherManagers.map((m) => (
+                                        <option key={m.id} value={m.id}>{supervisorOptionLabel(m)}</option>
+                                      ))}
+                                    </optgroup>
+                                  )}
+                                </select>
+                              ) : (
+                                <span className="admin-user-card__meta-item">
+                                  {u.role === 'admin'
+                                    ? '—'
+                                    : (() => {
+                                        const mgr = users.find((m) => m.id === u.manager_id);
+                                        return mgr ? supervisorOptionLabel(mgr) : '—';
+                                      })()}
+                                </span>
+                              )}
                             </td>
                             <td>
                               <div className="admin-user-card__actions">
+                                {!isDemoProfile(profile) && (
+                                  <button
+                                    className="btn btn-secondary"
+                                    onClick={() => setEditUser(u)}
+                                    title="Edit user account"
+                                  >
+                                    <Pencil size={14} />
+                                  </button>
+                                )}
+                                {!isDemoProfile(profile) && (
+                                  <button
+                                    className="btn btn-secondary"
+                                    onClick={() => void handleEmailPassword(u)}
+                                    title="Email new password"
+                                    disabled={emailingUserId === u.id || !u.email}
+                                  >
+                                    {emailingUserId === u.id ? <Loader2 size={14} className="spin-icon" /> : <Mail size={14} />}
+                                  </button>
+                                )}
                                 <button
                                   className="btn btn-secondary"
                                   onClick={() => setResetPasswordUser({ id: u.id, name: u.full_name })}
@@ -605,25 +903,78 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
                 </div>
                 <div className="admin-users-mobile-list">
                   {filteredUsers.map((u) => {
-                    const userManager = users.find((m) => m.id === u.manager_id);
+                    const mgrChoices = assignableSupervisors(u);
+                    const canAssignSupervisor = (u.role === 'employee' || u.role === 'manager') && !isDemoProfile(profile);
+                    const assigned = users.find((m) => m.id === u.manager_id);
                     return (
                       <div key={u.id} className="admin-user-card">
-                        <div className={avatarClass(u.role)} aria-hidden>
-                          {userInitials(u.full_name)}
-                        </div>
-                        <div className="admin-user-card__body">
-                          <strong className="admin-user-card__name">{u.full_name}</strong>
-                          <span className="admin-user-card__email">{u.email}</span>
-                          <div className="admin-user-card__meta">
-                            <span className={roleBadgeClass(u.role)}>{u.role}</span>
-                            {userManager && (
-                              <span className="admin-user-card__meta-item">
-                                Reports to {userManager.full_name}
-                              </span>
-                            )}
+                        <div className="admin-user-card__top">
+                          <div className={avatarClass(u.role)} aria-hidden>
+                            {userInitials(u.full_name)}
+                          </div>
+                          <div className="admin-user-card__body">
+                            <strong className="admin-user-card__name">{u.full_name}</strong>
+                            <span className="admin-user-card__email">{u.email}</span>
+                            <div className="admin-user-card__meta">
+                              <span className={roleBadgeClass(u.role)}>{u.role}</span>
+                              {canAssignSupervisor ? (
+                                <select
+                                  className="admin-user-card__dept-select admin-user-card__mgr-select"
+                                  value={u.manager_id ?? ''}
+                                  onChange={(e) => handleUpdateUserManager(u.id, e.target.value)}
+                                  aria-label={`Assign manager for ${u.full_name}`}
+                                >
+                                  <option value="">Manager: Unassigned</option>
+                                  {mgrChoices.admins.length > 0 && (
+                                    <optgroup label="Admins">
+                                      {mgrChoices.admins.map((m) => (
+                                        <option key={m.id} value={m.id}>{supervisorOptionLabel(m)}</option>
+                                      ))}
+                                    </optgroup>
+                                  )}
+                                  {mgrChoices.sameDept.length > 0 && (
+                                    <optgroup label="Managers · same department">
+                                      {mgrChoices.sameDept.map((m) => (
+                                        <option key={m.id} value={m.id}>{supervisorOptionLabel(m)}</option>
+                                      ))}
+                                    </optgroup>
+                                  )}
+                                  {mgrChoices.otherManagers.length > 0 && (
+                                    <optgroup label={mgrChoices.sameDept.length ? 'Managers · other departments' : 'Managers'}>
+                                      {mgrChoices.otherManagers.map((m) => (
+                                        <option key={m.id} value={m.id}>{supervisorOptionLabel(m)}</option>
+                                      ))}
+                                    </optgroup>
+                                  )}
+                                </select>
+                              ) : assigned ? (
+                                <span className="admin-user-card__meta-item">
+                                  Reports to {supervisorOptionLabel(assigned)}
+                                </span>
+                              ) : null}
+                            </div>
                           </div>
                         </div>
                         <div className="admin-user-card__actions">
+                          {!isDemoProfile(profile) && (
+                            <button
+                              className="btn btn-secondary"
+                              onClick={() => setEditUser(u)}
+                              title="Edit user account"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                          )}
+                          {!isDemoProfile(profile) && (
+                            <button
+                              className="btn btn-secondary"
+                              onClick={() => void handleEmailPassword(u)}
+                              title="Email new password"
+                              disabled={emailingUserId === u.id || !u.email}
+                            >
+                              {emailingUserId === u.id ? <Loader2 size={14} className="spin-icon" /> : <Mail size={14} />}
+                            </button>
+                          )}
                           <button
                             className="btn btn-secondary"
                             onClick={() => setResetPasswordUser({ id: u.id, name: u.full_name })}
@@ -734,17 +1085,41 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
                     </div>
                   )}
 
-                  {role === 'employee' && (
+                  {(role === 'employee' || role === 'manager') && (
                     <div className="form-group">
-                      <label>Assign manager (same department)</label>
+                      <label>Assign manager / admin</label>
                       <select value={managerId} onChange={(e) => setManagerId(e.target.value)}>
                         <option value="">— None —</option>
-                        {managersInDept.map((m) => (
-                          <option key={m.id} value={m.id}>{m.full_name}</option>
-                        ))}
+                        {supervisorsForForm.filter((m) => m.role === 'admin').length > 0 && (
+                          <optgroup label="Admins">
+                            {supervisorsForForm
+                              .filter((m) => m.role === 'admin')
+                              .map((m) => (
+                                <option key={m.id} value={m.id}>{supervisorOptionLabel(m)}</option>
+                              ))}
+                          </optgroup>
+                        )}
+                        {supervisorsForForm.filter((m) => m.role === 'manager').length > 0 && (
+                          <optgroup label="Managers">
+                            {supervisorsForForm
+                              .filter((m) => m.role === 'manager')
+                              .map((m) => (
+                                <option key={m.id} value={m.id}>{supervisorOptionLabel(m)}</option>
+                              ))}
+                          </optgroup>
+                        )}
                       </select>
                     </div>
                   )}
+
+                  <label className="admin-add-user-form__check">
+                    <input
+                      type="checkbox"
+                      checked={sendLoginEmail}
+                      onChange={(e) => setSendLoginEmail(e.target.checked)}
+                    />
+                    <span>Email login &amp; password to this user via Scorr</span>
+                  </label>
 
                   <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '0.25rem' }} disabled={userFormLoading}>
                     {userFormLoading ? <Loader2 size={16} className="spin-icon" /> : 'Register user'}
@@ -753,6 +1128,7 @@ export default function AdminDashboard({ profile }: AdminDashboardProps) {
               </>
             )}
           </div>
+        </div>
         </div>
       )}
 

@@ -7,7 +7,7 @@ import {
   BarChart3, Trophy, CalendarCheck, Users, FileSpreadsheet, Bell,
   Sparkles, Shield, Check, ArrowRight, CreditCard,
   TrendingUp, Target, Award, Clock, Building2, Radio,
-  MapPin, Menu, X, Download,
+  MapPin, Menu, X, Download, Apple,
 } from 'lucide-react';
 import '../styles/landing.css';
 
@@ -62,7 +62,7 @@ const FEE_STEPS = [
 const MARQUEE_ITEMS = [
   'KPI Tracking', 'Rewards Points', 'Daily Attendance', 'Leave Management',
   'Live GPS Tracking', 'Team Leaderboard', 'PDF Reports', 'AI Insights',
-  'Company Registration', 'Android APK Download', 'HR Analytics', 'Manager Approvals',
+  'Company Registration', 'Android APK Download', 'iPhone App Install', 'Manager Approvals',
 ];
 
 const TRUST_ITEMS = [
@@ -71,6 +71,7 @@ const TRUST_ITEMS = [
   'Company data isolation',
   'Admin approval workflow',
   'Android APK download',
+  'iPhone Home Screen app',
   'Demo sandbox available',
 ];
 
@@ -227,6 +228,9 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
               </button>
               <button type="button" className="btn btn-secondary" onClick={() => scrollTo('download-app')}>
                 <Download size={16} /> Download Android App
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={() => scrollTo('download-app')}>
+                <Apple size={16} /> Install on iPhone
               </button>
               <button type="button" className="btn btn-secondary" onClick={openLogin}>
                 Sign In

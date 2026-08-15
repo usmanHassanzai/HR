@@ -59,8 +59,15 @@ type StatusFilter = 'all' | 'at_site' | 'away' | 'offline' | 'no_site';
 type ViewMode = 'department' | 'table';
 
 function trackingStatus(row: TeamTrackingRow): { label: string; className: string; key: StatusFilter } {
-  if (!row.site_id) return { label: 'No work site', className: 'geo-status--muted', key: 'no_site' };
+  if (!row.site_id && !row.site_name) return { label: 'No work site', className: 'geo-status--muted', key: 'no_site' };
   if (!row.tracking_enabled) return { label: 'Tracking off', className: 'geo-status--muted', key: 'no_site' };
+  if (row.inside_site && row.last_ping_at) {
+    const ageMs = Date.now() - new Date(row.last_ping_at).getTime();
+    if (ageMs <= 10 * 60 * 1000) return { label: 'At work site', className: 'geo-status--in', key: 'at_site' };
+  }
+  if (row.clock_in_at && !row.clock_out_at) {
+    return { label: 'Clocked in', className: 'geo-status--in', key: 'at_site' };
+  }
   if (!row.last_ping_at) return { label: 'Waiting for GPS', className: 'geo-status--pending', key: 'offline' };
   const ageMs = Date.now() - new Date(row.last_ping_at).getTime();
   if (ageMs > 10 * 60 * 1000) return { label: 'Offline', className: 'geo-status--away', key: 'offline' };
@@ -149,12 +156,37 @@ export default function AdminLiveTracking({ mode = 'admin', profile }: AdminLive
       const deptNameById = new Map(deptList.map((d) => [d.id, d.name]));
       const userDept = new Map(users.map((u) => [u.id, u.department_id ?? null]));
 
+      const deptManager = new Map<string, Profile>();
+      for (const u of users) {
+        if (u.role === 'manager' && u.department_id && !deptManager.has(u.department_id)) {
+          deptManager.set(u.department_id, u);
+        }
+      }
+      const fallbackSite = ((sitesRes.data || []) as Array<{
+        manager_id: string;
+        name: string;
+        address?: string | null;
+        latitude?: number | null;
+        longitude?: number | null;
+        radius_meters?: number | null;
+        tracking_enabled?: boolean;
+        id?: string;
+      }>).find((s) => s.tracking_enabled !== false) ?? null;
+
       const enriched = ((trackRes.data || []) as TeamTrackingRow[])
         .filter((r) => r.role === 'employee' && allowedIds.has(r.user_id))
         .map((r) => {
           const deptId = userDept.get(r.user_id) ?? null;
+          const deptMgr = deptId ? deptManager.get(deptId) : undefined;
           return {
             ...r,
+            manager_id: r.manager_id || deptMgr?.id || null,
+            manager_name: r.manager_name || deptMgr?.full_name || null,
+            site_id: r.site_id || fallbackSite?.id || null,
+            site_name: r.site_name || fallbackSite?.name || null,
+            site_address: r.site_address || fallbackSite?.address || null,
+            tracking_enabled: r.site_id ? r.tracking_enabled : (fallbackSite?.tracking_enabled ?? r.tracking_enabled),
+            last_ping_at: r.last_ping_at || r.clock_in_at || r.clock_out_at,
             department_id: deptId,
             department_name: deptId ? deptNameById.get(deptId) || 'Department' : 'Unassigned',
           };
@@ -460,7 +492,7 @@ export default function AdminLiveTracking({ mode = 'admin', profile }: AdminLive
                         </div>
                         <div className="admin-tracking-employee-card__row">
                           <span>Work site</span>
-                          <span>{row.site_name || '—'}</span>
+                          <span>{row.site_name || 'No work site'}</span>
                         </div>
                         <div className="admin-tracking-employee-card__row">
                           <span>Last seen</span>

@@ -5,14 +5,16 @@ import Leaderboard from './Leaderboard';
 import EmployeeDashboard from './EmployeeDashboard';
 import ManagerPersonalPanel from './ManagerPersonalPanel';
 import ManagerKpiConfig from './ManagerKpiConfig';
-import { Users, BarChart3, ShieldAlert, KeyRound, Trophy, Settings, CalendarCheck, Radio } from 'lucide-react';
+import { Users, BarChart3, ShieldAlert, KeyRound, Trophy, Settings, CalendarCheck, Radio, ClipboardList } from 'lucide-react';
+import DailyWorkReportPanel from './DailyWorkReportPanel';
 import ChangePasswordModal from './ChangePasswordModal';
 import ManagerRewardsPanel from './ManagerRewardsPanel';
 import AttendanceLeavePanel from './AttendanceLeavePanel';
 import AdminLiveTracking from './AdminLiveTracking';
 import RewardsPointsCard from './RewardsPointsCard';
-import TeamEmployeePointsPanel from './TeamEmployeePointsPanel';
+import TeamPointsBoard from './TeamPointsBoard';
 import DashboardTabNav from './DashboardTabNav';
+import '../styles/manager-mobile.css';
 
 interface ManagerDashboardProps {
   profile: Profile;
@@ -20,7 +22,7 @@ interface ManagerDashboardProps {
 
 export default function ManagerDashboard({ profile }: ManagerDashboardProps) {
   const [selectedEmployee, setSelectedEmployee] = useState<Profile | null>(null);
-  const [activeTab, setActiveTab] = useState<'team' | 'kpis' | 'rewards' | 'personal' | 'attendance' | 'tracking'>('team');
+  const [activeTab, setActiveTab] = useState<'team' | 'kpis' | 'rewards' | 'personal' | 'attendance' | 'tracking' | 'dailyReport'>('team');
   const [alertCount, setAlertCount] = useState(0);
   const [showChangePassword, setShowChangePassword] = useState(false);
 
@@ -57,16 +59,16 @@ export default function ManagerDashboard({ profile }: ManagerDashboardProps) {
 
   if (selectedEmployee) {
     return (
-      <EmployeeDashboard 
-        profile={profile} 
-        readOnlyUser={selectedEmployee} 
+      <EmployeeDashboard
+        profile={profile}
+        readOnlyUser={selectedEmployee}
         onBackToLeaderboard={handleBackToLeaderboard}
       />
     );
   }
 
   return (
-    <div className="animate-fade-in dashboard-with-mobile-nav">
+    <div className="animate-fade-in dashboard-with-mobile-nav mgr-dash">
       {showChangePassword && <ChangePasswordModal onClose={() => setShowChangePassword(false)} />}
 
       <DashboardTabNav
@@ -77,6 +79,7 @@ export default function ManagerDashboard({ profile }: ManagerDashboardProps) {
           { id: 'kpis', label: 'KPI Tasks', mobileLabel: 'KPIs', icon: <Settings size={16} /> },
           { id: 'rewards', label: 'Team Rewards', mobileLabel: 'Rewards', icon: <Trophy size={16} /> },
           { id: 'attendance', label: 'Attendance & Leave', mobileLabel: 'Leave', icon: <CalendarCheck size={16} /> },
+          { id: 'dailyReport', label: 'Daily Report', mobileLabel: 'Daily', icon: <ClipboardList size={16} /> },
           { id: 'tracking', label: 'Live Tracking', mobileLabel: 'GPS', icon: <Radio size={16} /> },
           { id: 'personal', label: 'My KPIs & Points', mobileLabel: 'My KPIs', icon: <BarChart3 size={16} /> },
         ]}
@@ -93,15 +96,15 @@ export default function ManagerDashboard({ profile }: ManagerDashboardProps) {
 
       <div className="dashboard-tab-content">
         {activeTab === 'team' ? (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem' }}>
+          <div className="mgr-dash__team">
             <RewardsPointsCard
               userId={profile.id}
               title="Your rewards points"
               onViewRewards={() => setActiveTab('personal')}
             />
-            <TeamEmployeePointsPanel
-              managerId={profile.id}
-              onSelectEmployee={handleSelectEmployee}
+            <TeamPointsBoard
+              title="Your points & team"
+              description="Your balance plus direct reports and department teammates. Complete your own KPI tasks and track team points here."
             />
             <div className="dash-insight-grid">
               <div className="glass-panel dash-insight-card dash-insight-card--accent">
@@ -131,6 +134,8 @@ export default function ManagerDashboard({ profile }: ManagerDashboardProps) {
           <ManagerRewardsPanel managerId={profile.id} onGoToPersonal={() => setActiveTab('personal')} />
         ) : activeTab === 'attendance' ? (
           <AttendanceLeavePanel profile={profile} mode="manager" />
+        ) : activeTab === 'dailyReport' ? (
+          <DailyWorkReportPanel profile={profile} />
         ) : activeTab === 'tracking' ? (
           <AdminLiveTracking mode="manager" profile={profile} />
         ) : (

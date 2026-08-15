@@ -137,13 +137,56 @@
   align-items: center;
   gap: 0.65rem;
   min-width: 0;
-  flex-shrink: 0;
+  flex-shrink: 1;
+}
+
+.header-brand--org {
+  flex: 1;
+  min-width: 0;
 }
 
 .brand-logo--header {
   height: clamp(58px, 7.5vw, 76px);
   width: auto;
   max-width: min(340px, 58vw);
+}
+
+.brand-logo--org-mark,
+.brand-logo--icon.brand-logo--org-mark,
+.scorr-mark-icon.brand-logo--org-mark {
+  width: 40px;
+  height: 40px;
+  max-width: 40px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.header-brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.header-brand-text__admin {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem !important;
+  font-weight: 600;
+  color: var(--text-secondary) !important;
+  text-transform: none !important;
+  letter-spacing: 0.01em !important;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header-brand-text__sep {
+  opacity: 0.55;
 }
 
 .scorr-wordmark--default .scorr-wordmark__title {
@@ -180,6 +223,25 @@
   margin: 0;
   line-height: 1.15;
   color: var(--text-primary);
+}
+
+.header-brand-text__org {
+  font-size: 1.15rem !important;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  max-width: min(42vw, 22rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header-brand-text__product {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 0.28rem;
+  text-transform: none !important;
+  letter-spacing: 0.01em !important;
+  font-size: 0.72rem !important;
 }
 
 .header-brand-text span {
@@ -405,5 +467,201 @@
   .brand-logo--header {
     height: clamp(52px, 13vw, 62px);
     max-width: 100%;
+  }
+
+  /* Compact professional admin header on phones */
+  .app-header--admin.app-header--inline {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.55rem;
+    padding: 0.6rem 0.75rem !important;
+    padding-left: max(0.75rem, env(safe-area-inset-left)) !important;
+    padding-right: max(0.75rem, env(safe-area-inset-right)) !important;
+  }
+
+  .app-header--admin.app-header--inline .app-header__start {
+    width: auto;
+    flex: 1;
+    min-width: 0;
+    max-width: calc(100% - 7.5rem);
+  }
+
+  .app-header--admin.app-header--inline .app-header__start .header-brand {
+    max-width: 100%;
+  }
+
+  .app-header--admin.app-header--inline .app-header__end {
+    width: auto;
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .app-header--admin.app-header--inline .app-header__profile {
+    display: none;
+  }
+
+  .app-header--admin.app-header--inline .brand-logo--org-mark,
+  .app-header--admin.app-header--inline .scorr-mark-icon {
+    width: 36px;
+    height: 36px;
+    max-width: 36px;
+  }
+
+  .app-header--admin.app-header--inline .header-brand-text__org {
+    font-size: 0.98rem !important;
+    max-width: 100%;
+  }
+
+  .app-header--admin.app-header--inline .header-brand-text__admin {
+    font-size: 0.68rem !important;
+  }
+
+  .app-header--admin.app-header--inline .header-brand-text__product {
+    display: none !important;
+  }
+
+  .app-header--admin.app-header--stacked {
+    padding: 0.55rem 0.75rem !important;
+    gap: 0.45rem;
+  }
+
+  .app-header--admin.app-header--stacked .app-header__user-row {
+    display: none;
+  }
+
+  .app-header--admin.app-header--stacked .brand-logo--org-mark {
+    width: 36px;
+    height: 36px;
+  }
+
+  /* Manager — same compact professional header on phones */
+  .app-header--manager.app-header--inline {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.55rem;
+    padding: 0.6rem 0.75rem !important;
+    padding-left: max(0.75rem, env(safe-area-inset-left)) !important;
+    padding-right: max(0.75rem, env(safe-area-inset-right)) !important;
+  }
+
+  .app-header--manager.app-header--inline .app-header__start {
+    width: auto;
+    flex: 1;
+    min-width: 0;
+    max-width: calc(100% - 7.5rem);
+  }
+
+  .app-header--manager.app-header--inline .app-header__start .header-brand {
+    max-width: 100%;
+  }
+
+  .app-header--manager.app-header--inline .app-header__end {
+    width: auto;
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .app-header--manager.app-header--inline .app-header__profile {
+    display: none;
+  }
+
+  .app-header--manager.app-header--inline .brand-logo--org-mark,
+  .app-header--manager.app-header--inline .scorr-mark-icon {
+    width: 36px;
+    height: 36px;
+    max-width: 36px;
+  }
+
+  .app-header--manager.app-header--inline .header-brand-text__org {
+    font-size: 0.98rem !important;
+    max-width: 100%;
+  }
+
+  .app-header--manager.app-header--inline .header-brand-text__admin {
+    font-size: 0.68rem !important;
+  }
+
+  .app-header--manager.app-header--stacked {
+    padding: 0.55rem 0.75rem !important;
+    gap: 0.45rem;
+  }
+
+  .app-header--manager.app-header--stacked .app-header__user-row {
+    display: none;
+  }
+
+  .app-header--manager.app-header--stacked .brand-logo--org-mark {
+    width: 36px;
+    height: 36px;
+  }
+
+  /* Employee — compact professional header on phones */
+  .app-header--employee.app-header--inline {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.55rem;
+    padding: 0.6rem 0.75rem !important;
+    padding-left: max(0.75rem, env(safe-area-inset-left)) !important;
+    padding-right: max(0.75rem, env(safe-area-inset-right)) !important;
+  }
+
+  .app-header--employee.app-header--inline .app-header__start {
+    width: auto;
+    flex: 1;
+    min-width: 0;
+    max-width: calc(100% - 7.5rem);
+  }
+
+  .app-header--employee.app-header--inline .app-header__start .header-brand {
+    max-width: 100%;
+  }
+
+  .app-header--employee.app-header--inline .app-header__end {
+    width: auto;
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .app-header--employee.app-header--inline .app-header__profile {
+    display: none;
+  }
+
+  .app-header--employee.app-header--inline .brand-logo--org-mark,
+  .app-header--employee.app-header--inline .scorr-mark-icon {
+    width: 36px;
+    height: 36px;
+    max-width: 36px;
+  }
+
+  .app-header--employee.app-header--inline .header-brand-text__org {
+    font-size: 0.98rem !important;
+    max-width: 100%;
+  }
+
+  .app-header--employee.app-header--inline .header-brand-text__admin {
+    font-size: 0.68rem !important;
+  }
+
+  .app-header--employee.app-header--stacked {
+    padding: 0.55rem 0.75rem !important;
+    gap: 0.45rem;
+  }
+
+  .app-header--employee.app-header--stacked .app-header__user-row {
+    display: none;
+  }
+
+  .app-header--employee.app-header--stacked .brand-logo--org-mark {
+    width: 36px;
+    height: 36px;
   }
 }

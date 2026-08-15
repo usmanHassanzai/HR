@@ -10,6 +10,7 @@ import {
 import { Building2, Upload, Loader2, CheckCircle, AlertCircle, Download, Users } from 'lucide-react';
 
 interface HrisIntegrationProps {
+  companyId?: string | null;
   onImported?: () => void;
 }
 
@@ -20,7 +21,7 @@ interface ImportResult {
   messages: string[];
 }
 
-export default function HrisIntegration({ onImported }: HrisIntegrationProps) {
+export default function HrisIntegration({ companyId, onImported }: HrisIntegrationProps) {
   const [employees, setEmployees] = useState<HrisEmployee[]>([]);
   const [source, setSource] = useState<string>('');
   const [loading, setLoading] = useState(false);
@@ -56,6 +57,10 @@ export default function HrisIntegration({ onImported }: HrisIntegrationProps) {
 
   const handleImport = async () => {
     if (employees.length === 0) return;
+    if (!companyId) {
+      setError('Your account is not linked to a company. Cannot import users.');
+      return;
+    }
     setImporting(true);
     setResult(null);
     const res: ImportResult = { created: 0, skipped: 0, failed: 0, messages: [] };
@@ -65,7 +70,13 @@ export default function HrisIntegration({ onImported }: HrisIntegrationProps) {
         const { data, error: signErr } = await supabaseSignup.auth.signUp({
           email: emp.email,
           password: generateTempPassword(),
-          options: { data: { full_name: emp.full_name, role: emp.role } },
+          options: {
+            data: {
+              full_name: emp.full_name,
+              role: emp.role,
+              company_id: companyId,
+            },
+          },
         });
         if (signErr) {
           if (/already registered|already exists/i.test(signErr.message)) {

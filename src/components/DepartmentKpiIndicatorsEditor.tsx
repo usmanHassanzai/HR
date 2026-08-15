@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { CheckCircle, Cloud, Loader2, Plus, Trash2 } from 'lucide-react';
+import { CheckCircle, ChevronDown, Cloud, Loader2, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import {
   DepartmentKpiIndicator,
+  clampOrgWeight,
   formatWeightPct,
   indicatorWeightsValid,
   sumIndicatorWeights,
@@ -31,6 +32,7 @@ export default function DepartmentKpiIndicatorsEditor({
   const [seeding, setSeeding] = useState(false);
   const [msg, setMsg] = useState('');
   const [dirty, setDirty] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const skipLoadSave = useRef(false);
 
   const load = useCallback(async () => {
@@ -55,6 +57,7 @@ export default function DepartmentKpiIndicatorsEditor({
     `dept-kpis-${departmentId}`,
     [{ table: 'department_kpi_indicators', filter: `department_id=eq.${departmentId}` }],
     () => { if (!dirty) void load(); },
+    open,
   );
 
   const total = sumIndicatorWeights(rows);
@@ -133,7 +136,19 @@ export default function DepartmentKpiIndicatorsEditor({
     allowEdit,
   );
 
-  if (!defaultOpen) return null;
+  if (!open) {
+    return (
+      <button
+        type="button"
+        className="dept-indicators__toggle"
+        onClick={() => setOpen(true)}
+        aria-expanded={false}
+      >
+        Edit KPI board
+        <ChevronDown size={16} />
+      </button>
+    );
+  }
 
   return (
     <div className="dept-indicators dept-indicators--open">
@@ -178,6 +193,7 @@ export default function DepartmentKpiIndicatorsEditor({
         </div>
       ) : (
         <>
+          <div className="dept-indicators-table-wrap">
           <table className="attendance-history-table dept-indicators-table">
             <thead>
               <tr>
@@ -190,7 +206,7 @@ export default function DepartmentKpiIndicatorsEditor({
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id}>
-                  <td>
+                  <td data-label="KPI Metric">
                     {allowEdit ? (
                       <input
                         type="text"
@@ -198,13 +214,12 @@ export default function DepartmentKpiIndicatorsEditor({
                         onChange={(e) => updateRow(r.id, { name: e.target.value })}
                         placeholder="KPI name"
                         className="input-field"
-                        style={{ minWidth: '140px' }}
                       />
                     ) : (
                       <strong>{r.name}</strong>
                     )}
                   </td>
-                  <td className="dept-indicators__desc-cell">
+                  <td className="dept-indicators__desc-cell" data-label="Description">
                     {allowEdit ? (
                       <input
                         type="text"
@@ -217,20 +232,28 @@ export default function DepartmentKpiIndicatorsEditor({
                       r.description
                     )}
                   </td>
-                  <td>
+                  <td data-label="Weight %">
                     <input
                       type="number"
                       min={0}
                       max={100}
                       step={0.5}
-                      value={r.weight_pct}
-                      onChange={(e) => updateRow(r.id, { weight_pct: Number(e.target.value) })}
+                      value={Number.isFinite(Number(r.weight_pct)) ? Number(r.weight_pct) : 0}
+                      onChange={(e) => {
+                        const others = sumIndicatorWeights(rows.filter((x) => x.id !== r.id));
+                        updateRow(r.id, {
+                          weight_pct: clampOrgWeight(
+                            e.target.value === '' ? 0 : Number(e.target.value),
+                            others,
+                          ),
+                        });
+                      }}
                       className="dept-weight-input"
                       disabled={!allowEdit}
                     />
                   </td>
                   {allowEdit && (
-                    <td>
+                    <td data-label="Remove">
                       <button type="button" className="btn btn-secondary btn-sm" onClick={() => removeRow(r.id)} title="Remove KPI">
                         <Trash2 size={14} />
                       </button>
@@ -240,6 +263,7 @@ export default function DepartmentKpiIndicatorsEditor({
               ))}
             </tbody>
           </table>
+          </div>
           {allowEdit && (
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.75rem', alignItems: 'center' }}>
               <button type="button" className="btn btn-secondary btn-sm" onClick={addRow}>

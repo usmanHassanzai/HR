@@ -3,12 +3,13 @@ import { supabase } from '../lib/supabase';
 import { Profile, Kpi, calculateHealthScore } from '../utils/kpiHelpers';
 import { fetchRewardsSummary, RewardsSummary } from '../utils/rewardsHelpers';
 import { formatKpiWeight } from '../utils/kpiWeightHelpers';
-import { kpiAchievedPct, kpiScoreContribution, statusTrafficLight, trafficLightLabel } from '../utils/kpiScoreHelpers';
+import { kpiAchievedPct, kpiScoreContribution, employeeTotalKpiPoints, statusTrafficLight, trafficLightLabel } from '../utils/kpiScoreHelpers';
 import { emailKpiCompleted, emailKpiOverdue } from '../utils/kpiEmail';
 import EmployeeKpiBoardSummary from './EmployeeKpiBoardSummary';
 import TaskList from './TaskList';
 import ExportButton from './ExportButton';
 import RewardsTab from './RewardsTab';
+import TeamPointsBoard from './TeamPointsBoard';
 import {
   BarChart3,
   BarChart2,
@@ -51,6 +52,7 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
   const [rewards, setRewards] = useState<RewardsSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [completingId, setCompletingId] = useState<string | null>(null);
+  const [pointsRefreshKey, setPointsRefreshKey] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -92,6 +94,7 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
   }, [load, profile.full_name, profile.id]);
 
   const healthScore = persistedHealthScore ?? calculateHealthScore(kpis);
+  const totalKpiPoints = employeeTotalKpiPoints(kpis);
   const completedCount = kpis.filter((k) => k.completion_status === 'completed').length;
   const onTrackCount = kpis.filter((k) => k.status === 'on_track').length;
   const atRiskCount = kpis.filter((k) => k.status === 'at_risk').length;
@@ -107,6 +110,7 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
         await emailKpiCompleted(row.manager_email, row.manager_name, profile.full_name, row.department);
       }
       await load();
+      setPointsRefreshKey((k) => k + 1);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Could not mark complete.';
       alert(message);
@@ -143,18 +147,18 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
         <div className="mgr-personal-stats">
           <div className="mgr-personal-stat mgr-personal-stat--accent">
             <TrendingUp size={16} />
-            <span className="mgr-personal-stat__label">Performance index</span>
-            <strong style={{ color: healthStatusColor(healthScore) }}>{healthScore}%</strong>
+            <span className="mgr-personal-stat__label">Total KPI points</span>
+            <strong>{totalKpiPoints}</strong>
           </div>
           <div className="mgr-personal-stat">
             <Target size={16} />
-            <span className="mgr-personal-stat__label">Active KPIs</span>
-            <strong>{kpis.length}</strong>
+            <span className="mgr-personal-stat__label">Performance index</span>
+            <strong style={{ color: healthStatusColor(healthScore) }}>{healthScore}%</strong>
           </div>
           <div className="mgr-personal-stat mgr-personal-stat--success">
             <CheckCircle2 size={16} />
             <span className="mgr-personal-stat__label">Completed</span>
-            <strong>{completedCount}</strong>
+            <strong>{completedCount} / {kpis.length || 0}</strong>
           </div>
           <div className="mgr-personal-stat mgr-personal-stat--gold">
             <Trophy size={16} />
@@ -208,6 +212,10 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
 
             <section className="mgr-personal-card mgr-personal-metrics">
               <div className="mgr-personal-metric">
+                <span>Total KPI points</span>
+                <strong className="mgr-personal-metric--accent">{totalKpiPoints}</strong>
+              </div>
+              <div className="mgr-personal-metric">
                 <span>Completed</span>
                 <strong className="mgr-personal-metric--accent">
                   {completedCount} / {kpis.length}
@@ -244,10 +252,21 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
 
           <EmployeeKpiBoardSummary kpis={kpis} />
 
+          <TeamPointsBoard
+            refreshKey={pointsRefreshKey}
+            title="Your points & team"
+            description="After you complete KPI tasks, watch your earned points here and compare with your team."
+          />
+
           <section className="mgr-personal-card">
             <div className="mgr-personal-card__head">
               <h3>
                 <BarChart2 size={18} /> My KPI tasks
+                {kpis.length > 0 && (
+                  <span className="emp-kpi-total-badge" title="Sum of points from all your KPI tasks">
+                    Total: {totalKpiPoints} pts
+                  </span>
+                )}
               </h3>
               <div className="mgr-personal-card__actions">
                 <ExportButton kpis={kpis} userName={profile.full_name} />
@@ -350,7 +369,14 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
         </>
       ) : (
         <section className="mgr-personal-rewards-wrap">
-          <RewardsTab userId={profile.id} viewerRole="manager" embedded />
+          <div className="emp-points-stack">
+            <TeamPointsBoard
+              refreshKey={pointsRefreshKey}
+              title="Your points & team"
+              description="Your earned balance and your team’s points. Complete KPI tasks to improve your monthly score."
+            />
+            <RewardsTab userId={profile.id} viewerRole="manager" embedded kpiPoints={totalKpiPoints} />
+          </div>
         </section>
       )}
     </div>

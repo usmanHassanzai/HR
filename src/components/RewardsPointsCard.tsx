@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Loader2, Sparkles, Star, Trophy } from 'lucide-react';
+import { BarChart2, Loader2, Sparkles, Star, Trophy } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { Kpi } from '../utils/kpiHelpers';
+import { employeeTotalKpiPoints } from '../utils/kpiScoreHelpers';
 import { fetchRewardsSummary, RewardsSummary } from '../utils/rewardsHelpers';
 import { REWARD_CATALOG_COST, tierColorForScore } from '../utils/rewardsTiers';
 
@@ -8,19 +11,46 @@ interface RewardsPointsCardProps {
   title?: string;
   onViewRewards?: () => void;
   showViewLink?: boolean;
+  /** Live KPI board points. When omitted, loaded from the user's KPIs. */
+  kpiPoints?: number | null;
+  /** Bump after completing tasks so balance refreshes. */
+  refreshKey?: number | string;
 }
 
-export default function RewardsPointsCard({ userId, title = 'Your rewards points', onViewRewards, showViewLink = true }: RewardsPointsCardProps) {
+export default function RewardsPointsCard({
+  userId,
+  title = 'Your rewards points',
+  onViewRewards,
+  showViewLink = true,
+  kpiPoints: kpiPointsProp,
+  refreshKey = 0,
+}: RewardsPointsCardProps) {
   const [summary, setSummary] = useState<RewardsSummary | null>(null);
+  const [kpiPoints, setKpiPoints] = useState<number | null>(kpiPointsProp ?? null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (kpiPointsProp != null) setKpiPoints(kpiPointsProp);
+  }, [kpiPointsProp]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
       try {
-        const data = await fetchRewardsSummary(userId);
-        if (!cancelled) setSummary(data);
+        const [data, kpiRes] = await Promise.all([
+          fetchRewardsSummary(userId),
+          kpiPointsProp != null
+            ? Promise.resolve(null)
+            : supabase.from('kpis').select('*').eq('user_id', userId),
+        ]);
+        if (cancelled) return;
+        setSummary(data);
+        if (kpiPointsProp != null) {
+          setKpiPoints(kpiPointsProp);
+        } else if (kpiRes && !kpiRes.error) {
+          setKpiPoints(employeeTotalKpiPoints((kpiRes.data || []) as Kpi[]));
+        }
       } catch {
         if (!cancelled) setSummary(null);
       } finally {
@@ -28,7 +58,7 @@ export default function RewardsPointsCard({ userId, title = 'Your rewards points
       }
     })();
     return () => { cancelled = true; };
-  }, [userId]);
+  }, [userId, refreshKey, kpiPointsProp]);
 
   if (loading) {
     return (
@@ -53,6 +83,15 @@ export default function RewardsPointsCard({ userId, title = 'Your rewards points
       </p>
 
       <div className="dash-points-card__stats">
+        {kpiPoints != null && (
+          <div className="dash-points-card__stat">
+            <BarChart2 size={15} />
+            <div>
+              <strong>{kpiPoints.toLocaleString()}</strong>
+              <span>KPI points</span>
+            </div>
+          </div>
+        )}
         <div className="dash-points-card__stat">
           <Star size={15} />
           <div>

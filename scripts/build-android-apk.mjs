@@ -19,9 +19,10 @@
  * Usage: node scripts/build-android-apk.mjs [--release] [--skip-web]
  */
 import { execSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { formatUpdatedLabel, packageVersion, readBuildInfo, writeBuildInfo } from './build-info-utils.mjs';
 
 const root = new URL('..', import.meta.url).pathname;
 const androidDir = join(root, 'android');
@@ -136,10 +137,18 @@ if (!skipWeb) {
 }
 run('node scripts/sync-android-icons.mjs');
 
+function stripDownloadBinariesFromWebDir() {
+  for (const name of ['scorr.apk', 'scorr.ipa']) {
+    const p = join(root, 'dist', 'downloads', name);
+    if (existsSync(p)) unlinkSync(p);
+  }
+}
+
 console.log('\nStep 2/4: Web build + Capacitor sync');
 if (!skipWeb) {
   run('npm run build');
 }
+stripDownloadBinariesFromWebDir();
 run('npx cap sync android');
 
 if (release) patchReleaseSigning();
@@ -169,26 +178,35 @@ const apkDest = join(downloadsDir, 'scorr.apk');
 copyFileSync(apkSrc, apkDest);
 
 const apkBytes = readFileSync(apkDest).length;
-const pkgJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-const buildInfo = {
+const exportedAt = new Date();
+const existing = readBuildInfo(root);
+writeBuildInfo(root, {
   android: {
     available: true,
     filename: 'scorr.apk',
     appName: 'Scorr',
     appId: 'ai.walfia.scorr',
-    version: pkgJson.version || '0.0.0',
+    version: packageVersion(root),
     buildType: task === 'assembleRelease' ? 'release' : 'debug',
     sizeBytes: apkBytes,
     sizeLabel: `${(apkBytes / 1024 / 1024).toFixed(1)} MB`,
-    updatedAt: new Date().toISOString(),
-    updatedLabel: new Date().toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    }),
+    updatedAt: exportedAt.toISOString(),
+    updatedLabel: formatUpdatedLabel(exportedAt),
   },
-};
-writeFileSync(join(downloadsDir, 'build-info.json'), `${JSON.stringify(buildInfo, null, 2)}\n`);
+  ios: existing.ios ?? {
+    available: true,
+    installMethod: 'pwa',
+    appName: 'Scorr',
+    appId: 'ai.walfia.scorr',
+    version: packageVersion(root),
+    updatedAt: exportedAt.toISOString(),
+    updatedLabel: formatUpdatedLabel(exportedAt),
+    pwaUrl: 'https://scorr.walfia.ai',
+    ipaAvailable: false,
+    ipaFilename: 'scorr.ipa',
+  },
+});
+const buildInfo = readBuildInfo(root);
 
 console.log(`\nStep 4/4: Copied to public/downloads/scorr.apk`);
 console.log(`Updated public/downloads/build-info.json`);

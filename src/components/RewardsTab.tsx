@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Trophy, Star, Gift, Loader2, CheckCircle, Clock, Sparkles } from 'lucide-react';
+import { Trophy, Star, Gift, Loader2, CheckCircle, Clock, Sparkles, BarChart2 } from 'lucide-react';
 import RewardsWorkflowBanner from './RewardsWorkflowBanner';
 import { MONTHLY_POINTS_TIERS, REWARD_CATALOG_COST, tierColorForScore } from '../utils/rewardsTiers';
+import { employeeTotalKpiPoints } from '../utils/kpiScoreHelpers';
+import { Kpi } from '../utils/kpiHelpers';
 
 interface CatalogItem {
   id: string;
@@ -34,30 +36,46 @@ interface RewardsTabProps {
   viewerRole?: 'employee' | 'manager';
   /** Hide top balance hero when parent already shows summary stats */
   embedded?: boolean;
+  /** Optional precomputed KPI board points */
+  kpiPoints?: number | null;
 }
 
 const POINTS_PER_REWARD = REWARD_CATALOG_COST;
 
-export default function RewardsTab({ userId, isReadOnly, viewerRole = 'employee', embedded = false }: RewardsTabProps) {
+export default function RewardsTab({
+  userId,
+  isReadOnly,
+  viewerRole = 'employee',
+  embedded = false,
+  kpiPoints: kpiPointsProp = null,
+}: RewardsTabProps) {
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
   const [ledger, setLedger] = useState<LedgerRow[]>([]);
   const [redemptions, setRedemptions] = useState<Redemption[]>([]);
+  const [kpiPoints, setKpiPoints] = useState<number>(kpiPointsProp ?? 0);
   const [loading, setLoading] = useState(true);
   const [redeeming, setRedeeming] = useState<string | null>(null);
   const [msg, setMsg] = useState('');
 
-  useEffect(() => { fetchAll(); }, [userId]);
+  useEffect(() => { void fetchAll(); }, [userId]);
+
+  useEffect(() => {
+    if (kpiPointsProp != null) setKpiPoints(kpiPointsProp);
+  }, [kpiPointsProp]);
 
   const fetchAll = async () => {
     setLoading(true);
-    const [catRes, ledgerRes, redemRes] = await Promise.all([
+    const [catRes, ledgerRes, redemRes, kpiRes] = await Promise.all([
       supabase.from('rewards_catalog').select('*').eq('active', true).order('point_cost'),
       supabase.from('points_ledger').select('*').eq('employee_id', userId).order('month', { ascending: false }),
       supabase.from('reward_redemptions').select('*, rewards_catalog(name, icon)').eq('employee_id', userId).order('redeemed_at', { ascending: false }),
+      supabase.from('kpis').select('*').eq('user_id', userId),
     ]);
     if (catRes.data) setCatalog(catRes.data);
     if (ledgerRes.data) setLedger(ledgerRes.data);
     if (redemRes.data) setRedemptions(redemRes.data);
+    if (kpiPointsProp != null) setKpiPoints(kpiPointsProp);
+    else if (!kpiRes.error) setKpiPoints(employeeTotalKpiPoints((kpiRes.data || []) as Kpi[]));
     setLoading(false);
   };
 
@@ -156,6 +174,13 @@ export default function RewardsTab({ userId, isReadOnly, viewerRole = 'employee'
       {/* Mini stats */}
       <div className="rewards-stats-grid">
         <div className="stat-card stat-card--accent">
+          <BarChart2 size={20} />
+          <div>
+            <div className="stat-card-value">{kpiPoints.toLocaleString()}</div>
+            <div className="stat-card-label">Total KPI Points</div>
+          </div>
+        </div>
+        <div className="stat-card">
           <Star size={20} />
           <div>
             <div className="stat-card-value">

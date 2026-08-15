@@ -2,17 +2,20 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Profile, Kpi, calculateHealthScore } from '../utils/kpiHelpers';
 import TaskList from './TaskList';
-import { RefreshCw, BarChart2, Sparkles, Trophy, KeyRound, CheckCircle2, CalendarCheck } from 'lucide-react';
+import { RefreshCw, BarChart2, Sparkles, Trophy, KeyRound, CheckCircle2, CalendarCheck, ClipboardList } from 'lucide-react';
+import DailyWorkReportPanel from './DailyWorkReportPanel';
 import ExportButton from './ExportButton';
 import EmployeeRewardsPanel from './EmployeeRewardsPanel';
 import RewardsPointsCard from './RewardsPointsCard';
+import TeamPointsBoard from './TeamPointsBoard';
 import AttendanceLeavePanel from './AttendanceLeavePanel';
 import ChangePasswordModal from './ChangePasswordModal';
 import { emailKpiCompleted, emailKpiOverdue } from '../utils/kpiEmail';
 import EmployeeKpiBoardSummary from './EmployeeKpiBoardSummary';
 import DashboardTabNav from './DashboardTabNav';
 import { formatKpiWeight } from '../utils/kpiWeightHelpers';
-import { kpiAchievedPct, kpiScoreContribution, statusTrafficLight, trafficLightLabel } from '../utils/kpiScoreHelpers';
+import { kpiAchievedPct, kpiScoreContribution, employeeTotalKpiPoints, statusTrafficLight, trafficLightLabel } from '../utils/kpiScoreHelpers';
+import '../styles/employee-mobile.css';
 
 interface EmployeeDashboardProps {
   profile: Profile;
@@ -28,10 +31,11 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
   const [kpis, setKpis] = useState<Kpi[]>([]);
   const [persistedHealthScore, setPersistedHealthScore] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'kpis' | 'rewards' | 'attendance'>('kpis');
+  const [activeTab, setActiveTab] = useState<'kpis' | 'rewards' | 'attendance' | 'dailyReport'>('kpis');
   const [showChangePassword, setShowChangePassword] = useState(false);
 
   const [completingId, setCompletingId] = useState<string | null>(null);
+  const [pointsRefreshKey, setPointsRefreshKey] = useState(0);
 
   const fetchKpis = async () => {
     setLoading(true);
@@ -96,6 +100,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
   }, [activeUser.id]);
 
   const healthScore = persistedHealthScore ?? calculateHealthScore(kpis);
+  const totalKpiPoints = employeeTotalKpiPoints(kpis);
 
   const getHealthStatusText = (score: number) => {
     if (score >= 80) return 'Excellent Health';
@@ -119,6 +124,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
         await emailKpiCompleted(row.manager_email, row.manager_name, activeUser.full_name, row.department);
       }
       fetchKpis();
+      setPointsRefreshKey((k) => k + 1);
     } catch (err: any) {
       alert(err.message || 'Could not mark complete.');
     } finally {
@@ -133,7 +139,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
   };
 
   return (
-    <div className={`animate-fade-in dashboard-with-mobile-nav${!isReadOnly && !hideChangePassword ? '' : ' dashboard-with-mobile-nav--nested'}`}>
+    <div className={`animate-fade-in dashboard-with-mobile-nav emp-dash${!isReadOnly && !hideChangePassword ? '' : ' dashboard-with-mobile-nav--nested'}`}>
       
       {/* Read-Only Banner for Managers */}
       {isReadOnly && (
@@ -157,6 +163,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
           tabs={[
             { id: 'kpis', label: 'My KPIs', mobileLabel: 'KPIs', icon: <BarChart2 size={15} /> },
             { id: 'attendance', label: 'Attendance & Leave', mobileLabel: 'Leave', icon: <CalendarCheck size={15} /> },
+            { id: 'dailyReport', label: 'Daily Report', mobileLabel: 'Daily', icon: <ClipboardList size={15} /> },
             { id: 'rewards', label: 'Rewards & Points', mobileLabel: 'Rewards', icon: <Trophy size={15} /> },
           ]}
           actions={
@@ -180,11 +187,29 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
       )}
 
       {activeTab === 'rewards' && !isReadOnly ? (
-        <EmployeeRewardsPanel userId={activeUser.id} />
+        <div className="emp-points-stack">
+          <RewardsPointsCard
+            userId={activeUser.id}
+            title="Your rewards points"
+            showViewLink={false}
+            refreshKey={pointsRefreshKey}
+            kpiPoints={totalKpiPoints}
+          />
+          <TeamPointsBoard
+            refreshKey={pointsRefreshKey}
+            title="Team points"
+            description="See how your points compare with teammates who share your manager or department."
+          />
+          <EmployeeRewardsPanel userId={activeUser.id} kpiPoints={totalKpiPoints} />
+        </div>
       ) : null}
 
       {activeTab === 'attendance' && !isReadOnly ? (
         <AttendanceLeavePanel profile={profile} mode={profile.role === 'manager' ? 'manager' : 'employee'} />
+      ) : null}
+
+      {activeTab === 'dailyReport' && !isReadOnly ? (
+        <DailyWorkReportPanel profile={profile} />
       ) : null}
 
       {activeTab === 'kpis' && (
@@ -214,6 +239,10 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
 
         <div className="glass-panel dash-metrics-panel">
           <div className="dash-metric-row">
+            <span>Total KPI points</span>
+            <strong style={{ color: 'var(--accent-primary)' }}>{totalKpiPoints}</strong>
+          </div>
+          <div className="dash-metric-row">
             <span>Completed</span>
             <strong style={{ color: 'var(--accent-primary)' }}>{kpis.filter(k => k.completion_status === 'completed').length} / {kpis.length}</strong>
           </div>
@@ -236,8 +265,18 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
           title={isReadOnly ? `${activeUser.full_name}'s rewards points` : 'Your rewards points'}
           showViewLink={!isReadOnly}
           onViewRewards={!isReadOnly ? () => setActiveTab('rewards') : undefined}
+          refreshKey={pointsRefreshKey}
+          kpiPoints={totalKpiPoints}
         />
       </div>
+
+      {!isReadOnly && (
+        <TeamPointsBoard
+          refreshKey={pointsRefreshKey}
+          title="Your points & team"
+          description="Complete KPI tasks to grow your score. Monthly KPI score converts to reward points. Compare with your team below."
+        />
+      )}
 
       <EmployeeKpiBoardSummary
         kpis={kpis}
@@ -245,7 +284,14 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
       />
 
       <div className="dash-section-head">
-        <h3><BarChart2 size={22} /> My KPI tasks</h3>
+        <h3>
+          <BarChart2 size={22} /> My KPI tasks
+          {kpis.length > 0 && (
+            <span className="emp-kpi-total-badge" title="Sum of points from all your KPI tasks">
+              Total: {totalKpiPoints} pts
+            </span>
+          )}
+        </h3>
         
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <ExportButton kpis={kpis} userName={activeUser.full_name} />

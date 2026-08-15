@@ -30,7 +30,7 @@ export async function fetchMonthlyReportData(): Promise<ReportData> {
 async function fetchReportData(periodLabel: string, periodStart: string): Promise<ReportData> {
   const now = new Date();
   const [usersRes, kpisRes, submissionsRes] = await Promise.all([
-    supabase.from('users').select('*').order('full_name'),
+    supabase.rpc('get_all_users_admin'),
     supabase.from('kpis').select('*').order('name'),
     supabase
       .from('kpi_submissions')

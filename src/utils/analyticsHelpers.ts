@@ -16,7 +16,9 @@ export interface AnalyticsData {
 }
 
 export async function fetchAnalyticsData(userId?: string): Promise<AnalyticsData> {
-  const usersQuery = supabase.from('users').select('*');
+  const usersQuery = userId
+    ? supabase.from('users').select('*').eq('id', userId)
+    : supabase.rpc('get_all_users_admin');
   const kpisQuery = userId
     ? supabase.from('kpis').select('*').eq('user_id', userId)
     : supabase.from('kpis').select('*');

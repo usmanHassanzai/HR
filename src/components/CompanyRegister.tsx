@@ -43,13 +43,28 @@ export default function CompanyRegister({ onBack, onRegistered, embedded = false
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  /** Dropdown selection; "Other" unlocks a free-text industry field. */
+  const [industrySelect, setIndustrySelect] = useState('');
 
   const set = <K extends keyof CompanyRegistrationForm>(key: K, value: CompanyRegistrationForm[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
+  const presetIndustries = INDUSTRY_OPTIONS.filter((o) => o !== 'Other');
+  const industryIsOther = industrySelect === 'Other';
+
+  const onIndustrySelectChange = (value: string) => {
+    setIndustrySelect(value);
+    if (value === 'Other') {
+      set('industry', '');
+    } else {
+      set('industry', value);
+    }
+  };
+
   const validate = (): string | null => {
     if (!form.companyName.trim()) return 'Company name is required.';
+    if (industryIsOther && !form.industry.trim()) return 'Please type your industry.';
     if (!form.fullName.trim()) return 'Your full name is required.';
     if (!form.email.trim()) return 'Email is required.';
     if (!form.phone.trim()) return 'Phone number is required.';
@@ -176,11 +191,31 @@ export default function CompanyRegister({ onBack, onRegistered, embedded = false
             </label>
             <label className="company-register__field">
               <span>Industry</span>
-              <select className="input-field" value={form.industry} onChange={(e) => set('industry', e.target.value)}>
+              <select
+                className="input-field"
+                value={industrySelect}
+                onChange={(e) => onIndustrySelectChange(e.target.value)}
+              >
                 <option value="">Select industry</option>
-                {INDUSTRY_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                {presetIndustries.map((o) => (
+                  <option key={o} value={o}>{o}</option>
+                ))}
+                <option value="Other">Other (type manually)</option>
               </select>
             </label>
+            {industryIsOther && (
+              <label className="company-register__field">
+                <span>Your industry *</span>
+                <input
+                  className="input-field"
+                  value={form.industry}
+                  onChange={(e) => set('industry', e.target.value)}
+                  placeholder="e.g. Construction, Real Estate, Media…"
+                  required
+                  autoFocus
+                />
+              </label>
+            )}
             <label className="company-register__field">
               <span>Number of employees</span>
               <select className="input-field" value={form.employeeCount} onChange={(e) => set('employeeCount', e.target.value)}>
