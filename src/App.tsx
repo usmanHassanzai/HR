@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { Profile } from './utils/kpiHelpers';
-import AppLoginScreen from './components/AppLoginScreen';
 import NativeScrollRoot from './components/NativeScrollRoot';
 import DemoModeBanner from './components/DemoModeBanner';
 import CompanyPendingScreen from './components/CompanyPendingScreen';
@@ -215,14 +214,8 @@ function App() {
     return <NativeScrollRoot>{errorView}</NativeScrollRoot>;
   }
 
+  // Same login experience as mobile web (Landing → Sign in), not a separate APK-only layout
   if (!session || !profile) {
-    if (isAppShell()) {
-      return (
-        <NativeScrollRoot>
-          <AppLoginScreen onLoginSuccess={handleLoginSuccess} />
-        </NativeScrollRoot>
-      );
-    }
     return (
       <Suspense fallback={<RouteFallback />}>
         <LandingPage onLoginSuccess={handleLoginSuccess} />
@@ -261,7 +254,7 @@ function App() {
         {isDemoProfile(profile) && <DemoModeBanner />}
         <Header profile={profile} organizationName={company?.name} onLogout={handleLogout} />
 
-        {(profile.role === 'employee' || profile.role === 'manager' || profile.role === 'admin') && (
+        {(profile.role === 'employee' || profile.role === 'manager') && (
           <GeoAttendanceTracker profile={profile} />
         )}
 

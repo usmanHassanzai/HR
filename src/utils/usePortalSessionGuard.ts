@@ -11,7 +11,6 @@ const ACTIVITY_EVENTS: (keyof WindowEventMap)[] = [
   'pointerdown',
   'keydown',
   'touchstart',
-  'scroll',
   'click',
 ];
 

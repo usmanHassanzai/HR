@@ -38,6 +38,19 @@ export function useSupabaseRealtime(
     const instanceName = `${channelName}:${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     let channel = supabase.channel(instanceName);
     let subscribed = false;
+    let debounceTimer: number | null = null;
+
+    const scheduleChange = () => {
+      if (debounceTimer != null) window.clearTimeout(debounceTimer);
+      debounceTimer = window.setTimeout(() => {
+        debounceTimer = null;
+        try {
+          onChangeRef.current();
+        } catch (err) {
+          console.warn('[realtime] onChange failed', channelName, err);
+        }
+      }, 350);
+    };
 
     try {
       for (const w of watchesRef.current) {
@@ -49,13 +62,7 @@ export function useSupabaseRealtime(
             table: w.table,
             ...(w.filter ? { filter: w.filter } : {}),
           },
-          () => {
-            try {
-              onChangeRef.current();
-            } catch (err) {
-              console.warn('[realtime] onChange failed', channelName, err);
-            }
-          },
+          scheduleChange,
         );
       }
       channel.subscribe();
@@ -67,6 +74,7 @@ export function useSupabaseRealtime(
     }
 
     return () => {
+      if (debounceTimer != null) window.clearTimeout(debounceTimer);
       if (subscribed) {
         void supabase.removeChannel(channel);
       }

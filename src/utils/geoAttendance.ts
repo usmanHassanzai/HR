@@ -121,11 +121,15 @@ export function getGeoPermissionState(): GeoPermissionState {
   return 'prompt';
 }
 
-export function requestCurrentPosition(): Promise<GeolocationPosition> {
+export function requestCurrentPosition(opts?: {
+  maximumAge?: number;
+  timeout?: number;
+  enableHighAccuracy?: boolean;
+}): Promise<GeolocationPosition> {
   if (Capacitor.isNativePlatform()) {
-    return requestNativePosition();
+    return requestNativePosition(opts);
   }
-  return requestBrowserPosition();
+  return requestBrowserPosition(opts);
 }
 
 /**
@@ -163,6 +167,7 @@ export async function requestFreshOfficePosition(): Promise<GeolocationPosition>
 async function requestNativePosition(opts?: {
   maximumAge?: number;
   timeout?: number;
+  enableHighAccuracy?: boolean;
 }): Promise<GeolocationPosition> {
   const perm = await Geolocation.checkPermissions();
   if (perm.location === 'denied' && perm.coarseLocation === 'denied') {
@@ -178,7 +183,7 @@ async function requestNativePosition(opts?: {
   }
 
   const pos = await Geolocation.getCurrentPosition({
-    enableHighAccuracy: true,
+    enableHighAccuracy: opts?.enableHighAccuracy ?? true,
     timeout: opts?.timeout ?? 25000,
     maximumAge: opts?.maximumAge ?? 10000,
   });
@@ -200,6 +205,7 @@ async function requestNativePosition(opts?: {
 function requestBrowserPosition(opts?: {
   maximumAge?: number;
   timeout?: number;
+  enableHighAccuracy?: boolean;
 }): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
@@ -221,7 +227,7 @@ function requestBrowserPosition(opts?: {
         reject(new Error(err.message || 'Could not get location'));
       }
     }, {
-      enableHighAccuracy: true,
+      enableHighAccuracy: opts?.enableHighAccuracy ?? true,
       timeout: opts?.timeout ?? 25000,
       maximumAge: opts?.maximumAge ?? 10000,
     });

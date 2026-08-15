@@ -8,7 +8,6 @@ import { isDemoProfile } from '../utils/demoMode';
 import { usePlatformOwnerAccess } from '../utils/usePlatformOwnerAccess';
 import BrandLogo from './BrandLogo';
 import ThemeToggle from './ThemeToggle';
-import { isAppShell } from '../utils/nativePlatform';
 
 interface HeaderProps {
   profile: Profile;
@@ -30,7 +29,6 @@ export default function Header({ profile, organizationName, onLogout, onNavigate
   const demoMode = isDemoProfile(profile);
   const { isOwner: platformOwner } = usePlatformOwnerAccess(profile);
   const [branding, setBranding] = useState<BrandingConfig>(loadBranding(demoMode));
-  const shellLayout = isAppShell();
   const orgName = organizationName?.trim() || (demoMode ? 'Demo Organization' : '');
 
   useEffect(() => {
@@ -170,21 +168,7 @@ export default function Header({ profile, organizationName, onLogout, onNavigate
           ? ' app-header--employee'
           : '';
 
-  if (shellLayout) {
-    return (
-      <header className={`glass-panel app-header app-header--dashboard app-header--stacked${headerRoleClass}`}>
-        <div className="app-header__brand-row">
-          {brandBlock}
-          {toolbar}
-        </div>
-        <div className="app-header__user-row">
-          {platformLink}
-          {profileBlock}
-        </div>
-      </header>
-    );
-  }
-
+  // Same markup as mobile web — responsive CSS handles phone layout
   return (
     <header className={`glass-panel app-header app-header--dashboard app-header--inline animate-fade-in${headerRoleClass}`}>
       <div className="app-header__start">{brandBlock}</div>
