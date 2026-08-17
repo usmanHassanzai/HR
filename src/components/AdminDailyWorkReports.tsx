@@ -69,9 +69,11 @@ export default function AdminDailyWorkReports() {
     return () => clearTimeout(t);
   }, [search]);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const [summaryRows, reportRows, usersRes, deptsRes] = await Promise.all([
         fetchAdminDailyReportDeptSummary(reportDate),
@@ -104,7 +106,7 @@ export default function AdminDailyWorkReports() {
   useSupabaseRealtime(
     'admin-daily-work-reports',
     [{ table: 'daily_work_reports' }, { table: 'notifications' }],
-    load,
+    () => { void load({ silent: true }); },
   );
 
   const deptName = useCallback(

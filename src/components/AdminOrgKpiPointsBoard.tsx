@@ -72,9 +72,11 @@ export default function AdminOrgKpiPointsBoard() {
   const [deptFilter, setDeptFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('people');
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError('');
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) {
+      setLoading(true);
+      setError('');
+    }
     const { data, error: err } = await supabase.rpc('get_org_kpi_points_board');
     if (err) {
       setError(err.message);
@@ -98,7 +100,7 @@ export default function AdminOrgKpiPointsBoard() {
       { table: 'reward_redemptions' },
       { table: 'departments' },
     ],
-    () => { void load(); },
+    () => { void load({ silent: true }); },
   );
 
   const departments = useMemo(() => {

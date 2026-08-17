@@ -187,8 +187,8 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
     setDailyReportUnread(count);
   }, []);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
     try {
       const [{ data: allUsers, error: usersError }, { data: depts }] = await Promise.all([
         supabase.rpc('get_all_users_admin'),
@@ -217,7 +217,7 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
   useSupabaseRealtime(
     'admin-users-sync',
     [{ table: 'users' }, { table: 'departments' }],
-    fetchData,
+    () => { void fetchData({ silent: true }); },
     !platformOwnerChecking,
   );
 
@@ -546,7 +546,7 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
           departments={departments}
           allUsers={users}
           onClose={() => setEditUser(null)}
-          onSaved={() => { void fetchData(); }}
+          onSaved={() => { void fetchData({ silent: true }); }}
         />
       )}
 

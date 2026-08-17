@@ -35,19 +35,21 @@ export default function DepartmentKpiIndicatorsEditor({
   const [open, setOpen] = useState(defaultOpen);
   const skipLoadSave = useRef(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
     skipLoadSave.current = true;
-    setLoading(true);
-    setMsg('');
+    if (!opts?.silent) {
+      setLoading(true);
+      setMsg('');
+    }
     const { data, error } = await supabase.rpc('get_department_kpi_indicators', { p_department_id: departmentId });
     if (error) {
-      setMsg(error.message);
+      if (!opts?.silent) setMsg(error.message);
       setRows([]);
     } else {
       setRows((data as DepartmentKpiIndicator[]) || []);
       setDirty(false);
     }
-    setLoading(false);
+    if (!opts?.silent) setLoading(false);
     skipLoadSave.current = false;
   }, [departmentId]);
 
@@ -56,7 +58,7 @@ export default function DepartmentKpiIndicatorsEditor({
   useSupabaseRealtime(
     `dept-kpis-${departmentId}`,
     [{ table: 'department_kpi_indicators', filter: `department_id=eq.${departmentId}` }],
-    () => { if (!dirty) void load(); },
+    () => { if (!dirty) void load({ silent: true }); },
     open,
   );
 

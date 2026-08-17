@@ -73,6 +73,7 @@ const MIGRATIONS = [
   'fix_shift_timezone_geo_reenter.sql',
   'sync_office_live_pin_to_assignments.sql',
   'assign_individual_kpi_weight_1_100.sql',
+  'block_cross_department_kpi_assign.sql',
   // Must be last: earlier drop_stale_functions_mid.sql removes this RPC
   'platform_delete_company.sql',
 ];

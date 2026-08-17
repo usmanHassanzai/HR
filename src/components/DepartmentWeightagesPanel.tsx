@@ -84,7 +84,7 @@ function DepartmentWeightagesPanelInner({ managerMode = false }: { managerMode?:
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
-    setMsg('');
+    if (!opts?.silent) setMsg('');
     try {
       const { data, error } = await supabase.rpc('get_departments');
       if (error) {

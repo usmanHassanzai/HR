@@ -166,9 +166,9 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
     );
   };
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setMsg('');
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
+    if (!opts?.silent) setMsg('');
     try {
       if (mode === 'admin') {
         const [{ data: deptData }, { data: usersData, error: usersErr }, pending] = await Promise.all([
@@ -255,7 +255,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
       { table: 'leave_requests' },
       { table: 'users' },
     ],
-    load,
+    () => { void load({ silent: true }); },
   );
 
   const checkInToday = async () => {

@@ -37,8 +37,8 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [pointsRefreshKey, setPointsRefreshKey] = useState(0);
 
-  const fetchKpis = async () => {
-    setLoading(true);
+  const fetchKpis = async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
     try {
       const { data, error } = await supabase
         .from('kpis')
@@ -89,7 +89,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
           table: 'kpis',
         },
         () => {
-          fetchKpis();
+          fetchKpis({ silent: true });
         }
       )
       .subscribe();

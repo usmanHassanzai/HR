@@ -103,11 +103,15 @@ function App() {
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, activeSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, activeSession) => {
       setSession(activeSession);
+      if (event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+        return;
+      }
       if (activeSession?.user) {
-        setLoading(true);
-        fetchUserProfile(activeSession.user.id).then(() => setLoading(false));
+        if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+          void fetchUserProfile(activeSession.user.id);
+        }
       } else {
         setProfile(null);
         setCompany(null);
