@@ -295,7 +295,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
         
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <ExportButton kpis={kpis} userName={activeUser.full_name} />
-          <button className="btn btn-secondary" style={{ padding: '0.65rem' }} onClick={fetchKpis} title="Reload Data">
+          <button className="btn btn-secondary" style={{ padding: '0.65rem' }} onClick={() => void fetchKpis()} title="Reload Data">
             <RefreshCw size={16} />
           </button>
         </div>
