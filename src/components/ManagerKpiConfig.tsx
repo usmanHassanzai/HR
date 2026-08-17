@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Profile, Kpi } from '../utils/kpiHelpers';
-import { Department, DepartmentKpiIndicator, sumIndicatorWeights, indicatorWeightsValid } from '../utils/departmentHelpers';
+import { Department, DepartmentKpiIndicator, sumIndicatorWeights } from '../utils/departmentHelpers';
 import '../styles/departments.css';
 import '../styles/assign-tasks.css';
 import '../styles/manager-kpi-tasks.css';
@@ -10,7 +10,7 @@ import { emailKpiAssigned } from '../utils/kpiEmail';
 import EmployeeKpiBoardSummary from './EmployeeKpiBoardSummary';
 import DepartmentKpiIndicatorsEditor from './DepartmentKpiIndicatorsEditor';
 import KpiIndicatorSelector from './KpiIndicatorSelector';
-import { formatKpiWeight, sumEmployeeKpiWeights, selectedIndicatorsWeightSum, employeeKpiWeightsOverCap, KPI_WEIGHT_CAP } from '../utils/kpiWeightHelpers';
+import { formatKpiWeight, sumEmployeeKpiWeights, selectedIndicatorsWeightSum, canAssignSelectedKpiWeights, remainingWeightAfterDeptReplace, KPI_WEIGHT_CAP } from '../utils/kpiWeightHelpers';
 import EmployeeKpiWeightMeter from './EmployeeKpiWeightMeter';
 import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
 import { buildDepartmentAssignmentSections, buildAdminDepartmentOverview, filterAssignmentSections } from '../utils/assignTaskHelpers';
@@ -200,6 +200,7 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
   const clearAllIndicators = () => setSelectedIndicatorIds([]);
 
   const selectedIndicators = indicators.filter((i) => selectedIndicatorIds.includes(i.id));
+  const selectedWeightTotal = selectedIndicatorsWeightSum(indicators, selectedIndicatorIds);
 
   const handleAssign = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -221,12 +222,9 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
       setError('Select at least one KPI to assign.');
       return;
     }
-    if (employeeKpiWeightsOverCap(userKpis)) {
-      setError(`This employee's KPI weights exceed ${KPI_WEIGHT_CAP}%. Remove or complete tasks before assigning more.`);
-      return;
-    }
-    if (!indicatorWeightsValid(selectedIndicators)) {
-      setError(`Selected KPI template weights must sum to ${KPI_WEIGHT_CAP}% (currently ${sumIndicatorWeights(selectedIndicators).toFixed(1)}%). Fix under Create KPIs.`);
+    const assignCheck = canAssignSelectedKpiWeights(userKpis, departmentId, selectedIndicators);
+    if (!assignCheck.ok) {
+      setError(assignCheck.message || 'Cannot assign these KPI tasks.');
       return;
     }
 
@@ -256,7 +254,7 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
 
       const empName = reports.find((r) => r.id === selectedUserId)?.full_name || 'Employee';
       const kpiNames = selectedIndicators.map((i) => i.name).join(', ');
-      setAssignSuccess(`Assigned ${row?.kpi_count ?? selectedIndicatorIds.length} KPI task(s) to ${empName} (${KPI_WEIGHT_CAP}% board): ${kpiNames}`);
+      setAssignSuccess(`Assigned ${row?.kpi_count ?? selectedIndicatorIds.length} KPI task(s) to ${empName} (${sumIndicatorWeights(selectedIndicators).toFixed(1)}%): ${kpiNames}`);
 
       setAssignNotes('');
       setAssignStartDate('');
@@ -291,12 +289,9 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
       setError('Select at least one KPI to assign.');
       return;
     }
-    if (employeeKpiWeightsOverCap(userKpis)) {
-      setError(`This employee's KPI weights exceed ${KPI_WEIGHT_CAP}%. Remove or complete tasks before assigning more.`);
-      return;
-    }
-    if (!indicatorWeightsValid(selectedIndicators)) {
-      setError(`Selected KPI template weights must sum to ${KPI_WEIGHT_CAP}%. Fix department KPI template first.`);
+    const assignCheck = canAssignSelectedKpiWeights(userKpis, departmentId, selectedIndicators);
+    if (!assignCheck.ok) {
+      setError(assignCheck.message || 'Cannot assign these KPI tasks.');
       return;
     }
 
@@ -326,7 +321,7 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
 
       const empName = reports.find((r) => r.id === selectedUserId)?.full_name || 'Employee';
       const kpiNames = selectedIndicators.map((i) => i.name).join(', ');
-      setAssignSuccess(`Assigned ${row?.kpi_count ?? selectedIndicatorIds.length} KPI task(s) to ${empName} (${KPI_WEIGHT_CAP}% board): ${kpiNames}`);
+      setAssignSuccess(`Assigned ${row?.kpi_count ?? selectedIndicatorIds.length} KPI task(s) to ${empName} (${sumIndicatorWeights(selectedIndicators).toFixed(1)}%): ${kpiNames}`);
 
       setAssignNotes('');
       setAssignStartDate('');
@@ -387,7 +382,6 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
 
   if (!isAdmin) {
     const deptIndicatorTotal = sumIndicatorWeights(indicators);
-    const selectedWeightTotal = selectedIndicatorsWeightSum(indicators, selectedIndicatorIds);
     const managerPending = assignmentRows.filter(({ kpi }) => kpi.completion_status !== 'completed').length;
 
     return (
@@ -577,7 +571,7 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
 
             <section className="mgr-kpi-card">
               <h3><Plus size={18} /> Assign KPI tasks</h3>
-              <p>Pick KPIs and dates. Re-assigning replaces pending tasks for this department, then rebalances to {KPI_WEIGHT_CAP}%.</p>
+              <p>Pick one or more KPIs (each 1–{KPI_WEIGHT_CAP}%). A 10% task stays 10%. Re-assigning replaces pending tasks for this department. Employee total cannot exceed {KPI_WEIGHT_CAP}%.</p>
 
               {!managerDepartmentId && (
                 <div className="assign-task-info">
@@ -622,8 +616,13 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
                   <div className="mgr-kpi-assign-note">
                     <Info size={16} />
                     <span>
-                      Selected template weight: <strong>{selectedWeightTotal.toFixed(1)}%</strong>.
-                      {' '}After assign, all pending KPIs for this employee are rebalanced to exactly <strong>{KPI_WEIGHT_CAP}%</strong>.
+                      Selected weight: <strong>{selectedWeightTotal.toFixed(1)}%</strong>
+                      {selectedUserId && departmentId ? (
+                        <>
+                          {' '}· remaining budget: <strong>{remainingWeightAfterDeptReplace(userKpis, departmentId).toFixed(1)}%</strong>
+                        </>
+                      ) : null}
+                      . Each selected KPI keeps its own weight (1–{KPI_WEIGHT_CAP}%).
                     </span>
                   </div>
                 )}
@@ -671,8 +670,7 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
                     !departmentId ||
                     indicators.length === 0 ||
                     selectedIndicatorIds.length === 0 ||
-                    !indicatorWeightsValid(indicators) ||
-                    (selectedUserId ? employeeKpiWeightsOverCap(userKpis) : false)
+                    !canAssignSelectedKpiWeights(userKpis, departmentId, selectedIndicators).ok
                   }
                 >
                   {formLoading ? (
@@ -680,7 +678,7 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
                   ) : (
                     <>
                       <Target size={16} />
-                      Assign {selectedIndicatorIds.length} task{selectedIndicatorIds.length !== 1 ? 's' : ''} ({KPI_WEIGHT_CAP}% cap)
+                      Assign {selectedIndicatorIds.length} task{selectedIndicatorIds.length !== 1 ? 's' : ''} ({selectedWeightTotal.toFixed(0)}%)
                     </>
                   )}
                 </button>
@@ -929,7 +927,7 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
 
             <section className="assign-task-card glass-panel">
               <h3><Plus size={18} /> New assignment</h3>
-              <p>Pick an employee, department, and KPI tasks. The employee is notified by email when assigned.</p>
+              <p>Pick an employee, department, and KPI tasks (each 1–{KPI_WEIGHT_CAP}%). A single 10% task stays 10%. The employee is notified by email when assigned.</p>
 
               <form onSubmit={handleAssignAdmin} className="assign-task-form">
                 <div className="assign-task-form__section">
@@ -967,7 +965,7 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
                   </div>
                   {selectedDept && (
                     <div className="assign-task-dept-preview">
-                      <strong>{selectedDept.name}</strong> — KPI board weights total {KPI_WEIGHT_CAP}%.
+                      <strong>{selectedDept.name}</strong> — assign any KPI whose weight is 1–{KPI_WEIGHT_CAP}%.
                       {indicatorsLoading ? ' Loading KPIs…' : ` ${indicators.length} KPI metric${indicators.length !== 1 ? 's' : ''} available.`}
                     </div>
                   )}
@@ -984,6 +982,15 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
                     loading={indicatorsLoading}
                     emptyHint="This department has no KPI metrics. Add them under the Departments tab first."
                   />
+                  {selectedIndicatorIds.length > 0 && (
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.6rem 0 0' }}>
+                      Selected weight: <strong>{selectedWeightTotal.toFixed(1)}%</strong>
+                      {selectedUserId && departmentId ? (
+                        <> · remaining budget: <strong>{remainingWeightAfterDeptReplace(userKpis, departmentId).toFixed(1)}%</strong></>
+                      ) : null}
+                      . Each selected KPI keeps its own weight (1–{KPI_WEIGHT_CAP}%).
+                    </p>
+                  )}
                 </div>
 
                 <div className="assign-task-form__section">
@@ -1025,14 +1032,21 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
                 <button
                   type="submit"
                   className="btn btn-primary"
-                  disabled={formLoading || !selectedUserId || !departmentId || indicators.length === 0 || selectedIndicatorIds.length === 0}
+                  disabled={
+                    formLoading ||
+                    !selectedUserId ||
+                    !departmentId ||
+                    indicators.length === 0 ||
+                    selectedIndicatorIds.length === 0 ||
+                    !canAssignSelectedKpiWeights(userKpis, departmentId, selectedIndicators).ok
+                  }
                 >
                   {formLoading ? (
                     <Loader2 size={16} className="spin-icon" />
                   ) : (
                     <>
                       <Target size={16} />
-                      Assign {selectedIndicatorIds.length} task{selectedIndicatorIds.length !== 1 ? 's' : ''} &amp; notify employee
+                      Assign {selectedIndicatorIds.length} task{selectedIndicatorIds.length !== 1 ? 's' : ''} ({selectedWeightTotal.toFixed(0)}%) &amp; notify employee
                     </>
                   )}
                 </button>

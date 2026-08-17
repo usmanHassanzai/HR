@@ -33,12 +33,12 @@ export default function EmployeeKpiWeightMeter({ kpis, label = 'KPI weight budge
       )}
       {status === 'warn' && total > 0 && (
         <p className="mgr-kpi-weight-meter__hint">
-          Weights will be rebalanced to exactly 100% when you assign tasks.
+          {formatKpiWeight(KPI_WEIGHT_CAP - total)} remaining. You can assign any department KPI from 1% to 100% within this budget.
         </p>
       )}
       {status === 'ok' && total > 0 && (
         <p className="mgr-kpi-weight-meter__hint mgr-kpi-weight-meter__hint--ok">
-          Board is balanced at 100%.
+          Weight budget is full (100%). Complete or remove a task before assigning more.
         </p>
       )}
     </div>
