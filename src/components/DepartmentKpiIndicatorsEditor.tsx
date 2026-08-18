@@ -188,9 +188,6 @@ export default function DepartmentKpiIndicatorsEditor({
               {saving ? <><Loader2 size={12} className="spin-icon" /> Saving…</> : dirty ? 'Unsaved changes…' : <><Cloud size={12} /> Synced</>}
             </span>
           )}
-          <strong className="dept-indicators__total--ok" title="Library total — not an assignment cap">
-            {formatWeightPct(total)} library
-          </strong>
         </div>
       </div>
 
