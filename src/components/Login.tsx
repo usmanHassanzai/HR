@@ -5,6 +5,7 @@ import BrandLogo from './BrandLogo';
 import DemoLoginShortcuts from './DemoLoginShortcuts';
 import CompanyRegister from './CompanyRegister';
 import { isNativeApp } from '../utils/nativePlatform';
+import { loginFailureMessage } from '../utils/loginErrors';
 
 interface LoginProps {
   onLoginSuccess: (session: any) => void;
@@ -101,7 +102,7 @@ export default function Login({
       });
 
       if (authError) {
-        setError(authError.message);
+        setError(await loginFailureMessage(authError.message, email));
       } else if (data.session) {
         onLoginSuccess(data.session);
       }
