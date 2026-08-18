@@ -75,6 +75,7 @@ const MIGRATIONS = [
   'assign_individual_kpi_weight_1_100.sql',
   'block_cross_department_kpi_assign.sql',
   'allow_assign_kpi_any_employee.sql',
+  'employee_independent_kpi_weight.sql',
   // Must be last: earlier drop_stale_functions_mid.sql removes this RPC
   'platform_delete_company.sql',
 ];

@@ -140,33 +140,65 @@ export function buildAdminDepartmentOverview(
 
 export function filterAssignmentSections(
   sections: DepartmentAssignmentSection[],
-  opts: { departmentId?: string; search?: string },
+  opts: {
+    departmentId?: string;
+    search?: string;
+    employeeId?: string;
+    status?: 'all' | 'pending' | 'completed';
+    managerId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  },
 ): DepartmentAssignmentSection[] {
   let list = sections;
   if (opts.departmentId && opts.departmentId !== 'all') {
     list = list.filter((s) => s.deptId === opts.departmentId);
   }
   const q = opts.search?.trim().toLowerCase();
-  if (!q) return list;
 
   return list
     .map((section) => {
       const employees = section.employees
         .map((g) => {
-          const empMatch =
-            g.employee.full_name.toLowerCase().includes(q) ||
-            g.employee.email.toLowerCase().includes(q);
-          const tasks = g.tasks.filter(
-            (k) =>
-              k.name.toLowerCase().includes(q) ||
-              (k.description || '').toLowerCase().includes(q),
-          );
-          if (empMatch) return { ...g, tasks: g.tasks };
-          if (tasks.length) return { ...g, tasks };
-          return null;
+          if (opts.employeeId && opts.employeeId !== 'all' && g.employee.id !== opts.employeeId) return null;
+          if (opts.managerId && opts.managerId !== 'all' && g.employee.manager_id !== opts.managerId) return null;
+
+          let tasks = g.tasks;
+          if (opts.status === 'pending') {
+            tasks = tasks.filter((k) => k.completion_status !== 'completed');
+          } else if (opts.status === 'completed') {
+            tasks = tasks.filter((k) => k.completion_status === 'completed');
+          }
+          if (opts.dateFrom) {
+            tasks = tasks.filter((k) => (k.start_date || '') >= opts.dateFrom!);
+          }
+          if (opts.dateTo) {
+            tasks = tasks.filter((k) => (k.end_date || k.start_date || '') <= opts.dateTo!);
+          }
+          if (q) {
+            const empMatch =
+              g.employee.full_name.toLowerCase().includes(q) ||
+              g.employee.email.toLowerCase().includes(q);
+            const matchingTasks = tasks.filter(
+              (k) =>
+                k.name.toLowerCase().includes(q) ||
+                (k.description || '').toLowerCase().includes(q),
+            );
+            if (empMatch) return { ...g, tasks };
+            if (matchingTasks.length) return { ...g, tasks: matchingTasks };
+            return null;
+          }
+          return { ...g, tasks };
         })
-        .filter(Boolean) as EmployeeAssignmentGroup[];
-      const deptMatch = section.deptName.toLowerCase().includes(q);
+        .filter((g): g is EmployeeAssignmentGroup => Boolean(g))
+        .filter((g) => {
+          if ((opts.status && opts.status !== 'all') || opts.dateFrom || opts.dateTo) {
+            return g.tasks.length > 0;
+          }
+          return true;
+        });
+
+      const deptMatch = Boolean(q && section.deptName.toLowerCase().includes(q));
       if (deptMatch || employees.length) {
         return { ...section, employees, taskCount: employees.reduce((n, e) => n + e.tasks.length, 0) };
       }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase, supabaseSignup } from '../lib/supabase';
 import { Profile } from '../utils/kpiHelpers';
-import { Users, UserPlus, Trash2, Loader2, AlertCircle, CheckCircle, Download, FileSpreadsheet, FileText, BarChart3, Palette, Trophy, KeyRound, CalendarCheck, MapPin, Radio, Building2, Settings, Shield, Search, ClipboardList, Coins, Pencil, Mail } from 'lucide-react';
+import { Users, UserPlus, Trash2, Loader2, AlertCircle, CheckCircle, Download, FileSpreadsheet, FileText, BarChart3, Palette, Trophy, KeyRound, CalendarCheck, MapPin, Radio, Building2, Settings, Shield, Search, ClipboardList, Coins, Pencil, Mail, Target } from 'lucide-react';
 import AdminDailyWorkReports from './AdminDailyWorkReports';
 import '../styles/admin-dashboard.css';
 import { fetchQuarterlyReportData, fetchMonthlyReportData, exportToCsv, exportToExcel, exportToPdf } from '../utils/exportReport';
@@ -17,6 +17,7 @@ import OfficeLocationSettings from './OfficeLocationSettings';
 import AdminLiveTracking from './AdminLiveTracking';
 import DepartmentWeightagesPanel from './DepartmentWeightagesPanel';
 import ManagerKpiConfig from './ManagerKpiConfig';
+import AdminKpiManagement from './AdminKpiManagement';
 import AdminSidebarNav, { getAdminNavMeta, findAdminNavIcon, type AdminNavGroup } from './AdminSidebarNav';
 import AdminHamburgerButton from './AdminHamburgerButton';
 import { isDemoProfile } from '../utils/demoMode';
@@ -108,7 +109,7 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
   const [users, setUsers] = useState<Profile[]>([]);
   const [managers, setManagers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'users' | 'kpis' | 'export' | 'analytics' | 'branding' | 'rewards' | 'kpiPoints' | 'attendance' | 'office' | 'tracking' | 'departments' | 'companies' | 'dailyReports'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'kpis' | 'kpiManagement' | 'export' | 'analytics' | 'branding' | 'rewards' | 'kpiPoints' | 'attendance' | 'office' | 'tracking' | 'departments' | 'companies' | 'dailyReports'>('users');
 
   // User Form States (restored if the admin switches apps mid-entry)
   const [email, setEmail] = useState(() => readAddUserDraft().email);
@@ -470,7 +471,8 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
     { id: 'departments', label: 'Departments', icon: <Building2 size={18} />, description: 'Structure & weightages' },
     { id: 'kpiPoints', label: 'KPI Points', icon: <Coins size={18} />, description: 'Every dept, manager & employee' },
     { id: 'branding', label: 'Branding', icon: <Palette size={18} />, description: 'Logo & company theme' },
-    { id: 'kpis', label: 'Assign Task', icon: <Settings size={18} />, description: 'KPI assignments by dept' },
+    { id: 'kpiManagement', label: 'KPI Management', icon: <Target size={18} />, description: 'Department KPI templates' },
+    { id: 'kpis', label: 'Assign Task', icon: <Settings size={18} />, description: 'KPI assignments by employee' },
     { id: 'export', label: 'Reports', icon: <Download size={18} />, description: 'Monthly & quarterly exports' },
     { id: 'analytics', label: 'Analytics', icon: <BarChart3 size={18} />, description: 'Trends & attainment' },
     { id: 'rewards', label: 'Rewards', icon: <Trophy size={18} />, description: 'Points & redemptions' },
@@ -500,7 +502,7 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
       },
       {
         label: 'Performance',
-        items: orgAdminTabs.filter((t) => ['kpis', 'analytics', 'export', 'rewards'].includes(t.id)),
+        items: orgAdminTabs.filter((t) => ['kpiManagement', 'kpis', 'analytics', 'export', 'rewards'].includes(t.id)),
       },
       {
         label: 'Workforce',
@@ -702,6 +704,8 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
         <AdminLiveTracking />
       ) : activeTab === 'departments' ? (
         <DepartmentWeightagesPanel />
+      ) : activeTab === 'kpiManagement' ? (
+        <AdminKpiManagement />
       ) : activeTab === 'kpis' ? (
         <ManagerKpiConfig assignerId={profile.id} isAdmin />
       ) : (

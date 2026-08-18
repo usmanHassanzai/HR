@@ -55,27 +55,117 @@ export function remainingWeightAfterDeptReplace(kpis: Kpi[], departmentId: strin
   return Math.max(0, KPI_WEIGHT_CAP - (sumEmployeeKpiWeights(kpis) - sumEmployeeDeptKpiWeights(kpis, departmentId)));
 }
 
+export function keptPendingWeightAfterDeptReplace(kpis: Kpi[], departmentId: string): number {
+  return Math.max(0, sumEmployeeKpiWeights(kpis) - sumEmployeeDeptKpiWeights(kpis, departmentId));
+}
+
+export type EmployeeAssignmentPreview = {
+  ok: boolean;
+  currentWeight: number;
+  keptWeight: number;
+  selectedWeight: number;
+  newTotal: number;
+  remainingBefore: number;
+  remainingAfter: number;
+  message?: string;
+  successMessage: string;
+};
+
+/**
+ * Per-employee capacity only. Other employees are never included in these totals.
+ * Same-department pending assignments are replaced; other pending assignments are kept.
+ */
+export function previewEmployeeAssignment(
+  kpis: Kpi[],
+  departmentId: string,
+  selected: DepartmentKpiIndicator[],
+  employeeName = 'This employee',
+): EmployeeAssignmentPreview {
+  const currentWeight = sumEmployeeKpiWeights(kpis);
+  const keptWeight = keptPendingWeightAfterDeptReplace(kpis, departmentId);
+  const selectedWeight = sumIndicatorWeights(selected);
+  const newTotal = keptWeight + selectedWeight;
+  const remainingBefore = Math.max(0, KPI_WEIGHT_CAP - keptWeight);
+  const remainingAfter = Math.max(0, KPI_WEIGHT_CAP - newTotal);
+  const fmt = (n: number) => formatKpiWeight(n);
+  const successMessage =
+    Math.abs(newTotal - KPI_WEIGHT_CAP) <= KPI_WEIGHT_TOLERANCE
+      ? `KPI successfully assigned.\n\nEmployee KPI Weight: ${fmt(newTotal)}\nRemaining Capacity: ${fmt(0)}`
+      : `KPI successfully assigned to ${employeeName}.\n\nAssigned Weight: ${fmt(selectedWeight)}\nEmployee Total: ${fmt(newTotal)}\nRemaining Capacity: ${fmt(remainingAfter)}`;
+
+  if (selected.length === 0) {
+    return {
+      ok: false,
+      currentWeight,
+      keptWeight,
+      selectedWeight,
+      newTotal: keptWeight,
+      remainingBefore,
+      remainingAfter: remainingBefore,
+      message: 'Select at least one KPI to assign.',
+      successMessage,
+    };
+  }
+  if (!selectedIndicatorWeightsInRange(selected)) {
+    return {
+      ok: false,
+      currentWeight,
+      keptWeight,
+      selectedWeight,
+      newTotal,
+      remainingBefore,
+      remainingAfter,
+      message: 'Each selected KPI weight must be between 1% and 100%. Assigned weight stays the KPI template weight.',
+      successMessage,
+    };
+  }
+  if (selectedWeight > KPI_WEIGHT_CAP + KPI_WEIGHT_TOLERANCE) {
+    return {
+      ok: false,
+      currentWeight,
+      keptWeight,
+      selectedWeight,
+      newTotal,
+      remainingBefore,
+      remainingAfter,
+      message: `Selected KPI weights cannot exceed ${KPI_WEIGHT_CAP}% (currently ${fmt(selectedWeight)}).`,
+      successMessage,
+    };
+  }
+  if (newTotal > KPI_WEIGHT_CAP + KPI_WEIGHT_TOLERANCE) {
+    return {
+      ok: false,
+      currentWeight,
+      keptWeight,
+      selectedWeight,
+      newTotal,
+      remainingBefore,
+      remainingAfter,
+      message:
+        `KPI cannot be assigned.\n\n${employeeName} currently has ${fmt(keptWeight)} assigned KPI weight.\nThis KPI is worth ${fmt(selectedWeight)}.\n\nNew total would be ${fmt(newTotal)}.\nMaximum allowed for one employee is ${KPI_WEIGHT_CAP}%.\nRemaining Capacity: ${fmt(remainingBefore)}`,
+      successMessage,
+    };
+  }
+  return {
+    ok: true,
+    currentWeight,
+    keptWeight,
+    selectedWeight,
+    newTotal,
+    remainingBefore,
+    remainingAfter,
+    successMessage,
+  };
+}
+
 export function canAssignSelectedKpiWeights(
   kpis: Kpi[],
   departmentId: string,
   selected: DepartmentKpiIndicator[],
+  employeeName?: string,
 ): { ok: boolean; message?: string } {
-  if (selected.length === 0) return { ok: false, message: 'Select at least one KPI to assign.' };
-  if (!selectedIndicatorWeightsInRange(selected)) {
-    return { ok: false, message: 'Each selected KPI weight must be between 1% and 100%.' };
-  }
-  const selectedSum = sumIndicatorWeights(selected);
-  if (selectedSum > KPI_WEIGHT_CAP + KPI_WEIGHT_TOLERANCE) {
-    return { ok: false, message: `Selected KPI weights cannot exceed ${KPI_WEIGHT_CAP}% (currently ${selectedSum.toFixed(1)}%).` };
-  }
-  const remaining = remainingWeightAfterDeptReplace(kpis, departmentId);
-  if (selectedSum > remaining + KPI_WEIGHT_TOLERANCE) {
-    return {
-      ok: false,
-      message: `This assignment is ${selectedSum.toFixed(1)}% but only ${remaining.toFixed(1)}% weight remains for this employee.`,
-    };
-  }
-  return { ok: true };
+  const preview = previewEmployeeAssignment(kpis, departmentId, selected, employeeName);
+  return { ok: preview.ok, message: preview.message };
 }
 
 export function formatKpiWeight(weight: number): string {

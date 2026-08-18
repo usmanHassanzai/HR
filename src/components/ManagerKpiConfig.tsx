@@ -10,8 +10,9 @@ import { emailKpiAssigned } from '../utils/kpiEmail';
 import EmployeeKpiBoardSummary from './EmployeeKpiBoardSummary';
 import DepartmentKpiIndicatorsEditor from './DepartmentKpiIndicatorsEditor';
 import KpiIndicatorSelector from './KpiIndicatorSelector';
-import { formatKpiWeight, sumEmployeeKpiWeights, selectedIndicatorsWeightSum, canAssignSelectedKpiWeights, remainingWeightAfterDeptReplace, KPI_WEIGHT_CAP } from '../utils/kpiWeightHelpers';
+import { formatKpiWeight, sumEmployeeKpiWeights, selectedIndicatorsWeightSum, previewEmployeeAssignment, KPI_WEIGHT_CAP } from '../utils/kpiWeightHelpers';
 import EmployeeKpiWeightMeter from './EmployeeKpiWeightMeter';
+import AssignmentCapacityPreview from './AssignmentCapacityPreview';
 import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
 import { buildDepartmentAssignmentSections, buildAdminDepartmentOverview, filterAssignmentSections } from '../utils/assignTaskHelpers';
 import DepartmentAssignmentsOverview from './DepartmentAssignmentsOverview';
@@ -56,6 +57,11 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
   const [managerTab, setManagerTab] = useState<'create' | 'assign' | 'assignments'>('create');
   const [adminTab, setAdminTab] = useState<'assign' | 'overview'>('assign');
   const [overviewDeptFilter, setOverviewDeptFilter] = useState('all');
+  const [overviewEmployeeFilter, setOverviewEmployeeFilter] = useState('all');
+  const [overviewStatusFilter, setOverviewStatusFilter] = useState<'all' | 'pending' | 'completed'>('all');
+  const [overviewManagerFilter, setOverviewManagerFilter] = useState('all');
+  const [overviewDateFrom, setOverviewDateFrom] = useState('');
+  const [overviewDateTo, setOverviewDateTo] = useState('');
   const [overviewSearch, setOverviewSearch] = useState('');
   const [overviewRefreshing, setOverviewRefreshing] = useState(false);
 
@@ -105,7 +111,6 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
       if (isAdmin) {
         const deptList = (deptResult.data as Department[]) || [];
         setDepartments(deptList);
-        if (deptList[0] && !departmentId) setDepartmentId(deptList[0].id);
       } else if (managerDepartmentId) {
         setDepartmentId(managerDepartmentId);
         const { data: mgrDepts } = await supabase.rpc('get_departments');
@@ -139,12 +144,13 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
     if (indicators.length > 0) {
       setSelectedIndicatorIds((prev) => {
         const valid = prev.filter((id) => indicators.some((i) => i.id === id));
+        if (isAdmin) return valid;
         return valid.length > 0 ? valid : indicators.map((i) => i.id);
       });
     } else {
       setSelectedIndicatorIds([]);
     }
-  }, [indicators]);
+  }, [indicators, isAdmin]);
 
   useEffect(() => {
     if (!isAdmin && (managerTab === 'assign' || managerTab === 'assignments') && departmentId) {
@@ -209,10 +215,25 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
   const deptLabel = (deptId?: string | null) =>
     departments.find((d) => d.id === deptId)?.name || 'No department';
 
+  const departmentPeople = departmentId
+    ? reports.filter((r) => r.department_id === departmentId)
+    : [];
+
+  const pickDepartment = (deptId: string) => {
+    setDepartmentId(deptId);
+    setSelectedUserId('');
+    setSelectedIndicatorIds([]);
+    setUserKpis([]);
+    setError('');
+    setAssignSuccess('');
+  };
+
   const pickEmployee = (userId: string) => {
     setSelectedUserId(userId);
-    const emp = reports.find((r) => r.id === userId);
-    if (emp?.department_id) setDepartmentId(emp.department_id);
+    if (!isAdmin) {
+      const emp = reports.find((r) => r.id === userId);
+      if (emp?.department_id) setDepartmentId(emp.department_id);
+    }
   };
 
   const toggleIndicator = (id: string) => {
@@ -247,7 +268,8 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
       setError('Select at least one KPI to assign.');
       return;
     }
-    const assignCheck = canAssignSelectedKpiWeights(userKpis, departmentId, selectedIndicators);
+    const empName = reports.find((r) => r.id === selectedUserId)?.full_name || 'Employee';
+    const assignCheck = previewEmployeeAssignment(userKpis, departmentId, selectedIndicators, empName);
     if (!assignCheck.ok) {
       setError(assignCheck.message || 'Cannot assign these KPI tasks.');
       return;
@@ -277,9 +299,7 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
         );
       }
 
-      const empName = reports.find((r) => r.id === selectedUserId)?.full_name || 'Employee';
-      const kpiNames = selectedIndicators.map((i) => i.name).join(', ');
-      setAssignSuccess(`Assigned ${row?.kpi_count ?? selectedIndicatorIds.length} KPI task(s) to ${empName} (${sumIndicatorWeights(selectedIndicators).toFixed(1)}%): ${kpiNames}`);
+      setAssignSuccess(assignCheck.successMessage);
 
       setAssignNotes('');
       const month = currentMonthDateRange();
@@ -299,8 +319,21 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
     e.preventDefault();
     setError('');
     setAssignSuccess('');
-    if (!selectedUserId || !departmentId || !assignStartDate || !assignEndDate) {
-      setError('Employee, department, start date and end date are required.');
+    if (!departmentId) {
+      setError('Select a department first.');
+      return;
+    }
+    if (!selectedUserId) {
+      setError('Select an employee or manager from this department.');
+      return;
+    }
+    if (!assignStartDate || !assignEndDate) {
+      setError('Start date and end date are required.');
+      return;
+    }
+    const selectedPerson = reports.find((r) => r.id === selectedUserId);
+    if (!selectedPerson || selectedPerson.department_id !== departmentId) {
+      setError('Choose an employee or manager who belongs to the selected department.');
       return;
     }
     if (assignEndDate < assignStartDate) {
@@ -315,7 +348,8 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
       setError('Select at least one KPI to assign.');
       return;
     }
-    const assignCheck = canAssignSelectedKpiWeights(userKpis, departmentId, selectedIndicators);
+    const empName = reports.find((r) => r.id === selectedUserId)?.full_name || 'Employee';
+    const assignCheck = previewEmployeeAssignment(userKpis, departmentId, selectedIndicators, empName);
     if (!assignCheck.ok) {
       setError(assignCheck.message || 'Cannot assign these KPI tasks.');
       return;
@@ -345,9 +379,7 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
         );
       }
 
-      const empName = reports.find((r) => r.id === selectedUserId)?.full_name || 'Employee';
-      const kpiNames = selectedIndicators.map((i) => i.name).join(', ');
-      setAssignSuccess(`Assigned ${row?.kpi_count ?? selectedIndicatorIds.length} KPI task(s) to ${empName} (${sumIndicatorWeights(selectedIndicators).toFixed(1)}%): ${kpiNames}`);
+      setAssignSuccess(assignCheck.successMessage);
 
       setAssignNotes('');
       const month = currentMonthDateRange();
@@ -385,7 +417,20 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
   const filteredAdminSections = filterAssignmentSections(adminAssignmentSections, {
     departmentId: overviewDeptFilter,
     search: overviewSearch,
+    employeeId: overviewEmployeeFilter,
+    status: overviewStatusFilter,
+    managerId: overviewManagerFilter,
+    dateFrom: overviewDateFrom,
+    dateTo: overviewDateTo,
   });
+
+  const managerOptions = reports.filter((u) => u.role === 'manager');
+  const assignPreviewOk = previewEmployeeAssignment(
+    userKpis,
+    departmentId,
+    selectedIndicators,
+    selectedEmployee?.full_name,
+  ).ok;
 
   const refreshOverview = async () => {
     setOverviewRefreshing(true);
@@ -420,7 +465,7 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
             <div>
               <h2 className="mgr-kpi-header__title">KPI Tasks — {selectedDept?.name || 'Your Department'}</h2>
               <p className="mgr-kpi-header__subtitle">
-                Create department KPIs, assign tasks to your team, and track assignments. Each employee's active KPI board is capped at <strong>{KPI_WEIGHT_CAP}%</strong> total weight.
+                Create department KPIs, assign tasks to your team, and track assignments. Each employee has an independent <strong>{KPI_WEIGHT_CAP}%</strong> KPI capacity. Unused weight is not redistributed.
               </p>
             </div>
           </div>
@@ -490,8 +535,8 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
           <section className="mgr-kpi-card">
             <h3><ClipboardList size={18} /> Department KPI template</h3>
             <p>
-              Define KPI metrics for your department. Weights must sum to <strong>{KPI_WEIGHT_CAP}%</strong>.
-              When ready, go to <strong>Assign Tasks</strong> to give them to your team.
+              Define KPI metrics for your department. Template weights must sum to <strong>{KPI_WEIGHT_CAP}%</strong>.
+              This is the department template, not a company-wide assignment limit. When ready, go to <strong>Assign Tasks</strong>.
             </p>
             {!managerDepartmentId ? (
               <div className="assign-task-info">
@@ -502,13 +547,14 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
               <DepartmentKpiIndicatorsEditor
                 departmentId={departmentId}
                 departmentName={selectedDept?.name || 'Department'}
+                showTemplateBanner
               />
             )}
           </section>
         ) : managerTab === 'assignments' ? (
           <section className="mgr-kpi-card">
             <h3><ListChecks size={18} /> Team assignments</h3>
-            <p>Tasks grouped by department and team member. Each employee's pending weights total {KPI_WEIGHT_CAP}%.</p>
+            <p>Tasks grouped by department and team member. Each employee is validated independently (pending/active weights ≤ {KPI_WEIGHT_CAP}%).</p>
             {reports.length === 0 ? (
               <div className="mgr-kpi-empty">
                 <Users size={40} strokeWidth={1.25} />
@@ -597,7 +643,7 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
 
             <section className="mgr-kpi-card">
               <h3><Plus size={18} /> Assign KPI tasks</h3>
-              <p>Pick one or more KPIs (each 1–{KPI_WEIGHT_CAP}%). A 10% task stays 10%. Re-assigning replaces pending tasks for this department. Employee total cannot exceed {KPI_WEIGHT_CAP}%.</p>
+              <p>Pick one or more KPIs. Each KPI keeps its template weight (a 40% KPI stays 40%). Re-assigning replaces pending tasks for this department only. This employee cannot exceed {KPI_WEIGHT_CAP}%.</p>
 
               {!managerDepartmentId && (
                 <div className="assign-task-info">
@@ -611,8 +657,14 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
                   <span>No KPIs created yet. Go to <strong>Create KPIs</strong> first.</span>
                 </div>
               )}
-              {selectedUserId && userKpis.length > 0 && (
-                <EmployeeKpiWeightMeter kpis={userKpis} compact label="Before assign" />
+              {selectedUserId && (
+                <AssignmentCapacityPreview
+                  kpis={userKpis}
+                  departmentId={departmentId}
+                  selected={selectedIndicators}
+                  employeeName={selectedEmployee?.full_name}
+                  employeeDepartment={deptLabel(selectedEmployee?.department_id)}
+                />
               )}
 
               <form onSubmit={handleAssign} className="mgr-kpi-form">
@@ -629,6 +681,12 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
                       <option key={r.id} value={r.id}>{r.full_name} · {deptLabel(r.department_id)}</option>
                     ))}
                   </select>
+                  {selectedUserId && (
+                    <p className="assign-task-dept-preview">
+                      Employee department: <strong>{deptLabel(selectedEmployee?.department_id)}</strong>
+                      {' '}(assigning a KPI does not change their department)
+                    </p>
+                  )}
                 </div>
 
                 <KpiIndicatorSelector
@@ -644,13 +702,8 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
                   <div className="mgr-kpi-assign-note">
                     <Info size={16} />
                     <span>
-                      Selected weight: <strong>{selectedWeightTotal.toFixed(1)}%</strong>
-                      {selectedUserId && departmentId ? (
-                        <>
-                          {' '}· remaining budget: <strong>{remainingWeightAfterDeptReplace(userKpis, departmentId).toFixed(1)}%</strong>
-                        </>
-                      ) : null}
-                      . Each selected KPI keeps its own weight (1–{KPI_WEIGHT_CAP}%).
+                      Selected KPI keeps its configured weight: <strong>{formatKpiWeight(selectedWeightTotal)}</strong>.
+                      Other employees are not counted in this total.
                     </span>
                   </div>
                 )}
@@ -698,7 +751,7 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
                     !departmentId ||
                     indicators.length === 0 ||
                     selectedIndicatorIds.length === 0 ||
-                    !canAssignSelectedKpiWeights(userKpis, departmentId, selectedIndicators).ok
+                    !assignPreviewOk
                   }
                 >
                   {formLoading ? (
@@ -728,7 +781,7 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
           <div>
             <h2 className="assign-task-header__title">Assign Tasks</h2>
             <p className="assign-task-header__subtitle">
-              Create department KPIs, then assign them to any employee. Pick the person, the KPIs, and dates — they are notified by email.
+              Select a department, then an employee or manager in that department, then the KPI tasks and dates. Each person has an independent {KPI_WEIGHT_CAP}% capacity.
             </p>
           </div>
         </div>
@@ -798,8 +851,7 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
             <div>
               <h3><ListChecks size={18} /> All assignments by department</h3>
               <p>
-                Every department with employees and their KPI tasks. Expand a department to review,
-                remove assignments, or switch to <strong>New assignment</strong> to add more.
+                Every department with employees and their KPI tasks. Filters apply per assignment. Each employee&apos;s weight is independent.
               </p>
             </div>
           </div>
@@ -816,6 +868,19 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
               />
             </div>
             <div className="form-group" style={{ margin: 0, minWidth: 160, flex: '0 1 180px' }}>
+              <label className="form-label" style={{ fontSize: '0.72rem' }}>Employee</label>
+              <select
+                className="form-input"
+                value={overviewEmployeeFilter}
+                onChange={(e) => setOverviewEmployeeFilter(e.target.value)}
+              >
+                <option value="all">All employees</option>
+                {reports.map((r) => (
+                  <option key={r.id} value={r.id}>{r.full_name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group" style={{ margin: 0, minWidth: 160, flex: '0 1 180px' }}>
               <label className="form-label" style={{ fontSize: '0.72rem' }}>Department</label>
               <select
                 className="form-input"
@@ -830,6 +895,51 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
                   <option value="__unassigned__">Unassigned</option>
                 )}
               </select>
+            </div>
+            <div className="form-group" style={{ margin: 0, minWidth: 140, flex: '0 1 150px' }}>
+              <label className="form-label" style={{ fontSize: '0.72rem' }}>Status</label>
+              <select
+                className="form-input"
+                value={overviewStatusFilter}
+                onChange={(e) => setOverviewStatusFilter(e.target.value as 'all' | 'pending' | 'completed')}
+              >
+                <option value="all">All statuses</option>
+                <option value="pending">Active / pending</option>
+                <option value="completed">Completed</option>
+              </select>
+            </div>
+            {managerOptions.length > 0 && (
+              <div className="form-group" style={{ margin: 0, minWidth: 160, flex: '0 1 180px' }}>
+                <label className="form-label" style={{ fontSize: '0.72rem' }}>Manager</label>
+                <select
+                  className="form-input"
+                  value={overviewManagerFilter}
+                  onChange={(e) => setOverviewManagerFilter(e.target.value)}
+                >
+                  <option value="all">All managers</option>
+                  {managerOptions.map((m) => (
+                    <option key={m.id} value={m.id}>{m.full_name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="form-group" style={{ margin: 0, minWidth: 140, flex: '0 1 150px' }}>
+              <label className="form-label" style={{ fontSize: '0.72rem' }}>Start from</label>
+              <input
+                type="date"
+                className="form-input"
+                value={overviewDateFrom}
+                onChange={(e) => setOverviewDateFrom(e.target.value)}
+              />
+            </div>
+            <div className="form-group" style={{ margin: 0, minWidth: 140, flex: '0 1 150px' }}>
+              <label className="form-label" style={{ fontSize: '0.72rem' }}>End to</label>
+              <input
+                type="date"
+                className="form-input"
+                value={overviewDateTo}
+                onChange={(e) => setOverviewDateTo(e.target.value)}
+              />
             </div>
             <button
               type="button"
@@ -882,32 +992,67 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
           <div className="assign-task-grid">
             <section className="assign-task-card glass-panel">
               <h3><Users size={18} /> Employee preview</h3>
-              <p>Select an employee to review their current KPI board before assigning new tasks.</p>
+              <p>Choose a department first. Then pick someone in that department to review their KPI board.</p>
 
               <div className="form-group" style={{ margin: 0 }}>
-                <label htmlFor="admin-preview-employee">Employee</label>
+                <label htmlFor="admin-preview-dept">Department</label>
                 <select
-                  id="admin-preview-employee"
-                  value={selectedUserId}
-                  onChange={(e) => setSelectedUserId(e.target.value)}
+                  id="admin-preview-dept"
+                  value={departmentId}
+                  onChange={(e) => pickDepartment(e.target.value)}
+                  disabled={departments.length === 0}
                 >
-                  <option value="">— Select employee —</option>
-                  {reports.map((r) => (
-                    <option key={r.id} value={r.id}>{r.full_name}</option>
+                  <option value="">— Select department —</option>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
                   ))}
                 </select>
               </div>
 
-              {reports.length === 0 ? (
+              <div className="form-group" style={{ margin: '0.75rem 0 0' }}>
+                <label htmlFor="admin-preview-employee">Employee or manager</label>
+                <select
+                  id="admin-preview-employee"
+                  value={selectedUserId}
+                  onChange={(e) => setSelectedUserId(e.target.value)}
+                  disabled={!departmentId}
+                >
+                  <option value="">
+                    {!departmentId
+                      ? '— Select a department first —'
+                      : departmentPeople.length === 0
+                        ? '— No employees or managers in this department —'
+                        : '— Select employee or manager —'}
+                  </option>
+                  {departmentPeople.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.full_name}{r.role === 'manager' ? ' · Manager' : ' · Employee'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {departments.length === 0 ? (
+                <div className="assign-task-empty" style={{ marginTop: '1rem' }}>
+                  <Building2 size={36} strokeWidth={1.25} />
+                  <h4>No departments</h4>
+                  <p>Add departments under <strong>Departments</strong> first.</p>
+                </div>
+              ) : !departmentId ? (
+                <div className="assign-task-empty" style={{ marginTop: '1rem' }}>
+                  <Building2 size={36} strokeWidth={1.25} />
+                  <p>Select a department to see its employees and managers.</p>
+                </div>
+              ) : departmentPeople.length === 0 ? (
                 <div className="assign-task-empty" style={{ marginTop: '1rem' }}>
                   <Users size={36} strokeWidth={1.25} />
-                  <h4>No employees</h4>
-                  <p>Add employees under <strong>Users</strong> first.</p>
+                  <h4>No people in {selectedDept?.name}</h4>
+                  <p>Assign employees or managers to this department under <strong>Users</strong>.</p>
                 </div>
               ) : !selectedUserId ? (
                 <div className="assign-task-empty" style={{ marginTop: '1rem' }}>
                   <Target size={36} strokeWidth={1.25} />
-                  <p>Select an employee to preview their assigned tasks.</p>
+                  <p>Select an employee or manager to preview their assigned tasks.</p>
                 </div>
               ) : kpiLoading && userKpis.length === 0 ? (
                 <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
@@ -921,9 +1066,12 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
                 </div>
               ) : (
                 <>
+                  <EmployeeKpiWeightMeter kpis={userKpis} label="Employee KPI capacity" />
                   <EmployeeKpiBoardSummary kpis={userKpis} employeeName={selectedEmployee?.full_name} />
                   <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0.75rem 0' }}>
-                    Board total: <strong>{formatKpiWeight(sumEmployeeKpiWeights(userKpis))}</strong> (each employee has a separate 100% board)
+                    Current: <strong>{formatKpiWeight(sumEmployeeKpiWeights(userKpis))}</strong>
+                    {' · '}Remaining: <strong>{formatKpiWeight(KPI_WEIGHT_CAP - sumEmployeeKpiWeights(userKpis))}</strong>
+                    {' · '}Other employees are not included in this total.
                   </p>
                   <div className="assign-task-kpi-list">
                     {userKpis.map((k) => (
@@ -954,33 +1102,17 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
 
             <section className="assign-task-card glass-panel">
               <h3><Plus size={18} /> New assignment</h3>
-              <p>Pick any employee, choose the department KPIs, then assign. You can assign to someone in another department. Dates default to this month.</p>
+              <p>Department → employee or manager in that department → KPI tasks → dates. You can assign only after each step is complete.</p>
 
               <form onSubmit={handleAssignAdmin} className="assign-task-form">
                 <div className="assign-task-form__section">
-                  <p className="assign-task-form__section-title">1 · Who &amp; where</p>
+                  <p className="assign-task-form__section-title">1 · Department</p>
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label htmlFor="admin-assign-employee">Employee</label>
-                    <select
-                      id="admin-assign-employee"
-                      value={selectedUserId}
-                      onChange={(e) => pickEmployee(e.target.value)}
-                      required
-                    >
-                      <option value="">— Select employee —</option>
-                      {reports.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {r.full_name} · {deptLabel(r.department_id)}{r.role === 'manager' ? ' · Manager' : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="form-group" style={{ margin: '0.75rem 0 0' }}>
                     <label htmlFor="admin-assign-dept">Department</label>
                     <select
                       id="admin-assign-dept"
                       value={departmentId}
-                      onChange={(e) => setDepartmentId(e.target.value)}
+                      onChange={(e) => pickDepartment(e.target.value)}
                       required
                       disabled={departments.length === 0}
                     >
@@ -994,36 +1126,76 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
                   </div>
                   {selectedDept && (
                     <div className="assign-task-dept-preview">
-                      <strong>{selectedDept.name}</strong> — assign any KPI whose weight is 1–{KPI_WEIGHT_CAP}%.
-                      {indicatorsLoading ? ' Loading KPIs…' : ` ${indicators.length} KPI metric${indicators.length !== 1 ? 's' : ''} available.`}
+                      <strong>{selectedDept.name}</strong>
+                      {indicatorsLoading ? ' — loading KPIs…' : ` — ${indicators.length} KPI metric${indicators.length !== 1 ? 's' : ''} · ${departmentPeople.length} people`}
                     </div>
                   )}
                 </div>
 
                 <div className="assign-task-form__section">
-                  <p className="assign-task-form__section-title">2 · KPI tasks</p>
-                  <KpiIndicatorSelector
-                    indicators={indicators}
-                    selectedIds={selectedIndicatorIds}
-                    onToggle={toggleIndicator}
-                    onSelectAll={selectAllIndicators}
-                    onClearAll={clearAllIndicators}
-                    loading={indicatorsLoading}
-                    emptyHint="This department has no KPI metrics. Add them under the Departments tab first."
-                  />
-                  {selectedIndicatorIds.length > 0 && (
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.6rem 0 0' }}>
-                      Selected weight: <strong>{selectedWeightTotal.toFixed(1)}%</strong>
-                      {selectedUserId && departmentId ? (
-                        <> · remaining budget: <strong>{remainingWeightAfterDeptReplace(userKpis, departmentId).toFixed(1)}%</strong></>
-                      ) : null}
-                      . Each selected KPI keeps its own weight (1–{KPI_WEIGHT_CAP}%).
-                    </p>
+                  <p className="assign-task-form__section-title">2 · Employee or manager</p>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label htmlFor="admin-assign-employee">Person in this department</label>
+                    <select
+                      id="admin-assign-employee"
+                      value={selectedUserId}
+                      onChange={(e) => pickEmployee(e.target.value)}
+                      required
+                      disabled={!departmentId}
+                    >
+                      <option value="">
+                        {!departmentId
+                          ? '— Select a department first —'
+                          : departmentPeople.length === 0
+                            ? '— No employees or managers in this department —'
+                            : '— Select employee or manager —'}
+                      </option>
+                      {departmentPeople.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.full_name}{r.role === 'manager' ? ' · Manager' : ' · Employee'}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {selectedUserId && (
+                    <AssignmentCapacityPreview
+                      kpis={userKpis}
+                      departmentId={departmentId}
+                      selected={selectedIndicators}
+                      employeeName={selectedEmployee?.full_name}
+                      employeeDepartment={selectedDept?.name || deptLabel(selectedEmployee?.department_id)}
+                    />
                   )}
                 </div>
 
                 <div className="assign-task-form__section">
-                  <p className="assign-task-form__section-title">3 · Schedule &amp; notes</p>
+                  <p className="assign-task-form__section-title">3 · KPI tasks</p>
+                  {!departmentId ? (
+                    <p className="assign-task-dept-preview">Select a department first to load its KPI tasks.</p>
+                  ) : !selectedUserId ? (
+                    <p className="assign-task-dept-preview">Select an employee or manager, then choose KPI tasks.</p>
+                  ) : (
+                    <>
+                      <KpiIndicatorSelector
+                        indicators={indicators}
+                        selectedIds={selectedIndicatorIds}
+                        onToggle={toggleIndicator}
+                        onSelectAll={selectAllIndicators}
+                        onClearAll={clearAllIndicators}
+                        loading={indicatorsLoading}
+                        emptyHint="This department has no KPI metrics. Add them under Performance → KPI Management first."
+                      />
+                      {selectedIndicatorIds.length > 0 && (
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.6rem 0 0' }}>
+                          Configured weight stays the same: <strong>{formatKpiWeight(selectedWeightTotal)}</strong>.
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                <div className="assign-task-form__section">
+                  <p className="assign-task-form__section-title">4 · Schedule &amp; notes</p>
                   <div className="assign-task-form__dates">
                     <div className="form-group" style={{ margin: 0 }}>
                       <label htmlFor="admin-assign-start"><Calendar size={14} style={{ verticalAlign: '-2px', marginRight: '0.25rem' }} />Start date</label>
@@ -1033,6 +1205,7 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
                         value={assignStartDate}
                         onChange={(e) => setAssignStartDate(e.target.value)}
                         required
+                        disabled={!selectedUserId || selectedIndicatorIds.length === 0}
                       />
                     </div>
                     <div className="form-group" style={{ margin: 0 }}>
@@ -1043,6 +1216,7 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
                         value={assignEndDate}
                         onChange={(e) => setAssignEndDate(e.target.value)}
                         required
+                        disabled={!selectedUserId || selectedIndicatorIds.length === 0}
                       />
                     </div>
                   </div>
@@ -1054,6 +1228,7 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
                       placeholder="Instructions or context for this assignment…"
                       value={assignNotes}
                       onChange={(e) => setAssignNotes(e.target.value)}
+                      disabled={!selectedUserId || selectedIndicatorIds.length === 0}
                     />
                   </div>
                 </div>
@@ -1063,11 +1238,14 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
                   className="btn btn-primary"
                   disabled={
                     formLoading ||
-                    !selectedUserId ||
                     !departmentId ||
+                    !selectedUserId ||
+                    departmentPeople.every((p) => p.id !== selectedUserId) ||
                     indicators.length === 0 ||
                     selectedIndicatorIds.length === 0 ||
-                    !canAssignSelectedKpiWeights(userKpis, departmentId, selectedIndicators).ok
+                    !assignStartDate ||
+                    !assignEndDate ||
+                    !assignPreviewOk
                   }
                 >
                   {formLoading ? (
@@ -1075,7 +1253,7 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
                   ) : (
                     <>
                       <Target size={16} />
-                      Assign {selectedIndicatorIds.length} task{selectedIndicatorIds.length !== 1 ? 's' : ''} ({selectedWeightTotal.toFixed(0)}%) &amp; notify employee
+                      Assign {selectedIndicatorIds.length} task{selectedIndicatorIds.length !== 1 ? 's' : ''} ({selectedWeightTotal.toFixed(0)}%) &amp; notify
                     </>
                   )}
                 </button>

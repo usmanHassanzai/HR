@@ -80,7 +80,7 @@ export default function DepartmentAssignmentsOverview({
                     {' · '}
                     {section.taskCount} task{section.taskCount !== 1 ? 's' : ''}
                     {' · '}
-                    KPI weights {KPI_WEIGHT_CAP}%
+                    each employee ≤ {KPI_WEIGHT_CAP}% independently
                   </p>
                 </div>
               </button>

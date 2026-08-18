@@ -16,6 +16,8 @@ interface DepartmentKpiIndicatorsEditorProps {
   departmentName: string;
   defaultOpen?: boolean;
   allowEdit?: boolean;
+  showTemplateBanner?: boolean;
+  onTotalsChange?: (total: number, count: number) => void;
 }
 
 type EditableIndicator = DepartmentKpiIndicator & { isNew?: boolean };
@@ -25,6 +27,8 @@ export default function DepartmentKpiIndicatorsEditor({
   departmentName,
   defaultOpen = true,
   allowEdit = true,
+  showTemplateBanner = false,
+  onTotalsChange,
 }: DepartmentKpiIndicatorsEditorProps) {
   const [rows, setRows] = useState<EditableIndicator[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,6 +68,11 @@ export default function DepartmentKpiIndicatorsEditor({
 
   const total = sumIndicatorWeights(rows);
   const valid = indicatorWeightsValid(rows) && rows.every((r) => r.name.trim());
+  const templateOver = total > 100.05;
+
+  useEffect(() => {
+    onTotalsChange?.(total, rows.length);
+  }, [total, rows.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateRow = (id: string, patch: Partial<EditableIndicator>) => {
     setDirty(true);
@@ -154,6 +163,19 @@ export default function DepartmentKpiIndicatorsEditor({
 
   return (
     <div className="dept-indicators dept-indicators--open">
+      {showTemplateBanner && (
+        <div className={`kpi-template-status ${templateOver ? 'kpi-template-status--over' : valid ? 'kpi-template-status--ok' : 'kpi-template-status--warn'}`}>
+          <CheckCircle size={16} />
+          <div>
+            <strong>Department KPI Weight</strong>
+            <p>
+              Total: {formatWeightPct(total)} · Status:{' '}
+              {templateOver ? 'Over 100%' : valid ? 'Valid' : rows.length === 0 ? 'Empty' : 'Incomplete'}
+            </p>
+            {templateOver && <p>Department KPI template cannot exceed 100%.</p>}
+          </div>
+        </div>
+      )}
       <div className="dept-indicators__header">
         <span className="dept-indicators__status">
           <CheckCircle size={14} /> {departmentName} · {rows.length} KPIs

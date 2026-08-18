@@ -46,7 +46,7 @@ function drawPageHeader() {
   doc.text('SCORR', M, 9);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 116, 139);
-  doc.text('User Guide', M + 18, 9);
+  doc.text('Project Guideline', M + 18, 9);
   doc.text('scorr.walfia.ai', W - M, 9, { align: 'right' });
 }
 
@@ -55,7 +55,7 @@ function drawFooter() {
   doc.setFontSize(8);
   doc.setTextColor(148, 163, 184);
   doc.text(`Page ${pageNum}`, W / 2, FOOTER_Y, { align: 'center' });
-  doc.text('© Walfia · Client User Guide', M, FOOTER_Y);
+  doc.text('© Walfia · Project Guideline', M, FOOTER_Y);
 }
 
 function ensure(h = LINE) {
@@ -233,15 +233,15 @@ doc.text('Scorr', M, 68);
 
 doc.setTextColor(248, 250, 252);
 doc.setFontSize(15);
-doc.text('Complete User Guide', M, 84);
+doc.text('Complete Project Guideline', M, 84);
 
 doc.setFont('helvetica', 'normal');
 doc.setFontSize(11.5);
 doc.setTextColor(203, 213, 225);
 const coverBlurb = [
-  'How to register your organization, understand',
-  'Admin / Manager / Employee roles, and add',
-  'new users — explained step by step.',
+  'How Scorr works for your organization — registration,',
+  'roles, users, KPIs, assignment, attendance, GPS,',
+  'rewards, reports, and mobile — in one document.',
 ];
 coverBlurb.forEach((line, i) => doc.text(line, M, 100 + i * 7));
 
@@ -253,7 +253,7 @@ doc.text('Prepared by:    Walfia', M, 146);
 
 doc.setFontSize(9);
 doc.setTextColor(100, 116, 139);
-doc.text('Registration · Roles · Users · KPIs · Attendance · Rewards', M, H - 22);
+doc.text('Registration · Roles · KPIs · Assignment · Attendance · Rewards', M, H - 22);
 
 newPage();
 
@@ -271,13 +271,14 @@ const toc = [
   ['7.', 'Manager — What They Do'],
   ['8.', 'Employee — What They Do'],
   ['9.', 'Daily Work Reports'],
-  ['10.', 'KPI & Performance (Simple Explanation)'],
+  ['10.', 'KPI Setup & Assignment (Any Employee)'],
   ['11.', 'Attendance, Leave & GPS'],
   ['12.', 'Rewards & Points'],
   ['13.', 'Reports & Analytics'],
   ['14.', 'Mobile Apps (Android & iPhone)'],
   ['15.', 'Sign In, Passwords & Security'],
-  ['16.', 'Quick Troubleshooting'],
+  ['16.', 'How the Platform Is Built (Overview)'],
+  ['17.', 'Quick Troubleshooting'],
 ];
 toc.forEach(([num, label]) => {
   ensure();
@@ -375,7 +376,7 @@ featureBlock('Departments', 'Build your company structure (e.g. Sales, HR, Opera
 featureBlock('Branding', 'Put your company name, logo, tagline, and colors on the platform so it looks like your product.');
 
 h1('4.2 Performance');
-featureBlock('Assign Task (KPIs)', 'Assign weighted KPI tasks to employees across the organization, with start/end dates. Weights for each person should total 100%.');
+featureBlock('Assign Task (KPIs)', 'Assign department KPI tasks to any employee in the company. Pick the person, pick one or more KPIs (each 1–100%), set dates, and assign. The employee is notified by email. Live totals cannot exceed 100% on that person’s board.');
 featureBlock('Reports', 'Download monthly or quarterly company reports as PDF, Excel, or CSV.');
 featureBlock('Analytics', 'Charts for KPI health, trends, forecasts, and attainment by department or category.');
 featureBlock('Rewards', 'Run the monthly points job, approve/fulfill redemptions, and manage the rewards catalog (gift items employees can redeem).');
@@ -469,7 +470,7 @@ para('Managers focus on their team. They do not see the whole company — only p
 
 h1('7.1 Daily / weekly work');
 featureBlock('Team Performance', 'See team points, leaderboard, and who is on track / at risk / off track. Open any team member’s performance view (read-only).');
-featureBlock('KPI Tasks', 'Create KPI definitions for the department, assign weighted KPIs to team members (weights must total 100% per person), and review all current assignments.');
+featureBlock('KPI Tasks', 'Create the department KPI template (weights on the template add up to 100%). Then assign any of those KPIs to team members — a single 10% task stays 10%. Re-assigning replaces pending tasks for that department.');
 featureBlock('Team Rewards', 'Approve redemption requests and mark rewards as fulfilled when delivered.');
 featureBlock('Attendance & Leave', 'Approve or reject leave and attendance corrections. Create shifts and assign them. View today\'s team attendance and history.');
 featureBlock('Live Tracking', 'Map/table of where the team is (at site / away / offline).');
@@ -534,24 +535,35 @@ newPage();
 // ═══════════════════════════════════════════════════════════════
 // 10 KPI
 // ═══════════════════════════════════════════════════════════════
-title('10. KPI & Performance (Simple Explanation)');
-para('KPIs (Key Performance Indicators) are measurable goals. In Scorr:');
-bullet('Each department has indicators with weights that add up to 100% for the company structure.');
-bullet('Each employee gets personal KPI tasks whose weights also add up to 100%.');
-bullet('Health score = sum of (Achieved % × Weight %) across all of that person’s KPIs.');
+title('10. KPI Setup & Assignment (Any Employee)');
+para('KPIs (Key Performance Indicators) are measurable goals. In Scorr you first define KPIs for a department, then assign them to people.');
 
-h1('Status colors');
-tableHeader(['Status', 'Meaning']);
-tableRow('On Track', 'Progress looks healthy toward the target/deadline.');
-tableRow('At Risk', 'Needs attention — slipping or deadline close.');
-tableRow('Off Track', 'Significantly behind.');
-tableRow('Completed', 'Employee marked the task complete.');
-spacer();
+h1('10.1 Two steps — setup, then assignment');
+bullet('Setup (Admin → Departments, or Manager → Create KPIs): name each KPI and give it a weight. The full department template should add up to 100% (for example 30% + 30% + 20% + 20%).');
+bullet('Assignment (Admin → Assign Task, or Manager → Assign Tasks): pick an employee, pick one or more of those KPIs, set start and end dates, and click Assign.');
+note('You can assign a single 10% KPI to someone. It stays 10%. You do not need the selected tasks to total 100% first. That person’s pending KPIs still cannot go over 100% in total.');
 
-h1('Deadlines');
-bullet('Managers/admins set start and end dates when assigning KPIs.');
-bullet('Overdue tasks trigger notifications and email alerts.');
-bullet('Repeated missed deadlines can apply a points penalty.');
+h1('10.2 Assign to any employee (Admin)');
+step(1, 'Sign in as Admin → open Assign Task.');
+step(2, 'Stay on New assignment (this is the default screen).');
+step(3, 'Select any employee or manager in your company (any department). Their department KPIs load automatically.');
+step(4, 'Optionally change Department if you want to give them KPIs from another department’s template.');
+step(5, 'Select one or more KPI tasks. Dates default to the current month — change them if needed.');
+step(6, 'Click Assign. The person is emailed and the tasks appear on their KPI board immediately.');
+bullet('They keep their own department. Assignment does not move them to another department.');
+bullet('Re-assigning the same department replaces their pending tasks for that department only.');
+
+h1('10.3 Assign as a Manager');
+step(1, 'Open KPI Tasks → Assign Tasks.');
+step(2, 'Pick a team member (your direct reports).');
+step(3, 'Select KPIs from your department template, set dates, and assign.');
+bullet('Managers assign from their own department. Admins can assign across the company.');
+
+h1('10.4 How scores work');
+bullet('Health / points from a KPI = % achieved × that KPI’s weight.');
+bullet('Example: 80% achieved on a 10% weight task contributes 8 points toward the monthly score.');
+bullet('Status: On Track, At Risk, Off Track, or Completed.');
+bullet('Overdue tasks send notifications and email. Missing 3 deadlines can apply a −300 point penalty.');
 drawFooter();
 newPage();
 
@@ -562,8 +574,10 @@ title('11. Attendance, Leave & GPS');
 
 h1('11.1 Office GPS (Admin setup)');
 step(1, 'Admin → Office GPS.');
-step(2, 'Add a site: name, address, coordinates (map or live GPS), and radius.');
-step(3, 'Assign the site so employees can auto check in when they enter the zone.');
+step(2, 'Add a site: name, address, coordinates (map or live GPS), and radius (typically 50 m).');
+step(3, 'Assign the site to people so they can auto check in when they enter the zone.');
+bullet('Assign to everyone, or assign to selected employees/managers individually.');
+bullet('Shift times use Pakistan time (Asia/Karachi).');
 
 h1('11.2 Check-in for staff');
 bullet('Allow location permission in the browser or mobile app.');
@@ -648,9 +662,38 @@ drawFooter();
 newPage();
 
 // ═══════════════════════════════════════════════════════════════
-// 16 TROUBLESHOOT
+// 16 PLATFORM
 // ═══════════════════════════════════════════════════════════════
-title('16. Quick Troubleshooting');
+title('16. How the Platform Is Built (Overview)');
+para('Scorr is the live product at https://scorr.walfia.ai. This section is for stakeholders who want a simple picture of how the system is put together.');
+
+h1('16.1 What you use every day');
+bullet('Website: React app hosted on Vercel (project “hr”).');
+bullet('Login and data: Supabase (secure accounts + company database).');
+bullet('Email alerts: Resend, from noreply@scorr.walfia.ai (KPI assigned, completed, overdue).');
+bullet('Each company is a private workspace. Other companies cannot see your data.');
+
+h1('16.2 Core work flow');
+para('Admin or Manager assigns KPI tasks → Employee completes them before the deadline → Monthly score becomes points → Employee redeems rewards → Manager or Admin approves.');
+
+h1('16.3 Live URL & domain');
+tableHeader(['Item', 'Value']);
+tableRow('App', 'https://scorr.walfia.ai');
+tableRow('Brand domain', 'walfia.ai');
+tableRow('Hosting', 'Vercel (automatic HTTPS)');
+spacer();
+
+h1('16.4 Mobile');
+bullet('Android: download Scorr APK from the website Download section.');
+bullet('iPhone: Safari → Share → Add to Home Screen (recommended).');
+bullet('Same login as the website. GPS attendance needs Location permission.');
+drawFooter();
+newPage();
+
+// ═══════════════════════════════════════════════════════════════
+// 17 TROUBLESHOOT
+// ═══════════════════════════════════════════════════════════════
+title('17. Quick Troubleshooting');
 
 tableHeader(['Problem', 'What to try']);
 tableRow('Cannot sign in after register', 'Wait until company is approved. Use the exact email/password from registration.');
@@ -660,7 +703,8 @@ tableRow('Manager list empty', 'Create Manager accounts first, in the same depar
 tableRow('Department required error', 'Managers and employees need a department. Create one under Departments.');
 tableRow('GPS check-in fails', 'Enable location permission; confirm Admin assigned an Office GPS site.');
 tableRow('No daily reports visible', 'Only Admin sees others’ reports. Staff must submit from Daily Report tab.');
-tableRow('Android install blocked', 'Allow “Install unknown apps” for your browser, then open the APK again.');
+tableRow('Cannot assign KPIs', 'Open Assign Task → New assignment. Pick an employee, pick at least one KPI, and keep dates filled (they default to this month). Pending weight on that person cannot exceed 100%.');
+tableRow('Assigned 10% became 100%', 'This is fixed: assigned weight stays as set (1–100%). Refresh the site after the latest update.');
 spacer();
 
 h1('Need help?');
@@ -684,7 +728,7 @@ fs.writeFileSync(OUT_DOCS, buf);
 fs.writeFileSync(OUT_PUBLIC, buf);
 
 const sizeMb = (buf.length / 1024 / 1024).toFixed(2);
-console.log('✅ Scorr User Guide PDF generated');
+console.log('✅ Scorr Project Guideline PDF generated');
 console.log(`   → ${OUT_DOCS}`);
 console.log(`   → ${OUT_PUBLIC}`);
 console.log(`   Size: ${sizeMb} MB · ${doc.getNumberOfPages()} pages`);

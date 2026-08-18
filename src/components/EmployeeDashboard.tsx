@@ -285,7 +285,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
 
       <div className="dash-section-head">
         <h3>
-          <BarChart2 size={22} /> My KPI tasks
+          <BarChart2 size={22} /> My KPIs
           {kpis.length > 0 && (
             <span className="emp-kpi-total-badge" title="Sum of points from all your KPI tasks">
               Total: {totalKpiPoints} pts
@@ -332,7 +332,10 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
                 ) : null}
 
                 <p className="kpi-score-line">
-                  {achieved}% achieved × {formatKpiWeight(kpi.weight)} = <strong>{contribution} pts</strong>
+                  Achievement: {achieved}% · Score: {contribution} points
+                  <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                    {achieved}% × {formatKpiWeight(kpi.weight)} weight
+                  </span>
                 </p>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '0.75rem', flexWrap: 'wrap', gap: '0.75rem' }}>
