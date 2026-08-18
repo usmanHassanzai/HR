@@ -36,7 +36,7 @@ export default function RewardsPointsCard({
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      setLoading(true);
+      if (kpiPointsProp == null && refreshKey === 0) setLoading(true);
       try {
         const [data, kpiRes] = await Promise.all([
           fetchRewardsSummary(userId),
@@ -60,7 +60,7 @@ export default function RewardsPointsCard({
     return () => { cancelled = true; };
   }, [userId, refreshKey, kpiPointsProp]);
 
-  if (loading) {
+  if (loading && !summary) {
     return (
       <div className="glass-panel dash-points-card dash-points-card--loading">
         <Loader2 size={22} className="spin-icon" />

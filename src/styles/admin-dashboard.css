@@ -14,7 +14,6 @@
   --admin-sidebar-active: rgba(13, 148, 136, 0.18);
   --admin-accent-line: var(--accent-primary);
   position: relative;
-  animation: adminFadeIn 0.4s ease;
 }
 
 [data-theme="dark"] .admin-shell {

@@ -170,7 +170,7 @@ export default function Header({ profile, organizationName, onLogout, onNavigate
 
   // Same markup as mobile web — responsive CSS handles phone layout
   return (
-    <header className={`glass-panel app-header app-header--dashboard app-header--inline animate-fade-in${headerRoleClass}`}>
+    <header className={`glass-panel app-header app-header--dashboard app-header--inline${headerRoleClass}`}>
       <div className="app-header__start">{brandBlock}</div>
       <div className="app-header__end">
         {platformLink}

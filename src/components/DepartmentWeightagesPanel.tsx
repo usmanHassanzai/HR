@@ -235,7 +235,7 @@ function DepartmentWeightagesPanelInner({ managerMode = false }: { managerMode?:
     }
   };
 
-  if (loading) {
+  if (loading && rows.length === 0) {
     return (
       <div className="dept-page-loading">
         <Loader2 size={32} className="spin-icon" />

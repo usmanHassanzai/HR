@@ -54,8 +54,8 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [pointsRefreshKey, setPointsRefreshKey] = useState(0);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
     try {
       const [kpiRes, userRes, rewardsSummary] = await Promise.all([
         supabase.from('kpis').select('*').eq('user_id', profile.id).order('created_at', { ascending: true }),
@@ -84,7 +84,7 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
     const subscription = supabase
       .channel(`mgr-personal:kpis:${profile.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'kpis' }, () => {
-        void load();
+        void load({ silent: true });
       })
       .subscribe();
 
@@ -109,7 +109,7 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
       if (row?.manager_email) {
         await emailKpiCompleted(row.manager_email, row.manager_name, profile.full_name, row.department);
       }
-      await load();
+      await load({ silent: true });
       setPointsRefreshKey((k) => k + 1);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Could not mark complete.';
@@ -129,7 +129,7 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
   }
 
   return (
-    <div className="mgr-personal-page animate-fade-in">
+    <div className="mgr-personal-page">
       <header className="mgr-personal-header">
         <div className="mgr-personal-header__main">
           <div className="mgr-personal-header__icon">

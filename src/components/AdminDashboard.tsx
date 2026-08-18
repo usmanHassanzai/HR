@@ -523,7 +523,7 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
   }
 
   return (
-    <div className="admin-shell animate-fade-in">
+    <div className="admin-shell">
 
       <AdminDailyReportAlert
         userId={profile.id}
@@ -760,7 +760,7 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
               </div>
             </div>
 
-            {loading ? (
+            {loading && users.length === 0 ? (
               <div className="dash-loading">
                 <Loader2 className="animate-spin spin-icon" />
               </div>

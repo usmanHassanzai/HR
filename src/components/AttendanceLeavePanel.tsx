@@ -440,7 +440,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
     )
   );
 
-  if (loading) {
+  if (loading && !balance && teamMembers.length === 0 && myAttendance.length === 0) {
     return (
       <div className="rewards-loading">
         <Loader2 size={28} className="spin-icon" />
@@ -451,7 +451,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
   /* ── Admin: leave + company attendance ── */
   if (mode === 'admin') {
     return (
-      <div className="admin-attendance-page animate-fade-in">
+      <div className="admin-attendance-page">
         <header className="admin-attendance-header glass-panel">
           <div className="admin-attendance-header__main">
             <div className="admin-attendance-header__icon">
@@ -548,7 +548,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
   /* ── Manager ── */
   if (mode === 'manager') {
     return (
-      <div className="mgr-attendance-page animate-fade-in">
+      <div className="mgr-attendance-page">
         <header className="mgr-attendance-header">
           <div className="mgr-attendance-header__main">
             <div className="mgr-attendance-header__icon">
@@ -735,7 +735,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
 
   /* ── Employee ── */
   return (
-    <div className="emp-attendance-page animate-fade-in">
+    <div className="emp-attendance-page">
       <header className="emp-attendance-header">
         <div className="emp-attendance-header__main">
           <div className="emp-attendance-header__icon">

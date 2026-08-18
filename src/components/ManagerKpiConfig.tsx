@@ -20,16 +20,19 @@ function isAssignAlertError(message: string): boolean {
   return /failed|error|must|required|cannot|not found|select at least|no departments|no kpi|not allowed|belong/i.test(message);
 }
 
-function kpiDeptMismatchMessage(
-  employee: Profile | undefined,
-  kpiDept: Department | undefined,
-  departments: Department[],
-): string | null {
-  if (!employee || !kpiDept) return null;
-  if (!employee.department_id) return null;
-  if (employee.department_id === kpiDept.id) return null;
-  const empDept = departments.find((d) => d.id === employee.department_id)?.name || 'another department';
-  return `These KPIs belong to ${kpiDept.name}. ${employee.full_name} works in ${empDept}, so this assignment is not allowed. Choose ${empDept} KPIs for this employee, or change their department in Users first.`;
+function currentMonthDateRange(): { start: string; end: string } {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const last = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  return { start: `${y}-${m}-01`, end: `${y}-${m}-${String(last).padStart(2, '0')}` };
+}
+
+function assignablePeople(users: Profile[] | null | undefined, admin: boolean): Profile[] {
+  return ((users as Profile[]) || [])
+    .filter((u) => u.role === 'employee' || (admin && u.role === 'manager'))
+    .filter((u) => !u.is_demo)
+    .sort((a, b) => a.full_name.localeCompare(b.full_name));
 }
 
 interface ManagerKpiConfigProps {
@@ -51,15 +54,15 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
   const [formLoading, setFormLoading] = useState(false);
   const [error, setError] = useState('');
   const [managerTab, setManagerTab] = useState<'create' | 'assign' | 'assignments'>('create');
-  const [adminTab, setAdminTab] = useState<'assign' | 'overview'>('overview');
+  const [adminTab, setAdminTab] = useState<'assign' | 'overview'>('assign');
   const [overviewDeptFilter, setOverviewDeptFilter] = useState('all');
   const [overviewSearch, setOverviewSearch] = useState('');
   const [overviewRefreshing, setOverviewRefreshing] = useState(false);
 
   const [departmentId, setDepartmentId] = useState('');
   const [assignNotes, setAssignNotes] = useState('');
-  const [assignStartDate, setAssignStartDate] = useState('');
-  const [assignEndDate, setAssignEndDate] = useState('');
+  const [assignStartDate, setAssignStartDate] = useState(() => currentMonthDateRange().start);
+  const [assignEndDate, setAssignEndDate] = useState(() => currentMonthDateRange().end);
   const [assignSuccess, setAssignSuccess] = useState('');
   const [selectedIndicatorIds, setSelectedIndicatorIds] = useState<string[]>([]);
   const [teamKpisByUser, setTeamKpisByUser] = useState<Record<string, Kpi[]>>({});
@@ -86,7 +89,7 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
   };
   useEffect(() => {
     (async () => {
-      setLoading(true);
+      setLoading(reports.length === 0 && departments.length === 0);
       const [{ data: reps }, deptResult] = await Promise.all([
         isAdmin
           ? supabase.rpc('get_all_users_admin')
@@ -97,7 +100,7 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
             ? supabase.rpc('get_department_kpi_indicators', { p_department_id: managerDepartmentId })
             : Promise.resolve({ data: null, error: null }),
       ]);
-      const list = ((reps as Profile[]) || []).filter((u) => u.role === 'employee');
+      const list = assignablePeople(reps as Profile[], isAdmin);
       setReports(list);
       if (isAdmin) {
         const deptList = (deptResult.data as Department[]) || [];
@@ -177,8 +180,8 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
               ? supabase.rpc('get_department_kpi_indicators', { p_department_id: managerDepartmentId })
               : Promise.resolve({ data: null, error: null }),
         ]);
-        setReports(((reps as Profile[]) || []).filter((u) => u.role === 'employee'));
-        const teamList = ((reps as Profile[]) || []).filter((u) => u.role === 'employee');
+        const teamList = assignablePeople(reps as Profile[], isAdmin);
+        setReports(teamList);
         if (teamList.length) void fetchTeamKpis(teamList);
         if (isAdmin) {
           setDepartments((deptResult.data as Department[]) || []);
@@ -202,10 +205,15 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
 
   const selectedDept = departments.find((d) => d.id === departmentId);
   const selectedEmployee = reports.find((r) => r.id === selectedUserId);
-  const deptMismatch = kpiDeptMismatchMessage(selectedEmployee, selectedDept, departments);
 
   const deptLabel = (deptId?: string | null) =>
     departments.find((d) => d.id === deptId)?.name || 'No department';
+
+  const pickEmployee = (userId: string) => {
+    setSelectedUserId(userId);
+    const emp = reports.find((r) => r.id === userId);
+    if (emp?.department_id) setDepartmentId(emp.department_id);
+  };
 
   const toggleIndicator = (id: string) => {
     setSelectedIndicatorIds((prev) =>
@@ -237,10 +245,6 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
     }
     if (selectedIndicatorIds.length === 0) {
       setError('Select at least one KPI to assign.');
-      return;
-    }
-    if (deptMismatch) {
-      setError(deptMismatch);
       return;
     }
     const assignCheck = canAssignSelectedKpiWeights(userKpis, departmentId, selectedIndicators);
@@ -278,8 +282,9 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
       setAssignSuccess(`Assigned ${row?.kpi_count ?? selectedIndicatorIds.length} KPI task(s) to ${empName} (${sumIndicatorWeights(selectedIndicators).toFixed(1)}%): ${kpiNames}`);
 
       setAssignNotes('');
-      setAssignStartDate('');
-      setAssignEndDate('');
+      const month = currentMonthDateRange();
+      setAssignStartDate(month.start);
+      setAssignEndDate(month.end);
       fetchKpis(selectedUserId);
       void fetchTeamKpis(reports);
       setManagerTab('assignments');
@@ -308,10 +313,6 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
     }
     if (selectedIndicatorIds.length === 0) {
       setError('Select at least one KPI to assign.');
-      return;
-    }
-    if (deptMismatch) {
-      setError(deptMismatch);
       return;
     }
     const assignCheck = canAssignSelectedKpiWeights(userKpis, departmentId, selectedIndicators);
@@ -349,11 +350,12 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
       setAssignSuccess(`Assigned ${row?.kpi_count ?? selectedIndicatorIds.length} KPI task(s) to ${empName} (${sumIndicatorWeights(selectedIndicators).toFixed(1)}%): ${kpiNames}`);
 
       setAssignNotes('');
-      setAssignStartDate('');
-      setAssignEndDate('');
+      const month = currentMonthDateRange();
+      setAssignStartDate(month.start);
+      setAssignEndDate(month.end);
       fetchKpis(selectedUserId);
       void fetchTeamKpis(reports);
-      setAdminTab('overview');
+      setAdminTab('assign');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to assign KPI board.');
     } finally {
@@ -395,7 +397,7 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
   const pendingAssignments = assignmentRows.filter(({ kpi }) => kpi.completion_status !== 'completed').length;
   const alertMessage = error || assignSuccess;
 
-  if (loading) {
+  if (loading && reports.length === 0 && departments.length === 0) {
     return (
       <div className="assign-task-page-loading">
         <Loader2 size={32} className="spin-icon" />
@@ -555,7 +557,7 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
                   <Target size={36} strokeWidth={1.25} />
                   <p>Select a team member to preview their KPI board.</p>
                 </div>
-              ) : kpiLoading ? (
+              ) : kpiLoading && userKpis.length === 0 ? (
                 <div className="dash-loading"><Loader2 className="spin-icon" /></div>
               ) : (
                 <>
@@ -619,7 +621,7 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
                   <select
                     id="mgr-assign-employee"
                     value={selectedUserId}
-                    onChange={(e) => setSelectedUserId(e.target.value)}
+                    onChange={(e) => pickEmployee(e.target.value)}
                     required
                   >
                     <option value="">— Select team member —</option>
@@ -628,13 +630,6 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
                     ))}
                   </select>
                 </div>
-
-                {deptMismatch && (
-                  <div className="assign-task-info" role="status">
-                    <AlertCircle size={16} />
-                    <span>{deptMismatch}</span>
-                  </div>
-                )}
 
                 <KpiIndicatorSelector
                   indicators={indicators}
@@ -703,7 +698,6 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
                     !departmentId ||
                     indicators.length === 0 ||
                     selectedIndicatorIds.length === 0 ||
-                    !!deptMismatch ||
                     !canAssignSelectedKpiWeights(userKpis, departmentId, selectedIndicators).ok
                   }
                 >
@@ -734,8 +728,7 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
           <div>
             <h2 className="assign-task-header__title">Assign Tasks</h2>
             <p className="assign-task-header__subtitle">
-              Assign department KPI tasks to employees with deadlines. Assignments save to Supabase and sync instantly
-              on every device. Configure department KPI boards under the <strong>Departments</strong> tab.
+              Create department KPIs, then assign them to any employee. Pick the person, the KPIs, and dates — they are notified by email.
             </p>
           </div>
         </div>
@@ -916,7 +909,7 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
                   <Target size={36} strokeWidth={1.25} />
                   <p>Select an employee to preview their assigned tasks.</p>
                 </div>
-              ) : kpiLoading ? (
+              ) : kpiLoading && userKpis.length === 0 ? (
                 <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
                   <Loader2 className="spin-icon" />
                 </div>
@@ -961,7 +954,7 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
 
             <section className="assign-task-card glass-panel">
               <h3><Plus size={18} /> New assignment</h3>
-              <p>Pick an employee, department, and KPI tasks (each 1–{KPI_WEIGHT_CAP}%). A single 10% task stays 10%. The employee is notified by email when assigned.</p>
+              <p>Pick any employee, choose the department KPIs, then assign. You can assign to someone in another department. Dates default to this month.</p>
 
               <form onSubmit={handleAssignAdmin} className="assign-task-form">
                 <div className="assign-task-form__section">
@@ -971,12 +964,14 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
                     <select
                       id="admin-assign-employee"
                       value={selectedUserId}
-                      onChange={(e) => setSelectedUserId(e.target.value)}
+                      onChange={(e) => pickEmployee(e.target.value)}
                       required
                     >
                       <option value="">— Select employee —</option>
                       {reports.map((r) => (
-                        <option key={r.id} value={r.id}>{r.full_name} · {deptLabel(r.department_id)}</option>
+                        <option key={r.id} value={r.id}>
+                          {r.full_name} · {deptLabel(r.department_id)}{r.role === 'manager' ? ' · Manager' : ''}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -997,12 +992,6 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
                       ))}
                     </select>
                   </div>
-                  {deptMismatch && (
-                    <div className="assign-task-info" role="status" style={{ marginTop: '0.75rem' }}>
-                      <AlertCircle size={16} />
-                      <span>{deptMismatch}</span>
-                    </div>
-                  )}
                   {selectedDept && (
                     <div className="assign-task-dept-preview">
                       <strong>{selectedDept.name}</strong> — assign any KPI whose weight is 1–{KPI_WEIGHT_CAP}%.
@@ -1078,7 +1067,6 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
                     !departmentId ||
                     indicators.length === 0 ||
                     selectedIndicatorIds.length === 0 ||
-                    !!deptMismatch ||
                     !canAssignSelectedKpiWeights(userKpis, departmentId, selectedIndicators).ok
                   }
                 >

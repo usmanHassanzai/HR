@@ -218,7 +218,7 @@ export default function AdminRewards() {
   const bonusesThisPeriod = monthly.filter((m) => m.points_earned > 0).length;
   const totalPointsIssued = monthly.reduce((s, m) => s + m.points_earned, 0);
 
-  if (loading) {
+  if (loading && catalog.length === 0) {
     return (
       <div className="admin-rewards-loading">
         <Loader2 size={32} className="spin-icon" />

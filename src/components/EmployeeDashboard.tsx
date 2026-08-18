@@ -123,7 +123,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
       if (row?.manager_email) {
         await emailKpiCompleted(row.manager_email, row.manager_name, activeUser.full_name, row.department);
       }
-      fetchKpis();
+      fetchKpis({ silent: true });
       setPointsRefreshKey((k) => k + 1);
     } catch (err: any) {
       alert(err.message || 'Could not mark complete.');
@@ -139,7 +139,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
   };
 
   return (
-    <div className={`animate-fade-in dashboard-with-mobile-nav emp-dash${!isReadOnly && !hideChangePassword ? '' : ' dashboard-with-mobile-nav--nested'}`}>
+    <div className={`dashboard-with-mobile-nav emp-dash${!isReadOnly && !hideChangePassword ? '' : ' dashboard-with-mobile-nav--nested'}`}>
       
       {/* Read-Only Banner for Managers */}
       {isReadOnly && (
@@ -301,7 +301,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
         </div>
       </div>
 
-      {loading ? (
+      {loading && kpis.length === 0 ? (
         <div className="dash-loading">
           <RefreshCw size={36} className="animate-spin" style={{ animation: 'spin 1.5s linear infinite' }} />
         </div>

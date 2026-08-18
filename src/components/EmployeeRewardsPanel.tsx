@@ -132,7 +132,7 @@ export default function EmployeeRewardsPanel({ userId, kpiPoints: kpiPointsProp 
     setRedeeming(null);
   };
 
-  if (loading) {
+  if (loading && catalog.length === 0) {
     return (
       <div className="emp-rewards-loading">
         <Loader2 size={32} className="spin-icon" />

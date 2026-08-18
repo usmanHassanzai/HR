@@ -424,7 +424,8 @@ input:focus, select:focus, textarea:focus {
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  /* Do not fade logged-in screens on live data sync / remount */
+  animation: none;
 }
 
 /* KPI Score Card styles (Phase 1 preview) */

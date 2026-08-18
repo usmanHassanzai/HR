@@ -192,7 +192,7 @@ function App() {
     return <NativeScrollRoot>{configView}</NativeScrollRoot>;
   }
 
-  if (loading) {
+  if (loading && !profile) {
     const loadingView = (
       <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', gap: '1rem' }}>
         <Loader2 size={36} className="animate-spin" style={{ color: 'var(--accent-primary)', animation: 'spin 1.5s linear infinite' }} />

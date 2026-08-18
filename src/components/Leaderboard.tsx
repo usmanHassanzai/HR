@@ -21,8 +21,8 @@ export default function Leaderboard({ managerId, onSelectEmployee }: Leaderboard
   const [rankings, setRankings] = useState<RankedEmployee[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchTeamData = async () => {
-    setLoading(true);
+  const fetchTeamData = async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
     try {
       // 1. Fetch direct reports
       const { data: reportsData, error: reportsError } = await supabase
@@ -101,8 +101,7 @@ export default function Leaderboard({ managerId, onSelectEmployee }: Leaderboard
           table: 'kpis',
         },
         () => {
-          // If any team member's KPI updates, reload the leaderboard
-          fetchTeamData();
+          fetchTeamData({ silent: true });
         }
       )
       .subscribe();
@@ -112,7 +111,7 @@ export default function Leaderboard({ managerId, onSelectEmployee }: Leaderboard
     };
   }, [managerId]);
 
-  if (loading) {
+  if (loading && rankings.length === 0) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '3rem 0' }}>
         <Loader2 size={32} className="animate-spin" style={{ animation: 'spin 1s linear infinite', color: 'var(--accent-primary)' }} />

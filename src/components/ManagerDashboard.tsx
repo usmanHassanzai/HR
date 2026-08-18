@@ -68,7 +68,7 @@ export default function ManagerDashboard({ profile }: ManagerDashboardProps) {
   }
 
   return (
-    <div className="animate-fade-in dashboard-with-mobile-nav mgr-dash">
+    <div className="dashboard-with-mobile-nav mgr-dash">
       {showChangePassword && <ChangePasswordModal onClose={() => setShowChangePassword(false)} />}
 
       <DashboardTabNav

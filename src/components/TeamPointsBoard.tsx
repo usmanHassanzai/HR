@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2, Star, Trophy, Users } from 'lucide-react';
 import { fetchTeamPointsBoard, type TeamPointsBoardRow } from '../utils/rewardsHelpers';
 import { REWARD_CATALOG_COST } from '../utils/rewardsTiers';
@@ -24,10 +24,12 @@ export default function TeamPointsBoard({
   const [rows, setRows] = useState<TeamPointsBoardRow[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const loadedRef = useRef(false);
   const load = useCallback(async () => {
-    setLoading(true);
+    if (!loadedRef.current) setLoading(true);
     try {
       setRows(await fetchTeamPointsBoard());
+      loadedRef.current = true;
     } finally {
       setLoading(false);
     }
@@ -37,7 +39,7 @@ export default function TeamPointsBoard({
     void load();
   }, [load, refreshKey]);
 
-  if (loading) {
+  if (loading && rows.length === 0) {
     return (
       <div className="glass-panel dash-team-points dash-team-points--loading">
         <Loader2 size={22} className="spin-icon" />

@@ -165,7 +165,7 @@ export default function DepartmentKpiIndicatorsEditor({
             </span>
           )}
           <strong className={valid ? 'dept-indicators__total--ok' : 'dept-indicators__total--warn'}>
-            {loading ? '…' : formatWeightPct(total)}
+            {formatWeightPct(total)}
           </strong>
         </div>
       </div>
@@ -176,7 +176,7 @@ export default function DepartmentKpiIndicatorsEditor({
         </div>
       )}
 
-      {loading ? (
+      {loading && rows.length === 0 ? (
         <div className="dept-indicators__loading"><Loader2 size={18} className="spin-icon" /></div>
       ) : rows.length === 0 ? (
         <div className="dept-indicators__empty">

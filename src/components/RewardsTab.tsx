@@ -110,7 +110,7 @@ export default function RewardsTab({
     setRedeeming(null);
   };
 
-  if (loading) {
+  if (loading && catalog.length === 0) {
     return (
       <div className="rewards-loading">
         <Loader2 size={28} className="spin-icon" />

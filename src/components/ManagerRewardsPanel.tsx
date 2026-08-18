@@ -148,7 +148,7 @@ export default function ManagerRewardsPanel({ managerId, onGoToPersonal }: Manag
   const teamTotalBalance = team.reduce((s, m) => s + m.balance, 0);
   const eligibleCount = team.filter((t) => t.balance >= REWARD_CATALOG_COST).length;
 
-  if (loading) {
+  if (loading && team.length === 0) {
     return (
       <div className="mgr-rewards-loading">
         <Loader2 size={28} className="spin-icon" />
