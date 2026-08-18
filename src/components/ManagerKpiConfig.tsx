@@ -483,7 +483,7 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
               <strong>{indicators.length}</strong>
             </div>
             <div className="mgr-kpi-stat">
-              <span className="mgr-kpi-stat__label">Template total</span>
+              <span className="mgr-kpi-stat__label">Library total</span>
               <strong>{deptIndicatorTotal.toFixed(0)}%</strong>
             </div>
           </div>
@@ -535,8 +535,8 @@ export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerD
           <section className="mgr-kpi-card">
             <h3><ClipboardList size={18} /> Department KPI template</h3>
             <p>
-              Define KPI metrics for your department. Template weights must sum to <strong>{KPI_WEIGHT_CAP}%</strong>.
-              This is the department template, not a company-wide assignment limit. When ready, go to <strong>Assign Tasks</strong>.
+              Define KPI metrics for your department. You can add as many as you need; the library total can exceed 100%.
+              The 100% limit applies only when you assign KPIs to one employee.
             </p>
             {!managerDepartmentId ? (
               <div className="assign-task-info">

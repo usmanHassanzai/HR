@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AlertCircle, Building2, CheckCircle2, Loader2, Target } from 'lucide-react';
+import { AlertCircle, Building2, Loader2, Target } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { Department, formatWeightPct, indicatorWeightsValid, sumIndicatorWeights } from '../utils/departmentHelpers';
+import { Department, formatWeightPct, sumIndicatorWeights } from '../utils/departmentHelpers';
 import { KPI_WEIGHT_CAP } from '../utils/kpiWeightHelpers';
 import DepartmentKpiIndicatorsEditor from './DepartmentKpiIndicatorsEditor';
 import '../styles/departments.css';
@@ -15,8 +15,6 @@ export default function AdminKpiManagement() {
   const [kpiCount, setKpiCount] = useState(0);
 
   const selectedDept = departments.find((d) => d.id === departmentId);
-  const templateValid = indicatorWeightsValid([{ weight_pct: templateTotal }]) && kpiCount > 0;
-  const templateOver = templateTotal > KPI_WEIGHT_CAP + 0.05;
 
   const loadDepartments = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -67,8 +65,8 @@ export default function AdminKpiManagement() {
           <div>
             <h2 className="assign-task-header__title">KPI Management</h2>
             <p className="assign-task-header__subtitle">
-              Department KPI templates are reusable goals. Template weights for one department should total {KPI_WEIGHT_CAP}%.
-              Assigning those KPIs to employees is a separate step — each employee has their own {KPI_WEIGHT_CAP}% capacity.
+              Department KPI libraries can include any number of KPIs. Their combined template weight can exceed {KPI_WEIGHT_CAP}%.
+              The {KPI_WEIGHT_CAP}% limit applies only to one employee&apos;s assigned KPIs.
             </p>
           </div>
         </div>
@@ -94,21 +92,13 @@ export default function AdminKpiManagement() {
             </select>
           </div>
 
-          {selectedDept && (
-            <div className={`kpi-template-status ${templateOver ? 'kpi-template-status--over' : templateValid ? 'kpi-template-status--ok' : 'kpi-template-status--warn'}`}>
-              {templateValid ? <CheckCircle2 size={18} /> : <Building2 size={18} />}
+          {selectedDept && kpiCount > 0 && (
+            <div className="kpi-template-status kpi-template-status--ok">
+              <Building2 size={18} />
               <div>
-                <strong>Department KPI Weight</strong>
-                <p>
-                  Total: {formatWeightPct(templateTotal)} · Status:{' '}
-                  {templateOver ? 'Over 100%' : templateValid ? 'Valid' : 'Incomplete'}
-                </p>
-                {templateOver && (
-                  <p>Department KPI template cannot exceed {KPI_WEIGHT_CAP}%.</p>
-                )}
-                {!templateValid && !templateOver && kpiCount > 0 && (
-                  <p>Adjust KPI weights so this department template totals {KPI_WEIGHT_CAP}%.</p>
-                )}
+                <strong>KPI library</strong>
+                <p>Total KPI Template Weight: {formatWeightPct(templateTotal)} · {kpiCount} KPI{kpiCount !== 1 ? 's' : ''}.</p>
+                <p>This total is not capped. The 100% rule applies only when assigning to an employee.</p>
               </div>
             </div>
           )}

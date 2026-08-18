@@ -3,9 +3,8 @@ import { CheckCircle, ChevronDown, Cloud, Loader2, Plus, Trash2 } from 'lucide-r
 import { supabase } from '../lib/supabase';
 import {
   DepartmentKpiIndicator,
-  clampOrgWeight,
+  clampDeptOrgWeight,
   formatWeightPct,
-  indicatorWeightsValid,
   sumIndicatorWeights,
 } from '../utils/departmentHelpers';
 import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
@@ -67,8 +66,12 @@ export default function DepartmentKpiIndicatorsEditor({
   );
 
   const total = sumIndicatorWeights(rows);
-  const valid = indicatorWeightsValid(rows) && rows.every((r) => r.name.trim());
-  const templateOver = total > 100.05;
+  const canSave =
+    rows.length > 0 &&
+    rows.every((r) => {
+      const w = Number(r.weight_pct);
+      return Boolean(r.name.trim()) && w >= 1 && w <= 100;
+    });
 
   useEffect(() => {
     onTotalsChange?.(total, rows.length);
@@ -89,7 +92,7 @@ export default function DepartmentKpiIndicatorsEditor({
         department_id: departmentId,
         name: '',
         description: '',
-        weight_pct: Math.max(0, 100 - sumIndicatorWeights(prev)),
+        weight_pct: 10,
         sort_order: n,
         isNew: true,
       },
@@ -111,8 +114,8 @@ export default function DepartmentKpiIndicatorsEditor({
   };
 
   const save = useCallback(async (auto = false) => {
-    if (!valid || rows.length === 0) {
-      if (!auto) setMsg(`Each KPI needs a name and weights must sum to 100% (currently ${total.toFixed(1)}%).`);
+    if (!canSave || rows.length === 0) {
+      if (!auto) setMsg('Each KPI needs a name and a weight between 1% and 100%. Department totals may exceed 100%.');
       return;
     }
     setSaving(true);
@@ -132,17 +135,17 @@ export default function DepartmentKpiIndicatorsEditor({
       setMsg(error.message);
     } else {
       setDirty(false);
-      setMsg(auto ? 'Saved to database' : 'KPI board saved.');
+      setMsg(auto ? 'Saved to database' : 'KPI library saved.');
       await load();
     }
-  }, [departmentId, rows, valid, total]);
+  }, [departmentId, rows, canSave, load]);
 
   useDebouncedEffect(
     () => {
-      if (skipLoadSave.current || !dirty || !valid || rows.length === 0 || !allowEdit) return;
+      if (skipLoadSave.current || !dirty || !canSave || rows.length === 0 || !allowEdit) return;
       void save(true);
     },
-    [rows, dirty, valid, allowEdit, save],
+    [rows, dirty, canSave, allowEdit, save],
     1200,
     allowEdit,
   );
@@ -164,15 +167,14 @@ export default function DepartmentKpiIndicatorsEditor({
   return (
     <div className="dept-indicators dept-indicators--open">
       {showTemplateBanner && (
-        <div className={`kpi-template-status ${templateOver ? 'kpi-template-status--over' : valid ? 'kpi-template-status--ok' : 'kpi-template-status--warn'}`}>
+        <div className="kpi-template-status kpi-template-status--ok">
           <CheckCircle size={16} />
           <div>
-            <strong>Department KPI Weight</strong>
+            <strong>KPI library</strong>
             <p>
-              Total: {formatWeightPct(total)} · Status:{' '}
-              {templateOver ? 'Over 100%' : valid ? 'Valid' : rows.length === 0 ? 'Empty' : 'Incomplete'}
+              Total KPI Template Weight: {formatWeightPct(total)} · {rows.length} KPI{rows.length !== 1 ? 's' : ''}.
+              This total can exceed 100%. The 100% limit applies only when assigning KPIs to one employee.
             </p>
-            {templateOver && <p>Department KPI template cannot exceed 100%.</p>}
           </div>
         </div>
       )}
@@ -186,8 +188,8 @@ export default function DepartmentKpiIndicatorsEditor({
               {saving ? <><Loader2 size={12} className="spin-icon" /> Saving…</> : dirty ? 'Unsaved changes…' : <><Cloud size={12} /> Synced</>}
             </span>
           )}
-          <strong className={valid ? 'dept-indicators__total--ok' : 'dept-indicators__total--warn'}>
-            {formatWeightPct(total)}
+          <strong className="dept-indicators__total--ok" title="Library total — not an assignment cap">
+            {formatWeightPct(total)} library
           </strong>
         </div>
       </div>
@@ -264,11 +266,9 @@ export default function DepartmentKpiIndicatorsEditor({
                       step={0.5}
                       value={Number.isFinite(Number(r.weight_pct)) ? Number(r.weight_pct) : 0}
                       onChange={(e) => {
-                        const others = sumIndicatorWeights(rows.filter((x) => x.id !== r.id));
                         updateRow(r.id, {
-                          weight_pct: clampOrgWeight(
+                          weight_pct: clampDeptOrgWeight(
                             e.target.value === '' ? 0 : Number(e.target.value),
-                            others,
                           ),
                         });
                       }}

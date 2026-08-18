@@ -525,7 +525,7 @@ function DepartmentWeightagesPanelInner({ managerMode = false }: { managerMode?:
           {showTemplates && (
             <div className="dept-templates-body">
               <p className="dept-templates-hint">
-                All registered departments are listed. Edit KPI weightages on each board — they must total 100%.
+                All registered departments are listed. Edit KPI libraries on each board — you can add as many KPIs as you need. The 100% cap applies only when assigning to an employee.
                 You can also apply a Finance / Sales / HR / Operations example layout.
               </p>
               <KpiBoardReferencePanel allowEdit />

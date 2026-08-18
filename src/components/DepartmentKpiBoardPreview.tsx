@@ -26,7 +26,7 @@ export default function DepartmentKpiBoardPreview({ departmentName, indicators, 
     <div className="dept-board-preview">
       <h4>{departmentName} — Monthly KPI Board</h4>
       <p className="dept-board-preview__hint">
-        Assigning creates <strong>{indicators.length} KPIs</strong> for this employee only at their template weights (total {formatWeightPct(total)}). Employee pending weight cannot exceed 100%.
+        Assigning uses each KPI&apos;s own weight. Combined assigned weight for this employee cannot exceed 100%. The department library total ({formatWeightPct(total)}) is not capped.
       </p>
       <ul className="dept-board-preview__list">
         {indicators.map((ind) => (

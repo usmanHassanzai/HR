@@ -6,7 +6,7 @@ import DepartmentKpiIndicatorsEditor from './DepartmentKpiIndicatorsEditor';
 
 /**
  * Live department-wise monthly KPI board — every registered department,
- * with editable KPI names and weightages (must total 100% each).
+ * with editable KPI names and weights. Library totals may exceed 100%.
  */
 export default function KpiBoardReferencePanel({ allowEdit = true }: { allowEdit?: boolean }) {
   const [depts, setDepts] = useState<Department[]>([]);
@@ -90,7 +90,7 @@ export default function KpiBoardReferencePanel({ allowEdit = true }: { allowEdit
                 <span>
                   {idx + 1}. {dept.name}
                 </span>
-                <span className="kpi-board-reference__dept-total">KPI weights must total 100%</span>
+                <span className="kpi-board-reference__dept-total">Library total can exceed 100%</span>
               </h4>
               {allowEdit && (
                 <div className="kpi-board-reference__templates">

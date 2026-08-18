@@ -149,7 +149,7 @@ export function getAdminNavMeta(id: string): { label: string; description: strin
     companies: { label: 'Registered Companies', description: 'Review and approve new organization sign-ups.' },
     users: { label: 'Users', description: 'Manage accounts, roles, departments, and access.' },
     departments: { label: 'Departments', description: 'Configure departments and organizational weightages.' },
-    kpiManagement: { label: 'KPI Management', description: 'Create and edit department KPI templates. Template weights should total 100% per department.' },
+    kpiManagement: { label: 'KPI Management', description: 'Create and edit department KPI libraries. Totals may exceed 100%; each employee assignment is capped at 100%.' },
     kpis: { label: 'Assign Task', description: 'Assign KPIs to employees. Each employee has an independent 100% weight capacity.' },
     kpiPoints: { label: 'KPI Points', description: 'View KPI scores and rewards points for every department, manager, and employee.' },
     export: { label: 'Reports', description: 'Export monthly and quarterly organization reports.' },
