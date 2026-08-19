@@ -99,11 +99,12 @@
 }
 
 .dash-health-ring__value {
-  font-size: 1.75rem;
+  font-size: 1.15rem;
   font-weight: 800;
   font-family: var(--font-display);
   color: var(--text-primary);
-  line-height: 1;
+  line-height: 1.1;
+  text-align: center;
 }
 
 .dash-health-card h2 {

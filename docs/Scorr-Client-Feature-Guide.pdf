@@ -96,7 +96,7 @@ endobj
 endobj
 6 0 obj
 <<
-/Length 3152
+/Length 3146
 >>
 stream
 0.5670000000000001 w
@@ -209,7 +209,7 @@ BT
 11.5 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 573.7325196850392786 Td
-(10.  KPI Setup & Assignment \(Any Employee\)) Tj
+(10.  KPI Library, Assignment & Scoring) Tj
 ET
 BT
 /F1 10 Tf
@@ -992,7 +992,7 @@ endobj
 endobj
 14 0 obj
 <<
-/Length 6018
+/Length 7007
 >>
 stream
 1.7007874015748032 w
@@ -1091,174 +1091,209 @@ BT
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
 53.8582677165354369 610.5829133858267141 Td
-(Build your company structure \(e.g. Sales, HR, Operations\). Set department KPI weightages that must total 100%) Tj
+(Build your company structure \(e.g. Sales, HR, Finance\). Organization-level department weightages are separate from) Tj
 ET
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
 53.8582677165354369 595.2758267716534419 Td
-(across the company. Edit KPI indicators and use templates for common departments.) Tj
+(KPI libraries. On each department you can add as many KPI metrics as you need. The combined KPI library weight) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.278 0.333 0.412 rg
+53.8582677165354369 579.9687401574801697 Td
+(can exceed 100% — that list is a catalog, not an employee’s capacity.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.059 0.09 0.165 rg
-45.354330708661422 571.4648031496062686 Td
+45.354330708661422 556.1577165354328827 Td
 (Branding) Tj
 ET
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 555.8742519685038133 Td
+53.8582677165354369 540.5671653543306547 Td
 (Put your company name, logo, tagline, and colors on the platform so it looks like your product.) Tj
 ET
 BT
 /F2 11.5 Tf
 13.2249999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 532.0632283464565262 Td
+45.354330708661422 516.7561417322833677 Td
 (4.2 Performance) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.059 0.09 0.165 rg
-45.354330708661422 512.2207086614171203 Td
-(Assign Task \(KPIs\)) Tj
-ET
-BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.278 0.333 0.412 rg
-53.8582677165354369 496.6301574803148355 Td
-(Assign department KPI tasks to any employee in the company. Pick the person, pick one or more KPIs \(each) Tj
+45.354330708661422 496.9136220472439618 Td
+(KPI Management) Tj
 ET
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
 53.8582677165354369 481.3230708661416202 Td
-(1–100%\), set dates, and assign. The employee is notified by email. Live totals cannot exceed 100% on that person’s) Tj
+(Create and edit the KPI library for each department: name, description, and weight \(1–100% per KPI\). Add as many) Tj
 ET
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
 53.8582677165354369 466.0159842519684048 Td
-(board.) Tj
+(KPIs as you need. Finance can be 30+30+20+20+40 = 140% and still save. The 100% rule is not applied here.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.059 0.09 0.165 rg
 45.354330708661422 442.2049606299211177 Td
-(Reports) Tj
+(Assign Task \(KPIs\)) Tj
 ET
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
 53.8582677165354369 426.6144094488187761 Td
+(Assign KPIs to people in a department. Order is: \(1\) select department, \(2\) select an employee or manager who) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.278 0.333 0.412 rg
+53.8582677165354369 411.3073228346455039 Td
+(belongs to that department, \(3\) select KPI task\(s\), \(4\) set start and end dates, then Assign. Each person has an) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.278 0.333 0.412 rg
+53.8582677165354369 396.0002362204722886 Td
+(independent 100% pending-assignment cap. Ahmed 40% + Ali 70% + Sara 10% is valid because they are different) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.278 0.333 0.412 rg
+53.8582677165354369 380.6931496062990163 Td
+(people.) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.059 0.09 0.165 rg
+45.354330708661422 356.8821259842517861 Td
+(Reports) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.278 0.333 0.412 rg
+53.8582677165354369 341.2915748031493877 Td
 (Download monthly or quarterly company reports as PDF, Excel, or CSV.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.059 0.09 0.165 rg
-45.354330708661422 402.8033858267714891 Td
+45.354330708661422 317.4805511811021006 Td
 (Analytics) Tj
 ET
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 387.2128346456691474 Td
+53.8582677165354369 301.889999999999759 Td
 (Charts for KPI health, trends, forecasts, and attainment by department or category.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.059 0.09 0.165 rg
-45.354330708661422 363.4018110236218604 Td
+45.354330708661422 278.0789763779524719 Td
 (Rewards) Tj
 ET
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 347.8112598425195188 Td
+53.8582677165354369 262.4884251968501303 Td
 (Run the monthly points job, approve/fulfill redemptions, and manage the rewards catalog \(gift items employees can) Tj
 ET
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 332.5041732283462466 Td
+53.8582677165354369 247.1813385826768581 Td
 (redeem\).) Tj
 ET
 BT
 /F2 11.5 Tf
 13.2249999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 308.6931496062990163 Td
+45.354330708661422 223.3703149606296847 Td
 (4.3 Workforce) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.059 0.09 0.165 rg
-45.354330708661422 288.8506299212596105 Td
+45.354330708661422 203.5277952755902788 Td
 (Attendance) Tj
 ET
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 273.2600787401572688 Td
+53.8582677165354369 187.9372440944879372 Td
 (Approve leave org-wide and review attendance history \(filter by department, export CSV\).) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.059 0.09 0.165 rg
-45.354330708661422 249.4490551181099818 Td
+45.354330708661422 164.1262204724406502 Td
 (Daily Reports) Tj
 ET
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 233.8585039370076402 Td
+53.8582677165354369 148.5356692913383085 Td
 (Read daily work logs submitted by managers and employees, filtered by department and role.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.059 0.09 0.165 rg
-45.354330708661422 210.0474803149603531 Td
+45.354330708661422 124.7246456692910215 Td
 (Office GPS) Tj
 ET
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 194.4569291338580115 Td
+53.8582677165354369 109.1340944881885662 Td
 (Define office/site locations with a map radius so staff can auto check in when they arrive.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.059 0.09 0.165 rg
-45.354330708661422 170.6459055118107244 Td
+45.354330708661422 85.3230708661413928 Td
 (Live Tracking) Tj
 ET
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 155.0553543307083828 Td
+53.8582677165354369 69.7325196850390512 Td
 (See who is at site, away, or offline on a live map and table.) Tj
 ET
 BT
@@ -1889,7 +1924,7 @@ endobj
 endobj
 20 0 obj
 <<
-/Length 3479
+/Length 3778
 >>
 stream
 1.1338582677165356 w
@@ -1967,104 +2002,118 @@ BT
 11.5 TL
 0.2 0.255 0.333 rg
 84.1236220472440976 696.4726771653542983 Td
-(Departments — create your departments and set weightages so they total 100%.) Tj
+(Departments — create your departments. Add KPI metrics on each board \(library totals may exceed) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+84.1236220472440976 681.1655905511811397 Td
+(100%\).) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.051 0.58 0.533 rg
-45.354330708661422 676.9136220472440755 Td
+45.354330708661422 661.6065354330708033 Td
 (Step 3:) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-84.1236220472440976 676.9136220472440755 Td
+84.1236220472440976 661.6065354330708033 Td
 (Users — add Managers for each department.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.051 0.58 0.533 rg
-45.354330708661422 657.3545669291338527 Td
+45.354330708661422 642.0474803149605805 Td
 (Step 4:) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-84.1236220472440976 657.3545669291338527 Td
+84.1236220472440976 642.0474803149605805 Td
 (Users — add Employees and assign each to a department and manager.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.051 0.58 0.533 rg
-45.354330708661422 637.7955118110235162 Td
+45.354330708661422 622.4884251968503577 Td
 (Step 5:) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-84.1236220472440976 637.7955118110235162 Td
+84.1236220472440976 622.4884251968503577 Td
 (Office GPS — add your office locations if you use GPS attendance.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.051 0.58 0.533 rg
-45.354330708661422 618.2364566929132934 Td
+45.354330708661422 602.9293700787400212 Td
 (Step 6:) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-84.1236220472440976 618.2364566929132934 Td
+84.1236220472440976 602.9293700787400212 Td
 (Branding — set company name, logo, and colors.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.051 0.58 0.533 rg
-45.354330708661422 598.6774015748030706 Td
+45.354330708661422 583.3703149606299121 Td
 (Step 7:) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-84.1236220472440976 598.6774015748030706 Td
-(Assign Task — create first KPI assignments for employees.) Tj
+84.1236220472440976 583.3703149606299121 Td
+(KPI Management — confirm department KPI libraries, then Assign Task — department first, then a) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+84.1236220472440976 568.0632283464565262 Td
+(person in that department, then KPIs and dates.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.051 0.58 0.533 rg
-45.354330708661422 579.1183464566928478 Td
+45.354330708661422 548.5041732283464171 Td
 (Step 8:) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-84.1236220472440976 579.1183464566928478 Td
+84.1236220472440976 548.5041732283464171 Td
 (Rewards — review or edit the rewards catalog.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.051 0.58 0.533 rg
-45.354330708661422 559.559291338582625 Td
+45.354330708661422 528.9451181102360806 Td
 (Step 9:) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-84.1236220472440976 559.559291338582625 Td
+84.1236220472440976 528.9451181102360806 Td
 (Ask managers and employees to sign in and enable location on mobile if needed.) Tj
 ET
 BT
@@ -2093,7 +2142,7 @@ endobj
 endobj
 22 0 obj
 <<
-/Length 4723
+/Length 4906
 >>
 stream
 1.7007874015748032 w
@@ -2192,118 +2241,125 @@ BT
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
 53.8582677165354369 610.5829133858267141 Td
-(Create the department KPI template \(weights on the template add up to 100%\). Then assign any of those KPIs to) Tj
+(Create KPIs for your department \(any number; library total can exceed 100%\). Then assign those KPIs only to your) Tj
 ET
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
 53.8582677165354369 595.2758267716534419 Td
-(team members — a single 10% task stays 10%. Re-assigning replaces pending tasks for that department.) Tj
+(direct reports. A 10% or 70% KPI keeps that weight. Pending assignments for one person cannot exceed 100%.) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.278 0.333 0.412 rg
+53.8582677165354369 579.9687401574801697 Td
+(Re-assigning replaces pending tasks for that department only.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.059 0.09 0.165 rg
-45.354330708661422 571.4648031496062686 Td
+45.354330708661422 556.1577165354328827 Td
 (Team Rewards) Tj
 ET
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 555.8742519685038133 Td
+53.8582677165354369 540.5671653543306547 Td
 (Approve redemption requests and mark rewards as fulfilled when delivered.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.059 0.09 0.165 rg
-45.354330708661422 532.0632283464565262 Td
+45.354330708661422 516.7561417322833677 Td
 (Attendance & Leave) Tj
 ET
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 516.4726771653541846 Td
+53.8582677165354369 501.1655905511809692 Td
 (Approve or reject leave and attendance corrections. Create shifts and assign them. View today's team attendance and) Tj
 ET
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 501.1655905511809692 Td
+53.8582677165354369 485.858503937007697 Td
 (history.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.059 0.09 0.165 rg
-45.354330708661422 477.354566929133739 Td
+45.354330708661422 462.0474803149605236 Td
 (Live Tracking) Tj
 ET
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 461.7640157480313974 Td
+53.8582677165354369 446.4569291338581252 Td
 (Map/table of where the team is \(at site / away / offline\).) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.059 0.09 0.165 rg
-45.354330708661422 437.9529921259841103 Td
+45.354330708661422 422.645905511810895 Td
 (Daily Report) Tj
 ET
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 422.3624409448817687 Td
+53.8582677165354369 407.0553543307084965 Td
 (Write and submit the manager’s own daily work log for the admin to review.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.059 0.09 0.165 rg
-45.354330708661422 398.5514173228344816 Td
+45.354330708661422 383.2443307086612663 Td
 (My KPIs / Personal) Tj
 ET
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 382.96086614173214 Td
+53.8582677165354369 367.6537795275588678 Td
 (Managers also complete their own KPI tasks and can export personal reports.) Tj
 ET
 BT
 /F2 11.5 Tf
 13.2249999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 359.149842519684853 Td
+45.354330708661422 343.8427559055116376 Td
 (7.2 What managers cannot do) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 339.3073228346455039 Td
+48.1889763779527627 324.0002362204722886 Td
 (•  Cannot register new company users \(Admin only\).) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 324.0002362204722886 Td
+48.1889763779527627 308.6931496062990163 Td
 (•  Cannot change company branding or create departments.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 308.6931496062990163 Td
+48.1889763779527627 293.3860629921257441 Td
 (•  Cannot see other departments’ staff unless those people report to them.) Tj
 ET
 BT
@@ -2332,7 +2388,7 @@ endobj
 endobj
 24 0 obj
 <<
-/Length 3815
+/Length 4423
 >>
 stream
 1.7007874015748032 w
@@ -2403,104 +2459,132 @@ BT
 11.5 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 680.8821259842519567 Td
-(•  Open each KPI card: weight, achieved %, dates, status \(on track / at risk / off track\).) Tj
+(•  Each assigned KPI is a card: name, weight, achievement %, score \(achievement × weight\), dates, and status) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 665.5750393700786844 Td
-(•  Mark a task complete when finished — the manager is notified.) Tj
+(\(On Track / At Risk / Off Track\).) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 650.2679527559055259 Td
+(•  Example: 80% achieved on a 40% weight KPI = 32 points. Unused assignment capacity is not filled in) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 634.9608661417322537 Td
+(automatically.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 619.6537795275589815 Td
+(•  You only see your own assignments — never another employee’s KPIs.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 604.346692913385823 Td
+(•  Mark a task complete when finished — the manager is notified.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 589.0396062992125508 Td
 (•  Export personal KPI report as PDF or Excel.) Tj
 ET
 BT
 /F2 11.5 Tf
 13.2249999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 634.9608661417322537 Td
+45.354330708661422 573.7325196850392786 Td
 (8.2 Attendance & leave) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 615.1183464566928478 Td
+48.1889763779527627 553.8899999999998727 Td
 (•  GPS check-in / check-out when at an assigned office site \(location permission required\).) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 599.8112598425195756 Td
+48.1889763779527627 538.5829133858267141 Td
 (•  Request leave \(type + dates\) and track approval status.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 584.5041732283464171 Td
+48.1889763779527627 523.2758267716533283 Td
 (•  View personal attendance history and assigned shift.) Tj
 ET
 BT
 /F2 11.5 Tf
 13.2249999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 569.1970866141731449 Td
+45.354330708661422 507.9687401574801697 Td
 (8.3 Rewards) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 549.354566929133739 Td
+48.1889763779527627 488.1262204724407638 Td
 (•  See points balance and how monthly KPI score converts to points.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 534.0474803149604668 Td
+48.1889763779527627 472.8191338582675485 Td
 (•  Browse the catalog and redeem rewards.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 518.7403937007873083 Td
+48.1889763779527627 457.5120472440942763 Td
 ( •     T r a c k   r e d e m p t i o n   s t a t u s   \( p e n d i n g  !’   a p p r o v e d  !’   f u l f i l l e d \) .) Tj
 ET
 BT
 /F2 11.5 Tf
 13.2249999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 503.4333070866140361 Td
+45.354330708661422 442.2049606299210609 Td
 (8.4 Daily Report) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 483.5907874015746302 Td
+48.1889763779527627 422.362440944881655 Td
 (•  Write what you did today in the Daily Report tab.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 468.2837007874014148 Td
+48.1889763779527627 407.0553543307084396 Td
 (•  Submit for the day — Admin can read it later in Daily Reports.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 452.9766141732281426 Td
+48.1889763779527627 391.7482677165351674 Td
 (•  You can view your own past submissions.) Tj
 ET
 BT
@@ -2726,7 +2810,7 @@ endobj
 endobj
 28 0 obj
 <<
-/Length 7875
+/Length 9989
 >>
 stream
 1.7007874015748032 w
@@ -2764,7 +2848,7 @@ BT
 17.25 TL
 0.059 0.09 0.165 rg
 45.354330708661422 779.5277952755905062 Td
-(10. KPI Setup & Assignment \(Any Employee\)) Tj
+(10. KPI Library, Assignment & Scoring) Tj
 ET
 0.05 0.58 0.53 RG
 1.7007874015748032 w
@@ -2776,279 +2860,349 @@ BT
 11.5 TL
 0.2 0.255 0.333 rg
 45.354330708661422 737.0081102362204319 Td
-(KPIs \(Key Performance Indicators\) are measurable goals. In Scorr you first define KPIs for a department, then) Tj
+(KPIs \(Key Performance Indicators\) are measurable goals. A department KPI is a reusable item in a library. An) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 45.354330708661422 721.7010236220471597 Td
-(assign them to people.) Tj
+(assignment connects that KPI to one employee with the same weight, dates, and later achievement.) Tj
 ET
 BT
 /F2 11.5 Tf
 13.2249999999999996 TL
 0.051 0.58 0.533 rg
 45.354330708661422 700.7246456692912489 Td
-(10.1 Two steps — setup, then assignment) Tj
+(10.1 Department KPI library \(no 100% cap\)) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 680.8821259842519567 Td
-( •     S e t u p   \( A d m i n  !’   D e p a r t m e n t s ,   o r   M a n a g e r  !’   C r e a t e   K P I s \) :   n a m e   e a c h   K P I   a n d   g i v e   i t   a   w e i g h t .   T h e   f u l l) Tj
+( •     A d m i n  !’   P e r f o r m a n c e  !’   K P I   M a n a g e m e n t ,   o r   D e p a r t m e n t s ,   o r   M a n a g e r  !’   C r e a t e   K P I s .) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 665.5750393700786844 Td
-(department template should add up to 100% \(for example 30% + 30% + 20% + 20%\).) Tj
+(•  Add as many KPIs as you need. Each KPI has its own weight \(1–100%\). A 70% KPI stays 70%.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 650.2679527559055259 Td
-( •     A s s i g n m e n t   \( A d m i n  !’   A s s i g n   T a s k ,   o r   M a n a g e r  !’   A s s i g n   T a s k s \) :   p i c k   a n   e m p l o y e e ,   p i c k   o n e   o r   m o r e   o f   t h o s e) Tj
+(•  The combined library weight for a department can exceed 100% \(for example 30+30+20+20+40+70+10 =) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 634.9608661417322537 Td
-(KPIs, set start and end dates, and click Assign.) Tj
+(220%\). That is allowed.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 619.6537795275589815 Td
+(•  The department is a catalog. It is not an employee’s 100% assignment capacity.) Tj
 ET
 0.94 0.99 0.98 rg
 0.05 0.58 0.53 RG
 1.1338582677165356 w
-49.6062992125984294 628.1577165354329964 m
-545.6692913385827524 628.1577165354329964 l
-548.0175887000680177 628.1577165354329964 549.9212598425197029 626.2540453929811974 549.9212598425197029 623.9057480314960458 c
-549.9212598425197029 584.7876377952756002 l
+49.6062992125984294 612.8506299212597241 m
+545.6692913385827524 612.8506299212597241 l
+548.0175887000680177 612.8506299212597241 549.9212598425197029 610.9469587788080389 549.9212598425197029 608.5986614173227736 c
+549.9212598425197029 584.7876377952754865 l
 549.9212598425197029 582.4393404337902211 547.5729624810344376 580.5356692913385359 545.6692913385827524 580.5356692913385359 c
 49.6062992125984294 580.5356692913385359 l
-47.2580018511131641 580.5356692913385359 45.354330708661422 582.8839666528236876 45.354330708661422 584.7876377952756002 c
-45.354330708661422 623.9057480314960458 l
-45.354330708661422 626.2540453929811974 47.7026280701466874 628.1577165354329964 49.6062992125984294 628.1577165354329964 c
+47.2580018511131641 580.5356692913385359 45.354330708661422 582.8839666528236876 45.354330708661422 584.7876377952754865 c
+45.354330708661422 608.5986614173227736 l
+45.354330708661422 610.9469587788080389 47.7026280701466874 612.8506299212597241 49.6062992125984294 612.8506299212597241 c
 h
 B
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.059 0.463 0.431 rg
-56.6929133858267775 613.9844881889763428 Td
-(You can assign a single 10% KPI to someone. It stays 10%. You do not need the selected tasks to total 100%) Tj
-ET
-BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.059 0.463 0.431 rg
 56.6929133858267775 598.6774015748030706 Td
-(first. That person’s pending KPIs still cannot go over 100% in total.) Tj
+(Do not treat “Finance library = 100%” as a limit. You can still add another KPI after 30+30+20+20.) Tj
 ET
 BT
 /F2 11.5 Tf
 13.2249999999999996 TL
 0.051 0.58 0.533 rg
 45.354330708661422 560.69314960629913 Td
-(10.2 Assign to any employee \(Admin\)) Tj
+(10.2 Employee assignment \(100% cap per person\)) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 540.8506299212597241 Td
+(•  The 100% rule applies only to one employee’s active/pending assignments.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 525.5435433070865656 Td
+( •     C u r r e n t   a s s i g n e d   w e i g h t   +   n e w   K P I   w e i g h t  "d   1 0 0 %   i s   a l l o w e d .   E x a c t l y   1 0 0 %   i s   a l l o w e d .   1 0 1 % +   f o r   t h a t   s a m e) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 510.2364566929132366 Td
+(person is rejected.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 494.9293700787400212 Td
+(•  Different employees are independent. Ahmed 40% + Ali 70% + Sara 10% = 120% company-wide is valid.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 479.622283464566749 Td
+(•  Selecting several KPIs for one person: their weights are added together before save.) Tj
+ET
+0.94 0.99 0.98 rg
+0.05 0.58 0.53 RG
+1.1338582677165356 w
+49.6062992125984294 472.8191338582675485 m
+545.6692913385827524 472.8191338582675485 l
+548.0175887000680177 472.8191338582675485 549.9212598425197029 470.9154627158157496 549.9212598425197029 468.567165354330541 c
+549.9212598425197029 429.4490551181099818 l
+549.9212598425197029 427.1007577566247733 547.5729624810344376 425.1970866141729744 545.6692913385827524 425.1970866141729744 c
+49.6062992125984294 425.1970866141729744 l
+47.2580018511131641 425.1970866141729744 45.354330708661422 427.5453839756582397 45.354330708661422 429.4490551181099818 c
+45.354330708661422 468.567165354330541 l
+45.354330708661422 470.9154627158157496 47.7026280701466874 472.8191338582675485 49.6062992125984294 472.8191338582675485 c
+h
+B
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.059 0.463 0.431 rg
+56.6929133858267775 458.6459055118108381 Td
+(Example: Ahmed has 70%. A 20% KPI is allowed \(90%\). A 40% KPI is rejected \(110%\). Remaining capacity) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.059 0.463 0.431 rg
+56.6929133858267775 443.3388188976376227 Td
+(was 30%.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.051 0.58 0.533 rg
+45.354330708661422 405.3545669291336253 Td
+(10.3 Assign as Admin \(required order\)) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.051 0.58 0.533 rg
-45.354330708661422 540.8506299212597241 Td
+45.354330708661422 385.5120472440942763 Td
 (Step 1:) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-84.1236220472440976 540.8506299212597241 Td
-( S i g n   i n   a s   A d m i n  !’   o p e n   A s s i g n   T a s k .) Tj
+84.1236220472440976 385.5120472440942763 Td
+( S i g n   i n   a s   A d m i n  !’   P e r f o r m a n c e  !’   A s s i g n   T a s k  !’   N e w   a s s i g n m e n t .) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.051 0.58 0.533 rg
-45.354330708661422 521.291574803149615 Td
+45.354330708661422 365.9529921259839966 Td
 (Step 2:) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-84.1236220472440976 521.291574803149615 Td
-(Stay on New assignment \(this is the default screen\).) Tj
+84.1236220472440976 365.9529921259839966 Td
+(Select the department first.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.051 0.58 0.533 rg
-45.354330708661422 501.7325196850392786 Td
+45.354330708661422 346.3939370078737738 Td
 (Step 3:) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-84.1236220472440976 501.7325196850392786 Td
-(Select any employee or manager in your company \(any department\). Their department KPIs load) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 486.4254330708660632 Td
-(automatically.) Tj
+84.1236220472440976 346.3939370078737738 Td
+(The list then shows only employees and managers who belong to that department. Pick one person.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.051 0.58 0.533 rg
-45.354330708661422 466.8663779527558404 Td
+45.354330708661422 326.834881889763551 Td
 (Step 4:) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-84.1236220472440976 466.8663779527558404 Td
-(Optionally change Department if you want to give them KPIs from another department’s template.) Tj
+84.1236220472440976 326.834881889763551 Td
+(Select one or more KPI tasks from that department’s library. Each keeps its configured weight.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.051 0.58 0.533 rg
-45.354330708661422 447.3073228346455608 Td
+45.354330708661422 307.2758267716532146 Td
 (Step 5:) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-84.1236220472440976 447.3073228346455608 Td
-(Select one or more KPI tasks. Dates default to the current month — change them if needed.) Tj
+84.1236220472440976 307.2758267716532146 Td
+(Set start and end dates \(they default to the current month\).) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.051 0.58 0.533 rg
-45.354330708661422 427.748267716535338 Td
+45.354330708661422 287.7167716535429918 Td
 (Step 6:) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-84.1236220472440976 427.748267716535338 Td
-(Click Assign. The person is emailed and the tasks appear on their KPI board immediately.) Tj
+84.1236220472440976 287.7167716535429918 Td
+(Click Assign. The person is emailed. Tasks appear on their My KPIs board immediately.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 408.1892125984250583 Td
-(•  They keep their own department. Assignment does not move them to another department.) Tj
+48.1889763779527627 268.157716535432769 Td
+(•  Assigning a KPI does not move the person to another department.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 392.8821259842517861 Td
-(•  Re-assigning the same department replaces their pending tasks for that department only.) Tj
+48.1889763779527627 252.8506299212594968 Td
+(•  Re-assigning the same department replaces their pending tasks for that department only. Completed history is) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 237.5435433070862246 Td
+(kept.) Tj
 ET
 BT
 /F2 11.5 Tf
 13.2249999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 377.5750393700785708 Td
-(10.3 Assign as a Manager) Tj
+45.354330708661422 222.2364566929129523 Td
+(10.4 Assign as a Manager) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.051 0.58 0.533 rg
-45.354330708661422 357.7325196850392217 Td
+45.354330708661422 202.3939370078736601 Td
 (Step 1:) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-84.1236220472440976 357.7325196850392217 Td
+84.1236220472440976 202.3939370078736601 Td
 ( O p e n   K P I   T a s k s  !’   A s s i g n   T a s k s .) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.051 0.58 0.533 rg
-45.354330708661422 338.1734645669289421 Td
+45.354330708661422 182.8348818897633237 Td
 (Step 2:) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-84.1236220472440976 338.1734645669289421 Td
-(Pick a team member \(your direct reports\).) Tj
+84.1236220472440976 182.8348818897633237 Td
+(Pick a direct report \(managers cannot assign outside their team\).) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.051 0.58 0.533 rg
-45.354330708661422 318.6144094488187193 Td
+45.354330708661422 163.2758267716531009 Td
 (Step 3:) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-84.1236220472440976 318.6144094488187193 Td
-(Select KPIs from your department template, set dates, and assign.) Tj
+84.1236220472440976 163.2758267716531009 Td
+(Select KPIs from your department library, set dates, and assign.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 299.0553543307083828 Td
-(•  Managers assign from their own department. Admins can assign across the company.) Tj
+48.1889763779527627 143.7167716535428781 Td
+(•  The same per-employee 100% cap applies.) Tj
 ET
 BT
 /F2 11.5 Tf
 13.2249999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 283.7482677165352243 Td
-(10.4 How scores work) Tj
+45.354330708661422 128.4096850393696059 Td
+(10.5 How scores work) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 263.9057480314958184 Td
-(•  Health / points from a KPI = % achieved × that KPI’s weight.) Tj
+48.1889763779527627 108.5671653543302 Td
+(•  KPI contribution = achievement % × KPI weight. Example: 80% × 40% weight = 32 points.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 248.5986614173225462 Td
-(•  Example: 80% achieved on a 10% weight task contributes 8 points toward the monthly score.) Tj
+48.1889763779527627 93.2600787401570415 Td
+(•  Employee total score = sum of contributions. Unused remaining capacity is not redistributed.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 233.291574803149274 Td
+48.1889763779527627 77.9529921259838829 Td
 (•  Status: On Track, At Risk, Off Track, or Completed.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 217.9844881889761155 Td
+48.1889763779527627 62.6459055118107244 Td
 ( •     O v e r d u e   t a s k s   s e n d   n o t i f i c a t i o n s   a n d   e m a i l .   M i s s i n g   3   d e a d l i n e s   c a n   a p p l y   a  " 3 0 0   p o i n t   p e n a l t y .) Tj
 ET
 BT
@@ -3812,7 +3966,7 @@ endobj
 endobj
 38 0 obj
 <<
-/Length 2025
+/Length 2372
 >>
 stream
 1.7007874015748032 w
@@ -3869,34 +4023,48 @@ BT
 11.5 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 721.7010236220471597 Td
-(•  Role decides which dashboard opens.) Tj
+(•  If the email exists but the password is wrong, Scorr shows “Incorrect password.”) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 706.3939370078740012 Td
-(•  Users can change their own password from profile settings.) Tj
+(•  If the email is not registered, Scorr shows “Incorrect email and password.”) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 691.086850393700729 Td
-(•  Admins can reset any user’s password from the Users directory.) Tj
+(•  Role decides which dashboard opens.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 675.7797637795275705 Td
-(•  Each company’s data is isolated — no cross-company access.) Tj
+(•  Users can change their own password from profile settings.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 660.4726771653542983 Td
+(•  Admins can reset any user’s password from the Users directory.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 645.1655905511811397 Td
+(•  Each company’s data is isolated — no cross-company access.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 629.8585039370078675 Td
 (•  Platform owner \(Walfia\) approves new company registrations in a separate Companies portal.) Tj
 ET
 BT
@@ -4160,7 +4328,7 @@ endobj
 endobj
 42 0 obj
 <<
-/Length 5985
+/Length 7198
 >>
 stream
 1.7007874015748032 w
@@ -4227,202 +4395,258 @@ BT
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 717.1655905511811397 Td
-(Cannot sign in after register) Tj
+(Cannot sign in) Tj
 ET
 BT
 /F1 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 717.1655905511811397 Td
-(Wait until company is approved. Use the exact email/password from registration.) Tj
+(If the email is registered: you will see “Incorrect password.” If the email is) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.2 0.255 0.333 rg
+181.4173228346456881 701.8585039370078675 Td
+(unknown: “Incorrect email and password.” After company registration, wait until) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.2 0.255 0.333 rg
+181.4173228346456881 686.5514173228345953 Td
+(the company is approved.) Tj
 ET
 BT
 /F2 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-51.0236220472441033 699.0238582677164914 Td
+51.0236220472441033 668.4096850393700606 Td
 (Wrong dashboard opens) Tj
 ET
 BT
 /F1 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-181.4173228346456881 699.0238582677164914 Td
+181.4173228346456881 668.4096850393700606 Td
 (Your role is set incorrectly. Ask Admin to check role on Users tab.) Tj
 ET
 BT
 /F2 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-51.0236220472441033 680.8821259842519567 Td
+51.0236220472441033 650.2679527559055259 Td
 (Cannot add users) Tj
 ET
 BT
 /F1 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-181.4173228346456881 680.8821259842519567 Td
+181.4173228346456881 650.2679527559055259 Td
 (You must be Admin \(not Manager/Employee\). Demo admin cannot add real users.) Tj
 ET
 BT
 /F2 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-51.0236220472441033 662.7403937007874219 Td
+51.0236220472441033 632.1262204724408775 Td
 (Manager list empty) Tj
 ET
 BT
 /F1 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-181.4173228346456881 662.7403937007874219 Td
+181.4173228346456881 632.1262204724408775 Td
 (Create Manager accounts first, in the same department as the employee.) Tj
 ET
 BT
 /F2 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-51.0236220472441033 644.5986614173227736 Td
+51.0236220472441033 613.9844881889763428 Td
 (Department required error) Tj
 ET
 BT
 /F1 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-181.4173228346456881 644.5986614173227736 Td
+181.4173228346456881 613.9844881889763428 Td
 (Managers and employees need a department. Create one under Departments.) Tj
 ET
 BT
 /F2 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-51.0236220472441033 626.4569291338582389 Td
+51.0236220472441033 595.8427559055116944 Td
+(Cannot add another department KPI) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.2 0.255 0.333 rg
+181.4173228346456881 595.8427559055116944 Td
+(This is allowed. Library totals may exceed 100%. Use Add KPI, give it a name and) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.2 0.255 0.333 rg
+181.4173228346456881 580.5356692913385359 Td
+(weight \(1–100%\), then wait for autosave.) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.2 0.255 0.333 rg
+51.0236220472441033 562.3939370078738875 Td
 (GPS check-in fails) Tj
 ET
 BT
 /F1 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-181.4173228346456881 626.4569291338582389 Td
+181.4173228346456881 562.3939370078738875 Td
 (Enable location permission; confirm Admin assigned an Office GPS site.) Tj
 ET
 BT
 /F2 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-51.0236220472441033 608.3151968503937042 Td
+51.0236220472441033 544.2522047244092391 Td
 (No daily reports visible) Tj
 ET
 BT
 /F1 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-181.4173228346456881 608.3151968503937042 Td
+181.4173228346456881 544.2522047244092391 Td
 (Only Admin sees others’ reports. Staff must submit from Daily Report tab.) Tj
 ET
 BT
 /F2 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-51.0236220472441033 590.1734645669290558 Td
+51.0236220472441033 526.1104724409447044 Td
 (Cannot assign KPIs) Tj
 ET
 BT
 /F1 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-181.4173228346456881 590.1734645669290558 Td
-( O p e n   A s s i g n   T a s k  !’   N e w   a s s i g n m e n t .   P i c k   a n   e m p l o y e e ,   p i c k   a t   l e a s t   o n e   K P I ,   a n d) Tj
+181.4173228346456881 526.1104724409447044 Td
+(Admin: select department first, then a person in that department, then KPI\(s\), then) Tj
 ET
 BT
 /F1 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-181.4173228346456881 574.8663779527557836 Td
-(keep dates filled \(they default to this month\). Pending weight on that person cannot) Tj
+181.4173228346456881 510.8033858267714891 Td
+(dates. The person list is empty until a department is chosen. That person’s pending) Tj
 ET
 BT
 /F1 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-181.4173228346456881 559.559291338582625 Td
-(exceed 100%.) Tj
+181.4173228346456881 495.4962992125982737 Td
+(weight cannot exceed 100%.) Tj
 ET
 BT
 /F2 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-51.0236220472441033 541.4175590551179766 Td
+51.0236220472441033 477.3545669291336822 Td
+(Assignment rejected at 110%) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.2 0.255 0.333 rg
+181.4173228346456881 477.3545669291336822 Td
+(That employee already has too much pending weight. Pick a smaller KPI or) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.2 0.255 0.333 rg
+181.4173228346456881 462.0474803149604099 Td
+(complete/remove an existing assignment. Other employees are not counted.) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.2 0.255 0.333 rg
+51.0236220472441033 443.9057480314958184 Td
 (Assigned 10% became 100%) Tj
 ET
 BT
 /F1 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-181.4173228346456881 541.4175590551179766 Td
+181.4173228346456881 443.9057480314958184 Td
 (This is fixed: assigned weight stays as set \(1–100%\). Refresh the site after the) Tj
 ET
 BT
 /F1 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-181.4173228346456881 526.1104724409447044 Td
+181.4173228346456881 428.598661417322603 Td
 (latest update.) Tj
 ET
 BT
 /F2 11.5 Tf
 13.2249999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 496.6301574803147787 Td
+45.354330708661422 399.1183464566926204 Td
 (Need help?) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-45.354330708661422 476.7876377952754297 Td
+45.354330708661422 379.2758267716532714 Td
 (Website: https://scorr.walfia.ai) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 455.8112598425195188 Td
+48.1889763779527627 358.2994488188973605 Td
 ( •     R e g i s t e r :   H o m e   p a g e  !’   R e g i s t e r   C o m p a n y) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 440.5041732283462466 Td
+48.1889763779527627 342.9923622047240883 Td
 ( •     S i g n   i n :   H o m e   p a g e  !’   S i g n   I n) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 425.1970866141730312 Td
+48.1889763779527627 327.6852755905508729 Td
 ( •     D o w n l o a d   a p p s :   H o m e   p a g e  !’   M o b i l e   A p p   s e c t i o n) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 409.889999999999759 Td
+48.1889763779527627 312.3781889763776007 Td
 (•  This guide: /downloads/Scorr-Client-Feature-Guide.pdf) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-45.354330708661422 383.2443307086611526 Td
+45.354330708661422 285.7325196850390512 Td
 (Thank you for using Scorr. With clear roles, simple registration, and one place to add your team, your organization) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-45.354330708661422 367.9372440944879372 Td
+45.354330708661422 270.425433070865779 Td
 (can run performance, attendance, and rewards together.) Tj
 ET
 BT
@@ -4611,7 +4835,7 @@ endobj
 57 0 obj
 <<
 /Producer (jsPDF 4.2.1)
-/CreationDate (D:20260818225114+05'00')
+/CreationDate (D:20260818235527+05'00')
 >>
 endobj
 58 0 obj
@@ -4625,71 +4849,71 @@ endobj
 xref
 0 59
 0000000000 65535 f 
-0000089464 00000 n 
-0000091417 00000 n 
+0000095211 00000 n 
+0000097164 00000 n 
 0000000015 00000 n 
 0000000152 00000 n 
 0000001658 00000 n 
 0000001795 00000 n 
-0000004999 00000 n 
-0000005136 00000 n 
-0000008471 00000 n 
-0000008609 00000 n 
-0000015794 00000 n 
-0000015933 00000 n 
-0000019944 00000 n 
-0000020083 00000 n 
-0000026154 00000 n 
-0000026293 00000 n 
-0000035271 00000 n 
-0000035410 00000 n 
-0000038329 00000 n 
-0000038468 00000 n 
-0000042000 00000 n 
-0000042139 00000 n 
-0000046915 00000 n 
-0000047054 00000 n 
-0000050922 00000 n 
-0000051061 00000 n 
-0000054535 00000 n 
-0000054674 00000 n 
-0000062602 00000 n 
-0000062741 00000 n 
-0000066709 00000 n 
-0000066848 00000 n 
-0000070491 00000 n 
-0000070630 00000 n 
-0000072450 00000 n 
-0000072589 00000 n 
-0000076167 00000 n 
-0000076306 00000 n 
-0000078384 00000 n 
-0000078523 00000 n 
-0000083287 00000 n 
-0000083426 00000 n 
-0000089652 00000 n 
-0000089778 00000 n 
-0000089909 00000 n 
-0000090043 00000 n 
-0000090181 00000 n 
-0000090305 00000 n 
-0000090434 00000 n 
-0000090566 00000 n 
-0000090702 00000 n 
-0000090830 00000 n 
-0000090957 00000 n 
-0000091086 00000 n 
-0000091219 00000 n 
-0000091321 00000 n 
-0000091670 00000 n 
-0000091756 00000 n 
+0000004993 00000 n 
+0000005130 00000 n 
+0000008465 00000 n 
+0000008603 00000 n 
+0000015788 00000 n 
+0000015927 00000 n 
+0000019938 00000 n 
+0000020077 00000 n 
+0000027137 00000 n 
+0000027276 00000 n 
+0000036254 00000 n 
+0000036393 00000 n 
+0000039312 00000 n 
+0000039451 00000 n 
+0000043282 00000 n 
+0000043421 00000 n 
+0000048380 00000 n 
+0000048519 00000 n 
+0000052995 00000 n 
+0000053134 00000 n 
+0000056608 00000 n 
+0000056747 00000 n 
+0000066789 00000 n 
+0000066928 00000 n 
+0000070896 00000 n 
+0000071035 00000 n 
+0000074678 00000 n 
+0000074817 00000 n 
+0000076637 00000 n 
+0000076776 00000 n 
+0000080354 00000 n 
+0000080493 00000 n 
+0000082918 00000 n 
+0000083057 00000 n 
+0000087821 00000 n 
+0000087960 00000 n 
+0000095399 00000 n 
+0000095525 00000 n 
+0000095656 00000 n 
+0000095790 00000 n 
+0000095928 00000 n 
+0000096052 00000 n 
+0000096181 00000 n 
+0000096313 00000 n 
+0000096449 00000 n 
+0000096577 00000 n 
+0000096704 00000 n 
+0000096833 00000 n 
+0000096966 00000 n 
+0000097068 00000 n 
+0000097417 00000 n 
+0000097503 00000 n 
 trailer
 <<
 /Size 59
 /Root 58 0 R
 /Info 57 0 R
-/ID [ <F6BCF84FA488157A58194CA2ECC248D6> <F6BCF84FA488157A58194CA2ECC248D6> ]
+/ID [ <EB1A25C5F326F4C135E999F7CAB75CA4> <EB1A25C5F326F4C135E999F7CAB75CA4> ]
 >>
 startxref
-91860
+97607
 %%EOF

@@ -1,5 +1,11 @@
 import { supabase } from '../lib/supabase';
 import { Kpi, Profile, KpiSubmission } from './kpiHelpers';
+import {
+  calculateOverallKpiScore,
+  kpiAchievedPct,
+  kpiScoreContribution,
+  performanceRatingForScore,
+} from './kpiScoreHelpers';
 
 export interface ReportData {
   generatedAt: string;
@@ -69,19 +75,26 @@ function safeLabel(label: string) {
 
 export function exportToCsv(data: ReportData) {
   const userMap = new Map(data.users.map((u) => [u.id, u]));
-  const header = 'Employee,KPI,Category,Status,Current,Target,Suggested Target,Health Score,AI Insight';
+  const kpisByUser = new Map<string, Kpi[]>();
+  for (const kpi of data.kpis) {
+    const list = kpisByUser.get(kpi.user_id) || [];
+    list.push(kpi);
+    kpisByUser.set(kpi.user_id, list);
+  }
+  const header = 'Employee,Department,KPI,Weight,Employee Score,Weighted Score,Overall KPI Score,Performance Rating';
   const rows = data.kpis.map((kpi) => {
     const user = userMap.get(kpi.user_id);
+    const userKpis = kpisByUser.get(kpi.user_id) || [];
+    const overall = calculateOverallKpiScore(userKpis);
     const fields = [
       user?.full_name || 'Unknown',
+      kpi.department || kpi.category || '',
       kpi.name,
-      kpi.category || '',
-      kpi.status,
-      String(kpi.current_value),
-      String(kpi.target_value),
-      kpi.suggested_target != null ? String(kpi.suggested_target) : '',
-      user?.health_score != null ? String(user.health_score) : '',
-      (kpi.ai_narrative || '').replace(/"/g, '""'),
+      String(kpi.weight ?? ''),
+      String(kpiAchievedPct(kpi)),
+      String(kpiScoreContribution(kpi)),
+      String(overall),
+      performanceRatingForScore(overall),
     ];
     return fields.map((f) => `"${f}"`).join(',');
   });
@@ -93,17 +106,20 @@ export async function exportToExcel(data: ReportData) {
   const XLSX = await import('xlsx');
   const userMap = new Map(data.users.map((u) => [u.id, u]));
 
-  const kpiRows = data.kpis.map((kpi) => ({
-    Employee: userMap.get(kpi.user_id)?.full_name || 'Unknown',
-    KPI: kpi.name,
-    Category: kpi.category || '',
-    Status: kpi.status,
-    Current: kpi.current_value,
-    Target: kpi.target_value,
-    'Suggested Target': kpi.suggested_target ?? '',
-    'Health Score': userMap.get(kpi.user_id)?.health_score ?? '',
-    'AI Insight': kpi.ai_narrative || '',
-  }));
+  const kpiRows = data.kpis.map((kpi) => {
+    const userKpis = data.kpis.filter((k) => k.user_id === kpi.user_id);
+    const overall = calculateOverallKpiScore(userKpis);
+    return {
+      Employee: userMap.get(kpi.user_id)?.full_name || 'Unknown',
+      Department: kpi.department || kpi.category || '',
+      KPI: kpi.name,
+      Weight: kpi.weight,
+      'Employee Score': kpiAchievedPct(kpi),
+      'Weighted Score': kpiScoreContribution(kpi),
+      'Overall KPI Score': overall,
+      'Performance Rating': performanceRatingForScore(overall),
+    };
+  });
 
   const submissionRows = data.submissions.map((s) => ({
     Employee: userMap.get(s.user_id)?.full_name || 'Unknown',
@@ -145,7 +161,9 @@ export async function exportToPdf(data: ReportData) {
   for (const kpi of data.kpis) {
     if (y > 270) { doc.addPage(); y = 20; }
     const employee = userMap.get(kpi.user_id)?.full_name || 'Unknown';
-    const line = `${employee} — ${kpi.name}: ${kpi.current_value}/${kpi.target_value} (${kpi.status})`;
+    const userKpis = data.kpis.filter((k) => k.user_id === kpi.user_id);
+    const overall = calculateOverallKpiScore(userKpis);
+    const line = `${employee} — ${kpi.name}: weight ${kpi.weight}%  score ${kpiAchievedPct(kpi)}%  weighted ${kpiScoreContribution(kpi)}  overall ${overall}% ${performanceRatingForScore(overall)}`;
     doc.text(line, 14, y);
     y += 5;
     if (kpi.ai_narrative) {

@@ -16,7 +16,19 @@ Scorr is an HR KPI and rewards platform. Three roles:
 | **Manager** | Assign KPIs, view team leaderboard, approve reward redemptions, own KPIs/points |
 | **Employee** | View KPIs, mark complete before deadline, earn/redeem points |
 
-**Core flow:** Manager assigns KPI tasks → Employee completes before deadline → Monthly score → Points → Redeem rewards → Manager approves.
+**Core flow:** Admin/Manager assigns KPI tasks → Employee completes before deadline → Monthly score → Points → Redeem rewards → Manager/Admin approves.
+
+### KPI library vs assignment
+
+- **Department KPI library** (KPI Management / Departments): unlimited KPIs; combined weights may exceed 100%.
+- **Employee assignment:** pending/active weights for **one person** cannot exceed 100%. Different employees do not share that cap.
+- **Admin Assign Task order:** department → people in that department → KPI(s) → dates → Assign.
+- **Score:** achievement % × KPI weight (a 40% KPI at 80% achievement = 32 points).
+
+### Login errors
+
+- Registered email, wrong password → “Incorrect password.”
+- Unknown email → “Incorrect email and password.”
 
 ---
 

@@ -1,9 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Profile, Kpi, calculateHealthScore } from '../utils/kpiHelpers';
+import { Profile, Kpi } from '../utils/kpiHelpers';
 import { fetchRewardsSummary, RewardsSummary } from '../utils/rewardsHelpers';
 import { formatKpiWeight } from '../utils/kpiWeightHelpers';
-import { kpiAchievedPct, kpiScoreContribution, employeeTotalKpiPoints, statusTrafficLight, trafficLightLabel } from '../utils/kpiScoreHelpers';
+import {
+  kpiAchievedPct,
+  kpiScoreContribution,
+  employeeKpiScoreSummary,
+  formatKpiScore,
+  performanceRatingColor,
+  statusTrafficLight,
+  trafficLightLabel,
+} from '../utils/kpiScoreHelpers';
 import { emailKpiCompleted, emailKpiOverdue } from '../utils/kpiEmail';
 import EmployeeKpiBoardSummary from './EmployeeKpiBoardSummary';
 import TaskList from './TaskList';
@@ -29,18 +37,6 @@ interface ManagerPersonalPanelProps {
 
 type PersonalTab = 'kpis' | 'rewards';
 
-function healthStatusText(score: number): string {
-  if (score >= 80) return 'Excellent';
-  if (score >= 50) return 'Needs improvement';
-  return 'Critical attention';
-}
-
-function healthStatusColor(score: number): string {
-  if (score >= 80) return 'var(--color-success)';
-  if (score >= 50) return 'var(--color-warning)';
-  return 'var(--color-danger)';
-}
-
 function fmtDate(d?: string | null): string {
   return d ? new Date(`${d}T00:00:00`).toLocaleDateString() : '—';
 }
@@ -48,7 +44,6 @@ function fmtDate(d?: string | null): string {
 export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelProps) {
   const [activeTab, setActiveTab] = useState<PersonalTab>('kpis');
   const [kpis, setKpis] = useState<Kpi[]>([]);
-  const [persistedHealthScore, setPersistedHealthScore] = useState<number | null>(null);
   const [rewards, setRewards] = useState<RewardsSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [completingId, setCompletingId] = useState<string | null>(null);
@@ -57,14 +52,12 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
     try {
-      const [kpiRes, userRes, rewardsSummary] = await Promise.all([
+      const [kpiRes, rewardsSummary] = await Promise.all([
         supabase.from('kpis').select('*').eq('user_id', profile.id).order('created_at', { ascending: true }),
-        supabase.from('users').select('health_score').eq('id', profile.id).single(),
         fetchRewardsSummary(profile.id),
       ]);
 
       if (!kpiRes.error) setKpis(kpiRes.data || []);
-      if (userRes.data?.health_score != null) setPersistedHealthScore(Number(userRes.data.health_score));
       setRewards(rewardsSummary);
     } finally {
       setLoading(false);
@@ -93,12 +86,11 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
     };
   }, [load, profile.full_name, profile.id]);
 
-  const healthScore = persistedHealthScore ?? calculateHealthScore(kpis);
-  const totalKpiPoints = employeeTotalKpiPoints(kpis);
-  const completedCount = kpis.filter((k) => k.completion_status === 'completed').length;
-  const onTrackCount = kpis.filter((k) => k.status === 'on_track').length;
-  const atRiskCount = kpis.filter((k) => k.status === 'at_risk').length;
-  const offTrackCount = kpis.filter((k) => k.status === 'off_track').length;
+  const summary = employeeKpiScoreSummary(kpis);
+  const healthScore = summary.overallScore;
+  const totalKpiPoints = summary.overallScore;
+  const ratingColor = performanceRatingColor(summary.performanceRating);
+  const completedCount = summary.completed;
 
   const handleCompleteKpi = async (kpiId: string) => {
     setCompletingId(kpiId);
@@ -147,13 +139,13 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
         <div className="mgr-personal-stats">
           <div className="mgr-personal-stat mgr-personal-stat--accent">
             <TrendingUp size={16} />
-            <span className="mgr-personal-stat__label">Total KPI points</span>
-            <strong>{totalKpiPoints}</strong>
+            <span className="mgr-personal-stat__label">Overall KPI Score</span>
+            <strong>{formatKpiScore(totalKpiPoints)}%</strong>
           </div>
           <div className="mgr-personal-stat">
             <Target size={16} />
-            <span className="mgr-personal-stat__label">Performance index</span>
-            <strong style={{ color: healthStatusColor(healthScore) }}>{healthScore}%</strong>
+            <span className="mgr-personal-stat__label">Performance level</span>
+            <strong style={{ color: ratingColor }}>{summary.performanceRating}</strong>
           </div>
           <div className="mgr-personal-stat mgr-personal-stat--success">
             <CheckCircle2 size={16} />
@@ -194,44 +186,42 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
               <div
                 className="mgr-personal-health__ring"
                 style={{
-                  borderColor: healthStatusColor(healthScore),
-                  boxShadow: `0 0 24px color-mix(in srgb, ${healthStatusColor(healthScore)} 30%, transparent)`,
+                  borderColor: ratingColor,
+                  boxShadow: `0 0 24px color-mix(in srgb, ${ratingColor} 30%, transparent)`,
                 }}
               >
-                <span className="mgr-personal-health__value">{healthScore}%</span>
+                <span className="mgr-personal-health__value">{formatKpiScore(healthScore)}%</span>
               </div>
               <div>
-                <span className="mgr-personal-health__eyebrow">Overall performance</span>
-                <h3>{healthStatusText(healthScore)}</h3>
+                <span className="mgr-personal-health__eyebrow">Overall KPI Score</span>
+                <h3>{summary.performanceRating}</h3>
                 <p>
-                  Based on {kpis.length} assigned KPI{kpis.length !== 1 ? 's' : ''}. Complete each task before its
-                  deadline to protect your score and earn monthly points.
+                  {summary.kpiCount} KPI{summary.kpiCount !== 1 ? 's' : ''} · Weight {formatKpiWeight(summary.totalWeight)}.
+                  Weighted Score = Employee Score × Weight.
                 </p>
               </div>
             </section>
 
             <section className="mgr-personal-card mgr-personal-metrics">
               <div className="mgr-personal-metric">
-                <span>Total KPI points</span>
-                <strong className="mgr-personal-metric--accent">{totalKpiPoints}</strong>
+                <span>Overall KPI Score</span>
+                <strong className="mgr-personal-metric--accent">{formatKpiScore(summary.overallScore)}%</strong>
               </div>
               <div className="mgr-personal-metric">
-                <span>Completed</span>
-                <strong className="mgr-personal-metric--accent">
-                  {completedCount} / {kpis.length}
-                </strong>
+                <span>Performance Level</span>
+                <strong style={{ color: ratingColor }}>{summary.performanceRating}</strong>
               </div>
               <div className="mgr-personal-metric">
-                <span>On track</span>
-                <strong className="mgr-personal-metric--success">{onTrackCount}</strong>
+                <span>KPI Weight</span>
+                <strong>{formatKpiWeight(summary.totalWeight)}</strong>
               </div>
               <div className="mgr-personal-metric">
-                <span>At risk</span>
-                <strong className="mgr-personal-metric--warn">{atRiskCount}</strong>
+                <span>KPIs</span>
+                <strong>{summary.kpiCount}</strong>
               </div>
               <div className="mgr-personal-metric">
-                <span>Off track</span>
-                <strong className="mgr-personal-metric--danger">{offTrackCount}</strong>
+                <span>Completed / Pending</span>
+                <strong className="mgr-personal-metric--accent">{summary.completed} / {summary.pending}</strong>
               </div>
             </section>
 
@@ -309,7 +299,7 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
                         <p className="mgr-personal-kpi-card__desc">{kpi.description}</p>
                       ) : null}
                       <p className="mgr-personal-kpi-card__score">
-                        {achieved}% achieved × {formatKpiWeight(kpi.weight)} = <strong>{contribution} pts</strong>
+                        Weight: {formatKpiWeight(kpi.weight)} · Employee Score: {achieved}% · Weighted Score: {formatKpiScore(contribution)}
                       </p>
                       <div className="mgr-personal-kpi-card__foot">
                         <div>

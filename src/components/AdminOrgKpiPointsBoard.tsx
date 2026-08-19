@@ -42,8 +42,8 @@ function roleLabel(role: string): string {
 }
 
 function healthClass(score: number): string {
-  if (score >= 80) return 'admin-kpi-points__health--good';
-  if (score >= 50) return 'admin-kpi-points__health--mid';
+  if (score >= 90) return 'admin-kpi-points__health--good';
+  if (score >= 70) return 'admin-kpi-points__health--mid';
   return 'admin-kpi-points__health--low';
 }
 
@@ -406,7 +406,7 @@ function PeopleTable({
               {showDepartment && <td>{r.department_name || '—'}</td>}
               <td>
                 <strong className={`admin-kpi-points__health ${healthClass(r.health_score)}`}>
-                  {Math.round(r.health_score)}%
+                  {Number(r.health_score).toFixed(2)}%
                 </strong>
               </td>
               <td>

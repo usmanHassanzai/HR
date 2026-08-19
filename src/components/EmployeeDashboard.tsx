@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Profile, Kpi, calculateHealthScore } from '../utils/kpiHelpers';
+import { Profile, Kpi } from '../utils/kpiHelpers';
 import TaskList from './TaskList';
 import { RefreshCw, BarChart2, Sparkles, Trophy, KeyRound, CheckCircle2, CalendarCheck, ClipboardList } from 'lucide-react';
 import DailyWorkReportPanel from './DailyWorkReportPanel';
@@ -14,7 +14,15 @@ import { emailKpiCompleted, emailKpiOverdue } from '../utils/kpiEmail';
 import EmployeeKpiBoardSummary from './EmployeeKpiBoardSummary';
 import DashboardTabNav from './DashboardTabNav';
 import { formatKpiWeight } from '../utils/kpiWeightHelpers';
-import { kpiAchievedPct, kpiScoreContribution, employeeTotalKpiPoints, statusTrafficLight, trafficLightLabel } from '../utils/kpiScoreHelpers';
+import {
+  kpiAchievedPct,
+  kpiScoreContribution,
+  employeeKpiScoreSummary,
+  formatKpiScore,
+  performanceRatingColor,
+  statusTrafficLight,
+  trafficLightLabel,
+} from '../utils/kpiScoreHelpers';
 import '../styles/employee-mobile.css';
 
 interface EmployeeDashboardProps {
@@ -29,7 +37,6 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
   const isReadOnly = !!readOnlyUser;
 
   const [kpis, setKpis] = useState<Kpi[]>([]);
-  const [persistedHealthScore, setPersistedHealthScore] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'kpis' | 'rewards' | 'attendance' | 'dailyReport'>('kpis');
   const [showChangePassword, setShowChangePassword] = useState(false);
@@ -50,16 +57,6 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
         console.error('Error fetching KPIs:', error);
       } else {
         setKpis(data || []);
-      }
-
-      const { data: userData } = await supabase
-        .from('users')
-        .select('health_score')
-        .eq('id', activeUser.id)
-        .single();
-
-      if (userData?.health_score != null) {
-        setPersistedHealthScore(Number(userData.health_score));
       }
     } catch (err) {
       console.error(err);
@@ -99,20 +96,10 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
     };
   }, [activeUser.id]);
 
-  const healthScore = persistedHealthScore ?? calculateHealthScore(kpis);
-  const totalKpiPoints = employeeTotalKpiPoints(kpis);
-
-  const getHealthStatusText = (score: number) => {
-    if (score >= 80) return 'Excellent Health';
-    if (score >= 50) return 'Needs Improvement';
-    return 'Critical Attention Required';
-  };
-
-  const getHealthStatusColor = (score: number) => {
-    if (score >= 80) return 'var(--color-success)';
-    if (score >= 50) return 'var(--color-warning)';
-    return 'var(--color-danger)';
-  };
+  const summary = employeeKpiScoreSummary(kpis);
+  const healthScore = summary.overallScore;
+  const totalKpiPoints = summary.overallScore;
+  const ratingColor = performanceRatingColor(summary.performanceRating);
 
   const handleCompleteKpi = async (kpiId: string) => {
     setCompletingId(kpiId);
@@ -219,44 +206,51 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
       <div className="dash-hero-grid">
         <div
           className="glass-panel dash-health-card"
-          style={{ borderLeftColor: getHealthStatusColor(healthScore) }}
+          style={{ borderLeftColor: ratingColor }}
         >
           <div
             className="dash-health-ring"
             style={{
-              borderColor: getHealthStatusColor(healthScore),
-              boxShadow: `0 0 20px color-mix(in srgb, ${getHealthStatusColor(healthScore)} 35%, transparent)`,
+              borderColor: ratingColor,
+              boxShadow: `0 0 20px color-mix(in srgb, ${ratingColor} 35%, transparent)`,
             }}
           >
-            <span className="dash-health-ring__value">{healthScore}%</span>
+            <span className="dash-health-ring__value">{formatKpiScore(healthScore)}%</span>
           </div>
           <div>
-            <span className="dash-eyebrow">Overall performance index</span>
-            <h2>{getHealthStatusText(healthScore)}</h2>
-            <p>Based on {kpis.length} assigned KPI tasks — complete before each deadline.</p>
+            <span className="dash-eyebrow">Overall KPI Score</span>
+            <h2>{summary.performanceRating}</h2>
+            <p>
+              {summary.kpiCount} KPI{summary.kpiCount !== 1 ? 's' : ''} · Weight {formatKpiWeight(summary.totalWeight)} ·
+              Weighted Score = Employee Score × Weight
+            </p>
           </div>
         </div>
 
         <div className="glass-panel dash-metrics-panel">
           <div className="dash-metric-row">
-            <span>Total KPI points</span>
-            <strong style={{ color: 'var(--accent-primary)' }}>{totalKpiPoints}</strong>
+            <span>Overall KPI Score</span>
+            <strong style={{ color: 'var(--accent-primary)' }}>{formatKpiScore(summary.overallScore)}%</strong>
+          </div>
+          <div className="dash-metric-row">
+            <span>Performance Level</span>
+            <strong style={{ color: ratingColor }}>{summary.performanceRating}</strong>
+          </div>
+          <div className="dash-metric-row">
+            <span>KPI Weight</span>
+            <strong>{formatKpiWeight(summary.totalWeight)}</strong>
+          </div>
+          <div className="dash-metric-row">
+            <span>KPIs</span>
+            <strong>{summary.kpiCount}</strong>
           </div>
           <div className="dash-metric-row">
             <span>Completed</span>
-            <strong style={{ color: 'var(--accent-primary)' }}>{kpis.filter(k => k.completion_status === 'completed').length} / {kpis.length}</strong>
+            <strong style={{ color: 'var(--color-success)' }}>{summary.completed}</strong>
           </div>
           <div className="dash-metric-row">
-            <span>On Track KPIs</span>
-            <strong style={{ color: 'var(--color-success)' }}>{kpis.filter(k => k.status === 'on_track').length} / {kpis.length}</strong>
-          </div>
-          <div className="dash-metric-row">
-            <span>At Risk KPIs</span>
-            <strong style={{ color: 'var(--color-warning)' }}>{kpis.filter(k => k.status === 'at_risk').length} / {kpis.length}</strong>
-          </div>
-          <div className="dash-metric-row">
-            <span>Off Track KPIs</span>
-            <strong style={{ color: 'var(--color-danger)' }}>{kpis.filter(k => k.status === 'off_track').length} / {kpis.length}</strong>
+            <span>Pending</span>
+            <strong style={{ color: 'var(--color-warning)' }}>{summary.pending}</strong>
           </div>
         </div>
 
@@ -288,7 +282,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
           <BarChart2 size={22} /> My KPIs
           {kpis.length > 0 && (
             <span className="emp-kpi-total-badge" title="Sum of points from all your KPI tasks">
-              Total: {totalKpiPoints} pts
+              Total: {formatKpiScore(totalKpiPoints)}%
             </span>
           )}
         </h3>
@@ -332,10 +326,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
                 ) : null}
 
                 <p className="kpi-score-line">
-                  Achievement: {achieved}% · Score: {contribution} points
-                  <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                    {achieved}% × {formatKpiWeight(kpi.weight)} weight
-                  </span>
+                  Weight: {formatKpiWeight(kpi.weight)} · Employee Score: {achieved}% · Weighted Score: {formatKpiScore(contribution)}
                 </p>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '0.75rem', flexWrap: 'wrap', gap: '0.75rem' }}>

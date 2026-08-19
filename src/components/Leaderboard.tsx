@@ -1,6 +1,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Profile, Kpi, calculateHealthScore, getHealthTrend } from '../utils/kpiHelpers';
+import { Profile, Kpi, getHealthTrend } from '../utils/kpiHelpers';
+import {
+  calculateOverallKpiScore,
+  employeeKpiScoreSummary,
+  formatKpiScore,
+  performanceRatingColor,
+} from '../utils/kpiScoreHelpers';
+import { formatKpiWeight } from '../utils/kpiWeightHelpers';
 import { Trophy, ArrowRight, Loader2, Sparkles, AlertCircle, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 interface LeaderboardProps {
@@ -59,9 +66,7 @@ export default function Leaderboard({ managerId, onSelectEmployee }: Leaderboard
       // 3. Process and rank
       const list: RankedEmployee[] = reports.map((emp) => {
         const empKpis = ((kpis || []) as Kpi[]).filter((k) => k.user_id === emp.id);
-        const healthScore = emp.health_score != null
-          ? Number(emp.health_score)
-          : calculateHealthScore(empKpis);
+        const healthScore = calculateOverallKpiScore(empKpis);
         
         const onTrackCount = empKpis.filter(k => k.status === 'on_track').length;
         const atRiskCount = empKpis.filter(k => k.status === 'at_risk').length;
@@ -128,12 +133,6 @@ export default function Leaderboard({ managerId, onSelectEmployee }: Leaderboard
     }
   };
 
-  const getHealthScoreColor = (score: number) => {
-    if (score >= 80) return 'var(--color-success)';
-    if (score >= 50) return 'var(--color-warning)';
-    return 'var(--color-danger)';
-  };
-
   return (
     <div className="glass-panel" style={{ padding: '1.5rem', animation: 'fadeIn 0.5s ease-out forwards' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
@@ -178,24 +177,27 @@ export default function Leaderboard({ managerId, onSelectEmployee }: Leaderboard
                   <div className="leaderboard-status-row">
                     <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>{rank.onTrackCount} On Track</span>
                     <span style={{ color: 'var(--text-muted)' }}>&bull;</span>
-                    <span style={{ color: 'var(--color-warning)', fontWeight: 600 }}>{rank.atRiskCount} At Risk</span>
+                    <span>{formatKpiWeight(employeeKpiScoreSummary(rank.kpis).totalWeight)}</span>
                     <span style={{ color: 'var(--text-muted)' }}>&bull;</span>
-                    <span style={{ color: 'var(--color-danger)', fontWeight: 600 }}>{rank.offTrackCount} Off Track</span>
+                    <span>{rank.kpis.length} KPI{rank.kpis.length !== 1 ? 's' : ''}</span>
                   </div>
                 </div>
               </div>
 
               <div className="leaderboard-item-score">
                 <div style={{ textAlign: 'right' }}>
-                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Health Index</span>
+                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Overall KPI Score</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', justifyContent: 'flex-end' }}>
                     <strong style={{ 
-                      fontSize: '1.4rem', 
+                      fontSize: '1.25rem', 
                       fontFamily: 'var(--font-display)', 
-                      color: getHealthScoreColor(rank.healthScore)
+                      color: performanceRatingColor(employeeKpiScoreSummary(rank.kpis).performanceRating)
                     }}>
-                      {rank.healthScore}%
+                      {formatKpiScore(rank.healthScore)}%
                     </strong>
+                    <span style={{ fontSize: '0.7rem', color: performanceRatingColor(employeeKpiScoreSummary(rank.kpis).performanceRating) }}>
+                      {employeeKpiScoreSummary(rank.kpis).performanceRating}
+                    </span>
                     {(() => {
                       const trend = getHealthTrend(
                         rank.profile.health_score != null ? Number(rank.profile.health_score) : undefined,

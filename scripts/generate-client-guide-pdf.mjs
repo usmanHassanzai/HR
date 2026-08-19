@@ -271,7 +271,7 @@ const toc = [
   ['7.', 'Manager — What They Do'],
   ['8.', 'Employee — What They Do'],
   ['9.', 'Daily Work Reports'],
-  ['10.', 'KPI Setup & Assignment (Any Employee)'],
+  ['10.', 'KPI Library, Assignment & Scoring'],
   ['11.', 'Attendance, Leave & GPS'],
   ['12.', 'Rewards & Points'],
   ['13.', 'Reports & Analytics'],
@@ -372,11 +372,12 @@ para('The Admin dashboard is organized in a sidebar: Organization, Performance, 
 
 h1('4.1 Organization');
 featureBlock('Users', 'Directory of everyone in the company. Search and filter by role or department. Add new people, change department, reset passwords, or remove accounts. This is where you create Employees, Managers, and additional Admins.');
-featureBlock('Departments', 'Build your company structure (e.g. Sales, HR, Operations). Set department KPI weightages that must total 100% across the company. Edit KPI indicators and use templates for common departments.');
+featureBlock('Departments', 'Build your company structure (e.g. Sales, HR, Finance). Organization-level department weightages are separate from KPI libraries. On each department you can add as many KPI metrics as you need. The combined KPI library weight can exceed 100% — that list is a catalog, not an employee’s capacity.');
 featureBlock('Branding', 'Put your company name, logo, tagline, and colors on the platform so it looks like your product.');
 
 h1('4.2 Performance');
-featureBlock('Assign Task (KPIs)', 'Assign department KPI tasks to any employee in the company. Pick the person, pick one or more KPIs (each 1–100%), set dates, and assign. The employee is notified by email. Live totals cannot exceed 100% on that person’s board.');
+featureBlock('KPI Management', 'Create and edit the KPI library for each department: name, description, and weight (1–100% per KPI). Add as many KPIs as you need. Finance can be 30+30+20+20+40 = 140% and still save. The 100% rule is not applied here.');
+featureBlock('Assign Task (KPIs)', 'Assign KPIs to people in a department. Order is: (1) select department, (2) select an employee or manager who belongs to that department, (3) select KPI task(s), (4) set start and end dates, then Assign. Each person has an independent 100% pending-assignment cap. Ahmed 40% + Ali 70% + Sara 10% is valid because they are different people.');
 featureBlock('Reports', 'Download monthly or quarterly company reports as PDF, Excel, or CSV.');
 featureBlock('Analytics', 'Charts for KPI health, trends, forecasts, and attainment by department or category.');
 featureBlock('Rewards', 'Run the monthly points job, approve/fulfill redemptions, and manage the rewards catalog (gift items employees can redeem).');
@@ -451,12 +452,12 @@ newPage();
 title('6. First-Time Admin Setup Checklist');
 para('After your company is approved, complete these steps in order for a smooth launch:');
 step(1, 'Sign in as Admin.');
-step(2, 'Departments — create your departments and set weightages so they total 100%.');
+step(2, 'Departments — create your departments. Add KPI metrics on each board (library totals may exceed 100%).');
 step(3, 'Users — add Managers for each department.');
 step(4, 'Users — add Employees and assign each to a department and manager.');
 step(5, 'Office GPS — add your office locations if you use GPS attendance.');
 step(6, 'Branding — set company name, logo, and colors.');
-step(7, 'Assign Task — create first KPI assignments for employees.');
+step(7, 'KPI Management — confirm department KPI libraries, then Assign Task — department first, then a person in that department, then KPIs and dates.');
 step(8, 'Rewards — review or edit the rewards catalog.');
 step(9, 'Ask managers and employees to sign in and enable location on mobile if needed.');
 drawFooter();
@@ -470,7 +471,7 @@ para('Managers focus on their team. They do not see the whole company — only p
 
 h1('7.1 Daily / weekly work');
 featureBlock('Team Performance', 'See team points, leaderboard, and who is on track / at risk / off track. Open any team member’s performance view (read-only).');
-featureBlock('KPI Tasks', 'Create the department KPI template (weights on the template add up to 100%). Then assign any of those KPIs to team members — a single 10% task stays 10%. Re-assigning replaces pending tasks for that department.');
+featureBlock('KPI Tasks', 'Create KPIs for your department (any number; library total can exceed 100%). Then assign those KPIs only to your direct reports. A 10% or 70% KPI keeps that weight. Pending assignments for one person cannot exceed 100%. Re-assigning replaces pending tasks for that department only.');
 featureBlock('Team Rewards', 'Approve redemption requests and mark rewards as fulfilled when delivered.');
 featureBlock('Attendance & Leave', 'Approve or reject leave and attendance corrections. Create shifts and assign them. View today\'s team attendance and history.');
 featureBlock('Live Tracking', 'Map/table of where the team is (at site / away / offline).');
@@ -492,7 +493,9 @@ para('Employees use a simpler dashboard focused on their own work.');
 
 h1('8.1 My KPIs');
 bullet('See Performance Index (health score) — Excellent / Needs Improvement / Critical.');
-bullet('Open each KPI card: weight, achieved %, dates, status (on track / at risk / off track).');
+bullet('Each assigned KPI is a card: name, weight, achievement %, score (achievement × weight), dates, and status (On Track / At Risk / Off Track).');
+bullet('Example: 80% achieved on a 40% weight KPI = 32 points. Unused assignment capacity is not filled in automatically.');
+bullet('You only see your own assignments — never another employee’s KPIs.');
 bullet('Mark a task complete when finished — the manager is notified.');
 bullet('Export personal KPI report as PDF or Excel.');
 
@@ -535,33 +538,42 @@ newPage();
 // ═══════════════════════════════════════════════════════════════
 // 10 KPI
 // ═══════════════════════════════════════════════════════════════
-title('10. KPI Setup & Assignment (Any Employee)');
-para('KPIs (Key Performance Indicators) are measurable goals. In Scorr you first define KPIs for a department, then assign them to people.');
+title('10. KPI Library, Assignment & Scoring');
+para('KPIs (Key Performance Indicators) are measurable goals. A department KPI is a reusable item in a library. An assignment connects that KPI to one employee with the same weight, dates, and later achievement.');
 
-h1('10.1 Two steps — setup, then assignment');
-bullet('Setup (Admin → Departments, or Manager → Create KPIs): name each KPI and give it a weight. The full department template should add up to 100% (for example 30% + 30% + 20% + 20%).');
-bullet('Assignment (Admin → Assign Task, or Manager → Assign Tasks): pick an employee, pick one or more of those KPIs, set start and end dates, and click Assign.');
-note('You can assign a single 10% KPI to someone. It stays 10%. You do not need the selected tasks to total 100% first. That person’s pending KPIs still cannot go over 100% in total.');
+h1('10.1 Department KPI library (no 100% cap)');
+bullet('Admin → Performance → KPI Management, or Departments, or Manager → Create KPIs.');
+bullet('Add as many KPIs as you need. Each KPI has its own weight (1–100%). A 70% KPI stays 70%.');
+bullet('The combined library weight for a department can exceed 100% (for example 30+30+20+20+40+70+10 = 220%). That is allowed.');
+bullet('The department is a catalog. It is not an employee’s 100% assignment capacity.');
+note('Do not treat “Finance library = 100%” as a limit. You can still add another KPI after 30+30+20+20.');
 
-h1('10.2 Assign to any employee (Admin)');
-step(1, 'Sign in as Admin → open Assign Task.');
-step(2, 'Stay on New assignment (this is the default screen).');
-step(3, 'Select any employee or manager in your company (any department). Their department KPIs load automatically.');
-step(4, 'Optionally change Department if you want to give them KPIs from another department’s template.');
-step(5, 'Select one or more KPI tasks. Dates default to the current month — change them if needed.');
-step(6, 'Click Assign. The person is emailed and the tasks appear on their KPI board immediately.');
-bullet('They keep their own department. Assignment does not move them to another department.');
-bullet('Re-assigning the same department replaces their pending tasks for that department only.');
+h1('10.2 Employee assignment (100% cap per person)');
+bullet('The 100% rule applies only to one employee’s active/pending assignments.');
+bullet('Current assigned weight + new KPI weight ≤ 100% is allowed. Exactly 100% is allowed. 101%+ for that same person is rejected.');
+bullet('Different employees are independent. Ahmed 40% + Ali 70% + Sara 10% = 120% company-wide is valid.');
+bullet('Selecting several KPIs for one person: their weights are added together before save.');
+note('Example: Ahmed has 70%. A 20% KPI is allowed (90%). A 40% KPI is rejected (110%). Remaining capacity was 30%.');
 
-h1('10.3 Assign as a Manager');
+h1('10.3 Assign as Admin (required order)');
+step(1, 'Sign in as Admin → Performance → Assign Task → New assignment.');
+step(2, 'Select the department first.');
+step(3, 'The list then shows only employees and managers who belong to that department. Pick one person.');
+step(4, 'Select one or more KPI tasks from that department’s library. Each keeps its configured weight.');
+step(5, 'Set start and end dates (they default to the current month).');
+step(6, 'Click Assign. The person is emailed. Tasks appear on their My KPIs board immediately.');
+bullet('Assigning a KPI does not move the person to another department.');
+bullet('Re-assigning the same department replaces their pending tasks for that department only. Completed history is kept.');
+
+h1('10.4 Assign as a Manager');
 step(1, 'Open KPI Tasks → Assign Tasks.');
-step(2, 'Pick a team member (your direct reports).');
-step(3, 'Select KPIs from your department template, set dates, and assign.');
-bullet('Managers assign from their own department. Admins can assign across the company.');
+step(2, 'Pick a direct report (managers cannot assign outside their team).');
+step(3, 'Select KPIs from your department library, set dates, and assign.');
+bullet('The same per-employee 100% cap applies.');
 
-h1('10.4 How scores work');
-bullet('Health / points from a KPI = % achieved × that KPI’s weight.');
-bullet('Example: 80% achieved on a 10% weight task contributes 8 points toward the monthly score.');
+h1('10.5 How scores work');
+bullet('KPI contribution = achievement % × KPI weight. Example: 80% × 40% weight = 32 points.');
+bullet('Employee total score = sum of contributions. Unused remaining capacity is not redistributed.');
 bullet('Status: On Track, At Risk, Off Track, or Completed.');
 bullet('Overdue tasks send notifications and email. Missing 3 deadlines can apply a −300 point penalty.');
 drawFooter();
@@ -653,6 +665,8 @@ newPage();
 // ═══════════════════════════════════════════════════════════════
 title('15. Sign In, Passwords & Security');
 bullet('Everyone signs in at https://scorr.walfia.ai with email + password.');
+bullet('If the email exists but the password is wrong, Scorr shows “Incorrect password.”');
+bullet('If the email is not registered, Scorr shows “Incorrect email and password.”');
 bullet('Role decides which dashboard opens.');
 bullet('Users can change their own password from profile settings.');
 bullet('Admins can reset any user’s password from the Users directory.');
@@ -696,14 +710,16 @@ newPage();
 title('17. Quick Troubleshooting');
 
 tableHeader(['Problem', 'What to try']);
-tableRow('Cannot sign in after register', 'Wait until company is approved. Use the exact email/password from registration.');
+tableRow('Cannot sign in', 'If the email is registered: you will see “Incorrect password.” If the email is unknown: “Incorrect email and password.” After company registration, wait until the company is approved.');
 tableRow('Wrong dashboard opens', 'Your role is set incorrectly. Ask Admin to check role on Users tab.');
 tableRow('Cannot add users', 'You must be Admin (not Manager/Employee). Demo admin cannot add real users.');
 tableRow('Manager list empty', 'Create Manager accounts first, in the same department as the employee.');
 tableRow('Department required error', 'Managers and employees need a department. Create one under Departments.');
+tableRow('Cannot add another department KPI', 'This is allowed. Library totals may exceed 100%. Use Add KPI, give it a name and weight (1–100%), then wait for autosave.');
 tableRow('GPS check-in fails', 'Enable location permission; confirm Admin assigned an Office GPS site.');
 tableRow('No daily reports visible', 'Only Admin sees others’ reports. Staff must submit from Daily Report tab.');
-tableRow('Cannot assign KPIs', 'Open Assign Task → New assignment. Pick an employee, pick at least one KPI, and keep dates filled (they default to this month). Pending weight on that person cannot exceed 100%.');
+tableRow('Cannot assign KPIs', 'Admin: select department first, then a person in that department, then KPI(s), then dates. The person list is empty until a department is chosen. That person’s pending weight cannot exceed 100%.');
+tableRow('Assignment rejected at 110%', 'That employee already has too much pending weight. Pick a smaller KPI or complete/remove an existing assignment. Other employees are not counted.');
 tableRow('Assigned 10% became 100%', 'This is fixed: assigned weight stays as set (1–100%). Refresh the site after the latest update.');
 spacer();
 
