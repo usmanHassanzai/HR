@@ -116,7 +116,7 @@ A) Vercel (recommended — vercel.json already configured):
 
 B) Any static host: upload dist/ folder, set same env vars at build time
 
-C) VPS + nginx: see deploy/nginx-scorr.conf
+C) VPS + nginx: see ops/nginx-scorr.conf
 `);
   printDnsSteps();
 }

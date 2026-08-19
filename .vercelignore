@@ -10,3 +10,6 @@ node_modules
 *.tar.gz
 *.keystore
 .git
+
+# Website APK is gitignored by default; still upload it on Vercel CLI deploys
+!public/downloads/scorr.apk

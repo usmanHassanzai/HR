@@ -40,10 +40,10 @@ ios/App/App/build
 *.keystore
 .tools/
 
-# Large mobile binaries (rebuild with npm run build:android:apk)
-public/downloads/*.apk
-public/downloads/*.aab
-public/downloads/*.ipa
-*.apk
+# Native binaries — keep the website APK so Vercel/GitHub can serve it
 *.aab
 *.ipa
+*.apk
+!public/downloads/scorr.apk
+public/downloads/*.aab
+public/downloads/*.ipa

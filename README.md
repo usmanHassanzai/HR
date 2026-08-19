@@ -88,7 +88,7 @@ VERCEL_TOKEN=your_token node scripts/deploy-production.mjs
 
 ### VPS (nginx)
 
-Upload `dist/` to server, use `deploy/nginx-scorr.conf`, point `scorr.walfia.ai` A record to server IP.
+Upload `dist/` to server, use `ops/nginx-scorr.conf`, point `scorr.walfia.ai` A record to server IP.
 
 ## Features
 

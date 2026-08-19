@@ -22,7 +22,8 @@ console.log('🚀 Scorr — deploy all features to live (scorr.walfia.ai)\n');
 
 run('node', ['scripts/apply-all-migrations.mjs'], 'Supabase migrations');
 run('npm', ['run', 'build'], 'Production build');
-run('npx', ['vercel', 'deploy', '--prod', '--yes', '--scope', 'walfia', '--project', 'hr'], 'Vercel production deploy (hr → scorr.walfia.ai)');
+run('npx', ['vercel', 'build', '--prod', '--yes'], 'Vercel local production build (includes APK)');
+run('npx', ['vercel', '--prebuilt', '--prod', '--yes', '--scope', 'walfia', '--project', 'hr'], 'Vercel production deploy (hr → scorr.walfia.ai)');
 
 console.log('\n✅ Live deploy complete → https://scorr.walfia.ai');
 console.log('   Platform owner: https://scorr.walfia.ai/platform');

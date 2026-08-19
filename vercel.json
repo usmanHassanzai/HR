@@ -17,14 +17,14 @@
       "source": "/downloads/scorr.apk",
       "headers": [
         { "key": "Content-Type", "value": "application/vnd.android.package-archive" },
-        { "key": "Content-Disposition", "value": "attachment; filename=\"scorr.apk\"" }
+        { "key": "Cache-Control", "value": "public, max-age=300" }
       ]
     },
     {
       "source": "/downloads/scorr.ipa",
       "headers": [
         { "key": "Content-Type", "value": "application/octet-stream" },
-        { "key": "Content-Disposition", "value": "attachment; filename=\"scorr.ipa\"" }
+        { "key": "Cache-Control", "value": "public, max-age=300" }
       ]
     },
     {
