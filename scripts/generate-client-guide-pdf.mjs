@@ -13,7 +13,6 @@ import { jsPDF } from 'jspdf';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
-const OUT_DOCS = path.join(ROOT, 'docs', 'Scorr-Client-Feature-Guide.pdf');
 const OUT_PUBLIC = path.join(ROOT, 'public', 'downloads', 'Scorr-Client-Feature-Guide.pdf');
 
 const M = 16;
@@ -738,13 +737,10 @@ drawFooter();
 // WRITE
 // ═══════════════════════════════════════════════════════════════
 const buf = Buffer.from(doc.output('arraybuffer'));
-fs.mkdirSync(path.dirname(OUT_DOCS), { recursive: true });
 fs.mkdirSync(path.dirname(OUT_PUBLIC), { recursive: true });
-fs.writeFileSync(OUT_DOCS, buf);
 fs.writeFileSync(OUT_PUBLIC, buf);
 
 const sizeMb = (buf.length / 1024 / 1024).toFixed(2);
 console.log('✅ Scorr Project Guideline PDF generated');
-console.log(`   → ${OUT_DOCS}`);
 console.log(`   → ${OUT_PUBLIC}`);
 console.log(`   Size: ${sizeMb} MB · ${doc.getNumberOfPages()} pages`);

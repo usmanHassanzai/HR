@@ -44,14 +44,14 @@ Until domain is verified, Resend only sends to your signup email.
 | Script | Purpose |
 |--------|---------|
 | `scripts/setup-db.mjs` | Full DB reset + seed |
-| `scripts/kpi-task-migration.mjs` | KPI task columns + RPCs |
+| `scripts/apply-all-migrations.mjs` | Apply `supabase/migrations` in order |
 | `scripts/deploy-kpi-email.mjs` | Deploy email edge function + secrets |
-| `scripts/backfill-kpi-dates.mjs` | Add dates to existing KPIs (no reset) |
+| `scripts/deploy-live.mjs` | Production build + Vercel deploy |
 
 ## Build & deploy (scorr.walfia.ai)
 
 ```bash
-node scripts/deploy-production.mjs   # configures Supabase auth + builds dist/
+npm run deploy:live
 ```
 
 ### Mobile apps (Android APK + iOS)

@@ -6,6 +6,7 @@ import { isPlatformOwner } from '../utils/companyHelpers';
 import Login from './Login';
 import PlatformCompaniesConsole from './PlatformCompaniesConsole';
 import { Shield, Loader2, X } from 'lucide-react';
+import '../styles/platform.css';
 
 type AlertKind = 'success' | 'error';
 

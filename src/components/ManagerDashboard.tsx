@@ -1,20 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { supabase } from '../lib/supabase';
 import { Profile } from '../utils/kpiHelpers';
 import Leaderboard from './Leaderboard';
 import EmployeeDashboard from './EmployeeDashboard';
-import ManagerPersonalPanel from './ManagerPersonalPanel';
-import ManagerKpiConfig from './ManagerKpiConfig';
 import { Users, BarChart3, ShieldAlert, KeyRound, Trophy, Settings, CalendarCheck, Radio, ClipboardList } from 'lucide-react';
-import DailyWorkReportPanel from './DailyWorkReportPanel';
 import ChangePasswordModal from './ChangePasswordModal';
-import ManagerRewardsPanel from './ManagerRewardsPanel';
-import AttendanceLeavePanel from './AttendanceLeavePanel';
-import AdminLiveTracking from './AdminLiveTracking';
 import RewardsPointsCard from './RewardsPointsCard';
 import TeamPointsBoard from './TeamPointsBoard';
 import DashboardTabNav from './DashboardTabNav';
+import TabFallback from './TabFallback';
 import '../styles/manager-mobile.css';
+
+const ManagerPersonalPanel = lazy(() => import('./ManagerPersonalPanel'));
+const ManagerKpiConfig = lazy(() => import('./ManagerKpiConfig'));
+const DailyWorkReportPanel = lazy(() => import('./DailyWorkReportPanel'));
+const ManagerRewardsPanel = lazy(() => import('./ManagerRewardsPanel'));
+const AttendanceLeavePanel = lazy(() => import('./AttendanceLeavePanel'));
+const AdminLiveTracking = lazy(() => import('./AdminLiveTracking'));
 
 interface ManagerDashboardProps {
   profile: Profile;
@@ -43,7 +45,11 @@ export default function ManagerDashboard({ profile }: ManagerDashboardProps) {
 
     const subscription = supabase
       .channel(`manager-alerts:${profile.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, fetchAlerts)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${profile.id}` },
+        fetchAlerts,
+      )
       .subscribe();
 
     return () => { supabase.removeChannel(subscription); };
@@ -95,6 +101,7 @@ export default function ManagerDashboard({ profile }: ManagerDashboardProps) {
       />
 
       <div className="dashboard-tab-content">
+        <Suspense fallback={<TabFallback />}>
         {activeTab === 'team' ? (
           <div className="mgr-dash__team">
             <RewardsPointsCard
@@ -141,6 +148,7 @@ export default function ManagerDashboard({ profile }: ManagerDashboardProps) {
         ) : (
           <ManagerPersonalPanel profile={profile} />
         )}
+        </Suspense>
       </div>
     </div>
   );

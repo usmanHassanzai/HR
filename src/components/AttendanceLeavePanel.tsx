@@ -250,11 +250,15 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
 
   useSupabaseRealtime(
     `attendance-sync-${userId}`,
-    [
-      { table: 'attendance_records' },
-      { table: 'leave_requests' },
-      { table: 'users' },
-    ],
+    mode === 'employee'
+      ? [
+          { table: 'attendance_records', filter: `user_id=eq.${userId}` },
+          { table: 'leave_requests', filter: `user_id=eq.${userId}` },
+        ]
+      : [
+          { table: 'attendance_records' },
+          { table: 'leave_requests' },
+        ],
     () => { void load({ silent: true }); },
   );
 

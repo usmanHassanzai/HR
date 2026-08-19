@@ -93,9 +93,9 @@ export default function Leaderboard({ managerId, onSelectEmployee }: Leaderboard
   };
 
   useEffect(() => {
-    fetchTeamData();
+    void fetchTeamData();
 
-    // Subscribe to KPI changes to update leaderboard in real-time
+    let debounce: number | null = null;
     const subscription = supabase
       .channel(`public:leaderboard:${managerId}`)
       .on(
@@ -106,12 +106,17 @@ export default function Leaderboard({ managerId, onSelectEmployee }: Leaderboard
           table: 'kpis',
         },
         () => {
-          fetchTeamData({ silent: true });
-        }
+          if (debounce != null) window.clearTimeout(debounce);
+          debounce = window.setTimeout(() => {
+            debounce = null;
+            void fetchTeamData({ silent: true });
+          }, 900);
+        },
       )
       .subscribe();
 
     return () => {
+      if (debounce != null) window.clearTimeout(debounce);
       supabase.removeChannel(subscription);
     };
   }, [managerId]);

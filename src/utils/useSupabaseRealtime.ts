@@ -49,7 +49,7 @@ export function useSupabaseRealtime(
         } catch (err) {
           console.warn('[realtime] onChange failed', channelName, err);
         }
-      }, 500);
+      }, 900);
     };
 
     try {

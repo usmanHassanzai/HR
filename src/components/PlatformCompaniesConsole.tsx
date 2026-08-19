@@ -22,6 +22,7 @@ import {
   Mail,
   Phone,
 } from 'lucide-react';
+import '../styles/platform.css';
 
 type PlatformTab = 'pending' | 'approved' | 'all' | 'notifications';
 type AlertKind = 'success' | 'error';

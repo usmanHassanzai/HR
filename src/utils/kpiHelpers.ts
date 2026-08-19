@@ -2,7 +2,6 @@ import { calculateOverallKpiScore } from './kpiScoreHelpers';
 
 export type UserRole = 'employee' | 'manager' | 'admin';
 export type KpiStatus = 'on_track' | 'at_risk' | 'off_track';
-export type TaskStatus = 'pending' | 'in_progress' | 'done';
 export type NotificationType = 'info' | 'alert' | 'reminder' | 'escalation';
 
 export interface Profile {
@@ -55,17 +54,6 @@ export interface KpiSubmission {
   kpi_id: string;
   value: number;
   notes: string | null;
-  created_at: string;
-}
-
-export interface Task {
-  id: string;
-  user_id: string;
-  title: string;
-  description: string | null;
-  status: TaskStatus;
-  due_date: string | null;
-  updated_at: string;
   created_at: string;
 }
 

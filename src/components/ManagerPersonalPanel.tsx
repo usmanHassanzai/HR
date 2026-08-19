@@ -14,7 +14,6 @@ import {
 } from '../utils/kpiScoreHelpers';
 import { emailKpiCompleted, emailKpiOverdue } from '../utils/kpiEmail';
 import EmployeeKpiBoardSummary from './EmployeeKpiBoardSummary';
-import TaskList from './TaskList';
 import ExportButton from './ExportButton';
 import RewardsTab from './RewardsTab';
 import TeamPointsBoard from './TeamPointsBoard';
@@ -330,11 +329,7 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
             )}
           </section>
 
-          <div className="mgr-personal-bottom-grid">
-            <section className="mgr-personal-card">
-              <TaskList userId={profile.id} />
-            </section>
-            <section className="mgr-personal-card mgr-personal-guide">
+          <section className="mgr-personal-card mgr-personal-guide">
               <h3>KPI status guide</h3>
               <p>
                 KPIs are assigned with start and end dates. Complete before the deadline — three missed deadlines
@@ -355,7 +350,6 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
                 </li>
               </ul>
             </section>
-          </div>
         </>
       ) : (
         <section className="mgr-personal-rewards-wrap">

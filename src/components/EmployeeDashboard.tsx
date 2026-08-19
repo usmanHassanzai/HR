@@ -1,18 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { supabase } from '../lib/supabase';
 import { Profile, Kpi } from '../utils/kpiHelpers';
-import TaskList from './TaskList';
 import { RefreshCw, BarChart2, Sparkles, Trophy, KeyRound, CheckCircle2, CalendarCheck, ClipboardList } from 'lucide-react';
-import DailyWorkReportPanel from './DailyWorkReportPanel';
 import ExportButton from './ExportButton';
-import EmployeeRewardsPanel from './EmployeeRewardsPanel';
 import RewardsPointsCard from './RewardsPointsCard';
 import TeamPointsBoard from './TeamPointsBoard';
-import AttendanceLeavePanel from './AttendanceLeavePanel';
 import ChangePasswordModal from './ChangePasswordModal';
 import { emailKpiCompleted, emailKpiOverdue } from '../utils/kpiEmail';
 import EmployeeKpiBoardSummary from './EmployeeKpiBoardSummary';
 import DashboardTabNav from './DashboardTabNav';
+import TabFallback from './TabFallback';
 import { formatKpiWeight } from '../utils/kpiWeightHelpers';
 import {
   kpiAchievedPct,
@@ -24,6 +21,10 @@ import {
   trafficLightLabel,
 } from '../utils/kpiScoreHelpers';
 import '../styles/employee-mobile.css';
+
+const EmployeeRewardsPanel = lazy(() => import('./EmployeeRewardsPanel'));
+const AttendanceLeavePanel = lazy(() => import('./AttendanceLeavePanel'));
+const DailyWorkReportPanel = lazy(() => import('./DailyWorkReportPanel'));
 
 interface EmployeeDashboardProps {
   profile: Profile;
@@ -84,6 +85,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
           event: '*',
           schema: 'public',
           table: 'kpis',
+          filter: `user_id=eq.${activeUser.id}`,
         },
         () => {
           fetchKpis({ silent: true });
@@ -174,6 +176,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
       )}
 
       {activeTab === 'rewards' && !isReadOnly ? (
+        <Suspense fallback={<TabFallback />}>
         <div className="emp-points-stack">
           <RewardsPointsCard
             userId={activeUser.id}
@@ -189,14 +192,19 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
           />
           <EmployeeRewardsPanel userId={activeUser.id} kpiPoints={totalKpiPoints} />
         </div>
+        </Suspense>
       ) : null}
 
       {activeTab === 'attendance' && !isReadOnly ? (
+        <Suspense fallback={<TabFallback />}>
         <AttendanceLeavePanel profile={profile} mode={profile.role === 'manager' ? 'manager' : 'employee'} />
+        </Suspense>
       ) : null}
 
       {activeTab === 'dailyReport' && !isReadOnly ? (
+        <Suspense fallback={<TabFallback />}>
         <DailyWorkReportPanel profile={profile} />
+        </Suspense>
       ) : null}
 
       {activeTab === 'kpis' && (
@@ -354,11 +362,8 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
         </div>
       )}
 
-      {/* Tasks Panel */}
+      {/* KPI status guide */}
       <section className="responsive-grid-wide">
-        <TaskList userId={activeUser.id} />
-        
-        {/* KPI Legend Card */}
         <div className="glass-panel dash-info-panel">
           <h3 className="dash-panel-title">KPI status guide</h3>
           <p className="dash-panel-desc">KPIs are assigned by your manager with start/end dates. Complete before the deadline — 3 missed deadlines deduct 300 points.</p>

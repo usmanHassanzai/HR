@@ -15,6 +15,9 @@ if (!isSupabaseConfigured) {
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
   supabaseAnonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder',
+  {
+    realtime: { params: { eventsPerSecond: 4 } },
+  },
 );
 
 /**

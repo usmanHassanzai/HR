@@ -1,32 +1,33 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { supabase, supabaseSignup } from '../lib/supabase';
 import { Profile } from '../utils/kpiHelpers';
 import { Users, UserPlus, Trash2, Loader2, AlertCircle, CheckCircle, Download, FileSpreadsheet, FileText, BarChart3, Palette, Trophy, KeyRound, CalendarCheck, MapPin, Radio, Building2, Settings, Shield, Search, ClipboardList, Coins, Pencil, Mail, Target } from 'lucide-react';
-import AdminDailyWorkReports from './AdminDailyWorkReports';
 import '../styles/admin-dashboard.css';
-import { fetchQuarterlyReportData, fetchMonthlyReportData, exportToCsv, exportToExcel, exportToPdf } from '../utils/exportReport';
-import Analytics from './Analytics';
-import BrandingSettings from './BrandingSettings';
-import AdminRewards from './AdminRewards';
 import AdminEmailPasswordsPanel from './AdminEmailPasswordsPanel';
-import AdminOrgKpiPointsBoard from './AdminOrgKpiPointsBoard';
-import AttendanceLeavePanel from './AttendanceLeavePanel';
 import AdminResetPasswordModal from './AdminResetPasswordModal';
 import AdminEditUserModal from './AdminEditUserModal';
-import OfficeLocationSettings from './OfficeLocationSettings';
-import AdminLiveTracking from './AdminLiveTracking';
-import DepartmentWeightagesPanel from './DepartmentWeightagesPanel';
-import ManagerKpiConfig from './ManagerKpiConfig';
-import AdminKpiManagement from './AdminKpiManagement';
 import AdminSidebarNav, { getAdminNavMeta, findAdminNavIcon, type AdminNavGroup } from './AdminSidebarNav';
 import AdminHamburgerButton from './AdminHamburgerButton';
 import { isDemoProfile } from '../utils/demoMode';
 import { Department } from '../utils/departmentHelpers';
 import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
 import { usePlatformOwnerAccess } from '../utils/usePlatformOwnerAccess';
-import PlatformCompaniesConsole from './PlatformCompaniesConsole';
 import AdminDailyReportAlert from './AdminDailyReportAlert';
 import { markNotificationsRead } from '../utils/notificationHelpers';
+import TabFallback from './TabFallback';
+
+const AdminDailyWorkReports = lazy(() => import('./AdminDailyWorkReports'));
+const Analytics = lazy(() => import('./Analytics'));
+const BrandingSettings = lazy(() => import('./BrandingSettings'));
+const AdminRewards = lazy(() => import('./AdminRewards'));
+const AdminOrgKpiPointsBoard = lazy(() => import('./AdminOrgKpiPointsBoard'));
+const AttendanceLeavePanel = lazy(() => import('./AttendanceLeavePanel'));
+const OfficeLocationSettings = lazy(() => import('./OfficeLocationSettings'));
+const AdminLiveTracking = lazy(() => import('./AdminLiveTracking'));
+const DepartmentWeightagesPanel = lazy(() => import('./DepartmentWeightagesPanel'));
+const ManagerKpiConfig = lazy(() => import('./ManagerKpiConfig'));
+const AdminKpiManagement = lazy(() => import('./AdminKpiManagement'));
+const PlatformCompaniesConsole = lazy(() => import('./PlatformCompaniesConsole'));
 
 interface AdminDashboardProps {
   profile: Profile;
@@ -217,7 +218,12 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
 
   useSupabaseRealtime(
     'admin-users-sync',
-    [{ table: 'users' }, { table: 'departments' }],
+    profile.company_id
+      ? [
+          { table: 'users', filter: `company_id=eq.${profile.company_id}` },
+          { table: 'departments', filter: `company_id=eq.${profile.company_id}` },
+        ]
+      : [{ table: 'users' }, { table: 'departments' }],
     () => { void fetchData({ silent: true }); },
     !platformOwnerChecking,
   );
@@ -226,6 +232,13 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
     setExportLoading(true);
     setExportMsg('');
     try {
+      const {
+        fetchMonthlyReportData,
+        fetchQuarterlyReportData,
+        exportToCsv,
+        exportToExcel,
+        exportToPdf,
+      } = await import('../utils/exportReport');
       const data = period === 'monthly' ? await fetchMonthlyReportData() : await fetchQuarterlyReportData();
       if (format === 'csv') exportToCsv(data);
       else if (format === 'excel') await exportToExcel(data);
@@ -630,6 +643,7 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
 
         <div className="admin-shell__content">
           <div className="admin-shell__panel">
+      <Suspense fallback={<TabFallback />}>
       {activeTab === 'companies' && platformOwner ? (
         <PlatformCompaniesConsole profile={profile} embedded />
       ) : activeTab === 'export' ? (
@@ -1135,6 +1149,7 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
         </div>
         </div>
       )}
+      </Suspense>
 
           </div>
         </div>

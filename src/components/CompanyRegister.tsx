@@ -12,6 +12,7 @@ import {
   type SubscriptionPlan,
   type CompanyRegistrationForm,
 } from '../utils/companyHelpers';
+import '../styles/company-register.css';
 
 interface CompanyRegisterProps {
   onBack: () => void;
