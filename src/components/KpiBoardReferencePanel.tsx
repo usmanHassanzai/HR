@@ -55,11 +55,12 @@ export default function KpiBoardReferencePanel({ allowEdit = true }: { allowEdit
       <div className="kpi-board-reference__intro">
         <h3>Department-wise monthly KPI board</h3>
         <p>
-          Every department in your company is listed here. Edit KPI names and <strong>weightages</strong> —
-          they must sum to <strong>100% per department</strong>. Changes save automatically.
+          Every department in your company is listed here. Add as many KPI metrics as you need.
+          Each KPI has its own weight (1–100%). The department library total can exceed 100%.
+          The 100% limit applies only when those KPIs are assigned to one employee. Changes save automatically.
         </p>
         <div className="kpi-board-reference__formula">
-          <strong>Score formula:</strong> (Target achieved %) × (KPI weight %)
+          <strong>Score formula:</strong> Employee Score % × KPI Weight = Weighted Score. Overall KPI Score is the sum of weighted scores.
         </div>
         <div className="kpi-board-reference__legend">
           <span className="kpi-traffic kpi-traffic--green">Green — on track</span>
@@ -81,7 +82,7 @@ export default function KpiBoardReferencePanel({ allowEdit = true }: { allowEdit
           <span>Loading all departments…</span>
         </div>
       ) : depts.length === 0 ? (
-        <p className="kpi-board-reference__empty">No departments yet. Add them above, then set KPI weightages here.</p>
+        <p className="kpi-board-reference__empty">No departments yet. Add them above, then add KPI metrics here.</p>
       ) : (
         <div className="kpi-board-reference__departments kpi-board-reference__departments--live">
           {depts.map((dept, idx) => (
