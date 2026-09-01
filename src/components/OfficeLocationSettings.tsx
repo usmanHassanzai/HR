@@ -176,8 +176,8 @@ export default function OfficeLocationSettings() {
           <div>
             <h2 className="admin-office-header__title">Office GPS zones</h2>
             <p className="admin-office-header__subtitle">
-              Define geofenced office locations for automatic attendance. Capture live GPS, save the zone, then assign
-              it to all employees, any individual, or a manager&apos;s team.
+              Define geofenced office locations for clock-in and clock-out. Capture live GPS, save the zone, then assign
+              it to all employees and managers, any individual, or a manager&apos;s team.
             </p>
           </div>
         </div>

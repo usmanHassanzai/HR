@@ -312,6 +312,47 @@ input:focus, select:focus, textarea:focus {
   outline: none;
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.password-field {
+  position: relative;
+  width: 100%;
+}
+
+.password-field input {
+  padding-right: 2.75rem;
+}
+
+.password-field__toggle {
+  position: absolute;
+  right: 0.4rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.password-field__toggle:hover,
+.password-field__toggle:focus-visible {
+  color: var(--text-primary);
+  background: var(--surface-muted);
+}
+
+.password-field__toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+input:focus, select:focus, textarea:focus {
   background: var(--surface-input-focus);
 }
 
@@ -733,6 +774,10 @@ input:focus, select:focus, textarea:focus {
 
 .reward-card--unlocked:hover { transform: translateY(-3px); box-shadow: var(--accent-glow); }
 
+.reward-card--locked { opacity: 0.72; }
+
+.reward-card-need { margin: 0; font-size: 0.75rem !important; }
+
 .reward-card-icon { font-size: 2rem; }
 
 .reward-card h4 { font-size: 0.95rem; }
@@ -863,20 +908,16 @@ input:focus, select:focus, textarea:focus {
   box-shadow: var(--accent-glow); margin-bottom: 1rem;
 }
 
-.login-shortcut {
-  justify-content: flex-start !important;
-  padding: 0.75rem 1rem !important;
-  font-size: 0.85rem !important;
-  text-align: left;
-}
-
 .login-card--embedded {
   width: 100%;
-  padding: 2rem 1.75rem !important;
+  max-width: 440px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 1.75rem 1.6rem !important;
 }
 
 .login-card--embedded .brand-logo--login {
-  height: clamp(80px, 18vw, 110px);
+  height: clamp(52px, 12vw, 72px);
 }
 
 /* Brand logo — auto height, proportional width */
@@ -939,15 +980,16 @@ svg.brand-logo {
 
 .login-brand {
   text-align: center;
-  margin-bottom: 2.25rem;
-  padding-bottom: 0.25rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0;
 }
 
 .login-brand-sub {
-  margin-top: 1rem;
+  margin-top: 0.45rem;
   color: var(--text-muted);
-  font-size: 0.95rem;
-  font-weight: 400;
+  font-size: 0.88rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
 }
 
 .auth-mode-tabs {
@@ -1006,6 +1048,46 @@ svg.brand-logo {
   border-left: 3px solid var(--color-danger);
 }
 
+.login-success-banner {
+  background: color-mix(in srgb, var(--color-success, #059669) 12%, transparent);
+  color: var(--text-primary);
+  padding: 0.75rem 1rem;
+  border-radius: var(--border-radius-sm);
+  font-size: 0.875rem;
+  margin-bottom: 1.25rem;
+  border-left: 3px solid var(--color-success, #059669);
+}
+
+.login-forgot-link {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: -0.55rem 0 0.15rem;
+  align-self: flex-end;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.login-forgot-link:hover:not(:disabled) {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.login-forgot-link:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.login-forgot-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
 .login-form {
   display: flex;
   flex-direction: column;
@@ -1024,7 +1106,63 @@ svg.brand-logo {
 
 .login-form__submit {
   width: 100%;
-  margin-top: 0.35rem;
+  margin-top: 0.15rem;
+  min-height: 46px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.login-form__submit:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.login-policy {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  margin: 0.15rem 0 0;
+  padding: 0.75rem 0.85rem;
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--surface-muted);
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.login-policy:has(input:checked) {
+  border-color: color-mix(in srgb, var(--accent-primary) 35%, var(--border-color));
+  background: color-mix(in srgb, var(--accent-primary) 8%, var(--bg-elevated));
+}
+
+.login-policy input,
+.login-policy input[type='checkbox'] {
+  appearance: auto;
+  width: 1.05rem;
+  height: 1.05rem;
+  min-width: 1.05rem;
+  max-width: 1.05rem;
+  margin: 0.15rem 0 0;
+  padding: 0;
+  flex: 0 0 1.05rem;
+  border-radius: 4px;
+  accent-color: var(--accent-primary);
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.login-policy span {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
 }
 
 .login-register-cta {
@@ -1032,16 +1170,115 @@ svg.brand-logo {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  flex-wrap: wrap;
-  margin-top: 1.25rem;
-  padding-top: 1.15rem;
+  flex-wrap: nowrap;
+  margin-top: 1.15rem;
+  padding-top: 1.1rem;
   border-top: 1px solid var(--border-color);
 }
 
 .login-register-cta p {
   margin: 0;
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.login-register-cta .btn {
+  flex-shrink: 0;
+}
+
+@media (max-width: 420px) {
+  .login-register-cta {
+    flex-wrap: wrap;
+  }
+
+  .login-register-cta .btn {
+    width: 100%;
+  }
+}
+
+.login-demo {
+  margin-top: 1.15rem;
+}
+
+.login-demo__divider {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 0 0 0.85rem;
+}
+
+.login-demo__divider::before,
+.login-demo__divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-color);
+}
+
+.login-demo__divider span {
+  font-size: 0.68rem;
+  font-weight: 650;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.login-demo__note {
+  margin: 0 0 0.75rem;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, #d97706 8%, var(--bg-elevated));
+  border: 1px solid color-mix(in srgb, #d97706 18%, var(--border-color));
+  border-radius: var(--border-radius-sm);
+}
+
+.login-demo__error {
+  margin: 0 0 0.75rem;
+  padding: 0.65rem 0.8rem;
+  border-radius: var(--border-radius-sm);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--color-danger);
+  background: var(--color-danger-bg);
+  border-left: 3px solid var(--color-danger);
+}
+
+.login-demo__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.login-shortcut {
+  width: 100%;
+  justify-content: flex-start !important;
+  padding: 0.65rem 0.8rem !important;
+  font-size: 0.82rem !important;
+  text-align: left;
+  gap: 0.7rem;
+}
+
+.login-shortcut:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.login-shortcut strong {
+  display: block;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+.login-shortcut small {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-muted);
 }
 
 .login-card--embedded .company-register--embedded {
@@ -1170,11 +1407,12 @@ svg.brand-logo {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 1rem;
-  background: rgba(255, 255, 255, 0.02);
-  border-radius: var(--border-radius-sm);
-  border: 1px solid var(--border-color);
-  transition: var(--transition-smooth);
+  padding: 1.05rem 1.15rem;
+  background: var(--dash-card-bg, var(--surface-muted, #fff));
+  border-radius: 14px;
+  border: 1px solid var(--dash-card-border, var(--border-color));
+  box-shadow: var(--dash-card-shadow, none);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
   position: relative;
 }
 
@@ -1183,9 +1421,9 @@ svg.brand-logo {
 }
 
 .leaderboard-item--clickable:hover {
-  background: rgba(255, 255, 255, 0.06) !important;
-  border-color: var(--border-hover) !important;
-  transform: translateX(4px);
+  border-color: color-mix(in srgb, var(--accent-primary) 35%, var(--border-color)) !important;
+  box-shadow: var(--dash-card-shadow-hover, 0 10px 28px rgba(15, 23, 42, 0.08));
+  transform: translateY(-1px);
 }
 
 .leaderboard-item-main {
@@ -1469,4 +1707,104 @@ body.native-app [contenteditable] {
   -webkit-user-select: text;
 }
 
+.geo-hold-banner {
+  max-width: 560px;
+  margin: 1rem auto 0;
+  padding: 1rem 1.25rem;
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: flex-start;
+  z-index: 20;
+  position: relative;
+}
+
+.geo-hold-banner p {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
 /* app-shell mobile layout lives in mobile-app.css */
+
+.kpi-option-picker {
+  margin: 0.65rem 0 0;
+  padding: 0;
+  border: none;
+  min-width: 0;
+}
+
+.kpi-option-picker legend {
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.4rem;
+}
+
+.kpi-option-picker__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.kpi-option-picker__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-elevated);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.kpi-option-picker__item input {
+  width: auto;
+  max-width: 1rem;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--accent-primary);
+}
+
+.kpi-option-picker__item--on {
+  border-color: color-mix(in srgb, var(--accent-primary) 45%, var(--border-color));
+  background: color-mix(in srgb, var(--accent-primary) 12%, var(--bg-elevated));
+}
+
+.kpi-eval {
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.kpi-eval__cat {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+}
+
+.kpi-eval__hint {
+  margin: 0.4rem 0 0;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.kpi-eval__err {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  color: var(--color-danger);
+}
+
+.kpi-month-score {
+  font-size: 0.95rem;
+  font-weight: 700;
+}

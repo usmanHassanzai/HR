@@ -174,7 +174,8 @@ export function formatKpiWeight(weight: number): string {
   return String(n);
 }
 
-export function weightBudgetStatus(total: number): 'ok' | 'warn' | 'over' {
+export function weightBudgetStatus(total: number): 'idle' | 'ok' | 'warn' | 'over' {
+  if (total <= KPI_WEIGHT_TOLERANCE) return 'idle';
   if (total > KPI_WEIGHT_CAP + KPI_WEIGHT_TOLERANCE) return 'over';
   if (Math.abs(total - KPI_WEIGHT_CAP) <= KPI_WEIGHT_TOLERANCE) return 'ok';
   return 'warn';

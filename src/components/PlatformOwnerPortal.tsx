@@ -5,6 +5,7 @@ import { Profile } from '../utils/kpiHelpers';
 import { isPlatformOwner } from '../utils/companyHelpers';
 import Login from './Login';
 import PlatformCompaniesConsole from './PlatformCompaniesConsole';
+import PrivilegedMfaGate from './PrivilegedMfaGate';
 import { Shield, Loader2, X } from 'lucide-react';
 import '../styles/platform.css';
 
@@ -15,6 +16,7 @@ export default function PlatformOwnerPortal() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [alert, setAlert] = useState<{ kind: AlertKind; text: string } | null>(null);
+  const [mfaOk, setMfaOk] = useState(false);
   usePortalSessionGuard(Boolean(session && profile));
 
   const loadProfile = async (userId: string) => {
@@ -69,6 +71,7 @@ export default function PlatformOwnerPortal() {
     await supabase.auth.signOut();
     setSession(null);
     setProfile(null);
+    setMfaOk(false);
   };
 
   if (loading) {
@@ -110,6 +113,15 @@ export default function PlatformOwnerPortal() {
           <a href="/">← Back to Scorr website</a>
         </div>
       </div>
+    );
+  }
+
+  if (!mfaOk) {
+    return (
+      <PrivilegedMfaGate
+        onSatisfied={() => setMfaOk(true)}
+        onCancel={() => void handleLogout()}
+      />
     );
   }
 

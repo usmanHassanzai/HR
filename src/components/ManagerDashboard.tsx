@@ -1,16 +1,18 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { supabase } from '../lib/supabase';
 import { Profile } from '../utils/kpiHelpers';
 import Leaderboard from './Leaderboard';
 import EmployeeDashboard from './EmployeeDashboard';
-import { Users, BarChart3, ShieldAlert, KeyRound, Trophy, Settings, CalendarCheck, Radio, ClipboardList } from 'lucide-react';
+import { Users, KeyRound, Trophy, Settings, CalendarCheck, ClipboardList, BarChart2 } from 'lucide-react';
 import ChangePasswordModal from './ChangePasswordModal';
-import RewardsPointsCard from './RewardsPointsCard';
-import TeamPointsBoard from './TeamPointsBoard';
-import DashboardTabNav from './DashboardTabNav';
+import AdminSidebarNav, { findAdminNavIcon, type AdminNavGroup } from './AdminSidebarNav';
+import AdminHamburgerButton from './AdminHamburgerButton';
 import TabFallback from './TabFallback';
+import KpiWorkspace from './KpiWorkspace';
+import '../styles/admin-dashboard.css';
 import '../styles/manager-mobile.css';
 
+const AdminOrgKpiPointsBoard = lazy(() => import('./AdminOrgKpiPointsBoard'));
 const ManagerPersonalPanel = lazy(() => import('./ManagerPersonalPanel'));
 const ManagerKpiConfig = lazy(() => import('./ManagerKpiConfig'));
 const DailyWorkReportPanel = lazy(() => import('./DailyWorkReportPanel'));
@@ -18,15 +20,31 @@ const ManagerRewardsPanel = lazy(() => import('./ManagerRewardsPanel'));
 const AttendanceLeavePanel = lazy(() => import('./AttendanceLeavePanel'));
 const AdminLiveTracking = lazy(() => import('./AdminLiveTracking'));
 
+type ManagerTab = 'mine' | 'employees' | 'kpis' | 'attendance' | 'rewards' | 'settings';
+
 interface ManagerDashboardProps {
   profile: Profile;
+  organizationName?: string | null;
 }
 
-export default function ManagerDashboard({ profile }: ManagerDashboardProps) {
+function getManagerNavMeta(id: string): { label: string; description: string } {
+  const map: Record<string, { label: string; description: string }> = {
+    mine: { label: 'My KPIs', description: 'Tasks assigned to you.' },
+    employees: { label: 'People', description: 'People who report to you.' },
+    kpis: { label: 'Assign Task', description: 'Create and assign KPIs.' },
+    attendance: { label: 'Attendance', description: 'Team leave and check-in.' },
+    rewards: { label: 'Rewards', description: 'Company gifts for you and your team.' },
+    settings: { label: 'Settings', description: 'Password and daily report.' },
+  };
+  return map[id] ?? { label: 'Manager', description: 'Team and personal workspace.' };
+}
+
+export default function ManagerDashboard({ profile, organizationName }: ManagerDashboardProps) {
   const [selectedEmployee, setSelectedEmployee] = useState<Profile | null>(null);
-  const [activeTab, setActiveTab] = useState<'team' | 'kpis' | 'rewards' | 'personal' | 'attendance' | 'tracking' | 'dailyReport'>('team');
+  const [activeTab, setActiveTab] = useState<ManagerTab>('kpis');
   const [alertCount, setAlertCount] = useState(0);
   const [showChangePassword, setShowChangePassword] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
 
   useEffect(() => {
     const fetchAlerts = async () => {
@@ -63,6 +81,23 @@ export default function ManagerDashboard({ profile }: ManagerDashboardProps) {
     setSelectedEmployee(null);
   };
 
+  const navGroups = useMemo<AdminNavGroup[]>(() => [
+    {
+      label: 'Menu',
+      items: [
+        { id: 'employees', label: 'People', icon: <Users size={16} />, badge: alertCount },
+        { id: 'kpis', label: 'Assign Task', icon: <ClipboardList size={16} /> },
+        { id: 'mine', label: 'My KPIs', icon: <BarChart2 size={16} /> },
+        { id: 'attendance', label: 'Attendance', icon: <CalendarCheck size={16} /> },
+        { id: 'rewards', label: 'Rewards', icon: <Trophy size={16} /> },
+        { id: 'settings', label: 'Settings', icon: <Settings size={16} /> },
+      ],
+    },
+  ], [alertCount]);
+
+  const pageMeta = getManagerNavMeta(activeTab);
+  const pageIcon = findAdminNavIcon(navGroups, activeTab);
+
   if (selectedEmployee) {
     return (
       <EmployeeDashboard
@@ -74,81 +109,89 @@ export default function ManagerDashboard({ profile }: ManagerDashboardProps) {
   }
 
   return (
-    <div className="dashboard-with-mobile-nav mgr-dash">
+    <div className="admin-shell mgr-dash">
       {showChangePassword && <ChangePasswordModal onClose={() => setShowChangePassword(false)} />}
 
-      <DashboardTabNav
+      <AdminSidebarNav
+        groups={navGroups}
         activeTab={activeTab}
-        onTabChange={(id) => setActiveTab(id as typeof activeTab)}
-        tabs={[
-          { id: 'team', label: 'Team Performance', mobileLabel: 'Team', icon: <Users size={16} /> },
-          { id: 'kpis', label: 'KPI Tasks', mobileLabel: 'KPIs', icon: <Settings size={16} /> },
-          { id: 'rewards', label: 'Team Rewards', mobileLabel: 'Rewards', icon: <Trophy size={16} /> },
-          { id: 'attendance', label: 'Attendance & Leave', mobileLabel: 'Leave', icon: <CalendarCheck size={16} /> },
-          { id: 'dailyReport', label: 'Daily Report', mobileLabel: 'Daily', icon: <ClipboardList size={16} /> },
-          { id: 'tracking', label: 'Live Tracking', mobileLabel: 'GPS', icon: <Radio size={16} /> },
-          { id: 'personal', label: 'My KPIs & Points', mobileLabel: 'My KPIs', icon: <BarChart3 size={16} /> },
-        ]}
-        actions={[
-          {
-            id: 'password',
-            label: 'Change Password',
-            mobileLabel: 'Password',
-            icon: <KeyRound size={16} />,
-            onClick: () => setShowChangePassword(true),
-          },
-        ]}
+        onTabChange={(id) => setActiveTab(id as ManagerTab)}
+        navOpen={navOpen}
+        onNavOpenChange={setNavOpen}
+        organizationName={organizationName}
+        brandTitle={organizationName?.trim() || 'Scorr'}
+        brandSubtitle="Manager workspace"
+        ariaLabel="Manager navigation"
+        sidebarId="manager-sidebar"
       />
 
-      <div className="dashboard-tab-content">
-        <Suspense fallback={<TabFallback />}>
-        {activeTab === 'team' ? (
-          <div className="mgr-dash__team">
-            <RewardsPointsCard
-              userId={profile.id}
-              title="Your rewards points"
-              onViewRewards={() => setActiveTab('personal')}
-            />
-            <TeamPointsBoard
-              title="Your points & team"
-              description="Your balance plus direct reports and department teammates. Complete your own KPI tasks and track team points here."
-            />
-            <div className="dash-insight-grid">
-              <div className="glass-panel dash-insight-card dash-insight-card--accent">
-                <span className="dash-eyebrow">Direct reports</span>
-                <h3>Team Overview</h3>
-                <p>View rankings and assign KPI tasks to employees on <strong>your team</strong> (direct reports).</p>
-              </div>
+      {navOpen && (
+        <div
+          className="admin-shell__backdrop admin-shell__backdrop--visible"
+          onClick={() => setNavOpen(false)}
+          aria-hidden={false}
+        />
+      )}
 
-              <div className="glass-panel dash-insight-card dash-insight-card--warning">
-                <span className="dash-eyebrow">System alert status</span>
-                <h3 style={{ color: alertCount > 0 ? 'var(--color-warning)' : 'var(--color-success)' }}>
-                  <ShieldAlert size={24} /> {alertCount > 0 ? `${alertCount} Alert${alertCount > 1 ? 's' : ''} Active` : 'All Clear'}
-                </h3>
-                <p>
-                  {alertCount > 0
-                    ? 'Off Track and escalation alerts require your attention in the notification menu.'
-                    : 'No active Off Track or escalation alerts for your team.'}
-                </p>
-              </div>
+      <div className="admin-shell__main">
+        <header className="admin-shell__topbar">
+          <AdminHamburgerButton
+            open={navOpen}
+            onClick={() => setNavOpen(!navOpen)}
+            controlsId="manager-sidebar"
+          />
+          <div className="admin-shell__page-head">
+            {pageIcon && (
+              <div className="admin-shell__page-icon">{pageIcon}</div>
+            )}
+            <div>
+              <p className="admin-shell__page-eyebrow">Manager console</p>
+              <h1 className="admin-shell__page-title">{pageMeta.label}</h1>
+              <p className="admin-shell__page-desc">{pageMeta.description}</p>
             </div>
-
-            <Leaderboard managerId={profile.id} onSelectEmployee={handleSelectEmployee} />
           </div>
-        ) : activeTab === 'kpis' ? (
-          <ManagerKpiConfig assignerId={profile.id} managerDepartmentId={profile.department_id} />
-        ) : activeTab === 'rewards' ? (
-          <ManagerRewardsPanel managerId={profile.id} onGoToPersonal={() => setActiveTab('personal')} />
-        ) : activeTab === 'attendance' ? (
-          <AttendanceLeavePanel profile={profile} mode="manager" />
-        ) : activeTab === 'dailyReport' ? (
-          <DailyWorkReportPanel profile={profile} />
-        ) : activeTab === 'tracking' ? (
-          <AdminLiveTracking mode="manager" profile={profile} />
-        ) : (
+        </header>
+
+        <div className="admin-shell__content">
+          <div className="admin-shell__panel">
+        <Suspense fallback={<TabFallback />}>
+        {activeTab === 'mine' ? (
           <ManagerPersonalPanel profile={profile} />
+        ) : activeTab === 'employees' ? (
+          <Leaderboard managerId={profile.id} onSelectEmployee={handleSelectEmployee} />
+        ) : activeTab === 'kpis' ? (
+          <KpiWorkspace
+            panes={[
+              { id: 'tasks', label: 'Tasks', hint: 'Create a KPI, then assign it to someone in your department.', content: <ManagerKpiConfig assignerId={profile.id} managerDepartmentId={profile.department_id} hideChrome /> },
+              { id: 'points', label: 'Points', hint: 'KPI scores for each person.', content: <AdminOrgKpiPointsBoard variant="manager" managerProfile={profile} /> },
+            ]}
+          />
+        ) : activeTab === 'rewards' ? (
+          <ManagerRewardsPanel managerId={profile.id} />
+        ) : activeTab === 'attendance' ? (
+          <div className="app-page-stack">
+            <AttendanceLeavePanel profile={profile} mode="manager" />
+            <details className="app-settings-block">
+              <summary>Live tracking</summary>
+              <AdminLiveTracking mode="manager" profile={profile} />
+            </details>
+          </div>
+        ) : (
+          <div className="app-settings-stack">
+            <div className="app-settings-block">
+              <button type="button" className="btn btn-secondary" onClick={() => setShowChangePassword(true)}>
+                <KeyRound size={16} /> Change password
+              </button>
+            </div>
+            <details className="app-settings-block" open>
+              <summary>Daily report</summary>
+              <DailyWorkReportPanel profile={profile} />
+            </details>
+          </div>
         )}
         </Suspense>
+          </div>
+        </div>
       </div>
     </div>
   );

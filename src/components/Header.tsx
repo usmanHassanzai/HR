@@ -60,8 +60,14 @@ export default function Header({ profile, organizationName, onLogout, onNavigate
     switch (role) {
       case 'admin':
         return (
-          <span className="badge badge-off-track app-header__role">
+          <span className="badge app-header__role app-header__role--admin">
             <Shield size={10} /> Admin
+          </span>
+        );
+      case 'hr':
+        return (
+          <span className="badge app-header__role app-header__role--hr">
+            <Briefcase size={10} /> HR
           </span>
         );
       case 'manager':
@@ -80,7 +86,7 @@ export default function Header({ profile, organizationName, onLogout, onNavigate
   };
 
   const roleLabel =
-    profile.role === 'admin' ? 'Admin' : profile.role === 'manager' ? 'Manager' : 'Employee';
+    profile.role === 'admin' ? 'Admin' : profile.role === 'hr' ? 'HR' : profile.role === 'manager' ? 'Manager' : 'Employee';
 
   const brandBlock = (
     <div
@@ -162,11 +168,13 @@ export default function Header({ profile, organizationName, onLogout, onNavigate
   const headerRoleClass =
     profile.role === 'admin'
       ? ' app-header--admin'
-      : profile.role === 'manager'
-        ? ' app-header--manager'
-        : profile.role === 'employee'
-          ? ' app-header--employee'
-          : '';
+      : profile.role === 'hr'
+        ? ' app-header--admin'
+        : profile.role === 'manager'
+          ? ' app-header--manager'
+          : profile.role === 'employee'
+            ? ' app-header--employee'
+            : '';
 
   // Same markup as mobile web — responsive CSS handles phone layout
   return (

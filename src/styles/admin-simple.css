@@ -1,0 +1,159 @@
+.admin-simple {
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: 0.25rem 0 2rem;
+}
+
+.admin-simple__head {
+  margin-bottom: 1.25rem;
+}
+
+.admin-simple__head h2 {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-display);
+  font-size: clamp(1.45rem, 2.4vw, 1.85rem);
+  letter-spacing: -0.03em;
+}
+
+.admin-simple__head p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.admin-simple__search {
+  width: 100%;
+  margin: 0 0 1rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 12px;
+  border: 1px solid var(--dash-card-border, var(--border-color));
+  background: var(--dash-card-bg, #fff);
+  font: inherit;
+}
+
+.admin-simple__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.admin-simple__row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  border: 1px solid var(--dash-card-border, var(--border-color));
+  background: var(--dash-card-bg, #fff);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.admin-simple__row:hover {
+  border-color: color-mix(in srgb, var(--accent-primary) 30%, var(--dash-card-border, var(--border-color)));
+}
+
+.admin-simple__avatar {
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+  color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+}
+
+.admin-simple__name {
+  display: block;
+  font-weight: 650;
+}
+
+.admin-simple__meta {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.admin-simple__empty,
+.admin-simple__loading {
+  padding: 2.5rem 1rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.admin-simple__back {
+  margin-bottom: 1rem;
+}
+
+.admin-simple__person {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 1.15rem;
+}
+
+.admin-simple__person h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+}
+
+.admin-simple__filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  padding: 0.9rem 1rem;
+  border-radius: 14px;
+  border: 1px solid var(--dash-card-border, var(--border-color));
+  background: var(--dash-card-bg, #fff);
+}
+
+.admin-simple__filter label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: var(--text-muted);
+}
+
+.admin-simple__filter input[type='date'] {
+  font: inherit;
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-elevated, #fff);
+  color: inherit;
+}
+
+.admin-simple__filter-error {
+  width: 100%;
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--color-danger);
+}
+
+.admin-simple__range-note {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.admin-simple__tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}

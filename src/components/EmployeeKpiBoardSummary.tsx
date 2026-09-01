@@ -1,12 +1,14 @@
-import { Kpi } from '../utils/kpiHelpers';
+import { formatKpiAssignmentChange, Kpi } from '../utils/kpiHelpers';
 import {
   calculateOverallKpiScore,
   employeeKpiScoreSummary,
   formatKpiScore,
+  kpiManagerScorePct,
   kpiScoreRows,
   performanceRatingColor,
 } from '../utils/kpiScoreHelpers';
 import { formatKpiWeight } from '../utils/kpiWeightHelpers';
+import { kpiCategoryMeta } from '../utils/kpiCategories';
 import '../styles/departments.css';
 
 interface EmployeeKpiBoardSummaryProps {
@@ -29,12 +31,12 @@ export default function EmployeeKpiBoardSummary({ kpis, employeeName }: Employee
             {employeeName ? `${employeeName}'s KPI score` : 'KPI score report'}
           </span>
           <p className="employee-kpi-board-summary__desc" style={{ margin: '0.35rem 0 0' }}>
-            Weighted Score = Employee Score × Weight. Overall KPI Score is the sum of weighted scores.
+            This month&apos;s KPI Score is Scores awarded ÷ Weights assigned × 100. Completing on time awards the assigned Score. Completing after the due date awards half. Open tasks award 0.
           </p>
         </div>
         <div className="employee-kpi-board-summary__scores">
           <div className="employee-kpi-board-summary__total-pts">
-            <span>Overall KPI Score</span>
+            <span>This Month&apos;s KPI Score</span>
             <strong>{formatKpiScore(overall)}%</strong>
           </div>
           <strong
@@ -52,25 +54,30 @@ export default function EmployeeKpiBoardSummary({ kpis, employeeName }: Employee
             <tr>
               <th>KPI</th>
               <th>Weight</th>
-              <th>Employee Score</th>
-              <th>Weighted Score</th>
+              <th>Performance Points</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => (
               <tr key={row.kpi.id}>
-                <td data-label="KPI"><strong>{row.name}</strong></td>
+                <td data-label="KPI">
+                  <strong>{row.name}</strong>
+                  <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    {kpiCategoryMeta(row.kpi.kpi_category).label}
+                  </span>
+                  {formatKpiAssignmentChange(row.kpi) && (
+                    <p className="kpi-assignment-edit-note">{formatKpiAssignmentChange(row.kpi)}</p>
+                  )}
+                </td>
                 <td data-label="Weight">{formatKpiWeight(row.weight)}</td>
-                <td data-label="Employee Score">{row.employeeScore}%</td>
-                <td data-label="Weighted Score">{formatKpiScore(row.weightedScore)}</td>
+                <td data-label="Performance Points">{kpiManagerScorePct(row.kpi) == null ? '—' : formatKpiScore(row.weightedScore)}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr>
-              <td>Overall KPI Score</td>
+              <td>This Month&apos;s KPI Score</td>
               <td>{formatKpiWeight(summary.totalWeight)}</td>
-              <td />
               <td><strong>{formatKpiScore(overall)}%</strong></td>
             </tr>
           </tfoot>

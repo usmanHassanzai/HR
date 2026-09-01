@@ -61,9 +61,10 @@ export async function initNativeApp(): Promise<void> {
         window.history.back();
         return;
       }
-      void supabase.auth.signOut({ scope: 'local' }).finally(() => {
+      void (async () => {
+        await supabase.auth.signOut({ scope: 'local' });
         void App.exitApp();
-      });
+      })();
     });
   }
 

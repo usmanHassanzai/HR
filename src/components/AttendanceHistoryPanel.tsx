@@ -7,12 +7,11 @@ import {
   AttendanceHistoryRow,
   TeamAttendanceHistoryRow,
   MonthlyAttendanceReport,
-  formatDateTime,
   formatWorkDuration,
+  describeAttendanceHistory,
 } from '../utils/shiftHelpers';
 import { APPROVAL_LABEL, approvalBadgeClass, ApprovalStatus } from '../utils/attendanceHelpers';
 import { downloadAttendanceCsv, downloadTeamAttendanceCsv } from '../utils/exportAttendance';
-import { formatClockTime } from '../utils/geoAttendance';
 
 interface AttendanceHistoryPanelProps {
   profile: Profile;
@@ -86,7 +85,7 @@ export default function AttendanceHistoryPanel({
       const { data, error } = await supabase.rpc('get_attendance_history', {
         p_year: year,
         p_month: monthParam,
-        p_user_id: null,
+        p_user_id: profile.id,
       });
       const mapped = ((data || []) as AttendanceHistoryRow[]).map((r) => ({
         ...r,
@@ -352,17 +351,19 @@ export default function AttendanceHistoryPanel({
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {rows.map((r) => {
+                const timing = describeAttendanceHistory(r);
+                return (
                 <tr key={r.id}>
                   {showEmployeeColumn && <td><strong>{r.employee_name}</strong></td>}
                   <td>
                     <strong>{r.attendance_date}</strong>
                   </td>
                   {showEmployeeColumn && <td>{r.department_name || '—'}</td>}
-                  <td>{r.shift_name || '—'}</td>
-                  <td>{formatDateTime(r.clock_in_at)}</td>
-                  <td>{formatDateTime(r.clock_out_at)}</td>
-                  <td>{formatWorkDuration(r.work_minutes)}</td>
+                  <td className={timing.shiftEmpty ? 'att-cell-muted' : undefined}>{timing.shift}</td>
+                  <td>{timing.clockIn}</td>
+                  <td className={timing.clockOutEmpty ? 'att-cell-muted' : undefined}>{timing.clockOut}</td>
+                  <td className={timing.durationEmpty ? 'att-cell-muted' : undefined}>{timing.duration}</td>
                   <td>{r.attendance_source === 'geo' ? 'GPS auto' : r.attendance_source || 'Manual'}</td>
                   <td>
                     <span className={`badge ${approvalBadgeClass(r.approval_status as ApprovalStatus)}`}>
@@ -370,7 +371,8 @@ export default function AttendanceHistoryPanel({
                     </span>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -402,15 +404,18 @@ export default function AttendanceHistoryPanel({
                       </tr>
                     </thead>
                     <tbody>
-                      {monthRows.map((r) => (
+                      {monthRows.map((r) => {
+                        const timing = describeAttendanceHistory(r);
+                        return (
                         <tr key={r.id}>
                           {showEmployeeColumn && <td>{r.employee_name}</td>}
                           <td>{r.attendance_date}</td>
-                          <td>{formatClockTime(r.clock_in_at)}</td>
-                          <td>{formatClockTime(r.clock_out_at)}</td>
-                          <td>{formatWorkDuration(r.work_minutes)}</td>
+                          <td>{timing.clockIn}</td>
+                          <td className={timing.clockOutEmpty ? 'att-cell-muted' : undefined}>{timing.clockOut}</td>
+                          <td className={timing.durationEmpty ? 'att-cell-muted' : undefined}>{timing.duration}</td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </details>

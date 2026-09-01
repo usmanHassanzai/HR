@@ -61,18 +61,15 @@ type ViewMode = 'department' | 'table';
 function trackingStatus(row: TeamTrackingRow): { label: string; className: string; key: StatusFilter } {
   if (!row.site_id && !row.site_name) return { label: 'No work site', className: 'geo-status--muted', key: 'no_site' };
   if (!row.tracking_enabled) return { label: 'Tracking off', className: 'geo-status--muted', key: 'no_site' };
-  if (row.inside_site && row.last_ping_at) {
-    const ageMs = Date.now() - new Date(row.last_ping_at).getTime();
-    if (ageMs <= 10 * 60 * 1000) return { label: 'At work site', className: 'geo-status--in', key: 'at_site' };
-  }
   if (row.clock_in_at && !row.clock_out_at) {
     return { label: 'Clocked in', className: 'geo-status--in', key: 'at_site' };
   }
-  if (!row.last_ping_at) return { label: 'Waiting for GPS', className: 'geo-status--pending', key: 'offline' };
-  const ageMs = Date.now() - new Date(row.last_ping_at).getTime();
-  if (ageMs > 10 * 60 * 1000) return { label: 'Offline', className: 'geo-status--away', key: 'offline' };
-  if (row.inside_site) return { label: 'At work site', className: 'geo-status--in', key: 'at_site' };
-  return { label: 'Away from site', className: 'geo-status--away', key: 'away' };
+  if (row.clock_in_at && row.clock_out_at) {
+    return { label: 'Clocked out', className: 'geo-status--away', key: 'away' };
+  }
+  if (!row.last_ping_at) return { label: 'No entry today', className: 'geo-status--pending', key: 'offline' };
+  if (row.inside_site) return { label: 'Last seen at site', className: 'geo-status--in', key: 'at_site' };
+  return { label: 'Last seen away', className: 'geo-status--away', key: 'away' };
 }
 
 function lastSeenLabel(iso: string | null): string {
@@ -207,7 +204,7 @@ export default function AdminLiveTracking({ mode = 'admin', profile }: AdminLive
   }, [loadTracking]);
 
   useEffect(() => {
-    const interval = window.setInterval(() => void loadTracking(true), 30000);
+    const interval = window.setInterval(() => void loadTracking(true), 120000);
     return () => window.clearInterval(interval);
   }, [loadTracking]);
 
@@ -296,17 +293,17 @@ export default function AdminLiveTracking({ mode = 'admin', profile }: AdminLive
             <Radio size={22} />
           </div>
           <div>
-            <h2 className="admin-tracking-header__title">Live tracking</h2>
+            <h2 className="admin-tracking-header__title">Shift location</h2>
             <p className="admin-tracking-header__subtitle">
               {isManagerView ? (
                 <>
-                  Monitor GPS check-ins for <strong>{departmentName}</strong> in real time — department managers and
-                  employees only. Data refreshes automatically every 30 seconds.
+                  Entry and exit locations for <strong>{departmentName}</strong>. GPS is captured only at clock-in and
+                  clock-out — not continuously.
                 </>
               ) : (
                 <>
-                  Monitor employee GPS check-ins in real time. Each employee uses their manager&apos;s assigned office
-                  zone. Data refreshes automatically every 30 seconds.
+                  Entry and exit locations for your team. GPS is captured only at clock-in and clock-out, inside each
+                  person&apos;s shift or the company window.
                 </>
               )}
             </p>

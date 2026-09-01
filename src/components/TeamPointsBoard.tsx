@@ -13,13 +13,21 @@ interface TeamPointsBoardProps {
 function roleLabel(role: string): string {
   if (role === 'admin') return 'Admin';
   if (role === 'manager') return 'Manager';
+  if (role === 'hr') return 'HR';
   return 'Employee';
+}
+
+function formatBoardDate(value?: string | null): string | null {
+  if (!value) return null;
+  const d = new Date(`${String(value).slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 export default function TeamPointsBoard({
   refreshKey = 0,
   title = 'Team points',
-  description = 'Your points and your teammates’ balances. Complete KPI tasks to improve your monthly score and earn points.',
+          description = 'Reward Balance is monthly band points (90%→1000, 80%→500, 70%→250, below 70%→0). KPI Score is separate from Reward Points.',
 }: TeamPointsBoardProps) {
   const [rows, setRows] = useState<TeamPointsBoardRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,28 +74,35 @@ export default function TeamPointsBoard({
         <div className="dash-team-points__self">
           <div className="dash-team-points__self-head">
             <Trophy size={16} />
-            <strong>Your points</strong>
+            <strong>Your Reward Balance</strong>
           </div>
           <div className="dash-team-points__metrics dash-team-points__metrics--self">
             <div>
               <strong className="dash-team-points__balance">{selfRow.balance.toLocaleString()}</strong>
-              <span>Balance</span>
+              <span>Reward Balance</span>
             </div>
             <div>
               <strong>{selfRow.total_earned.toLocaleString()}</strong>
-              <span>Earned</span>
+              <span>Reward Earned</span>
             </div>
             <div>
               <strong>
-                {selfRow.this_month_points != null ? `+${selfRow.this_month_points}` : '—'}
+                {selfRow.this_month_points != null ? `+${selfRow.this_month_points}` : '0'}
               </strong>
-              <span>This month</span>
+              <span>
+                {(() => {
+                  const start = formatBoardDate(selfRow.kpi_period_start);
+                  const end = formatBoardDate(selfRow.kpi_period_end);
+                  if (start && end && start !== end) return `${start} – ${end}`;
+                  return start || end || 'This month';
+                })()}
+              </span>
             </div>
             <div>
               <strong>
                 {selfRow.this_month_score != null ? `${Math.round(selfRow.this_month_score)}%` : '—'}
               </strong>
-              <span>KPI score</span>
+              <span>KPI Score</span>
             </div>
           </div>
           {selfRow.balance >= REWARD_CATALOG_COST && (
@@ -122,17 +137,24 @@ export default function TeamPointsBoard({
               <div className="dash-team-points__metrics">
                 <div>
                   <strong className="dash-team-points__balance">{member.balance.toLocaleString()}</strong>
-                  <span>Balance</span>
+                  <span>Reward Balance</span>
                 </div>
                 <div>
                   <strong>
-                    {member.this_month_points != null ? `+${member.this_month_points}` : '—'}
+                    {member.this_month_points != null ? `+${member.this_month_points}` : '0'}
                   </strong>
-                  <span>This month</span>
+                  <span>
+                    {(() => {
+                      const start = formatBoardDate(member.kpi_period_start);
+                      const end = formatBoardDate(member.kpi_period_end);
+                      if (start && end && start !== end) return `${start} – ${end}`;
+                      return start || end || 'This month';
+                    })()}
+                  </span>
                 </div>
                 <div>
                   <strong>{member.total_earned.toLocaleString()}</strong>
-                  <span>Earned</span>
+                  <span>Reward Earned</span>
                 </div>
               </div>
               {member.balance >= REWARD_CATALOG_COST && (

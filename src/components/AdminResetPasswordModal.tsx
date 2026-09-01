@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { KeyRound, Eye, EyeOff, Loader2, CheckCircle, X } from 'lucide-react';
+import { KeyRound, Loader2, CheckCircle, X } from 'lucide-react';
+import PasswordField from './PasswordField';
 
 interface AdminResetPasswordModalProps {
   userId: string;
@@ -11,7 +12,6 @@ interface AdminResetPasswordModalProps {
 export default function AdminResetPasswordModal({ userId, userName, onClose }: AdminResetPasswordModalProps) {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
-  const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -67,31 +67,24 @@ export default function AdminResetPasswordModal({ userId, userName, onClose }: A
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div className="form-group" style={{ margin: 0 }}>
               <label>New Password</label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  type={show ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Min 6 characters"
-                  required
-                  style={{ paddingRight: '2.5rem', width: '100%' }}
-                />
-                <button type="button" onClick={() => setShow(!show)}
-                  style={{ position: 'absolute', right: '0.7rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
-                  {show ? <EyeOff size={15} /> : <Eye size={15} />}
-                </button>
-              </div>
+              <PasswordField
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Min 6 characters"
+                required
+                autoComplete="new-password"
+              />
             </div>
 
             <div className="form-group" style={{ margin: 0 }}>
               <label>Confirm New Password</label>
-              <input
-                type="password"
+              <PasswordField
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
                 placeholder="Repeat new password"
                 required
-                style={{ borderColor: confirm && confirm !== password ? 'var(--color-danger)' : '' }}
+                autoComplete="new-password"
+                style={{ borderColor: confirm && confirm !== password ? 'var(--color-danger)' : undefined }}
               />
               {confirm && confirm !== password && (
                 <span style={{ fontSize: '0.72rem', color: 'var(--color-danger)', marginTop: '0.2rem', display: 'block' }}>Passwords do not match</span>

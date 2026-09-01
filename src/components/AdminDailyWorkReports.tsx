@@ -49,13 +49,18 @@ function initials(name: string): string {
     .join('') || '?';
 }
 
-export default function AdminDailyWorkReports() {
+interface AdminDailyWorkReportsProps {
+  initialSearch?: string;
+  initialDeptId?: string;
+}
+
+export default function AdminDailyWorkReports({ initialSearch = '', initialDeptId = 'all' }: AdminDailyWorkReportsProps = {}) {
   const today = todayIsoDate();
   const [reportDate, setReportDate] = useState(today);
-  const [selectedDeptId, setSelectedDeptId] = useState<DeptSelection>('all');
+  const [selectedDeptId, setSelectedDeptId] = useState<DeptSelection>(initialDeptId || 'all');
   const [roleTab, setRoleTab] = useState<RoleTab>('both');
-  const [search, setSearch] = useState('');
-  const [searchDebounced, setSearchDebounced] = useState('');
+  const [search, setSearch] = useState(initialSearch || '');
+  const [searchDebounced, setSearchDebounced] = useState(() => (initialSearch || '').trim().toLowerCase());
   const [summary, setSummary] = useState<DailyReportDeptSummary[]>([]);
   const [users, setUsers] = useState<Profile[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -63,6 +68,19 @@ export default function AdminDailyWorkReports() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialSearch) {
+      setSearch(initialSearch);
+      setSearchDebounced(initialSearch.trim().toLowerCase());
+    }
+  }, [initialSearch]);
+
+  useEffect(() => {
+    if (initialDeptId) {
+      setSelectedDeptId(initialDeptId);
+    }
+  }, [initialDeptId]);
 
   useEffect(() => {
     const t = setTimeout(() => setSearchDebounced(search.trim().toLowerCase()), 280);

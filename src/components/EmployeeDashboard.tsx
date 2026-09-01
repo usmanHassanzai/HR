@@ -1,26 +1,31 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { supabase } from '../lib/supabase';
-import { Profile, Kpi } from '../utils/kpiHelpers';
-import { RefreshCw, BarChart2, Sparkles, Trophy, KeyRound, CheckCircle2, CalendarCheck, ClipboardList } from 'lucide-react';
+import { isKpiViewedByAssignee, kpiProgressBadge, Profile, Kpi } from '../utils/kpiHelpers';
+import { hydrateKpiLastEdits } from '../utils/kpiAssignmentEdits';
+import { markAssignedKpisViewed } from '../utils/kpiViewed';
+import { RefreshCw, BarChart2, Trophy, KeyRound, CalendarCheck, Settings, Target } from 'lucide-react';
 import ExportButton from './ExportButton';
-import RewardsPointsCard from './RewardsPointsCard';
-import TeamPointsBoard from './TeamPointsBoard';
 import ChangePasswordModal from './ChangePasswordModal';
-import { emailKpiCompleted, emailKpiOverdue } from '../utils/kpiEmail';
-import EmployeeKpiBoardSummary from './EmployeeKpiBoardSummary';
-import DashboardTabNav from './DashboardTabNav';
+import { emailKpiOverdue } from '../utils/kpiEmail';
+import KpiAssignmentDetails from './KpiAssignmentDetails';
 import TabFallback from './TabFallback';
+import AdminSidebarNav, { findAdminNavIcon, type AdminNavGroup } from './AdminSidebarNav';
+import AdminHamburgerButton from './AdminHamburgerButton';
+import '../styles/admin-dashboard.css';
+import '../styles/manager-personal.css';
 import { formatKpiWeight } from '../utils/kpiWeightHelpers';
 import {
-  kpiAchievedPct,
-  kpiScoreContribution,
   employeeKpiScoreSummary,
   formatKpiScore,
   performanceRatingColor,
-  statusTrafficLight,
-  trafficLightLabel,
+  thisMonthKpis,
+  formatKpiTaskPoints,
+  kpiAssignedScore,
 } from '../utils/kpiScoreHelpers';
+import { kpiCategoryMeta } from '../utils/kpiCategories';
+import KpiEvaluationBlock from './KpiEvaluationBlock';
 import '../styles/employee-mobile.css';
+import '../styles/employee-kpis.css';
 
 const EmployeeRewardsPanel = lazy(() => import('./EmployeeRewardsPanel'));
 const AttendanceLeavePanel = lazy(() => import('./AttendanceLeavePanel'));
@@ -39,11 +44,9 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
 
   const [kpis, setKpis] = useState<Kpi[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'kpis' | 'rewards' | 'attendance' | 'dailyReport'>('kpis');
+  const [activeTab, setActiveTab] = useState<'kpis' | 'attendance' | 'rewards' | 'settings'>('kpis');
   const [showChangePassword, setShowChangePassword] = useState(false);
-
-  const [completingId, setCompletingId] = useState<string | null>(null);
-  const [pointsRefreshKey, setPointsRefreshKey] = useState(0);
+  const [navOpen, setNavOpen] = useState(false);
 
   const fetchKpis = async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
@@ -57,7 +60,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
       if (error) {
         console.error('Error fetching KPIs:', error);
       } else {
-        setKpis(data || []);
+        setKpis(await hydrateKpiLastEdits((data as Kpi[]) || []));
       }
     } catch (err) {
       console.error(err);
@@ -98,295 +101,244 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
     };
   }, [activeUser.id]);
 
-  const summary = employeeKpiScoreSummary(kpis);
-  const healthScore = summary.overallScore;
-  const totalKpiPoints = summary.overallScore;
+  useEffect(() => {
+    if (isReadOnly || activeTab !== 'kpis') return;
+    const ids = kpis.filter((k) => !isKpiViewedByAssignee(k)).map((k) => k.id);
+    if (!ids.length) return;
+    let cancelled = false;
+    void markAssignedKpisViewed(ids).then(() => {
+      if (cancelled) return;
+      const now = new Date().toISOString();
+      setKpis((prev) => prev.map((k) => (
+        ids.includes(k.id)
+          ? {
+              ...k,
+              viewed_at: k.viewed_at || now,
+              viewed_by: k.viewed_by || activeUser.id,
+              employee_progress: k.employee_progress === 'completed' || k.completion_status === 'completed'
+                ? k.employee_progress
+                : 'started',
+            }
+          : k
+      )));
+    });
+    return () => { cancelled = true; };
+  }, [isReadOnly, activeTab, kpis]);
+
+  const monthKpis = useMemo(() => thisMonthKpis(kpis), [kpis]);
+  const summary = employeeKpiScoreSummary(monthKpis);
   const ratingColor = performanceRatingColor(summary.performanceRating);
 
-  const handleCompleteKpi = async (kpiId: string) => {
-    setCompletingId(kpiId);
-    try {
-      const { data, error } = await supabase.rpc('complete_kpi_employee', { p_kpi_id: kpiId });
-      if (error) throw error;
-      const row = Array.isArray(data) ? data[0] : data;
-      if (row?.manager_email) {
-        await emailKpiCompleted(row.manager_email, row.manager_name, activeUser.full_name, row.department);
-      }
-      fetchKpis({ silent: true });
-      setPointsRefreshKey((k) => k + 1);
-    } catch (err: any) {
-      alert(err.message || 'Could not mark complete.');
-    } finally {
-      setCompletingId(null);
-    }
+  const patchKpi = (id: string, patch: Partial<Kpi>) => {
+    setKpis((prev) => prev.map((k) => (k.id === id ? { ...k, ...patch } : k)));
   };
 
-  const fmtDate = (d?: string | null) => d ? new Date(d + 'T00:00:00').toLocaleDateString() : '—';
-
-  const getCardStatusClass = (status: string) => {
-    return status.replace('_', '-');
+  const fmtDate = (d?: string | null) => {
+    if (!d) return '—';
+    return new Date(`${d}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   };
 
-  return (
-    <div className={`dashboard-with-mobile-nav emp-dash${!isReadOnly && !hideChangePassword ? '' : ' dashboard-with-mobile-nav--nested'}`}>
-      
-      {/* Read-Only Banner for Managers */}
-      {isReadOnly && (
-        <div className="glass-panel dash-view-banner mobile-banner-row">
-          <div>
-            <span className="dash-eyebrow" style={{ color: 'var(--color-warning)' }}>Manager View Mode</span>
-            <h3>Viewing Dashboard for: <strong>{activeUser.full_name}</strong></h3>
+  const dateRange = (start?: string | null, end?: string | null) => {
+    const a = fmtDate(start);
+    const b = fmtDate(end);
+    if (a === '—' && b === '—') return '—';
+    if (a === b) return a;
+    return `${a} – ${b}`;
+  };
+
+  const navGroups = useMemo<AdminNavGroup[]>(() => [{
+    label: 'Menu',
+    items: [
+      { id: 'kpis', label: 'My KPIs', icon: <BarChart2 size={16} /> },
+      { id: 'attendance', label: 'Attendance', icon: <CalendarCheck size={16} /> },
+      { id: 'rewards', label: 'Rewards', icon: <Trophy size={16} /> },
+      { id: 'settings', label: 'Settings', icon: <Settings size={16} /> },
+    ],
+  }], []);
+
+  const pageIcon = findAdminNavIcon(navGroups, activeTab);
+  const pageTitle = { kpis: 'My KPIs', attendance: 'Attendance', rewards: 'Rewards', settings: 'Settings' }[activeTab];
+
+  const kpiBoard = (
+      <div className="emp-kpi-board">
+      <section className="emp-kpi-summary">
+        <div className="emp-kpi-summary__hero">
+          <div className="emp-kpi-summary__hero-copy">
+            <span>This month</span>
+            <strong>{formatKpiScore(summary.overallScore)}%</strong>
           </div>
-          <button className="btn btn-secondary" onClick={onBackToLeaderboard}>
-            Back to Leaderboard
-          </button>
+          <span className="emp-kpi-summary__band" style={{ color: ratingColor }}>
+            {summary.performanceRating}
+          </span>
         </div>
-      )}
-
-      {/* Tab switcher */}
-      {!isReadOnly && (
-        <DashboardTabNav
-          activeTab={activeTab}
-          onTabChange={(id) => setActiveTab(id as typeof activeTab)}
-          mobilePlacement={hideChangePassword ? 'inline' : 'bottom'}
-          tabs={[
-            { id: 'kpis', label: 'My KPIs', mobileLabel: 'KPIs', icon: <BarChart2 size={15} /> },
-            { id: 'attendance', label: 'Attendance & Leave', mobileLabel: 'Leave', icon: <CalendarCheck size={15} /> },
-            { id: 'dailyReport', label: 'Daily Report', mobileLabel: 'Daily', icon: <ClipboardList size={15} /> },
-            { id: 'rewards', label: 'Rewards & Points', mobileLabel: 'Rewards', icon: <Trophy size={15} /> },
-          ]}
-          actions={
-            hideChangePassword
-              ? []
-              : [
-                  {
-                    id: 'password',
-                    label: 'Change Password',
-                    mobileLabel: 'Password',
-                    icon: <KeyRound size={15} />,
-                    onClick: () => setShowChangePassword(true),
-                  },
-                ]
-          }
-        />
-      )}
-
-      {!hideChangePassword && showChangePassword && (
-        <ChangePasswordModal onClose={() => setShowChangePassword(false)} />
-      )}
-
-      {activeTab === 'rewards' && !isReadOnly ? (
-        <Suspense fallback={<TabFallback />}>
-        <div className="emp-points-stack">
-          <RewardsPointsCard
-            userId={activeUser.id}
-            title="Your rewards points"
-            showViewLink={false}
-            refreshKey={pointsRefreshKey}
-            kpiPoints={totalKpiPoints}
-          />
-          <TeamPointsBoard
-            refreshKey={pointsRefreshKey}
-            title="Team points"
-            description="See how your points compare with teammates who share your manager or department."
-          />
-          <EmployeeRewardsPanel userId={activeUser.id} kpiPoints={totalKpiPoints} />
-        </div>
-        </Suspense>
-      ) : null}
-
-      {activeTab === 'attendance' && !isReadOnly ? (
-        <Suspense fallback={<TabFallback />}>
-        <AttendanceLeavePanel profile={profile} mode={profile.role === 'manager' ? 'manager' : 'employee'} />
-        </Suspense>
-      ) : null}
-
-      {activeTab === 'dailyReport' && !isReadOnly ? (
-        <Suspense fallback={<TabFallback />}>
-        <DailyWorkReportPanel profile={profile} />
-        </Suspense>
-      ) : null}
-
-      {activeTab === 'kpis' && (
-      <>
-
-      {/* Health overview */}
-      <div className="dash-hero-grid">
-        <div
-          className="glass-panel dash-health-card"
-          style={{ borderLeftColor: ratingColor }}
-        >
-          <div
-            className="dash-health-ring"
-            style={{
-              borderColor: ratingColor,
-              boxShadow: `0 0 20px color-mix(in srgb, ${ratingColor} 35%, transparent)`,
-            }}
-          >
-            <span className="dash-health-ring__value">{formatKpiScore(healthScore)}%</span>
+        <div className="emp-kpi-summary__meta">
+          <div className="emp-kpi-summary__chip">
+            <span>Done</span>
+            <strong>{summary.completed} / {monthKpis.length || 0}</strong>
           </div>
-          <div>
-            <span className="dash-eyebrow">Overall KPI Score</span>
-            <h2>{summary.performanceRating}</h2>
-            <p>
-              {summary.kpiCount} KPI{summary.kpiCount !== 1 ? 's' : ''} · Weight {formatKpiWeight(summary.totalWeight)} ·
-              Weighted Score = Employee Score × Weight
-            </p>
+          <div className="emp-kpi-summary__chip">
+            <span>Tasks</span>
+            <strong>{kpis.length}</strong>
           </div>
         </div>
-
-        <div className="glass-panel dash-metrics-panel">
-          <div className="dash-metric-row">
-            <span>Overall KPI Score</span>
-            <strong style={{ color: 'var(--accent-primary)' }}>{formatKpiScore(summary.overallScore)}%</strong>
-          </div>
-          <div className="dash-metric-row">
-            <span>Performance Level</span>
-            <strong style={{ color: ratingColor }}>{summary.performanceRating}</strong>
-          </div>
-          <div className="dash-metric-row">
-            <span>KPI Weight</span>
-            <strong>{formatKpiWeight(summary.totalWeight)}</strong>
-          </div>
-          <div className="dash-metric-row">
-            <span>KPIs</span>
-            <strong>{summary.kpiCount}</strong>
-          </div>
-          <div className="dash-metric-row">
-            <span>Completed</span>
-            <strong style={{ color: 'var(--color-success)' }}>{summary.completed}</strong>
-          </div>
-          <div className="dash-metric-row">
-            <span>Pending</span>
-            <strong style={{ color: 'var(--color-warning)' }}>{summary.pending}</strong>
-          </div>
-        </div>
-
-        <RewardsPointsCard
-          userId={activeUser.id}
-          title={isReadOnly ? `${activeUser.full_name}'s rewards points` : 'Your rewards points'}
-          showViewLink={!isReadOnly}
-          onViewRewards={!isReadOnly ? () => setActiveTab('rewards') : undefined}
-          refreshKey={pointsRefreshKey}
-          kpiPoints={totalKpiPoints}
-        />
-      </div>
-
-      {!isReadOnly && (
-        <TeamPointsBoard
-          refreshKey={pointsRefreshKey}
-          title="Your points & team"
-          description="Complete KPI tasks to grow your score. Monthly KPI score converts to reward points. Compare with your team below."
-        />
-      )}
-
-      <EmployeeKpiBoardSummary
-        kpis={kpis}
-        employeeName={isReadOnly ? activeUser.full_name : undefined}
-      />
-
-      <div className="dash-section-head">
-        <h3>
-          <BarChart2 size={22} /> My KPIs
-          {kpis.length > 0 && (
-            <span className="emp-kpi-total-badge" title="Sum of points from all your KPI tasks">
-              Total: {formatKpiScore(totalKpiPoints)}%
-            </span>
-          )}
-        </h3>
-        
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="emp-kpi-toolbar">
           <ExportButton kpis={kpis} userName={activeUser.full_name} />
-          <button className="btn btn-secondary" style={{ padding: '0.65rem' }} onClick={() => void fetchKpis()} title="Reload Data">
+          <button type="button" className="btn btn-secondary" onClick={() => void fetchKpis()} title="Reload" aria-label="Reload KPIs">
             <RefreshCw size={16} />
           </button>
         </div>
-      </div>
+      </section>
 
       {loading && kpis.length === 0 ? (
         <div className="dash-loading">
           <RefreshCw size={36} className="animate-spin" style={{ animation: 'spin 1.5s linear infinite' }} />
         </div>
+      ) : kpis.length === 0 ? (
+        <div className="emp-kpi-empty glass-panel">
+          <Target size={32} strokeWidth={1.5} />
+          <h3>No KPIs assigned yet</h3>
+          <p>When your manager assigns a task, it will show up here with weight, score, and dates.</p>
+        </div>
       ) : (
-        <div className="dashboard-grid" style={{ marginTop: '0' }}>
+        <div className="emp-kpi-list">
           {kpis.map((kpi) => {
-            const statusClass = getCardStatusClass(kpi.status);
-            const light = statusTrafficLight(kpi.completion_status === 'completed' ? 'completed' : kpi.status);
-            const achieved = kpiAchievedPct(kpi);
-            const contribution = kpiScoreContribution(kpi);
+            const badge = kpiProgressBadge(kpi);
+            const points = formatKpiTaskPoints(kpi);
+            const paused = Boolean(kpi.paused_at) && kpi.completion_status !== 'completed';
             return (
-              <div key={kpi.id} className={`glass-panel kpi-card ${statusClass} kpi-card--${light}`}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                  <span className="kpi-dept">{kpi.department || kpi.category || 'General'}</span>
-                  <span className={`kpi-traffic kpi-traffic--${light}`}>{trafficLightLabel(light)}</span>
+              <article key={kpi.id} className={`emp-kpi-item kpi-card--${badge.light}${paused ? ' emp-kpi-item--paused' : ''}`}>
+                <div className="emp-kpi-item__top">
+                  <span className="emp-kpi-item__cat">{kpiCategoryMeta(kpi.kpi_category).label}</span>
+                  <span className={`kpi-traffic kpi-traffic--${badge.light}`}>{badge.label}</span>
                 </div>
-
-                <h4>{kpi.name}</h4>
-                <span className="dept-weight-badge">{formatKpiWeight(kpi.weight)} weight</span>
-
-                {kpi.ai_narrative ? (
-                  <p className="kpi-ai-note" style={{ marginBottom: '1rem' }}>
-                    <Sparkles size={12} style={{ flexShrink: 0, marginTop: '2px' }} />
-                    <span>{kpi.ai_narrative}</span>
-                  </p>
-                ) : kpi.description ? (
-                  <p className="kpi-desc" style={{ marginBottom: '1.25rem' }}>{kpi.description}</p>
-                ) : null}
-
-                <p className="kpi-score-line">
-                  Weight: {formatKpiWeight(kpi.weight)} · Employee Score: {achieved}% · Weighted Score: {formatKpiScore(contribution)}
-                </p>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '0.75rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                <h3>{kpi.name}</h3>
+                <dl className="emp-kpi-facts">
                   <div>
-                    <span className="kpi-date-label">Start → End</span>
-                    <div className="kpi-dates">{fmtDate(kpi.start_date)} → {fmtDate(kpi.end_date)}</div>
-                    {(kpi.redo_count ?? 0) > 0 && (
-                      <span style={{ fontSize: '0.7rem', color: 'var(--color-warning)' }}>Missed deadlines: {kpi.redo_count}/3</span>
-                    )}
+                    <dt>Weight</dt>
+                    <dd>{formatKpiWeight(kpi.weight)}</dd>
                   </div>
-                  {!isReadOnly && kpi.completion_status !== 'completed' && (
-                    <button
-                      className="btn btn-primary btn-sm"
-                      disabled={completingId === kpi.id}
-                      onClick={() => handleCompleteKpi(kpi.id)}
-                    >
-                      <CheckCircle2 size={14} /> {completingId === kpi.id ? 'Saving…' : 'Mark Complete'}
-                    </button>
-                  )}
-                </div>
-
-              </div>
+                  <div>
+                    <dt>Score</dt>
+                    <dd>{formatKpiScore(kpiAssignedScore(kpi))}</dd>
+                  </div>
+                  <div>
+                    <dt>Dates</dt>
+                    <dd>{dateRange(kpi.start_date, kpi.end_date)}</dd>
+                  </div>
+                </dl>
+                <KpiAssignmentDetails kpi={kpi} compact />
+                <p className="kpi-score-line">
+                  {points == null ? 'Points after you mark Complete' : `${points} pts awarded`}
+                </p>
+                <KpiEvaluationBlock
+                  kpi={kpi}
+                  compact
+                  mode={isReadOnly ? 'manager' : 'employee'}
+                  onUpdated={(patch) => {
+                    patchKpi(kpi.id, patch);
+                  }}
+                />
+              </article>
             );
           })}
         </div>
       )}
+      </div>
+  );
 
-      {/* KPI status guide */}
-      <section className="responsive-grid-wide">
-        <div className="glass-panel dash-info-panel">
-          <h3 className="dash-panel-title">KPI status guide</h3>
-          <p className="dash-panel-desc">KPIs are assigned by your manager with start/end dates. Complete before the deadline — 3 missed deadlines deduct 300 points.</p>
-          <ul>
-            <li style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
-              <span className="badge badge-on-track" style={{ width: '90px', justifyContent: 'center', flexShrink: 0 }}>ON TRACK</span>
-              <span>KPI completed on time.</span>
-            </li>
-            <li style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
-              <span className="badge badge-at-risk" style={{ width: '90px', justifyContent: 'center', flexShrink: 0 }}>AT RISK</span>
-              <span>In progress — deadline approaching.</span>
-            </li>
-            <li style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
-              <span className="badge badge-off-track" style={{ width: '90px', justifyContent: 'center', flexShrink: 0 }}>OFF TRACK</span>
-              <span>Past end date without completion — manager notified.</span>
-            </li>
-          </ul>
+  if (isReadOnly) {
+    return (
+      <div className="dashboard-with-mobile-nav emp-dash dashboard-with-mobile-nav--nested">
+        <div className="glass-panel dash-view-banner mobile-banner-row">
+          <div>
+            <span className="dash-eyebrow" style={{ color: 'var(--color-warning)' }}>Manager View Mode</span>
+            <h3>Viewing <strong>{activeUser.full_name}</strong></h3>
+          </div>
+          <button className="btn btn-secondary" onClick={onBackToLeaderboard}>
+            Back to Leaderboard
+          </button>
         </div>
-      </section>
+        {kpiBoard}
+      </div>
+    );
+  }
 
-      </> // end KPI tab content
+  return (
+    <div className="admin-shell emp-dash">
+      {!hideChangePassword && showChangePassword && (
+        <ChangePasswordModal onClose={() => setShowChangePassword(false)} />
       )}
 
+      <AdminSidebarNav
+        groups={navGroups}
+        activeTab={activeTab}
+        onTabChange={(id) => setActiveTab(id as typeof activeTab)}
+        navOpen={navOpen}
+        onNavOpenChange={setNavOpen}
+        organizationName={activeUser.full_name}
+        brandTitle="Scorr"
+        brandSubtitle="Employee workspace"
+        ariaLabel="Employee navigation"
+        sidebarId="employee-sidebar"
+      />
+
+      {navOpen && (
+        <div
+          className="admin-shell__backdrop admin-shell__backdrop--visible"
+          onClick={() => setNavOpen(false)}
+          aria-hidden={false}
+        />
+      )}
+
+      <div className="admin-shell__main">
+        <header className="admin-shell__topbar">
+          <AdminHamburgerButton
+            open={navOpen}
+            onClick={() => setNavOpen(!navOpen)}
+            controlsId="employee-sidebar"
+          />
+          <div className="admin-shell__page-head">
+            {pageIcon && <div className="admin-shell__page-icon">{pageIcon}</div>}
+            <div>
+              <p className="admin-shell__page-eyebrow">Employee</p>
+              <h1 className="admin-shell__page-title">{pageTitle}</h1>
+            </div>
+          </div>
+        </header>
+
+        <div className="admin-shell__content">
+          <div className="admin-shell__panel">
+      {activeTab === 'rewards' ? (
+        <Suspense fallback={<TabFallback />}>
+          <EmployeeRewardsPanel userId={activeUser.id} />
+        </Suspense>
+      ) : activeTab === 'attendance' ? (
+        <Suspense fallback={<TabFallback />}>
+        <AttendanceLeavePanel profile={profile} mode={profile.role === 'manager' ? 'manager' : 'employee'} />
+        </Suspense>
+      ) : activeTab === 'settings' ? (
+        <div className="app-settings-stack">
+          {!hideChangePassword && (
+            <div className="app-settings-block">
+              <button type="button" className="btn btn-secondary" onClick={() => setShowChangePassword(true)}>
+                <KeyRound size={16} /> Change password
+              </button>
+            </div>
+          )}
+          <details className="app-settings-block" open>
+            <summary>Daily report</summary>
+            <Suspense fallback={<TabFallback />}>
+              <DailyWorkReportPanel profile={profile} />
+            </Suspense>
+          </details>
+        </div>
+      ) : activeTab === 'kpis' ? (
+        kpiBoard
+      ) : null}
+
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

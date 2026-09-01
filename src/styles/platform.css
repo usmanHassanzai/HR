@@ -504,6 +504,15 @@
   color: var(--text-secondary);
 }
 
+.platform-status--protected {
+  background: color-mix(in srgb, var(--accent-primary) 16%, transparent);
+  color: var(--accent-primary);
+  margin-left: 0.4rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.62rem;
+}
+
 /* Table */
 .platform-table-wrap {
   overflow-x: auto;

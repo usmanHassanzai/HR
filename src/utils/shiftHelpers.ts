@@ -93,12 +93,35 @@ export function isOvernightShift(start: string, end: string): boolean {
 }
 
 export function formatShiftDays(days: number[]): string {
-  if (!days?.length) return '—';
-  return days.map((d) => DAY_LABELS[d - 1] ?? '?').join(', ');
+  return formatWorkingDays(days);
+}
+
+/** Compact label: Mon–Fri, Sat–Sun, Every day, or custom (Mon, Wed, Fri). */
+export function formatWorkingDays(days: number[]): string {
+  if (!days?.length) return 'Not set';
+  const unique = [...new Set(days.filter((d) => d >= 1 && d <= 7))].sort((a, b) => a - b);
+  if (unique.length === 7) return 'Every day';
+  if (unique.join(',') === '1,2,3,4,5') return 'Mon–Fri';
+  if (unique.join(',') === '6,7') return 'Sat–Sun';
+  const parts: string[] = [];
+  let i = 0;
+  while (i < unique.length) {
+    let j = i;
+    while (j + 1 < unique.length && unique[j + 1] === unique[j] + 1) j += 1;
+    if (j >= i + 2) {
+      parts.push(`${DAY_LABELS[unique[i] - 1]}–${DAY_LABELS[unique[j] - 1]}`);
+    } else if (j === i + 1) {
+      parts.push(`${DAY_LABELS[unique[i] - 1]}, ${DAY_LABELS[unique[j] - 1]}`);
+    } else {
+      parts.push(DAY_LABELS[unique[i] - 1] ?? '?');
+    }
+    i = j + 1;
+  }
+  return parts.join(', ');
 }
 
 export function formatWorkDuration(minutes: number | null | undefined): string {
-  if (minutes == null || minutes <= 0) return '—';
+  if (minutes == null || minutes <= 0) return 'Not logged';
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   if (h === 0) return `${m}m`;
@@ -118,7 +141,208 @@ export function formatDateTime(iso: string | null | undefined): string {
   });
 }
 
+function todayYmd(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+function isSameLocalDate(iso: string, ymd?: string | null): boolean {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return false;
+  const local = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return local === (ymd || todayYmd());
+}
+
+export function resolveWorkMinutes(row: {
+  clock_in_at?: string | null;
+  clock_out_at?: string | null;
+  work_minutes?: number | null;
+}): number | null {
+  if (row.work_minutes != null && row.work_minutes > 0) return row.work_minutes;
+  if (row.clock_in_at && row.clock_out_at) {
+    const mins = Math.round((Date.parse(row.clock_out_at) - Date.parse(row.clock_in_at)) / 60000);
+    return mins > 0 ? mins : null;
+  }
+  return null;
+}
+
+export function describeAttendanceHistory(row: {
+  shift_name?: string | null;
+  clock_in_at?: string | null;
+  clock_out_at?: string | null;
+  work_minutes?: number | null;
+  attendance_date?: string | null;
+}): {
+  shift: string;
+  clockIn: string;
+  clockOut: string;
+  duration: string;
+  shiftEmpty: boolean;
+  clockOutEmpty: boolean;
+  durationEmpty: boolean;
+} {
+  const shift = row.shift_name?.trim() || 'Unassigned';
+  const clockIn = row.clock_in_at
+    ? new Date(row.clock_in_at).toLocaleString(undefined, {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : 'No clock-in';
+  const stillOpen = Boolean(
+    row.clock_in_at
+    && !row.clock_out_at
+    && (row.attendance_date === todayYmd() || isSameLocalDate(row.clock_in_at)),
+  );
+  const clockOut = row.clock_out_at
+    ? new Date(row.clock_out_at).toLocaleString(undefined, {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : stillOpen
+      ? 'Still on site'
+      : 'No clock-out';
+  const mins = resolveWorkMinutes(row);
+  let duration = formatWorkDuration(mins);
+  if (stillOpen && mins != null && mins > 0) {
+    duration = `${formatWorkDuration(mins)} (open)`;
+  }
+  return {
+    shift,
+    clockIn,
+    clockOut,
+    duration,
+    shiftEmpty: !row.shift_name?.trim(),
+    clockOutEmpty: !row.clock_out_at,
+    durationEmpty: mins == null || mins <= 0,
+  };
+}
+
 export function isTodayWorkDay(days: number[]): boolean {
-  const isoDow = new Date().getDay() === 0 ? 7 : new Date().getDay();
-  return days.includes(isoDow);
+  return days.includes(isoDowInAppTimezone());
+}
+
+/** Company local timezone used for shift windows (matches database app_timezone()). */
+export const APP_TIMEZONE = 'Asia/Karachi';
+
+function isoDowInAppTimezone(at = new Date()): number {
+  const weekday = new Intl.DateTimeFormat('en-US', { timeZone: APP_TIMEZONE, weekday: 'short' }).format(at);
+  const map: Record<string, number> = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
+  return map[weekday] ?? 1;
+}
+
+function minutesInAppTimezone(at = new Date()): number {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: APP_TIMEZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(at);
+  const hour = Number(parts.find((p) => p.type === 'hour')?.value ?? 0);
+  const minute = Number(parts.find((p) => p.type === 'minute')?.value ?? 0);
+  return hour * 60 + minute;
+}
+
+function clockToMinutes(clock: string): number {
+  const [h, m] = clock.split(':').map((n) => Number(n) || 0);
+  return h * 60 + m;
+}
+
+export const SHIFT_EDGE_MINUTES = 60;
+
+function assignedShiftIsOvernight(shift: Pick<MyShift, 'start_time' | 'end_time' | 'crosses_midnight'>): boolean {
+  if (shift.crosses_midnight) return true;
+  return clockToMinutes(shift.start_time) >= clockToMinutes(shift.end_time);
+}
+
+function inShiftSpan(
+  shift: MyShift,
+  at: Date,
+  beforeMinutes: number,
+  afterMinutes: number,
+): boolean {
+  const local = minutesInAppTimezone(at);
+  const isoDow = isoDowInAppTimezone(at);
+  const start = clockToMinutes(shift.start_time);
+  const end = clockToMinutes(shift.end_time);
+  const early = (start - Math.max(0, beforeMinutes) + 24 * 60) % (24 * 60);
+  const late = (end + Math.max(0, afterMinutes)) % (24 * 60);
+  const lateWraps = afterMinutes > 0 && late < end;
+  const days = shift.days_of_week || [];
+  const prevDow = isoDow === 1 ? 7 : isoDow - 1;
+  const overnight = assignedShiftIsOvernight(shift) || lateWraps;
+
+  if (!overnight) {
+    if (!days.includes(isoDow)) return false;
+    if (early <= start) return local >= early && local <= late;
+    return local >= early || local <= late;
+  }
+
+  if (local >= early) return days.includes(isoDow);
+  if (local <= late) return days.includes(prevDow);
+  return false;
+}
+
+/** Check-in window: 1 hour before start through shift end. */
+export function isWithinAssignedShift(shift: MyShift, at = new Date()): boolean {
+  return inShiftSpan(shift, at, SHIFT_EDGE_MINUTES, 0);
+}
+
+/** Checkout window: 1 hour before start through 1 hour after end. Extra time counts if they clock it. */
+export function isWithinShiftExitWindow(shift: MyShift, at = new Date()): boolean {
+  return inShiftSpan(shift, at, SHIFT_EDGE_MINUTES, SHIFT_EDGE_MINUTES);
+}
+
+export function hasAssignedShiftEnded(shift: MyShift, at = new Date()): boolean {
+  const local = minutesInAppTimezone(at);
+  const isoDow = isoDowInAppTimezone(at);
+  const start = clockToMinutes(shift.start_time);
+  const end = clockToMinutes(shift.end_time);
+  const days = shift.days_of_week || [];
+
+  if (!assignedShiftIsOvernight(shift)) {
+    if (!days.includes(isoDow)) return true;
+    return local > end;
+  }
+  if (local > end && local < start) return true;
+  if (local >= start || local <= end) return false;
+  return true;
+}
+
+export interface LocationWindow {
+  source: 'shift' | 'company';
+  shift_name: string | null;
+  start_time: string;
+  end_time: string;
+  grace_minutes: number;
+  days_of_week: number[];
+  crosses_midnight: boolean;
+  in_window: boolean;
+}
+
+export function locationWindowToMyShift(window: LocationWindow): MyShift {
+  return {
+    shift_id: window.source,
+    shift_name: window.shift_name || (window.source === 'shift' ? 'Shift' : 'Company hours'),
+    start_time: window.start_time,
+    end_time: window.end_time,
+    grace_minutes: window.grace_minutes || 0,
+    days_of_week: window.days_of_week?.length ? window.days_of_week : [1, 2, 3, 4, 5, 6, 7],
+    effective_from: '',
+    crosses_midnight: window.crosses_midnight,
+  };
+}
+
+/** Location may be used only while the assigned shift or company window is open. */
+export function shouldCaptureLocationNow(window: LocationWindow | null | undefined, at = new Date()): boolean {
+  if (!window) return false;
+  if (typeof window.in_window === 'boolean') return window.in_window;
+  return isWithinAssignedShift(locationWindowToMyShift(window), at);
 }

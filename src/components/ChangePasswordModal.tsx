@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Lock, Eye, EyeOff, Loader2, CheckCircle, X } from 'lucide-react';
+import { Lock, Loader2, CheckCircle, X } from 'lucide-react';
+import PasswordField from './PasswordField';
 
 interface ChangePasswordModalProps {
   onClose: () => void;
@@ -10,8 +11,6 @@ export default function ChangePasswordModal({ onClose }: ChangePasswordModalProp
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');
-  const [showCurrent, setShowCurrent] = useState(false);
-  const [showNext, setShowNext] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -89,39 +88,25 @@ export default function ChangePasswordModal({ onClose }: ChangePasswordModalProp
             {/* Current password */}
             <div className="form-group" style={{ margin: 0 }}>
               <label>Current Password</label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  type={showCurrent ? 'text' : 'password'}
-                  value={current}
-                  onChange={(e) => setCurrent(e.target.value)}
-                  placeholder="Enter current password"
-                  required
-                  style={{ paddingRight: '2.5rem', width: '100%' }}
-                />
-                <button type="button" onClick={() => setShowCurrent(!showCurrent)}
-                  style={{ position: 'absolute', right: '0.7rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
-                  {showCurrent ? <EyeOff size={15} /> : <Eye size={15} />}
-                </button>
-              </div>
+              <PasswordField
+                value={current}
+                onChange={(e) => setCurrent(e.target.value)}
+                placeholder="Enter current password"
+                required
+                autoComplete="current-password"
+              />
             </div>
 
             {/* New password */}
             <div className="form-group" style={{ margin: 0 }}>
               <label>New Password</label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  type={showNext ? 'text' : 'password'}
-                  value={next}
-                  onChange={(e) => setNext(e.target.value)}
-                  placeholder="Min 6 characters"
-                  required
-                  style={{ paddingRight: '2.5rem', width: '100%' }}
-                />
-                <button type="button" onClick={() => setShowNext(!showNext)}
-                  style={{ position: 'absolute', right: '0.7rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
-                  {showNext ? <EyeOff size={15} /> : <Eye size={15} />}
-                </button>
-              </div>
+              <PasswordField
+                value={next}
+                onChange={(e) => setNext(e.target.value)}
+                placeholder="Min 6 characters"
+                required
+                autoComplete="new-password"
+              />
               {/* Strength bar */}
               {next && (
                 <div style={{ marginTop: '0.4rem' }}>
@@ -136,13 +121,13 @@ export default function ChangePasswordModal({ onClose }: ChangePasswordModalProp
             {/* Confirm */}
             <div className="form-group" style={{ margin: 0 }}>
               <label>Confirm New Password</label>
-              <input
-                type="password"
+              <PasswordField
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
                 placeholder="Repeat new password"
                 required
-                style={{ borderColor: confirm && confirm !== next ? 'var(--color-danger)' : '' }}
+                autoComplete="new-password"
+                style={{ borderColor: confirm && confirm !== next ? 'var(--color-danger)' : undefined }}
               />
               {confirm && confirm !== next && (
                 <span style={{ fontSize: '0.72rem', color: 'var(--color-danger)', marginTop: '0.2rem', display: 'block' }}>Passwords do not match</span>

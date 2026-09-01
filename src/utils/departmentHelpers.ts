@@ -117,10 +117,31 @@ export function indicatorWeightsValid(indicators: { weight_pct: number }[]): boo
   return Math.abs(sumIndicatorWeights(indicators) - 100) <= 0.05;
 }
 
-/** Default KPI board auto-applied to every new department (same structure as image template). */
+/** Default KPI board auto-applied to every new department. */
 export const DEFAULT_NEW_DEPARTMENT_KPIS = [
-  { name: 'Performance Target / Volume', description: 'Actual results versus monthly quota or target.', weight_pct: 30 },
-  { name: 'Quality & Accuracy', description: 'Percentage of work passing quality checks.', weight_pct: 30 },
-  { name: 'Timeliness / Delivery', description: 'Tasks completed within the promised time frame.', weight_pct: 20 },
-  { name: 'Efficiency & Productivity', description: 'Average time to complete core department processes.', weight_pct: 20 },
+  {
+    name: 'Monthly Goal Achievement',
+    description: "Measures the employee's success in achieving assigned monthly targets.",
+    weight_pct: 55,
+  },
+  {
+    name: 'Daily Task Completion',
+    description: 'Measures timely and consistent completion of assigned daily tasks.',
+    weight_pct: 15,
+  },
+  {
+    name: 'Quality of Work',
+    description: 'Evaluates the accuracy, completeness, professionalism, and overall quality of work.',
+    weight_pct: 10,
+  },
+  {
+    name: 'Attendance',
+    description: 'Measures regular attendance, punctuality, and adherence to work hours.',
+    weight_pct: 10,
+  },
+  {
+    name: 'Professional Conduct',
+    description: "Represents the employee's professional behaviour and combined monthly performance.",
+    weight_pct: 10,
+  },
 ] as const;

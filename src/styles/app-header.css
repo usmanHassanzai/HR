@@ -357,9 +357,7 @@
 }
 
 .app-header__icon-btn--logout {
-  color: var(--color-danger);
-  border-color: color-mix(in srgb, var(--color-danger) 25%, var(--border-color));
-  background: color-mix(in srgb, var(--color-danger) 6%, var(--surface-muted));
+  color: var(--text-secondary);
 }
 
 .app-header__toolbar .theme-toggle--compact,
@@ -383,10 +381,46 @@
   border-left: none !important;
   border-right: none !important;
   border-top: none !important;
+  --admin-sidebar-w: 236px;
+}
+
+.app-header__role--admin {
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent) !important;
+  color: var(--accent-primary) !important;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 28%, transparent) !important;
+}
+
+.app-header__role--hr {
+  background: color-mix(in srgb, #a78bfa 16%, transparent) !important;
+  color: #7c3aed !important;
+  border: 1px solid color-mix(in srgb, #a78bfa 32%, transparent) !important;
 }
 
 .dashboard-container--admin > .app-header--inline {
   padding: 0.7rem 1.25rem !important;
+}
+
+@media (min-width: 900px) {
+  .dashboard-container--admin > .app-header {
+    margin-left: var(--admin-sidebar-w);
+    width: calc(100% - var(--admin-sidebar-w));
+    box-shadow: none !important;
+    border-bottom: 1px solid var(--dash-card-border) !important;
+    background: color-mix(in srgb, var(--dash-card-bg) 92%, transparent) !important;
+  }
+
+  .dashboard-container--admin > .app-header--inline {
+    padding: 0.5rem 1.5rem !important;
+    justify-content: flex-end;
+  }
+
+  .dashboard-container--admin > .app-header .app-header__start {
+    display: none;
+  }
+
+  .dashboard-container--admin > .demo-mode-banner {
+    margin-left: calc(var(--admin-sidebar-w) + 1.25rem);
+  }
 }
 
 .dashboard-container--admin > .app-header--stacked {

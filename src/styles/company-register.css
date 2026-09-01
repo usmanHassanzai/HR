@@ -8,6 +8,15 @@
   max-width: none;
   margin: 0;
   padding: 0;
+  min-width: 0;
+}
+
+.company-register--embedded .company-register__title {
+  font-size: 1.05rem;
+}
+
+.company-register--embedded .company-register__section-title {
+  font-size: 0.78rem;
 }
 
 .company-register--success {
@@ -156,6 +165,144 @@
   color: var(--text-secondary);
   margin-bottom: 0.5rem;
   line-height: 1.5;
+}
+
+.company-register__hint {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.75rem;
+  font-style: normal;
+}
+
+.company-register__hint--err {
+  color: var(--color-danger);
+}
+
+.company-register__hint--ok {
+  color: var(--color-success);
+}
+
+.company-register__progress {
+  margin: 0 0 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-primary);
+}
+
+.company-register__steps {
+  display: flex;
+  gap: 0.5rem;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.25rem;
+}
+
+.company-register__steps li {
+  flex: 1;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 650;
+  padding: 0.4rem 0.25rem;
+  border-radius: 999px;
+  color: var(--text-muted);
+  background: var(--surface-muted);
+}
+
+.company-register__steps li.is-active {
+  color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
+}
+
+.company-register__steps li.is-done {
+  color: var(--color-success);
+}
+
+.company-register__banner {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  color: var(--color-danger);
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.company-register__actions {
+  display: flex;
+  gap: 0.65rem;
+  justify-content: flex-end;
+  margin-top: 1.25rem;
+}
+
+.company-register__legal {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 0.75rem;
+}
+
+.company-register__otp {
+  letter-spacing: 0.35em;
+  font-size: 1.35rem;
+  text-align: center;
+  font-weight: 700;
+}
+
+.company-register .input-field.is-invalid {
+  border-color: var(--color-danger);
+}
+
+.company-setup {
+  width: min(640px, 100%);
+  padding: 1.75rem;
+}
+
+.company-setup__h {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.4rem;
+  font-size: 1rem;
+}
+
+.company-setup__person {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+
+@media (max-width: 640px) {
+  .company-setup__person {
+    grid-template-columns: 1fr;
+  }
+}
+
+.company-setup__cats {
+  display: grid;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.company-setup__cat {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.company-setup__cat.is-on {
+  border-color: color-mix(in srgb, var(--accent-primary) 45%, var(--border-color));
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+}
+
+.company-setup__cat input {
+  width: auto;
+  margin: 0;
 }
 
 .platform-reg-detail {

@@ -19,6 +19,7 @@ export function generateTempPassword(length = 10): string {
 function roleLabel(role: string): string {
   if (role === 'admin') return 'Administrator';
   if (role === 'manager') return 'Manager';
+  if (role === 'hr') return 'HR';
   return 'Employee';
 }
 

@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 /**
- * Generates Scorr-Client-Feature-Guide.pdf — clear user guide for
- * organization registration, roles (admin / manager / employee),
- * and how to add users.
+ * Generates Scorr-Client-Feature-Guide.pdf — full product, tabs, KPI,
+ * attendance, device permissions, and security explanation.
  *
  * Run: npm run docs:client-guide
  */
@@ -238,9 +237,9 @@ doc.setFont('helvetica', 'normal');
 doc.setFontSize(11.5);
 doc.setTextColor(203, 213, 225);
 const coverBlurb = [
-  'How Scorr works for your organization — registration,',
-  'roles, users, KPIs, assignment, attendance, GPS,',
-  'rewards, reports, and mobile — in one document.',
+  'How Scorr works — company registration, every role and tab,',
+  'KPI scoring, attendance & GPS, device permissions, and how',
+  'your data is protected.',
 ];
 coverBlurb.forEach((line, i) => doc.text(line, M, 100 + i * 7));
 
@@ -252,32 +251,31 @@ doc.text('Prepared by:    Walfia', M, 146);
 
 doc.setFontSize(9);
 doc.setTextColor(100, 116, 139);
-doc.text('Registration · Roles · KPIs · Assignment · Attendance · Rewards', M, H - 22);
+doc.text('Registration · Tabs · KPIs · Attendance · Security · Devices', M, H - 22);
 
 newPage();
 
-// ═══════════════════════════════════════════════════════════════
-// TOC
-// ═══════════════════════════════════════════════════════════════
 title('Table of Contents');
 const toc = [
   ['1.', 'What is Scorr?'],
   ['2.', 'How to Register Your Organization'],
   ['3.', 'User Roles at a Glance'],
-  ['4.', 'Administrator — What They Do'],
-  ['5.', 'How to Add Employees, Managers & Admins'],
-  ['6.', 'First-Time Admin Setup Checklist'],
-  ['7.', 'Manager — What They Do'],
-  ['8.', 'Employee — What They Do'],
-  ['9.', 'Daily Work Reports'],
-  ['10.', 'KPI Library, Assignment & Scoring'],
-  ['11.', 'Attendance, Leave & GPS'],
-  ['12.', 'Rewards & Points'],
-  ['13.', 'Reports & Analytics'],
-  ['14.', 'Mobile Apps (Android & iPhone)'],
-  ['15.', 'Sign In, Passwords & Security'],
-  ['16.', 'How the Platform Is Built (Overview)'],
-  ['17.', 'Quick Troubleshooting'],
+  ['4.', 'Administrator tabs (complete)'],
+  ['5.', 'How to Add People'],
+  ['6.', 'First-Time Admin Setup'],
+  ['7.', 'Manager tabs (complete)'],
+  ['8.', 'Employee tabs (complete)'],
+  ['9.', 'HR role'],
+  ['10.', 'Departments'],
+  ['11.', 'KPI tasks and scoring'],
+  ['12.', 'Attendance, leave and GPS'],
+  ['13.', 'What the app needs from the device'],
+  ['14.', 'Rewards and reports'],
+  ['15.', 'Mobile apps'],
+  ['16.', 'Security — how Scorr protects data'],
+  ['17.', 'What “secure” means (honest guarantee)'],
+  ['18.', 'How the platform is built'],
+  ['19.', 'Troubleshooting'],
 ];
 toc.forEach(([num, label]) => {
   ensure();
@@ -294,52 +292,40 @@ newPage();
 // 1
 // ═══════════════════════════════════════════════════════════════
 title('1. What is Scorr?');
-para('Scorr is an HR performance platform for companies. It brings KPIs, attendance, GPS check-in, leave, rewards, daily work reports, and management reports into one secure place.');
-para('Each company gets its own private workspace. Your data is never shared with other organizations.');
-spacer();
-h2('Three types of users');
-bullet('Administrator — runs the whole company account (users, departments, settings, reports).');
-bullet('Manager — leads a department/team (assign KPIs, approve leave, track the team).');
-bullet('Employee — does daily work (complete KPIs, check in, request leave, submit daily reports, redeem rewards).');
-spacer();
-note('Tip: The person who registers the company becomes the first Administrator after approval.');
+para('Scorr (scorr.walfia.ai) is a company workspace for performance, attendance, and rewards. One login serves the website, Android app, and iPhone home-screen app.');
+para('Each registered company is a private tenant. Staff in Company A cannot open Company B’s people, KPIs, attendance, or GPS records.');
+h2('What you can run in one place');
+bullet('KPI tasks in four categories, with manager ratings and an automatic monthly score.');
+bullet('Departments, people, roles, and reporting lines.');
+bullet('GPS attendance (geofence), shifts, leave, and live team location for authorized managers/admins.');
+bullet('Rewards points from KPI score, catalog redemption, and approvals.');
+bullet('Daily work reports, analytics, and PDF/Excel/CSV exports.');
+note('The person who registers the company becomes the first Administrator after Walfia approves the organization.');
 drawFooter();
 newPage();
 
-// ═══════════════════════════════════════════════════════════════
-// 2 REGISTER
-// ═══════════════════════════════════════════════════════════════
 title('2. How to Register Your Organization');
-para('Anyone starting a new company on Scorr uses the public registration form. No credit card is required. New companies receive a 3-day free trial after approval.');
+para('Use the public Register Company form. No credit card is required. After approval you receive a 3-day trial with full product access.');
 
-h1('2.1 Step-by-step registration');
-step(1, 'Open https://scorr.walfia.ai in a browser.');
-step(2, 'Click “Register Company” (top navigation or hero button).');
-step(3, 'Fill in organization details:');
-bullet('Company name (required)');
-bullet('Industry and approximate employee count (recommended)');
-bullet('Website, address, city, country (optional)');
-step(4, 'Fill in your contact details as the company admin:');
-bullet('Full name and job title');
-bullet('Work email and phone (required)');
-bullet('Password (minimum 6 characters) and confirm password');
-step(5, 'Choose a subscription plan (Trial / Starter / Professional / Enterprise). Trial starts with full platform access for 3 days after approval.');
-step(6, 'Submit the form.');
-step(7, 'You will see: “Please wait for admin approval.”');
+h1('2.1 Fill the form');
+step(1, 'Open https://scorr.walfia.ai and choose Register Company.');
+step(2, 'Enter company name, industry, and approximate headcount.');
+step(3, 'Enter your name, work email, phone, and a password (at least 6 characters, confirmed).');
+step(4, 'Choose a plan (Trial / Starter / Professional / Enterprise).');
+step(5, 'Scorr emails a one-time code (OTP) to that work email. Enter the code to prove you own the mailbox. Registration does not complete without this step.');
+step(6, 'Submit. You will see that the company is waiting for platform approval.');
 
-h1('2.2 What happens after you submit');
-bullet('Your organization is created as a pending registration.');
-bullet('The Scorr platform admin receives an email and in-app notification.');
-bullet('Review usually completes within about 24 hours.');
-bullet('When approved, sign in with the same email and password you registered.');
-bullet('You land in the Administrator dashboard and can set up departments and users.');
+h1('2.2 After you submit');
+bullet('The organization is stored as pending.');
+bullet('Walfia (platform owner) is notified by email and in the Companies console.');
+bullet('When approved, sign in with the same email and password.');
+bullet('Scorr opens the Admin dashboard. A short onboarding wizard can help you add people, a default shift, and first KPI categories.');
+note('Do not create the rest of your team until the company is approved and you can sign in as Admin.');
 
-note('Important: Do not create employee accounts until your company registration is approved and you can sign in as Admin.');
-
-h1('2.3 After approval — first sign-in');
-step(1, 'Go to https://scorr.walfia.ai and open Sign In.');
-step(2, 'Enter your registered email and password.');
-step(3, 'Scorr opens the Admin dashboard automatically because your role is Admin.');
+h1('2.3 First sign-in');
+step(1, 'https://scorr.walfia.ai → Sign In.');
+step(2, 'Accept the monitoring and data-use policy (attendance location at clock-in/out and KPI records). Sign-in is blocked until this is checked.');
+step(3, 'Admins, managers, and HR must then set up an authenticator app (Google Authenticator, Microsoft Authenticator, or Authy) and enter a 6-digit code. Demo sandbox accounts skip this.');
 drawFooter();
 newPage();
 
@@ -347,45 +333,41 @@ newPage();
 // 3 ROLES
 // ═══════════════════════════════════════════════════════════════
 title('3. User Roles at a Glance');
-para('Every person in your company has exactly one role. The role decides which screens they see and what they can change.');
-
+para('Each person has one role. The role chooses the dashboard and what the database will allow.');
 tableHeader(['Role', 'Main purpose']);
-tableRow('Admin', 'Full company control: add users, departments, branding, KPIs org-wide, attendance oversight, GPS sites, rewards catalog, analytics, daily reports review.');
-tableRow('Manager', 'Lead their department/team: assign KPIs to direct reports, approve leave/attendance, team rewards, shifts, live tracking of their team, personal KPIs, daily report.');
-tableRow('Employee', 'Personal work: view/complete KPIs, GPS check-in, leave requests, points & rewards, submit daily work report.');
+tableRow('Admin', 'Whole company: people, departments, assign KPIs, points board, rewards catalog, attendance, GPS sites, live map, reports, analytics, branding in Settings.');
+tableRow('Manager', 'Team only: assign tasks, team ranking, own KPIs, team attendance/leave, live tracking of reports, team rewards, password and daily report in Settings.');
+tableRow('Employee', 'Own work: My KPIs, attendance/leave/shift, rewards, password and daily report in Settings. No branding tab.');
+tableRow('HR', 'Company shifts and rewards support. Does not replace Admin for users or branding.');
 spacer();
-
-h1('Access rules (simple)');
-bullet('Employees see only their own data.');
-bullet('Managers see only their assigned team (direct reports), not the whole company.');
-bullet('Admins see the entire organization.');
-bullet('These rules are enforced by secure login and database permissions.');
+h1('Access rules');
+bullet('Employees see only their own KPIs, attendance, points, and reports.');
+bullet('Managers see direct reports (and department team where designed), not every company.');
+bullet('Admins see the organization they belong to, not other companies.');
+bullet('Platform owner (Walfia) approves companies; it is not a second copy of your staff files for daily HR work.');
 drawFooter();
 newPage();
 
-// ═══════════════════════════════════════════════════════════════
-// 4 ADMIN WORK
-// ═══════════════════════════════════════════════════════════════
-title('4. Administrator — What They Do');
-para('The Admin dashboard is organized in a sidebar: Organization, Performance, and Workforce. Below is what each area is for in plain language.');
+title('4. Administrator tabs (complete)');
+para('Sidebar groups: Organization, Performance, Workforce. Branding is not its own tab — it lives under Settings.');
 
 h1('4.1 Organization');
-featureBlock('Users', 'Directory of everyone in the company. Search and filter by role or department. Add new people, change department, reset passwords, or remove accounts. This is where you create Employees, Managers, and additional Admins.');
-featureBlock('Departments', 'Build your company structure (e.g. Sales, HR, Finance). Organization-level department weightages are separate from KPI libraries. On each department you can add as many KPI metrics as you need. The combined KPI library weight can exceed 100% — that list is a catalog, not an employee’s capacity.');
-featureBlock('Branding', 'Put your company name, logo, tagline, and colors on the platform so it looks like your product.');
+featureBlock('People', 'Company directory. Add users, set role (employee/manager/admin/HR), department, reporting manager, reset password, reset authenticator, edit account, remove user, open that person’s assigned tasks.');
+featureBlock('Departments', 'Create/rename/remove departments (Sales, Finance, …). This is structure only — not a KPI score library.');
+featureBlock('KPI Points', 'Organization scores and points for individuals this period.');
 
 h1('4.2 Performance');
-featureBlock('KPI Management', 'Create and edit the KPI library for each department: name, description, and weight (1–100% per KPI). Add as many KPIs as you need. Finance can be 30+30+20+20+40 = 140% and still save. The 100% rule is not applied here.');
-featureBlock('Assign Task (KPIs)', 'Assign KPIs to people in a department. Order is: (1) select department, (2) select an employee or manager who belongs to that department, (3) select KPI task(s), (4) set start and end dates, then Assign. Each person has an independent 100% pending-assignment cap. Ahmed 40% + Ali 70% + Sara 10% is valid because they are different people.');
-featureBlock('Reports', 'Download monthly or quarterly company reports as PDF, Excel, or CSV.');
-featureBlock('Analytics', 'Charts for KPI health, trends, forecasts, and attainment by department or category.');
-featureBlock('Rewards', 'Run the monthly points job, approve/fulfill redemptions, and manage the rewards catalog (gift items employees can redeem).');
+featureBlock('Assign Task', 'Create a KPI in a category, set weight and dates, pick department then person, optional note, Assign. Then review assigned tasks and rate them. Sequential dropdowns: department → person → KPI.');
+featureBlock('Analytics', 'Company KPI health, trends, and attainment.');
+featureBlock('Reports', 'Monthly or quarterly export as Excel, PDF, or CSV.');
+featureBlock('Rewards', 'Monthly points job, catalog, approve and fulfill redemptions.');
 
 h1('4.3 Workforce');
-featureBlock('Attendance', 'Approve leave org-wide and review attendance history (filter by department, export CSV).');
-featureBlock('Daily Reports', 'Read daily work logs submitted by managers and employees, filtered by department and role.');
-featureBlock('Office GPS', 'Define office/site locations with a map radius so staff can auto check in when they arrive.');
-featureBlock('Live Tracking', 'See who is at site, away, or offline on a live map and table.');
+featureBlock('Attendance', 'Leave approvals, attendance history, check-in oversight for the company.');
+featureBlock('Daily Reports', 'Read submitted daily work logs by department and role.');
+featureBlock('Live Tracking', 'Map and table of who is at site, away, or offline (from GPS pings while checked in).');
+featureBlock('Office GPS', 'Office/site pin, radius (typically 50 m), assign sites to staff.');
+featureBlock('Settings', 'White-label branding: company name, logo, tagline, colors. Managers and employees cannot open this.');
 drawFooter();
 newPage();
 
@@ -402,7 +384,7 @@ bullet('Have each person’s work email ready — that email becomes their login
 
 h1('5.2 Open the Add User form');
 step(1, 'Sign in as Admin at https://scorr.walfia.ai');
-step(2, 'Open the Users tab (default home screen of Admin).');
+step(2, 'Open the People tab (default home of Admin).');
 step(3, 'On the right (or below on mobile), find the panel “Add new user”.');
 
 h1('5.3 Fields you fill in');
@@ -455,163 +437,136 @@ step(2, 'Departments — create your departments. Add KPI metrics on each board 
 step(3, 'Users — add Managers for each department.');
 step(4, 'Users — add Employees and assign each to a department and manager.');
 step(5, 'Office GPS — add your office locations if you use GPS attendance.');
-step(6, 'Branding — set company name, logo, and colors.');
-step(7, 'KPI Management — confirm department KPI libraries, then Assign Task — department first, then a person in that department, then KPIs and dates.');
-step(8, 'Rewards — review or edit the rewards catalog.');
-step(9, 'Ask managers and employees to sign in and enable location on mobile if needed.');
+step(6, 'Settings — set company name, logo, and colors (branding).');
+step(7, 'Assign Task — department → person → KPI category, weight, dates.');
+step(8, 'Rewards — review the catalog.');
+step(9, 'Ask staff to install an authenticator (admins/managers/HR) and allow location on the phone if you use GPS attendance.');
 drawFooter();
 newPage();
 
 // ═══════════════════════════════════════════════════════════════
 // 7 MANAGER
 // ═══════════════════════════════════════════════════════════════
-title('7. Manager — What They Do');
-para('Managers focus on their team. They do not see the whole company — only people assigned to them as direct reports, plus their own personal KPIs.');
-
-h1('7.1 Daily / weekly work');
-featureBlock('Team Performance', 'See team points, leaderboard, and who is on track / at risk / off track. Open any team member’s performance view (read-only).');
-featureBlock('KPI Tasks', 'Create KPIs for your department (any number; library total can exceed 100%). Then assign those KPIs only to your direct reports. A 10% or 70% KPI keeps that weight. Pending assignments for one person cannot exceed 100%. Re-assigning replaces pending tasks for that department only.');
-featureBlock('Team Rewards', 'Approve redemption requests and mark rewards as fulfilled when delivered.');
-featureBlock('Attendance & Leave', 'Approve or reject leave and attendance corrections. Create shifts and assign them. View today\'s team attendance and history.');
-featureBlock('Live Tracking', 'Map/table of where the team is (at site / away / offline).');
-featureBlock('Daily Report', 'Write and submit the manager’s own daily work log for the admin to review.');
-featureBlock('My KPIs / Personal', 'Managers also complete their own KPI tasks and can export personal reports.');
-
-h1('7.2 What managers cannot do');
-bullet('Cannot register new company users (Admin only).');
-bullet('Cannot change company branding or create departments.');
-bullet('Cannot see other departments’ staff unless those people report to them.');
+title('7. Manager tabs (complete)');
+para('Managers do not see the whole company. They work with people who report to them, plus their own KPIs. There is no Branding tab.');
+featureBlock('Assign Task', 'Create a KPI (category, name, weight, dates, optional note) and assign it to someone in the manager’s department. Tasks and Points panes: assigned work vs team scores.');
+featureBlock('Team', 'Ranking of direct reports by this month’s KPI achievement. Tap a person to open a read-only view of their My KPIs.');
+featureBlock('My KPIs', 'Tasks assigned to the manager. This month score, rating (Outstanding … Unsatisfactory), and points per task after the admin/supervisor rates them.');
+featureBlock('Attendance', 'Team leave, check-in, shifts, and a Live tracking section for the team map.');
+featureBlock('Rewards', 'Approve team redemptions and see team point balances. Personal points are not shown here.');
+featureBlock('Settings', 'Change password and submit the manager’s daily work report. No logo/theme editor.');
+h1('Managers cannot');
+bullet('Create company users, departments, or branding.');
+bullet('See other companies or unrelated departments’ staff.');
 drawFooter();
 newPage();
 
-// ═══════════════════════════════════════════════════════════════
-// 8 EMPLOYEE
-// ═══════════════════════════════════════════════════════════════
-title('8. Employee — What They Do');
-para('Employees use a simpler dashboard focused on their own work.');
+title('8. Employee tabs (complete)');
+para('Employees only see their own records. There is no Branding tab and no Assign Task.');
+featureBlock('My KPIs', 'This month score (achievement of assigned weight), performance rating, done count, and one card per task: category, weight, dates, points after manager rating, Started/Completed on Monthly Goal and Urgent Tasks.');
+featureBlock('Attendance', 'GPS check-in/out, assigned shift, leave requests, personal history.');
+featureBlock('Rewards', 'Balance, catalog, redeem, pending/approved/fulfilled.');
+featureBlock('Settings', 'Change password and daily report.');
+drawFooter();
+newPage();
 
-h1('8.1 My KPIs');
-bullet('See Performance Index (health score) — Excellent / Needs Improvement / Critical.');
-bullet('Each assigned KPI is a card: name, weight, achievement %, score (achievement × weight), dates, and status (On Track / At Risk / Off Track).');
-bullet('Example: 80% achieved on a 40% weight KPI = 32 points. Unused assignment capacity is not filled in automatically.');
-bullet('You only see your own assignments — never another employee’s KPIs.');
-bullet('Mark a task complete when finished — the manager is notified.');
-bullet('Export personal KPI report as PDF or Excel.');
+title('9. HR role');
+para('HR is a dedicated role for shift assignment and rewards operations without full Admin powers (no People directory, no branding, no company-wide KPI assign unless also given those tools). HR uses Shifts and Rewards screens.');
+drawFooter();
+newPage();
 
-h1('8.2 Attendance & leave');
-bullet('GPS check-in / check-out when at an assigned office site (location permission required).');
-bullet('Request leave (type + dates) and track approval status.');
-bullet('View personal attendance history and assigned shift.');
-
-h1('8.3 Rewards');
-bullet('See points balance and how monthly KPI score converts to points.');
-bullet('Browse the catalog and redeem rewards.');
-bullet('Track redemption status (pending → approved → fulfilled).');
-
-h1('8.4 Daily Report');
-bullet('Write what you did today in the Daily Report tab.');
-bullet('Submit for the day — Admin can read it later in Daily Reports.');
-bullet('You can view your own past submissions.');
+title('10. Departments');
+para('Departments are folders for people (and which manager owns which team). They are not a second scoring engine.');
+bullet('Admin creates names such as Sales or Operations.');
+bullet('Each employee/manager should belong to a department so Assign Task can list them.');
+bullet('KPI weight cap is per person (pending assignments ≤ 100%), not per department total.');
+bullet('Removing a department does not delete historical KPI scores already saved on people.');
 drawFooter();
 newPage();
 
 // ═══════════════════════════════════════════════════════════════
 // 9 DAILY REPORTS
 // ═══════════════════════════════════════════════════════════════
-title('9. Daily Work Reports');
-para('Employees and managers submit a short text log of work done each day. Only Administrators review these reports.');
+title('11. KPI tasks and scoring');
+para('A KPI is one assigned task with a weight (%). The manager or admin rates it. The employee does not type the score.');
 
-h1('9.1 For staff (Employee / Manager)');
-step(1, 'Open the Daily Report tab on your dashboard.');
-step(2, 'Select the date (usually today) and write your work summary.');
-step(3, 'Click Submit. The report is saved in the company database.');
+h1('11.1 Four categories');
+bullet('Monthly Goal — employee can mark Started / Completed. Manager rates Achieved / Partially Achieved / Not Achieved.');
+bullet('Quality — manager rates Good / Average / Poor.');
+bullet('Punctuality & Behaviour — Always on Time / Behaves Well / Always Late / Behaves Not Good.');
+bullet('Urgent Tasks — employee can mark progress. Manager rates On Time / Late.');
 
-h1('9.2 For Admin');
-step(1, 'Open Workforce → Daily Reports.');
-step(2, 'Choose a department from the dropdown (or All departments).');
-step(3, 'Filter by Managers & Employees / Managers only / Employees only.');
-step(4, 'Pick a person to read their report. People who have not submitted show as “Not submitted”.');
-drawFooter();
-newPage();
+h1('11.2 Assign process');
+step(1, 'Admin or Manager opens Assign Task.');
+step(2, 'Choose department, then the person in that department.');
+step(3, 'Choose category and KPI, set weight (1–100%), start and end dates, optional note.');
+step(4, 'Assign. The person is notified. Pending weights for that one person cannot exceed 100%.');
+bullet('Other people have their own 100% budgets.');
 
-// ═══════════════════════════════════════════════════════════════
-// 10 KPI
-// ═══════════════════════════════════════════════════════════════
-title('10. KPI Library, Assignment & Scoring');
-para('KPIs (Key Performance Indicators) are measurable goals. A department KPI is a reusable item in a library. An assignment connects that KPI to one employee with the same weight, dates, and later achievement.');
+h1('11.3 Points on one task');
+para('Points = weight × multiplier from the rating:');
+bullet('100% of weight: Achieved, Always on Time, Good, On Time.');
+bullet('50% of weight: Partially Achieved, Average, Behaves Well.');
+bullet('0% of weight: Not Achieved, Always Late, Behaves Not Good, Poor, Late.');
+para('Example: weight 15%, Achieved → 15.00 points. Partially Achieved → 7.50. Not Achieved → 0.');
 
-h1('10.1 Department KPI library (no 100% cap)');
-bullet('Admin → Performance → KPI Management, or Departments, or Manager → Create KPIs.');
-bullet('Add as many KPIs as you need. Each KPI has its own weight (1–100%). A 70% KPI stays 70%.');
-bullet('The combined library weight for a department can exceed 100% (for example 30+30+20+20+40+70+10 = 220%). That is allowed.');
-bullet('The department is a catalog. It is not an employee’s 100% assignment capacity.');
-note('Do not treat “Finance library = 100%” as a limit. You can still add another KPI after 30+30+20+20.');
-
-h1('10.2 Employee assignment (100% cap per person)');
-bullet('The 100% rule applies only to one employee’s active/pending assignments.');
-bullet('Current assigned weight + new KPI weight ≤ 100% is allowed. Exactly 100% is allowed. 101%+ for that same person is rejected.');
-bullet('Different employees are independent. Ahmed 40% + Ali 70% + Sara 10% = 120% company-wide is valid.');
-bullet('Selecting several KPIs for one person: their weights are added together before save.');
-note('Example: Ahmed has 70%. A 20% KPI is allowed (90%). A 40% KPI is rejected (110%). Remaining capacity was 30%.');
-
-h1('10.3 Assign as Admin (required order)');
-step(1, 'Sign in as Admin → Performance → Assign Task → New assignment.');
-step(2, 'Select the department first.');
-step(3, 'The list then shows only employees and managers who belong to that department. Pick one person.');
-step(4, 'Select one or more KPI tasks from that department’s library. Each keeps its configured weight.');
-step(5, 'Set start and end dates (they default to the current month).');
-step(6, 'Click Assign. The person is emailed. Tasks appear on their My KPIs board immediately.');
-bullet('Assigning a KPI does not move the person to another department.');
-bullet('Re-assigning the same department replaces their pending tasks for that department only. Completed history is kept.');
-
-h1('10.4 Assign as a Manager');
-step(1, 'Open KPI Tasks → Assign Tasks.');
-step(2, 'Pick a direct report (managers cannot assign outside their team).');
-step(3, 'Select KPIs from your department library, set dates, and assign.');
-bullet('The same per-employee 100% cap applies.');
-
-h1('10.5 How scores work');
-bullet('KPI contribution = achievement % × KPI weight. Example: 80% × 40% weight = 32 points.');
-bullet('Employee total score = sum of contributions. Unused remaining capacity is not redistributed.');
-bullet('Status: On Track, At Risk, Off Track, or Completed.');
-bullet('Overdue tasks send notifications and email. Missing 3 deadlines can apply a −300 point penalty.');
+h1('11.4 This month score and Rating');
+para('This month % = (sum of points) ÷ (sum of assigned weights) × 100. One 15% task rated Achieved is 100%, not 15%. Unrated tasks count as 0 points but still sit in the weight, so the score stays honest until they are rated.');
+bullet('95–100 Outstanding · 90–94 Excellent · 80–89 Good · 70–79 Needs Improvement · below 70 Unsatisfactory.');
+bullet('Started/Completed by the employee does not award points by itself — the manager rating does.');
 drawFooter();
 newPage();
 
 // ═══════════════════════════════════════════════════════════════
 // 11 ATTENDANCE
 // ═══════════════════════════════════════════════════════════════
-title('11. Attendance, Leave & GPS');
+title('12. Attendance, leave and GPS');
 
-h1('11.1 Office GPS (Admin setup)');
-step(1, 'Admin → Office GPS.');
-step(2, 'Add a site: name, address, coordinates (map or live GPS), and radius (typically 50 m).');
-step(3, 'Assign the site to people so they can auto check in when they enter the zone.');
-bullet('Assign to everyone, or assign to selected employees/managers individually.');
-bullet('Shift times use Pakistan time (Asia/Karachi).');
+h1('12.1 Office GPS (Admin)');
+step(1, 'Open Office GPS.');
+step(2, 'Save a site: name, map pin, radius (about 50 metres).');
+step(3, 'Assign the site to people (everyone or selected staff).');
+bullet('Times use Asia/Karachi.');
 
-h1('11.2 Check-in for staff');
-bullet('Allow location permission in the browser or mobile app.');
-bullet('When inside the geofence, the system can clock them in automatically.');
-bullet('Leaving the zone can clock them out.');
+h1('12.2 How check-in works');
+bullet('Staff allow location. When they are inside the radius during the assigned shift, Scorr can clock them in.');
+bullet('Leaving the radius can clock them out. Checkout is GPS-based, not a fake button from another city.');
+bullet('On Android, a background location service can keep sending pings while a session is open so the live map stays current.');
+bullet('Remote/hybrid work modes can allow check-in without the office pin when the company enables that for the person.');
+bullet('If the shift ends, the system can auto check-out.');
 
-h1('11.3 Leave');
-bullet('Employee submits leave with type and date range.');
-bullet('Manager (for their team) or Admin approves/rejects.');
-bullet('Balances are tracked; email alerts are sent on status changes.');
+h1('12.3 Leave');
+bullet('Employee requests type (including Other) and dates.');
+bullet('Manager (team) or Admin approves or rejects. Emails go out on status change.');
 
-h1('11.4 Shifts (Manager)');
-bullet('Create shifts with start/end time and grace period (overnight supported).');
-bullet('Assign shifts to team members; employees see “My Shift”.');
+h1('12.4 Shifts');
+bullet('Managers/HR/Admin set start/end and working days. Employees see My Shift on Attendance.');
+bullet('Entry/exit can store the location used at clock events.');
+drawFooter();
+newPage();
+
+title('13. What the app needs from the device');
+para('Scorr only asks for permissions that the feature needs. You can refuse; GPS attendance will not work without location.');
+tableHeader(['Permission', 'Why']);
+tableRow('Internet', 'Sign-in, load KPIs, save attendance, send mail via the server.');
+tableRow('Location (precise)', 'Clock in/out at the office geofence; live tracking while checked in.');
+tableRow('Location (background)', 'Android: continue attendance pings if you leave the app during a shift. iOS asks for Always if you use automatic attendance.');
+tableRow('Foreground service', 'Android notification while attendance tracking is active — required by the OS, not ads.');
+tableRow('Notifications', 'Optional: shift/attendance reminders on Android 13+.');
+tableRow('Camera', 'Not used by Scorr itself. Authenticator apps use the camera only to scan the MFA QR on another screen.');
+spacer();
+h1('What we do not need');
+bullet('Contacts, photos, microphone, SMS, or call logs.');
+bullet('Root/jailbreak. Do not install Scorr on a compromised phone.');
+note('Location is stored as attendance pings and check-in/out coordinates for your company administrators and managers — not sold, and not shown to other companies.');
 drawFooter();
 newPage();
 
 // ═══════════════════════════════════════════════════════════════
 // 12 REWARDS
 // ═══════════════════════════════════════════════════════════════
-title('12. Rewards & Points');
-para('Points never expire. At month end, Admin runs the monthly points job based on KPI score tiers:');
-
+title('14. Rewards and reports');
+para('Points never expire. After the monthly job, score bands become points:');
 tableHeader(['Monthly KPI score', 'Points']);
 tableRow('90% or higher', '1,000 points');
 tableRow('80% – 89%', '500 points');
@@ -630,26 +585,23 @@ newPage();
 // ═══════════════════════════════════════════════════════════════
 // 13 REPORTS
 // ═══════════════════════════════════════════════════════════════
-title('13. Reports & Analytics');
-bullet('Admin Reports — monthly/quarterly exports (PDF, Excel, CSV) with KPI snapshots and insights.');
-bullet('Admin Analytics — status charts, trends, forecasts, attainment by department.');
-bullet('Personal export — employees and managers download their own KPI PDF/Excel.');
-bullet('AI narratives — optional commentary on KPI performance to help reviews.');
+h1('14.1 Reports');
+bullet('Admin Reports — monthly/quarterly Excel, PDF, CSV.');
+bullet('Admin Analytics — charts and attainment.');
+bullet('Personal export — My KPIs PDF/Excel.');
+bullet('Admin Daily Reports — text logs from Settings on staff dashboards.');
 drawFooter();
 newPage();
 
-// ═══════════════════════════════════════════════════════════════
-// 14 MOBILE
-// ═══════════════════════════════════════════════════════════════
-title('14. Mobile Apps (Android & iPhone)');
+title('15. Mobile apps');
 
-h1('14.1 Android');
+h1('15.1 Android');
 step(1, 'Open https://scorr.walfia.ai on the phone.');
 step(2, 'Go to the Mobile App / Download section.');
 step(3, 'Download scorr.apk and allow install from this source if asked.');
 step(4, 'Open the app and sign in with your Scorr email and password.');
 
-h1('14.2 iPhone / iPad');
+h1('15.2 iPhone / iPad');
 para('A native App Store IPA is not required for daily use. Install as a Home Screen app:');
 step(1, 'Open Safari and go to https://scorr.walfia.ai');
 step(2, 'Tap the Share button.');
@@ -662,51 +614,62 @@ newPage();
 // ═══════════════════════════════════════════════════════════════
 // 15 SECURITY
 // ═══════════════════════════════════════════════════════════════
-title('15. Sign In, Passwords & Security');
-bullet('Everyone signs in at https://scorr.walfia.ai with email + password.');
-bullet('If the email exists but the password is wrong, Scorr shows “Incorrect password.”');
-bullet('If the email is not registered, Scorr shows “Incorrect email and password.”');
-bullet('Role decides which dashboard opens.');
-bullet('Users can change their own password from profile settings.');
-bullet('Admins can reset any user’s password from the Users directory.');
-bullet('Each company’s data is isolated — no cross-company access.');
-bullet('Platform owner (Walfia) approves new company registrations in a separate Companies portal.');
+title('16. Security — how Scorr protects data');
+para('Scorr is built so ordinary users never hold database master keys. The browser and the Android app only use a public “anon” key plus your personal login token. Privileged actions run on the server as checked functions.');
+
+h1('16.1 Transport and hosting');
+bullet('https://scorr.walfia.ai uses TLS (HTTPS) on Vercel. The API is https://*.supabase.co with TLS.');
+bullet('Data at rest is stored in Supabase/PostgreSQL on AWS (Asia), with platform disk encryption.');
+bullet('Email is sent from noreply@scorr.walfia.ai through Resend; templates are server-side.');
+
+h1('16.2 Accounts');
+bullet('Passwords are stored by Supabase Auth (hashed). Scorr never stores a readable password.');
+bullet('Too many failed logins on an email are rate-limited (about 15 minutes).');
+bullet('Forgot password does not tell attackers whether an email exists. Reset is time-limited.');
+bullet('Company signup requires an email OTP before the account is created.');
+bullet('Idle sessions sign out after 20 minutes of no activity.');
+bullet('Admins, managers, and HR must enroll TOTP (authenticator). AAL2 is required for sensitive admin actions such as resetting someone else’s authenticator.');
+bullet('If an authenticator is lost, a company admin (who already passed MFA) can reset factors so old 6-digit codes stop working. The person scans a new QR. Phone authenticator apps do not allow Scorr to delete the old icon on the phone — the user should remove the old Scorr entry themselves.');
+
+h1('16.3 Isolation and permissions');
+bullet('Every business record is tied to a company. Row Level Security and role checks (employee / manager / admin / HR / platform owner) decide who can read or write.');
+bullet('Employees cannot call admin user-create or branding save.');
+bullet('Managers cannot assign KPIs outside the allowed department/team.');
+bullet('GPS pings are written as the signed-in user, not as an arbitrary other employee id from the phone.');
+
+h1('16.4 Policy and audit');
+bullet('Sign-in records that the user accepted location/KPI monitoring.');
+bullet('Admins can reset passwords and authenticators with an audit trail in notifications/email.');
+bullet('Deleting a company (platform owner) removes that tenant’s workspace.');
 drawFooter();
 newPage();
 
-// ═══════════════════════════════════════════════════════════════
-// 16 PLATFORM
-// ═══════════════════════════════════════════════════════════════
-title('16. How the Platform Is Built (Overview)');
-para('Scorr is the live product at https://scorr.walfia.ai. This section is for stakeholders who want a simple picture of how the system is put together.');
+title('17. What “secure” means (honest guarantee)');
+para('No cloud HR product can truthfully promise that it is “totally secure forever.” Attackers, stolen phones, and weak passwords exist in every industry. What Scorr does guarantee as a product design is the following:');
+bullet('Your company data is not mixed into another company’s screens.');
+bullet('Traffic to Scorr and the database is encrypted in transit (HTTPS).');
+bullet('Staff passwords are not stored in plain text.');
+bullet('Privileged roles need an authenticator, not password alone.');
+bullet('Location is used for attendance you enabled, not for silent advertising.');
+para('Your side of the guarantee: unique passwords, do not share authenticator screenshots, keep phones updated, only install the APK from scorr.walfia.ai, and ask Admin to reset MFA if a device is lost.');
+para('Walfia’s side: keep hosting on reputable providers (Vercel, Supabase/AWS), restrict service keys to the server, and keep improving database rules. Independent penetration tests and certifications (SOC 2 / ISO 27001) are a separate commercial engagement — they are not claimed as already issued in this guide.');
+note('If you need a formal DPA, data-residency letter, or pentest report for procurement, contact Walfia (info@walfia.ai) so the legal pack matches your contract — this PDF is an operational guide, not a legal warranty.');
+drawFooter();
+newPage();
 
-h1('16.1 What you use every day');
-bullet('Website: React app hosted on Vercel (project “hr”).');
-bullet('Login and data: Supabase (secure accounts + company database).');
-bullet('Email alerts: Resend, from noreply@scorr.walfia.ai (KPI assigned, completed, overdue).');
-bullet('Each company is a private workspace. Other companies cannot see your data.');
-
-h1('16.2 Core work flow');
-para('Admin or Manager assigns KPI tasks → Employee completes them before the deadline → Monthly score becomes points → Employee redeems rewards → Manager or Admin approves.');
-
-h1('16.3 Live URL & domain');
+title('18. How the platform is built');
+para('Scorr is the live product at https://scorr.walfia.ai.');
+bullet('Website: React application on Vercel.');
+bullet('Login and data: Supabase Auth + PostgreSQL.');
+bullet('Mail: Resend.');
 tableHeader(['Item', 'Value']);
 tableRow('App', 'https://scorr.walfia.ai');
-tableRow('Brand domain', 'walfia.ai');
-tableRow('Hosting', 'Vercel (automatic HTTPS)');
-spacer();
-
-h1('16.4 Mobile');
-bullet('Android: download Scorr APK from the website Download section.');
-bullet('iPhone: Safari → Share → Add to Home Screen (recommended).');
-bullet('Same login as the website. GPS attendance needs Location permission.');
+tableRow('This PDF', 'https://scorr.walfia.ai/downloads/Scorr-Client-Feature-Guide.pdf');
+tableRow('Hosting', 'Vercel (HTTPS)');
 drawFooter();
 newPage();
 
-// ═══════════════════════════════════════════════════════════════
-// 17 TROUBLESHOOT
-// ═══════════════════════════════════════════════════════════════
-title('17. Quick Troubleshooting');
+title('19. Troubleshooting');
 
 tableHeader(['Problem', 'What to try']);
 tableRow('Cannot sign in', 'If the email is registered: you will see “Incorrect password.” If the email is unknown: “Incorrect email and password.” After company registration, wait until the company is approved.');
@@ -714,8 +677,8 @@ tableRow('Wrong dashboard opens', 'Your role is set incorrectly. Ask Admin to ch
 tableRow('Cannot add users', 'You must be Admin (not Manager/Employee). Demo admin cannot add real users.');
 tableRow('Manager list empty', 'Create Manager accounts first, in the same department as the employee.');
 tableRow('Department required error', 'Managers and employees need a department. Create one under Departments.');
-tableRow('Cannot add another department KPI', 'This is allowed. Library totals may exceed 100%. Use Add KPI, give it a name and weight (1–100%), then wait for autosave.');
-tableRow('GPS check-in fails', 'Enable location permission; confirm Admin assigned an Office GPS site.');
+tableRow('Authenticator lost', 'Admin → People → ⋮ → Reset authenticator. Then sign in and scan the new QR. Delete the old Scorr row in Google Authenticator yourself.');
+tableRow('GPS check-in fails', 'Enable location (and background on Android); confirm Office GPS site is assigned.');
 tableRow('No daily reports visible', 'Only Admin sees others’ reports. Staff must submit from Daily Report tab.');
 tableRow('Cannot assign KPIs', 'Admin: select department first, then a person in that department, then KPI(s), then dates. The person list is empty until a department is chosen. That person’s pending weight cannot exceed 100%.');
 tableRow('Assignment rejected at 110%', 'That employee already has too much pending weight. Pick a smaller KPI or complete/remove an existing assignment. Other employees are not counted.');

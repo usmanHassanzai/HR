@@ -1,4 +1,5 @@
 import type { Kpi } from './kpiHelpers';
+import { kpiOverlapsCurrentMonth } from './kpiCategories';
 
 /** Round to two decimal places (49.50, 12.75, 90.75). */
 export function roundKpiScore(value: number): number {
@@ -9,39 +10,102 @@ export function formatKpiScore(value: number): string {
   return roundKpiScore(value).toFixed(2);
 }
 
-/** Target achieved % for a KPI (0–100). This is the Employee Score. */
-export function kpiAchievedPct(kpi: Kpi): number {
-  if (kpi.completion_status === 'completed') return 100;
-  if (kpi.target_value > 0) {
-    return Math.min(100, Math.max(0, Math.round((Number(kpi.current_value) / Number(kpi.target_value)) * 100)));
+function karachiYmd(value: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value.slice(0, 10);
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Karachi',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(d);
+  const y = parts.find((p) => p.type === 'year')?.value;
+  const m = parts.find((p) => p.type === 'month')?.value;
+  const day = parts.find((p) => p.type === 'day')?.value;
+  if (!y || !m || !day) return value.slice(0, 10);
+  return `${y}-${m}-${day}`;
+}
+
+function todayKarachiYmd(): string {
+  return karachiYmd(new Date().toISOString());
+}
+
+/** True when the KPI end date is before today (Asia/Karachi). */
+export function isKpiPastDeadline(kpi: Pick<Kpi, 'end_date' | 'completion_status'>): boolean {
+  if (!kpi.end_date || kpi.completion_status === 'completed') return false;
+  return todayKarachiYmd() > karachiYmd(kpi.end_date);
+}
+
+/** Completed after the assigned end date — earns half points. */
+export function isKpiLateCompletion(kpi: Pick<Kpi, 'completion_status' | 'end_date' | 'completed_at' | 'updated_at'>): boolean {
+  if (kpi.completion_status !== 'completed' || !kpi.end_date) return false;
+  const done = kpi.completed_at || kpi.updated_at;
+  if (!done) return false;
+  return karachiYmd(done) > karachiYmd(kpi.end_date);
+}
+
+/** Assigned Score (points if completed on time). May exceed Weight. Defaults to Weight. */
+export function kpiAssignedScore(kpi: Kpi): number {
+  const weight = Number(kpi.weight || 0);
+  if (kpi.assigned_score != null && Number.isFinite(Number(kpi.assigned_score))) {
+    return roundKpiScore(Math.max(0, Number(kpi.assigned_score)));
   }
-  if (kpi.status === 'on_track') return 100;
-  if (kpi.status === 'at_risk') return 50;
-  return 0;
+  return roundKpiScore(weight);
+}
+
+/** Contribution % of weight when completed (null if still open). */
+export function kpiManagerScorePct(kpi: Kpi): number | null {
+  if (kpi.completion_status !== 'completed') return null;
+  const weight = Number(kpi.weight || 0);
+  if (weight <= 0) return 0;
+  return roundKpiScore((kpiScoreContribution(kpi) / weight) * 100);
+}
+
+/** Target achieved % for a KPI. Open tasks are 0 for contribution tables. */
+export function kpiAchievedPct(kpi: Kpi): number {
+  return kpiManagerScorePct(kpi) ?? 0;
 }
 
 export const kpiEmployeeScore = kpiAchievedPct;
 
-/**
- * Weighted KPI Score = Employee Score % × KPI Weight
- * Example: 90% × 55 = 49.50
- */
 export function calculateWeightedKpiScore(employeeScore: number, weight: number): number {
   return roundKpiScore((Number(employeeScore) / 100) * Number(weight || 0));
 }
 
+/** Points awarded from Score + due date: full on time, half if late, 0 if still open. */
 export function kpiScoreContribution(kpi: Kpi): number {
-  return calculateWeightedKpiScore(kpiAchievedPct(kpi), Number(kpi.weight || 0));
+  if (kpi.completion_status !== 'completed') return 0;
+  const score = kpiAssignedScore(kpi);
+  return isKpiLateCompletion(kpi) ? roundKpiScore(score * 0.5) : score;
 }
 
-/** Overall KPI Score = SUM(weighted KPI scores). Do not normalize unused weight. */
+/**
+ * Monthly score = sum of Scores awarded ÷ sum of Weights × 100.
+ * Open tasks count in weight and contribute 0 until marked Complete.
+ */
 export function calculateOverallKpiScore(kpis: Kpi[]): number {
-  if (!kpis.length) return 0;
-  return roundKpiScore(kpis.reduce((s, k) => s + kpiScoreContribution(k), 0));
+  const totalWeight = kpis.reduce((sum, kpi) => sum + Number(kpi.weight || 0), 0);
+  if (totalWeight <= 0) return 0;
+  const points = kpis.reduce((sum, kpi) => sum + kpiScoreContribution(kpi), 0);
+  return roundKpiScore((points / totalWeight) * 100);
+}
+
+export function thisMonthKpis(kpis: Kpi[]): Kpi[] {
+  return kpis.filter((k) => kpiOverlapsCurrentMonth(k));
+}
+
+export function thisMonthKpiScore(kpis: Kpi[]): number {
+  return calculateOverallKpiScore(thisMonthKpis(kpis));
 }
 
 export const employeeWeightedKpiScore = calculateOverallKpiScore;
 export const employeeTotalKpiPoints = calculateOverallKpiScore;
+
+/** Sum of Scores awarded (completed tasks). Not Reward Points. */
+export function employeePerformancePoints(kpis: Kpi[]): number {
+  return roundKpiScore(kpis.reduce((sum, kpi) => sum + kpiScoreContribution(kpi), 0));
+}
 
 export type PerformanceRating =
   | 'Outstanding'
@@ -75,6 +139,11 @@ export type KpiScoreRow = {
   weightedScore: number;
 };
 
+export function formatKpiTaskPoints(kpi: Kpi): string | null {
+  if (kpiManagerScorePct(kpi) == null) return null;
+  return formatKpiScore(kpiScoreContribution(kpi));
+}
+
 export function kpiScoreRows(kpis: Kpi[]): KpiScoreRow[] {
   return kpis.map((kpi) => {
     const employeeScore = kpiAchievedPct(kpi);
@@ -84,7 +153,7 @@ export function kpiScoreRows(kpis: Kpi[]): KpiScoreRow[] {
       name: kpi.name,
       weight,
       employeeScore,
-      weightedScore: calculateWeightedKpiScore(employeeScore, weight),
+      weightedScore: kpiScoreContribution(kpi),
     };
   });
 }
@@ -109,8 +178,9 @@ export function statusTrafficLight(status: string): 'green' | 'yellow' | 'red' {
   return 'red';
 }
 
-export function trafficLightLabel(light: 'green' | 'yellow' | 'red'): string {
-  if (light === 'green') return 'On track';
-  if (light === 'yellow') return 'At risk';
-  return 'Off track';
+export function trafficLightLabel(light: 'green' | 'yellow' | 'red' | 'gray'): string {
+  if (light === 'gray') return 'Not started';
+  if (light === 'green') return 'Going well';
+  if (light === 'yellow') return 'Needs attention';
+  return 'Behind';
 }

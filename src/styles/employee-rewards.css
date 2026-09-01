@@ -278,6 +278,22 @@
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-success) 12%, transparent);
 }
 
+.emp-rewards-catalog-item--locked {
+  opacity: 0.72;
+}
+
+.emp-rewards-catalog-item--locked .btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.emp-rewards-catalog-item__need {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
 .emp-rewards-catalog-item__icon {
   font-size: 1.75rem;
   line-height: 1;
@@ -438,4 +454,89 @@
   .emp-rewards-redemption {
     gap: 0.5rem;
   }
+}
+
+.kpi-award-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.kpi-award-progress__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+}
+
+.kpi-award-progress__intro {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.kpi-award-progress__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.75rem;
+}
+
+.kpi-award-card {
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--dash-card-bg, var(--bg-elevated));
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.kpi-award-card--ready {
+  border-color: color-mix(in srgb, var(--color-success) 45%, var(--border-color));
+}
+
+.kpi-award-card__head {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+}
+
+.kpi-award-card__head span:last-child {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.kpi-award-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-warning) 16%, transparent);
+  color: var(--color-warning);
+  flex-shrink: 0;
+}
+
+.kpi-award-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  overflow: hidden;
+}
+
+.kpi-award-bar__fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #fbbf24, #f59e0b);
+}
+
+.kpi-award-card__hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
 }

@@ -1,30 +1,51 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
-  Calendar,
   ChevronDown,
   Download,
   History,
   Loader2,
-  Clock,
+  User,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Profile } from '../utils/kpiHelpers';
 import {
   AttendanceHistoryRow,
   TeamAttendanceHistoryRow,
-  formatDateTime,
   formatWorkDuration,
+  describeAttendanceHistory,
 } from '../utils/shiftHelpers';
-import { APPROVAL_LABEL, approvalBadgeClass, ApprovalStatus } from '../utils/attendanceHelpers';
+import {
+  APPROVAL_LABEL,
+  approvalBadgeClass,
+  ApprovalStatus,
+  ATTENDANCE_STATUS_LABEL,
+  attendanceStatusBadgeClass,
+} from '../utils/attendanceHelpers';
 import { downloadAttendanceCsv } from '../utils/exportAttendance';
-import '../styles/employee-attendance.css';
+import {
+  AttendanceBrowseView,
+  attendanceYearOptions,
+  canViewYearlyAttendance,
+  historyMonthParam,
+} from '../utils/attendancePeriod';
+import AttendanceMonthWiseList from './AttendanceMonthWiseList';
+import '../styles/manager-attendance.css';
 
 interface EmployeeAttendanceHistoryProps {
   profile: Profile;
+  refreshKey?: number;
 }
 
-type BrowsePeriod = 'month' | 'year';
-type ViewMode = 'daily' | 'monthly';
+type BrowsePeriod = AttendanceBrowseView;
+
+function initials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() || '')
+    .join('');
+}
 
 function mapHistoryRow(r: AttendanceHistoryRow, user: Profile): TeamAttendanceHistoryRow {
   return {
@@ -63,35 +84,78 @@ function mapRowToRecord(r: TeamAttendanceHistoryRow) {
   };
 }
 
-export default function EmployeeAttendanceHistory({ profile }: EmployeeAttendanceHistoryProps) {
+function periodBounds(year: number, month: number | null): { start: string; end: string } {
+  if (month == null) {
+    return { start: `${year}-01-01`, end: `${year}-12-31` };
+  }
+  const last = new Date(year, month, 0).getDate();
+  return {
+    start: `${year}-${String(month).padStart(2, '0')}-01`,
+    end: `${year}-${String(month).padStart(2, '0')}-${String(last).padStart(2, '0')}`,
+  };
+}
+
+export default function EmployeeAttendanceHistory({
+  profile,
+  refreshKey = 0,
+}: EmployeeAttendanceHistoryProps) {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [browsePeriod, setBrowsePeriod] = useState<BrowsePeriod>('month');
-  const [viewMode, setViewMode] = useState<ViewMode>('daily');
   const [rows, setRows] = useState<TeamAttendanceHistoryRow[]>([]);
+  const [cardOpen, setCardOpen] = useState(true);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState<string | null>(null);
-  const [expandedMonths, setExpandedMonths] = useState<Record<string, boolean>>({});
 
+  const canYear = canViewYearlyAttendance(profile.created_at);
+  const yearOptions = attendanceYearOptions(profile.created_at);
   const monthLabel = new Date(year, month - 1, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
   const yearLabel = String(year);
   const periodLabel = browsePeriod === 'month' ? monthLabel : yearLabel;
+  const firstName = profile.full_name.split(' ')[0] || 'My';
+
+  const loadHistoryRows = useCallback(
+    async (period: BrowsePeriod): Promise<TeamAttendanceHistoryRow[]> => {
+      const monthParam = historyMonthParam(period, month);
+      const { data, error } = await supabase.rpc('get_attendance_history', {
+        p_year: year,
+        p_month: monthParam,
+        p_user_id: profile.id,
+      });
+
+      if (!error && data && data.length > 0) {
+        return (data as AttendanceHistoryRow[]).map((r) => mapHistoryRow(r, profile));
+      }
+
+      const { start, end } = periodBounds(year, monthParam);
+      const { data: raw } = await supabase
+        .from('attendance_records')
+        .select(
+          'id, attendance_date, status, approval_status, clock_in_at, clock_out_at, attendance_source, work_minutes, notes',
+        )
+        .eq('user_id', profile.id)
+        .gte('attendance_date', start)
+        .lte('attendance_date', end)
+        .order('attendance_date', { ascending: false });
+
+      return ((raw || []) as AttendanceHistoryRow[]).map((r) =>
+        mapHistoryRow({ ...r, shift_name: r.shift_name ?? null }, profile),
+      );
+    },
+    [year, month, profile],
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase.rpc('get_attendance_history', {
-      p_year: year,
-      p_month: browsePeriod === 'month' ? month : null,
-      p_user_id: null,
-    });
-
-    const mapped = !error
-      ? ((data || []) as AttendanceHistoryRow[]).map((r) => mapHistoryRow(r, profile))
-      : [];
-    setRows(mapped.sort((a, b) => b.attendance_date.localeCompare(a.attendance_date)));
+    const mapped = await loadHistoryRows(browsePeriod);
+    setRows(mapped.sort((a, b) => String(b.attendance_date).localeCompare(String(a.attendance_date))));
     setLoading(false);
-  }, [year, month, browsePeriod, profile]);
+  }, [browsePeriod, loadHistoryRows, refreshKey]);
+
+  useEffect(() => {
+    if (browsePeriod === 'year' && !canYear) setBrowsePeriod('month');
+  }, [browsePeriod, canYear]);
 
   useEffect(() => {
     void load();
@@ -101,35 +165,9 @@ export default function EmployeeAttendanceHistory({ profile }: EmployeeAttendanc
   const totalPresent = rows.filter((r) => r.clock_in_at).length;
   const totalMinutes = rows.reduce((s, r) => s + (r.work_minutes || 0), 0);
 
-  const monthlyGroups = useMemo(() => {
-    const map = new Map<string, TeamAttendanceHistoryRow[]>();
-    for (const r of rows) {
-      const key = r.attendance_date.slice(0, 7);
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(r);
-    }
-    return [...map.entries()]
-      .sort(([a], [b]) => b.localeCompare(a))
-      .map(([ym, monthRows]) => {
-        const [y, m] = ym.split('-').map(Number);
-        const label = new Date(y, m - 1, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
-        const mins = monthRows.reduce((s, r) => s + (r.work_minutes || 0), 0);
-        const present = monthRows.filter((r) => r.clock_in_at).length;
-        return { ym, label, monthRows, mins, present };
-      });
-  }, [rows]);
-
   const fetchRowsForExport = async (period: BrowsePeriod): Promise<TeamAttendanceHistoryRow[]> => {
     if (period === browsePeriod && rows.length > 0) return rows;
-
-    const { data, error } = await supabase.rpc('get_attendance_history', {
-      p_year: year,
-      p_month: period === 'month' ? month : null,
-      p_user_id: null,
-    });
-
-    if (error || !data) return [];
-    return (data as AttendanceHistoryRow[]).map((r) => mapHistoryRow(r, profile));
+    return loadHistoryRows(period);
   };
 
   const exportPeriod = async (period: BrowsePeriod) => {
@@ -144,37 +182,37 @@ export default function EmployeeAttendanceHistory({ profile }: EmployeeAttendanc
     }
   };
 
-  const toggleMonth = (ym: string) => {
-    setExpandedMonths((prev) => ({ ...prev, [ym]: !prev[ym] }));
-  };
-
-  const currentMonthKey = `${year}-${String(month).padStart(2, '0')}`;
-
   return (
-    <section className="emp-attendance-card">
+    <section className="mgr-attendance-card">
       <h3>
-        <History size={18} /> My attendance history
+        <History size={18} /> Attendance history
       </h3>
       <p>
-        Review every check-in by day or month. Download your records as a CSV for any month or the full year.
+        See this month day by day, or month by month for the year.
+        {canYear
+          ? ' You can also open the full year because you have been here for at least one year.'
+          : ' Full year opens after you have been with the company for one year.'}
       </p>
 
-      <div className="emp-attendance-filters">
+      <div className="mgr-attendance-filters">
         <div className="form-group">
-          <label htmlFor="emp-att-browse">Browse</label>
+          <label htmlFor="emp-att-browse">Show</label>
           <select
             id="emp-att-browse"
             value={browsePeriod}
             onChange={(e) => setBrowsePeriod(e.target.value as BrowsePeriod)}
           >
-            <option value="month">Monthly (daily records)</option>
-            <option value="year">Yearly overview</option>
+            <option value="month">This month (daily)</option>
+            <option value="monthwise">Month by month</option>
+            <option value="year" disabled={!canYear}>
+              Full year{canYear ? '' : ' (after 1 year)'}
+            </option>
           </select>
         </div>
         <div className="form-group">
           <label htmlFor="emp-att-year">Year</label>
           <select id="emp-att-year" value={year} onChange={(e) => setYear(Number(e.target.value))}>
-            {[year - 1, year, year + 1].map((y) => (
+            {yearOptions.map((y) => (
               <option key={y} value={y}>
                 {y}
               </option>
@@ -193,203 +231,125 @@ export default function EmployeeAttendanceHistory({ profile }: EmployeeAttendanc
             </select>
           </div>
         )}
-        <div className="emp-attendance-filters__actions">
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            disabled={exporting !== null}
-            onClick={() => void exportPeriod('month')}
-          >
-            {exporting === 'month' ? <Loader2 size={14} className="spin-icon" /> : <Download size={14} />}
-            Download month
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            disabled={exporting !== null}
-            onClick={() => void exportPeriod('year')}
-          >
-            {exporting === 'year' ? <Loader2 size={14} className="spin-icon" /> : <Download size={14} />}
-            Download year
-          </button>
-        </div>
-      </div>
-
-      {browsePeriod === 'month' && (
-        <div className="emp-attendance-view-tabs">
-          <button
-            type="button"
-            className={`emp-attendance-view-tab ${viewMode === 'daily' ? 'emp-attendance-view-tab--active' : ''}`}
-            onClick={() => setViewMode('daily')}
-          >
-            <Calendar size={14} /> Daily list
-          </button>
-          <button
-            type="button"
-            className={`emp-attendance-view-tab ${viewMode === 'monthly' ? 'emp-attendance-view-tab--active' : ''}`}
-            onClick={() => setViewMode('monthly')}
-          >
-            <Clock size={14} /> Month summary
-          </button>
-        </div>
-      )}
-
-      <div className="emp-attendance-stats">
-        <div className="emp-attendance-stat">
-          <Calendar size={16} />
-          <span className="emp-attendance-stat__label">Records ({periodLabel})</span>
-          <strong>{totalRecords}</strong>
-        </div>
-        <div className="emp-attendance-stat">
-          <History size={16} />
-          <span className="emp-attendance-stat__label">Days with check-in</span>
-          <strong>{totalPresent}</strong>
-        </div>
-        <div className="emp-attendance-stat">
-          <Clock size={16} />
-          <span className="emp-attendance-stat__label">Time logged</span>
-          <strong>{formatWorkDuration(totalMinutes)}</strong>
-        </div>
       </div>
 
       {loading ? (
-        <div className="emp-attendance-loading">
+        <div className="mgr-attendance-loading">
           <Loader2 size={28} className="spin-icon" />
           <span>Loading attendance…</span>
         </div>
-      ) : rows.length === 0 ? (
-        <div className="emp-attendance-empty">
-          <Calendar size={40} strokeWidth={1.25} />
-          <h4>No records yet</h4>
-          <p>No attendance entries for {periodLabel}. Clock in from the Today tab when you arrive.</p>
-        </div>
-      ) : browsePeriod === 'year' ? (
-        <div className="emp-attendance-month-list">
-          {monthlyGroups.map((group) => {
-            const isOpen = expandedMonths[group.ym] ?? group.ym === currentMonthKey;
-            return (
-              <article key={group.ym} className="emp-attendance-month-block">
-                <button
-                  type="button"
-                  className="emp-attendance-month-block__toggle"
-                  onClick={() => toggleMonth(group.ym)}
-                  aria-expanded={isOpen}
-                >
-                  <span>
-                    <strong>{group.label}</strong>
-                    <span className="emp-attendance-month-block__meta">
-                      {group.present} day{group.present !== 1 ? 's' : ''} · {formatWorkDuration(group.mins)} ·{' '}
-                      {group.monthRows.length} record{group.monthRows.length !== 1 ? 's' : ''}
-                    </span>
+      ) : (
+        <div className="mgr-attendance-employee-list">
+          <article className="mgr-attendance-employee">
+            <button
+              type="button"
+              className="mgr-attendance-employee__toggle"
+              onClick={() => setCardOpen((open) => !open)}
+              aria-expanded={cardOpen}
+            >
+              <span className="mgr-attendance-employee__avatar">{initials(profile.full_name)}</span>
+              <span className="mgr-attendance-employee__info">
+                <span className="mgr-attendance-employee__name-row">
+                  <strong>{profile.full_name}</strong>
+                </span>
+                <span className="mgr-attendance-employee__email">{profile.email}</span>
+                <span className="mgr-attendance-employee__stats">
+                  <span className="mgr-attendance-employee__stat">
+                    {totalPresent} day{totalPresent !== 1 ? 's' : ''} present
                   </span>
-                  <ChevronDown
-                    size={18}
-                    className={`emp-attendance-month-block__chev${isOpen ? ' emp-attendance-month-block__chev--open' : ''}`}
-                  />
-                </button>
-                {isOpen && (
-                  <div className="emp-attendance-month-block__body">
-                    <div className="team-points-table-wrap">
-                      <table className="attendance-history-table attendance-history-table--detailed">
-                        <thead>
-                          <tr>
-                            <th>Date</th>
-                            <th>Shift</th>
-                            <th>Clock in</th>
-                            <th>Clock out</th>
-                            <th>Duration</th>
-                            <th>Source</th>
-                            <th>Status</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {group.monthRows.map((r) => (
+                  <span className="mgr-attendance-employee__stat">
+                    {formatWorkDuration(totalMinutes)} logged
+                  </span>
+                  <span className="mgr-attendance-employee__stat">
+                    {totalRecords} record{totalRecords !== 1 ? 's' : ''}
+                  </span>
+                </span>
+              </span>
+              <ChevronDown
+                size={18}
+                className={`mgr-attendance-employee__chev${cardOpen ? ' mgr-attendance-employee__chev--open' : ''}`}
+              />
+            </button>
+
+            {cardOpen && (
+              <div className="mgr-attendance-employee__body">
+                <div className="mgr-attendance-employee__toolbar">
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    disabled={exporting !== null}
+                    onClick={() => void exportPeriod('month')}
+                  >
+                    {exporting === 'month' ? <Loader2 size={14} className="spin-icon" /> : <Download size={14} />}
+                    Download {firstName}&apos;s month
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    disabled={exporting !== null || !canYear}
+                    onClick={() => void exportPeriod('year')}
+                    title={canYear ? undefined : 'Full year is available after 1 year with the company'}
+                  >
+                    {exporting === 'year' ? <Loader2 size={14} className="spin-icon" /> : <Download size={14} />}
+                    Download {firstName}&apos;s year
+                  </button>
+                </div>
+
+                {rows.length === 0 && browsePeriod !== 'monthwise' ? (
+                  <p className="mgr-attendance-empty-inline">
+                    <User size={16} />
+                    No attendance records for {periodLabel}.
+                  </p>
+                ) : browsePeriod === 'monthwise' ? (
+                  <AttendanceMonthWiseList rows={rows} year={year} />
+                ) : (
+                  <div className="team-points-table-wrap">
+                    <table className="attendance-history-table attendance-history-table--detailed">
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Shift</th>
+                          <th>Clock in</th>
+                          <th>Clock out</th>
+                          <th>Duration</th>
+                          <th>Source</th>
+                          <th>Attendance</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((r) => {
+                          const timing = describeAttendanceHistory(r);
+                          return (
                             <tr key={r.id}>
                               <td>
                                 <strong>{r.attendance_date}</strong>
                               </td>
-                              <td>{r.shift_name || '—'}</td>
-                              <td>{formatDateTime(r.clock_in_at)}</td>
-                              <td>{formatDateTime(r.clock_out_at)}</td>
-                              <td>{formatWorkDuration(r.work_minutes)}</td>
+                              <td className={timing.shiftEmpty ? 'att-cell-muted' : undefined}>{timing.shift}</td>
+                              <td>{timing.clockIn}</td>
+                              <td className={timing.clockOutEmpty ? 'att-cell-muted' : undefined}>{timing.clockOut}</td>
+                              <td className={timing.durationEmpty ? 'att-cell-muted' : undefined}>{timing.duration}</td>
                               <td>{r.attendance_source === 'geo' ? 'GPS' : r.attendance_source || 'Manual'}</td>
                               <td>
-                                <span
-                                  className={`badge ${approvalBadgeClass(r.approval_status as ApprovalStatus)}`}
-                                >
+                                <span className={`badge ${attendanceStatusBadgeClass(r.status)}`}>
+                                  {ATTENDANCE_STATUS_LABEL[r.status as keyof typeof ATTENDANCE_STATUS_LABEL] || r.status}
+                                </span>
+                              </td>
+                              <td>
+                                <span className={`badge ${approvalBadgeClass(r.approval_status as ApprovalStatus)}`}>
                                   {APPROVAL_LABEL[r.approval_status as ApprovalStatus]}
                                 </span>
                               </td>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 )}
-              </article>
-            );
-          })}
-        </div>
-      ) : viewMode === 'daily' ? (
-        <div className="team-points-table-wrap">
-          <table className="attendance-history-table attendance-history-table--detailed">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Shift</th>
-                <th>Clock in</th>
-                <th>Clock out</th>
-                <th>Duration</th>
-                <th>Source</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.id}>
-                  <td>
-                    <strong>{r.attendance_date}</strong>
-                  </td>
-                  <td>{r.shift_name || '—'}</td>
-                  <td>{formatDateTime(r.clock_in_at)}</td>
-                  <td>{formatDateTime(r.clock_out_at)}</td>
-                  <td>{formatWorkDuration(r.work_minutes)}</td>
-                  <td>{r.attendance_source === 'geo' ? 'GPS' : r.attendance_source || 'Manual'}</td>
-                  <td>
-                    <span className={`badge ${approvalBadgeClass(r.approval_status as ApprovalStatus)}`}>
-                      {APPROVAL_LABEL[r.approval_status as ApprovalStatus]}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <div className="emp-attendance-summary-card">
-          <div className="emp-attendance-summary-card__head">
-            <strong>{monthLabel}</strong>
-            <span>{totalPresent} days present · {formatWorkDuration(totalMinutes)} total</span>
-          </div>
-          <div className="emp-attendance-summary-grid">
-            <div>
-              <span>Total records</span>
-              <strong>{totalRecords}</strong>
-            </div>
-            <div>
-              <span>Approved days</span>
-              <strong>{rows.filter((r) => r.approval_status === 'approved').length}</strong>
-            </div>
-            <div>
-              <span>Pending review</span>
-              <strong>{rows.filter((r) => r.approval_status === 'pending').length}</strong>
-            </div>
-            <div>
-              <span>GPS check-ins</span>
-              <strong>{rows.filter((r) => r.attendance_source === 'geo').length}</strong>
-            </div>
-          </div>
+              </div>
+            )}
+          </article>
         </div>
       )}
     </section>

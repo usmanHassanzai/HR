@@ -119,6 +119,10 @@
   align-items: start;
 }
 
+.mgr-rewards-layout--single {
+  grid-template-columns: 1fr;
+}
+
 .mgr-rewards-card {
   padding: 1.25rem 1.35rem;
   background: var(--dash-card-bg);

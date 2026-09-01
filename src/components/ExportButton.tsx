@@ -40,16 +40,14 @@ export default function ExportButton({ kpis, userName }: ExportButtonProps) {
       doc.setFont('helvetica', 'bold');
       doc.text('KPI', 14, y);
       doc.text('Weight', 90, y);
-      doc.text('Employee Score', 118, y);
-      doc.text('Weighted Score', 160, y);
+      doc.text('Points', 140, y);
       doc.setFont('helvetica', 'normal');
       rows.forEach((row) => {
         y += 8;
         if (y > 270) { doc.addPage(); y = 20; }
         doc.text(row.name.substring(0, 40), 14, y);
         doc.text(`${row.weight}%`, 90, y);
-        doc.text(`${row.employeeScore}%`, 118, y);
-        doc.text(formatKpiScore(row.weightedScore), 160, y);
+        doc.text(formatKpiScore(row.weightedScore), 140, y);
       });
       y += 10;
       doc.setFont('helvetica', 'bold');
@@ -72,8 +70,7 @@ export default function ExportButton({ kpis, userName }: ExportButtonProps) {
         Employee: userName,
         KPI: row.name,
         Weight: row.weight,
-        'Employee Score': row.employeeScore,
-        'Weighted Score': row.weightedScore,
+        Points: row.weightedScore,
         'Overall KPI Score': summary.overallScore,
         'Performance Rating': summary.performanceRating,
       }));
@@ -89,7 +86,7 @@ export default function ExportButton({ kpis, userName }: ExportButtonProps) {
   };
 
   return (
-    <div style={{ display: 'flex', gap: '0.5rem' }}>
+    <div className="export-btn-row">
       <button className="btn btn-secondary btn-sm" onClick={() => void exportPDF()} disabled={loadingPdf || kpis.length === 0}>
         {loadingPdf ? <Loader2 size={14} className="spin-icon" /> : <FileDown size={14} />}
         PDF

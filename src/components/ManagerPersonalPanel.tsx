@@ -1,67 +1,68 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Profile, Kpi } from '../utils/kpiHelpers';
-import { fetchRewardsSummary, RewardsSummary } from '../utils/rewardsHelpers';
+import { isKpiViewedByAssignee, kpiProgressBadge, Profile, Kpi } from '../utils/kpiHelpers';
+import { hydrateKpiLastEdits } from '../utils/kpiAssignmentEdits';
+import { markAssignedKpisViewed } from '../utils/kpiViewed';
 import { formatKpiWeight } from '../utils/kpiWeightHelpers';
 import {
-  kpiAchievedPct,
-  kpiScoreContribution,
   employeeKpiScoreSummary,
   formatKpiScore,
   performanceRatingColor,
-  statusTrafficLight,
-  trafficLightLabel,
+  formatKpiTaskPoints,
+  thisMonthKpis,
 } from '../utils/kpiScoreHelpers';
-import { emailKpiCompleted, emailKpiOverdue } from '../utils/kpiEmail';
-import EmployeeKpiBoardSummary from './EmployeeKpiBoardSummary';
-import ExportButton from './ExportButton';
-import RewardsTab from './RewardsTab';
-import TeamPointsBoard from './TeamPointsBoard';
-import {
-  BarChart3,
-  BarChart2,
-  CheckCircle2,
-  Loader2,
-  RefreshCw,
-  Sparkles,
-  Target,
-  Trophy,
-  TrendingUp,
-} from 'lucide-react';
+import { emailKpiOverdue } from '../utils/kpiEmail';
+import KpiAssignmentDetails from './KpiAssignmentDetails';
+import KpiViewedBadge from './KpiViewedBadge';
+import KpiEvaluationBlock from './KpiEvaluationBlock';
+import { kpiCategoryMeta } from '../utils/kpiCategories';
+import { Loader2, Target } from 'lucide-react';
 import '../styles/manager-personal.css';
 
 interface ManagerPersonalPanelProps {
   profile: Profile;
 }
 
-type PersonalTab = 'kpis' | 'rewards';
-
 function fmtDate(d?: string | null): string {
   return d ? new Date(`${d}T00:00:00`).toLocaleDateString() : '—';
 }
 
 export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelProps) {
-  const [activeTab, setActiveTab] = useState<PersonalTab>('kpis');
   const [kpis, setKpis] = useState<Kpi[]>([]);
-  const [rewards, setRewards] = useState<RewardsSummary | null>(null);
   const [loading, setLoading] = useState(true);
-  const [completingId, setCompletingId] = useState<string | null>(null);
-  const [pointsRefreshKey, setPointsRefreshKey] = useState(0);
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
     try {
-      const [kpiRes, rewardsSummary] = await Promise.all([
-        supabase.from('kpis').select('*').eq('user_id', profile.id).order('created_at', { ascending: true }),
-        fetchRewardsSummary(profile.id),
-      ]);
-
-      if (!kpiRes.error) setKpis(kpiRes.data || []);
-      setRewards(rewardsSummary);
+      const kpiRes = await supabase.from('kpis').select('*').eq('user_id', profile.id).order('created_at', { ascending: true });
+      if (!kpiRes.error) setKpis(await hydrateKpiLastEdits((kpiRes.data as Kpi[]) || []));
     } finally {
       setLoading(false);
     }
   }, [profile.id]);
+
+  useEffect(() => {
+    const ids = kpis.filter((k) => !isKpiViewedByAssignee(k)).map((k) => k.id);
+    if (!ids.length) return;
+    let cancelled = false;
+    void markAssignedKpisViewed(ids).then(() => {
+      if (cancelled) return;
+      const now = new Date().toISOString();
+      setKpis((prev) => prev.map((k) => (
+        ids.includes(k.id)
+          ? {
+              ...k,
+              viewed_at: k.viewed_at || now,
+              viewed_by: k.viewed_by || profile.id,
+              employee_progress: k.employee_progress === 'completed' || k.completion_status === 'completed'
+                ? k.employee_progress
+                : 'started',
+            }
+          : k
+      )));
+    });
+    return () => { cancelled = true; };
+  }, [kpis, profile.id]);
 
   useEffect(() => {
     void load();
@@ -85,283 +86,73 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
     };
   }, [load, profile.full_name, profile.id]);
 
-  const summary = employeeKpiScoreSummary(kpis);
-  const healthScore = summary.overallScore;
-  const totalKpiPoints = summary.overallScore;
+  const monthKpis = thisMonthKpis(kpis);
+  const summary = employeeKpiScoreSummary(monthKpis);
   const ratingColor = performanceRatingColor(summary.performanceRating);
-  const completedCount = summary.completed;
 
-  const handleCompleteKpi = async (kpiId: string) => {
-    setCompletingId(kpiId);
-    try {
-      const { data, error } = await supabase.rpc('complete_kpi_employee', { p_kpi_id: kpiId });
-      if (error) throw error;
-      const row = Array.isArray(data) ? data[0] : data;
-      if (row?.manager_email) {
-        await emailKpiCompleted(row.manager_email, row.manager_name, profile.full_name, row.department);
-      }
-      await load({ silent: true });
-      setPointsRefreshKey((k) => k + 1);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Could not mark complete.';
-      alert(message);
-    } finally {
-      setCompletingId(null);
-    }
-  };
-
-  if (loading && kpis.length === 0 && !rewards) {
+  if (loading && kpis.length === 0) {
     return (
       <div className="mgr-personal-loading">
         <Loader2 size={32} className="spin-icon" />
-        <span>Loading your KPIs &amp; points…</span>
+        <span>Loading your KPIs…</span>
       </div>
     );
   }
 
   return (
     <div className="mgr-personal-page">
-      <header className="mgr-personal-header">
-        <div className="mgr-personal-header__main">
-          <div className="mgr-personal-header__icon">
-            <BarChart3 size={22} />
-          </div>
-          <div>
-            <h2 className="mgr-personal-header__title">My KPIs &amp; Points</h2>
-            <p className="mgr-personal-header__subtitle">
-              Track your own performance tasks, health score, and rewards balance — separate from your team
-              management views.
-            </p>
-          </div>
+      <div className="mgr-personal-stats">
+        <div className="mgr-personal-stat mgr-personal-stat--accent">
+          <span className="mgr-personal-stat__label">This month</span>
+          <strong>{formatKpiScore(summary.overallScore)}%</strong>
         </div>
-
-        <div className="mgr-personal-stats">
-          <div className="mgr-personal-stat mgr-personal-stat--accent">
-            <TrendingUp size={16} />
-            <span className="mgr-personal-stat__label">Overall KPI Score</span>
-            <strong>{formatKpiScore(totalKpiPoints)}%</strong>
-          </div>
-          <div className="mgr-personal-stat">
-            <Target size={16} />
-            <span className="mgr-personal-stat__label">Performance level</span>
-            <strong style={{ color: ratingColor }}>{summary.performanceRating}</strong>
-          </div>
-          <div className="mgr-personal-stat mgr-personal-stat--success">
-            <CheckCircle2 size={16} />
-            <span className="mgr-personal-stat__label">Completed</span>
-            <strong>{completedCount} / {kpis.length || 0}</strong>
-          </div>
-          <div className="mgr-personal-stat mgr-personal-stat--gold">
-            <Trophy size={16} />
-            <span className="mgr-personal-stat__label">Points balance</span>
-            <strong>{rewards?.balance.toLocaleString() ?? '—'}</strong>
-          </div>
+        <div className="mgr-personal-stat">
+          <span className="mgr-personal-stat__label">Band</span>
+          <strong style={{ color: ratingColor }}>{summary.performanceRating}</strong>
         </div>
-      </header>
-
-      <div className="mgr-personal-tabs tab-bar tab-bar--inline-mobile">
-        <button
-          type="button"
-          className={`tab-btn ${activeTab === 'kpis' ? 'tab-btn--active' : ''}`}
-          onClick={() => setActiveTab('kpis')}
-        >
-          <BarChart2 size={16} /> My KPIs
-          {kpis.length > 0 && <span className="mgr-personal-tab-badge">{kpis.length}</span>}
-        </button>
-        <button
-          type="button"
-          className={`tab-btn ${activeTab === 'rewards' ? 'tab-btn--active' : ''}`}
-          onClick={() => setActiveTab('rewards')}
-        >
-          <Trophy size={16} /> Rewards &amp; Points
-          {rewards?.canRedeem && <span className="mgr-personal-tab-badge mgr-personal-tab-badge--gold">Redeem</span>}
-        </button>
+        <div className="mgr-personal-stat">
+          <span className="mgr-personal-stat__label">Done</span>
+          <strong>{summary.completed} / {monthKpis.length || 0}</strong>
+        </div>
       </div>
 
-      {activeTab === 'kpis' ? (
-        <>
-          <div className="mgr-personal-overview">
-            <section className="mgr-personal-card mgr-personal-health">
-              <div
-                className="mgr-personal-health__ring"
-                style={{
-                  borderColor: ratingColor,
-                  boxShadow: `0 0 24px color-mix(in srgb, ${ratingColor} 30%, transparent)`,
-                }}
-              >
-                <span className="mgr-personal-health__value">{formatKpiScore(healthScore)}%</span>
-              </div>
-              <div>
-                <span className="mgr-personal-health__eyebrow">Overall KPI Score</span>
-                <h3>{summary.performanceRating}</h3>
-                <p>
-                  {summary.kpiCount} KPI{summary.kpiCount !== 1 ? 's' : ''} · Weight {formatKpiWeight(summary.totalWeight)}.
-                  Weighted Score = Employee Score × Weight.
-                </p>
-              </div>
-            </section>
-
-            <section className="mgr-personal-card mgr-personal-metrics">
-              <div className="mgr-personal-metric">
-                <span>Overall KPI Score</span>
-                <strong className="mgr-personal-metric--accent">{formatKpiScore(summary.overallScore)}%</strong>
-              </div>
-              <div className="mgr-personal-metric">
-                <span>Performance Level</span>
-                <strong style={{ color: ratingColor }}>{summary.performanceRating}</strong>
-              </div>
-              <div className="mgr-personal-metric">
-                <span>KPI Weight</span>
-                <strong>{formatKpiWeight(summary.totalWeight)}</strong>
-              </div>
-              <div className="mgr-personal-metric">
-                <span>KPIs</span>
-                <strong>{summary.kpiCount}</strong>
-              </div>
-              <div className="mgr-personal-metric">
-                <span>Completed / Pending</span>
-                <strong className="mgr-personal-metric--accent">{summary.completed} / {summary.pending}</strong>
-              </div>
-            </section>
-
-            <section className="mgr-personal-card mgr-personal-points-mini">
-              <span className="mgr-personal-points-mini__eyebrow">
-                <Trophy size={14} /> Rewards balance
-              </span>
-              <div className="mgr-personal-points-mini__balance">{rewards?.balance.toLocaleString() ?? '0'}</div>
-              <p>
-                {rewards?.thisMonthPoints != null ? `+${rewards.thisMonthPoints} pts this month` : 'No points this month yet'}
-                {rewards?.canRedeem && <span className="mgr-personal-points-mini__badge"> · Redeem available</span>}
-              </p>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setActiveTab('rewards')}>
-                View rewards catalog
-              </button>
-            </section>
-          </div>
-
-          <EmployeeKpiBoardSummary kpis={kpis} />
-
-          <TeamPointsBoard
-            refreshKey={pointsRefreshKey}
-            title="Your points & team"
-            description="After you complete KPI tasks, watch your earned points here and compare with your team."
-          />
-
-          <section className="mgr-personal-card">
-            <div className="mgr-personal-card__head">
-              <h3>
-                <BarChart2 size={18} /> My KPI tasks
-                {kpis.length > 0 && (
-                  <span className="emp-kpi-total-badge" title="Sum of points from all your KPI tasks">
-                    Total: {totalKpiPoints} pts
-                  </span>
-                )}
-              </h3>
-              <div className="mgr-personal-card__actions">
-                <ExportButton kpis={kpis} userName={profile.full_name} />
-                <button type="button" className="btn btn-secondary btn-sm" onClick={() => void load()} title="Reload">
-                  <RefreshCw size={14} />
-                </button>
-              </div>
-            </div>
-
-            {loading ? (
-              <div className="mgr-personal-loading mgr-personal-loading--inline">
-                <Loader2 size={24} className="spin-icon" />
-              </div>
-            ) : kpis.length === 0 ? (
-              <div className="mgr-personal-empty">
-                <Target size={36} strokeWidth={1.25} />
-                <h4>No KPIs assigned yet</h4>
-                <p>When your admin assigns you personal KPI tasks, they will appear here.</p>
-              </div>
-            ) : (
-              <div className="mgr-personal-kpi-grid">
-                {kpis.map((kpi) => {
-                  const light = statusTrafficLight(kpi.completion_status === 'completed' ? 'completed' : kpi.status);
-                  const achieved = kpiAchievedPct(kpi);
-                  const contribution = kpiScoreContribution(kpi);
-                  return (
-                    <article key={kpi.id} className={`mgr-personal-kpi-card mgr-personal-kpi-card--${light}`}>
-                      <div className="mgr-personal-kpi-card__head">
-                        <span className="mgr-personal-kpi-card__dept">{kpi.department || kpi.category || 'General'}</span>
-                        <span className={`kpi-traffic kpi-traffic--${light}`}>{trafficLightLabel(light)}</span>
-                      </div>
-                      <h4>{kpi.name}</h4>
-                      <span className="dept-weight-badge">{formatKpiWeight(kpi.weight)} weight</span>
-                      {kpi.ai_narrative ? (
-                        <p className="mgr-personal-kpi-card__note">
-                          <Sparkles size={12} />
-                          <span>{kpi.ai_narrative}</span>
-                        </p>
-                      ) : kpi.description ? (
-                        <p className="mgr-personal-kpi-card__desc">{kpi.description}</p>
-                      ) : null}
-                      <p className="mgr-personal-kpi-card__score">
-                        Weight: {formatKpiWeight(kpi.weight)} · Employee Score: {achieved}% · Weighted Score: {formatKpiScore(contribution)}
-                      </p>
-                      <div className="mgr-personal-kpi-card__foot">
-                        <div>
-                          <span className="kpi-date-label">Start → End</span>
-                          <div className="kpi-dates">
-                            {fmtDate(kpi.start_date)} → {fmtDate(kpi.end_date)}
-                          </div>
-                          {(kpi.redo_count ?? 0) > 0 && (
-                            <span className="mgr-personal-kpi-card__redo">Missed deadlines: {kpi.redo_count}/3</span>
-                          )}
-                        </div>
-                        {kpi.completion_status !== 'completed' && (
-                          <button
-                            type="button"
-                            className="btn btn-primary btn-sm"
-                            disabled={completingId === kpi.id}
-                            onClick={() => void handleCompleteKpi(kpi.id)}
-                          >
-                            <CheckCircle2 size={14} />
-                            {completingId === kpi.id ? 'Saving…' : 'Mark complete'}
-                          </button>
-                        )}
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-
-          <section className="mgr-personal-card mgr-personal-guide">
-              <h3>KPI status guide</h3>
-              <p>
-                KPIs are assigned with start and end dates. Complete before the deadline — three missed deadlines
-                deduct 300 points from your rewards balance.
-              </p>
-              <ul>
-                <li>
-                  <span className="badge badge-on-track">ON TRACK</span>
-                  <span>Completed on time or progressing well.</span>
-                </li>
-                <li>
-                  <span className="badge badge-at-risk">AT RISK</span>
-                  <span>In progress with an approaching deadline.</span>
-                </li>
-                <li>
-                  <span className="badge badge-off-track">OFF TRACK</span>
-                  <span>Past end date without completion.</span>
-                </li>
-              </ul>
-            </section>
-        </>
+      {kpis.length === 0 ? (
+        <div className="mgr-personal-empty">
+          <Target size={36} strokeWidth={1.25} />
+          <h4>No KPIs assigned to you</h4>
+          <p>When an admin assigns you a KPI, it will show here.</p>
+        </div>
       ) : (
-        <section className="mgr-personal-rewards-wrap">
-          <div className="emp-points-stack">
-            <TeamPointsBoard
-              refreshKey={pointsRefreshKey}
-              title="Your points & team"
-              description="Your earned balance and your team’s points. Complete KPI tasks to improve your monthly score."
-            />
-            <RewardsTab userId={profile.id} viewerRole="manager" embedded kpiPoints={totalKpiPoints} />
-          </div>
-        </section>
+        <div className="mgr-personal-kpi-grid">
+          {kpis.map((kpi) => {
+            const badge = kpiProgressBadge(kpi);
+            const points = formatKpiTaskPoints(kpi);
+            return (
+              <article key={kpi.id} className={`mgr-personal-kpi-card mgr-personal-kpi-card--${badge.light}`}>
+                <div className="mgr-personal-kpi-card__head">
+                  <span className="mgr-personal-kpi-card__dept">{kpiCategoryMeta(kpi.kpi_category).label}</span>
+                  <span className={`kpi-traffic kpi-traffic--${badge.light}`}>{badge.label}</span>
+                </div>
+                <h4>{kpi.name}</h4>
+                <span className="dept-weight-badge">{formatKpiWeight(kpi.weight)}</span>
+                <KpiViewedBadge kpi={kpi} />
+                <KpiAssignmentDetails kpi={kpi} />
+                <p className="mgr-personal-kpi-card__score">
+                  {points == null ? 'Not complete yet' : `${points} performance pts`}
+                  {' · '}
+                  {fmtDate(kpi.start_date)} → {fmtDate(kpi.end_date)}
+                </p>
+                <KpiEvaluationBlock
+                  kpi={kpi}
+                  mode="employee"
+                  onUpdated={(patch) => {
+                    setKpis((prev) => prev.map((k) => (k.id === kpi.id ? { ...k, ...patch } : k)));
+                  }}
+                />
+              </article>
+            );
+          })}
+        </div>
       )}
     </div>
   );

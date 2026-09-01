@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { BarChart2, Loader2, Sparkles, Star, Trophy } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Kpi } from '../utils/kpiHelpers';
-import { employeeTotalKpiPoints } from '../utils/kpiScoreHelpers';
+import { employeePerformancePoints } from '../utils/kpiScoreHelpers';
 import { fetchRewardsSummary, RewardsSummary } from '../utils/rewardsHelpers';
 import { REWARD_CATALOG_COST, tierColorForScore } from '../utils/rewardsTiers';
 
@@ -19,7 +19,7 @@ interface RewardsPointsCardProps {
 
 export default function RewardsPointsCard({
   userId,
-  title = 'Your rewards points',
+  title = 'Your Reward Balance',
   onViewRewards,
   showViewLink = true,
   kpiPoints: kpiPointsProp,
@@ -49,7 +49,7 @@ export default function RewardsPointsCard({
         if (kpiPointsProp != null) {
           setKpiPoints(kpiPointsProp);
         } else if (kpiRes && !kpiRes.error) {
-          setKpiPoints(employeeTotalKpiPoints((kpiRes.data || []) as Kpi[]));
+          setKpiPoints(employeePerformancePoints((kpiRes.data || []) as Kpi[]));
         }
       } catch {
         if (!cancelled) setSummary(null);
@@ -88,7 +88,7 @@ export default function RewardsPointsCard({
             <BarChart2 size={15} />
             <div>
               <strong>{kpiPoints.toLocaleString()}</strong>
-              <span>KPI points</span>
+              <span>Performance Points</span>
             </div>
           </div>
         )}
@@ -96,7 +96,7 @@ export default function RewardsPointsCard({
           <Star size={15} />
           <div>
             <strong>{summary.thisMonthPoints != null ? `+${summary.thisMonthPoints}` : '—'}</strong>
-            <span>This month</span>
+            <span>Reward Points this month</span>
           </div>
         </div>
         <div className="dash-points-card__stat">
@@ -105,7 +105,7 @@ export default function RewardsPointsCard({
             <strong style={{ color: summary.thisMonthScore != null ? tierColorForScore(summary.thisMonthScore) : undefined }}>
               {summary.thisMonthScore != null ? `${Math.round(summary.thisMonthScore)}%` : '—'}
             </strong>
-            <span>Monthly KPI</span>
+            <span>KPI Score</span>
           </div>
         </div>
       </div>

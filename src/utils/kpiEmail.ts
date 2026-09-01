@@ -13,7 +13,7 @@ export async function emailKpiAssigned(employeeEmail: string, employeeName: stri
   await sendKpiEmail(
     employeeEmail,
     `New KPI assigned: ${department}`,
-    `Hi ${employeeName},\n\nYour manager assigned you a new KPI task.\n\nDepartment: ${department}\nDue by: ${endDate}${description ? `\n\nDetails: ${description}` : ''}\n\nLog in to Scorr to view and complete it.`
+    `Hi ${employeeName},\n\nYour manager assigned you a new KPI task.\n\nTask: ${department}\nDue by: ${endDate}${description ? `\n\nDetails: ${description}` : ''}\n\nThis email does not start the task. Open Scorr, look at the task, then it will show as In progress. Mark it Complete when you finish.`
   );
 }
 

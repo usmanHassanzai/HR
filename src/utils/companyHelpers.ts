@@ -10,24 +10,18 @@ export interface Company {
   subscription_plan?: SubscriptionPlan | null;
   trial_ends_at?: string | null;
   created_at?: string;
+  onboarding_completed_at?: string | null;
 }
 
 export interface CompanyRegistrationForm {
   companyName: string;
   industry: string;
   employeeCount: string;
-  website: string;
   fullName: string;
-  jobTitle: string;
   phone: string;
   email: string;
   password: string;
   confirmPassword: string;
-  subscriptionPlan: SubscriptionPlan;
-  addressLine: string;
-  city: string;
-  country: string;
-  notes: string;
 }
 
 export interface PlatformCompanyRow {
@@ -66,6 +60,13 @@ export interface PlatformNotification {
 export const PLATFORM_OWNER_EMAIL = 'info@walfia.ai';
 export const PLATFORM_PATH = '/platform';
 
+/** Built-in Walfia org — never delete from the platform console. */
+export function isWalfiaDefaultCompany(c: { slug?: string | null; name?: string | null }): boolean {
+  const slug = (c.slug || '').trim().toLowerCase();
+  const name = (c.name || '').trim().toLowerCase();
+  return slug === 'walfia-default' || name === 'walfia' || name === 'walfia default';
+}
+
 export const SUBSCRIPTION_PLANS: { id: SubscriptionPlan; label: string; description: string }[] = [
   { id: 'trial', label: 'Free Trial (3 days)', description: 'Full platform access for 3 days — no credit card' },
   { id: 'starter', label: 'Starter', description: 'Up to 25 employees · $12/user/mo' },
@@ -102,16 +103,12 @@ export async function fetchMyCompany(supabase: { rpc: (name: string) => PromiseL
 export function buildRegistrationEmailBody(form: CompanyRegistrationForm): string {
   return [
     `Company: ${form.companyName}`,
-    `Contact: ${form.fullName}${form.jobTitle ? ` (${form.jobTitle})` : ''}`,
+    `Contact: ${form.fullName}`,
     `Email: ${form.email}`,
     `Phone: ${form.phone || '—'}`,
-    `Subscription: ${form.subscriptionPlan}`,
     `Industry: ${form.industry || '—'}`,
     `Team size: ${form.employeeCount || '—'}`,
-    `Website: ${form.website || '—'}`,
-    `Location: ${[form.city, form.country].filter(Boolean).join(', ') || '—'}`,
-    form.notes ? `Notes: ${form.notes}` : '',
     '',
-    'Review and approve: https://scorr.walfia.ai/platform',
+    '3-day trial started automatically. Review: https://scorr.walfia.ai/platform',
   ].filter(Boolean).join('\n');
 }

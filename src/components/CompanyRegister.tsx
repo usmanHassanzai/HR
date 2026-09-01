@@ -1,23 +1,23 @@
-import { useState } from 'react';
-import { supabase, supabaseSignup } from '../lib/supabase';
+import { useMemo, useState } from 'react';
+import { supabase } from '../lib/supabase';
 import {
-  Building2, Loader2, Clock, AlertCircle, ArrowLeft, User, Mail, Phone, CreditCard,
+  Building2, Loader2, AlertCircle, ArrowLeft, ArrowRight, Mail, Phone, CheckCircle2,
 } from 'lucide-react';
 import {
-  SUBSCRIPTION_PLANS,
   INDUSTRY_OPTIONS,
   EMPLOYEE_COUNT_OPTIONS,
   PLATFORM_OWNER_EMAIL,
   buildRegistrationEmailBody,
-  type SubscriptionPlan,
   type CompanyRegistrationForm,
 } from '../utils/companyHelpers';
+import { sendSignupOtp, verifySignupOtp } from '../utils/signupOtp';
+import PasswordField from './PasswordField';
 import '../styles/company-register.css';
 
 interface CompanyRegisterProps {
   onBack: () => void;
   onRegistered: () => void;
-  /** Render inside login card without extra outer spacing */
+  onSession?: (session: unknown) => void;
   embedded?: boolean;
 }
 
@@ -25,106 +25,172 @@ const INITIAL: CompanyRegistrationForm = {
   companyName: '',
   industry: '',
   employeeCount: '',
-  website: '',
   fullName: '',
-  jobTitle: '',
   phone: '',
   email: '',
   password: '',
   confirmPassword: '',
-  subscriptionPlan: 'trial',
-  addressLine: '',
-  city: '',
-  country: '',
-  notes: '',
 };
 
-export default function CompanyRegister({ onBack, onRegistered, embedded = false }: CompanyRegisterProps) {
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function phoneDigits(value: string): string {
+  return value.replace(/\D/g, '');
+}
+
+function Hint({ error, ok }: { error?: string; ok?: string }) {
+  if (error) return <em className="company-register__hint company-register__hint--err">{error}</em>;
+  if (ok) return <em className="company-register__hint company-register__hint--ok">{ok}</em>;
+  return null;
+}
+
+export default function CompanyRegister({ onBack, onSession, embedded = false }: CompanyRegisterProps) {
   const [form, setForm] = useState<CompanyRegistrationForm>(INITIAL);
+  const [step, setStep] = useState<1 | 2>(1);
+  const [touched, setTouched] = useState<Partial<Record<keyof CompanyRegistrationForm, boolean>>>({});
+  const [industrySelect, setIndustrySelect] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
-  /** Dropdown selection; "Other" unlocks a free-text industry field. */
-  const [industrySelect, setIndustrySelect] = useState('');
+  const [phase, setPhase] = useState<'form' | 'verify'>('form');
+  const [otp, setOtp] = useState('');
+  const [otpHint, setOtpHint] = useState('');
 
   const set = <K extends keyof CompanyRegistrationForm>(key: K, value: CompanyRegistrationForm[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
+  const blur = (key: keyof CompanyRegistrationForm) => {
+    setTouched((prev) => ({ ...prev, [key]: true }));
+  };
+
   const presetIndustries = INDUSTRY_OPTIONS.filter((o) => o !== 'Other');
   const industryIsOther = industrySelect === 'Other';
 
+  const fieldErrors = useMemo(() => {
+    const e: Partial<Record<keyof CompanyRegistrationForm, string>> = {};
+    if (form.companyName.trim().length > 0 && form.companyName.trim().length < 2) {
+      e.companyName = 'Enter the full company name.';
+    }
+    if (form.fullName.trim().length > 0 && form.fullName.trim().length < 2) {
+      e.fullName = 'Enter your name.';
+    }
+    if (form.email.trim()) {
+      if (!EMAIL_RE.test(form.email.trim())) e.email = 'Enter a valid work email.';
+    }
+    if (form.phone.trim() && phoneDigits(form.phone).length < 7) {
+      e.phone = 'Enter a valid phone number.';
+    }
+    if (form.password) {
+      if (form.password.length < 6) e.password = 'Use at least 6 characters.';
+    }
+    if (form.confirmPassword && form.confirmPassword !== form.password) {
+      e.confirmPassword = 'Passwords do not match.';
+    }
+    if (industryIsOther && industrySelect === 'Other' && !form.industry.trim() && touched.industry) {
+      e.industry = 'Type your industry, or pick one from the list.';
+    }
+    return e;
+  }, [form, industryIsOther, industrySelect, touched.industry]);
+
+  const show = (key: keyof CompanyRegistrationForm) => (touched[key] ? fieldErrors[key] : undefined);
+
+  const step1Ready =
+    form.companyName.trim().length >= 2
+    && form.fullName.trim().length >= 2
+    && EMAIL_RE.test(form.email.trim())
+    && phoneDigits(form.phone).length >= 7
+    && form.password.length >= 6
+    && form.password === form.confirmPassword
+    && !fieldErrors.companyName
+    && !fieldErrors.email
+    && !fieldErrors.phone
+    && !fieldErrors.password
+    && !fieldErrors.confirmPassword;
+
   const onIndustrySelectChange = (value: string) => {
     setIndustrySelect(value);
-    if (value === 'Other') {
-      set('industry', '');
-    } else {
-      set('industry', value);
-    }
+    if (value === 'Other') set('industry', '');
+    else set('industry', value);
   };
 
-  const validate = (): string | null => {
-    if (!form.companyName.trim()) return 'Company name is required.';
-    if (industryIsOther && !form.industry.trim()) return 'Please type your industry.';
-    if (!form.fullName.trim()) return 'Your full name is required.';
-    if (!form.email.trim()) return 'Email is required.';
-    if (!form.phone.trim()) return 'Phone number is required.';
-    if (form.password.length < 6) return 'Password must be at least 6 characters.';
-    if (form.password !== form.confirmPassword) return 'Passwords do not match.';
-    return null;
+  const goStep2 = () => {
+    setTouched({
+      companyName: true,
+      fullName: true,
+      email: true,
+      phone: true,
+      password: true,
+      confirmPassword: true,
+    });
+    if (!step1Ready) return;
+    setStep(2);
+    setError('');
+  };
+
+  const finishLogin = async (session: unknown) => {
+    if (session && onSession) {
+      onSession(session);
+      return;
+    }
+    const { data } = await supabase.auth.signInWithPassword({
+      email: form.email.trim(),
+      password: form.password,
+    });
+    if (data.session && onSession) onSession(data.session);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    const v = validate();
-    if (v) {
-      setError(v);
+    if (step === 1) {
+      goStep2();
+      return;
+    }
+    if (industryIsOther && !form.industry.trim()) {
+      setTouched((t) => ({ ...t, industry: true }));
       return;
     }
 
     setLoading(true);
+    setError('');
     try {
-      const { error: signupError } = await supabaseSignup.auth.signUp({
+      const { data, error: signupError } = await supabase.auth.signUp({
         email: form.email.trim(),
         password: form.password,
         options: {
+          emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
           data: {
             full_name: form.fullName.trim(),
             company_name: form.companyName.trim(),
             registration_type: 'company',
             phone: form.phone.trim(),
-            job_title: form.jobTitle.trim(),
             industry: form.industry,
             employee_count: form.employeeCount,
-            website: form.website.trim(),
-            address_line: form.addressLine.trim(),
-            city: form.city.trim(),
-            country: form.country.trim(),
-            subscription_plan: form.subscriptionPlan,
-            notes: form.notes.trim(),
+            subscription_plan: 'trial',
           },
         },
       });
-
       if (signupError) throw signupError;
 
-      // Email alert to platform admin (Samiya)
       try {
         await supabase.functions.invoke('kpi_email', {
           body: {
             to: PLATFORM_OWNER_EMAIL,
-            subject: `New company registration: ${form.companyName.trim()}`,
+            subject: `New company trial: ${form.companyName.trim()}`,
             body: buildRegistrationEmailBody(form),
           },
         });
       } catch {
-        /* in-app notification still created in DB */
+        /* platform notification is created in DB */
       }
 
-      await supabaseSignup.auth.signOut();
-      setSuccess(true);
-      onRegistered();
+      if (data.session) {
+        await finishLogin(data.session);
+        return;
+      }
+
+      await sendSignupOtp(form.email.trim());
+      setOtpHint(`We sent a 6-digit code to ${form.email.trim()}.`);
+      setPhase('verify');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {
@@ -132,32 +198,86 @@ export default function CompanyRegister({ onBack, onRegistered, embedded = false
     }
   };
 
-  if (success) {
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const trimmed = otp.replace(/\s/g, '');
+      const { data: otpData, error: otpErr } = await supabase.auth.verifyOtp({
+        email: form.email.trim(),
+        token: trimmed,
+        type: 'signup',
+      });
+      if (!otpErr && otpData.session) {
+        await finishLogin(otpData.session);
+        return;
+      }
+      await verifySignupOtp(form.email.trim(), trimmed);
+      await finishLogin(null);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Could not verify that code.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resendCode = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      await sendSignupOtp(form.email.trim());
+      setOtpHint('A new code is on the way.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Could not resend the code.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const wrapClass = `${embedded ? '' : 'glass-panel '}company-register${embedded ? ' company-register--embedded' : ''}`;
+
+  if (phase === 'verify') {
     return (
-      <div className={`${embedded ? '' : 'glass-panel '}company-register company-register--success`} style={{ textAlign: 'center' }}>
-        <Clock size={52} className="company-register__success-icon" />
-        <h2 style={{ fontFamily: 'var(--font-display)', marginBottom: '0.75rem' }}>Please wait for admin approval</h2>
-        <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '0.5rem' }}>
-          Your organization <strong>{form.companyName}</strong> has been registered successfully.
-        </p>
-        <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '1rem' }}>
-          A notification was sent to the platform admin. You will receive an in-app alert when your account is approved.
-        </p>
-        <ul className="company-register__waiting-steps" style={{ listStyle: 'none', padding: 0 }}>
-          <li>✓ Registration form submitted</li>
-          <li>⏳ Admin review in progress (usually within 24 hours)</li>
-          <li>○ Sign in after approval to set up managers & employees</li>
-        </ul>
-        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
-          Registered email: <strong>{form.email}</strong>
-        </p>
-        <button type="button" className="btn btn-primary" onClick={onBack}>Back to sign in</button>
+      <div className={wrapClass}>
+        <div className="company-register__head">
+          <div className="company-register__head-icon"><Mail size={22} /></div>
+          <div>
+            <p className="company-register__progress">Verify email</p>
+            <h2 className="company-register__title">Enter your code</h2>
+            <p className="company-register__intro">{otpHint}</p>
+          </div>
+        </div>
+        {error && (
+          <div className="company-register__banner"><AlertCircle size={16} /> {error}</div>
+        )}
+        <form onSubmit={handleVerify}>
+          <label className="company-register__field">
+            <span>6-digit code</span>
+            <input
+              className="input-field company-register__otp"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="000000"
+              autoFocus
+            />
+          </label>
+          <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }} disabled={loading || otp.length !== 6}>
+            {loading ? <><Loader2 size={16} className="animate-spin" /> Verifying…</> : 'Verify and continue'}
+          </button>
+          <button type="button" className="btn btn-secondary" style={{ width: '100%', marginTop: '0.5rem' }} disabled={loading} onClick={() => void resendCode()}>
+            Resend code
+          </button>
+        </form>
       </div>
     );
   }
 
   return (
-    <div className={`${embedded ? '' : 'glass-panel '}company-register${embedded ? ' company-register--embedded' : ''}`}>
+    <div className={wrapClass}>
       {!embedded && (
         <button type="button" className="btn btn-secondary btn-sm" onClick={onBack} style={{ marginBottom: '1rem' }}>
           <ArrowLeft size={14} /> Back
@@ -165,33 +285,116 @@ export default function CompanyRegister({ onBack, onRegistered, embedded = false
       )}
 
       <div className="company-register__head">
-        <div className="company-register__head-icon">
-          <Building2 size={22} />
-        </div>
+        <div className="company-register__head-icon"><Building2 size={22} /></div>
         <div>
-          <h2 className="company-register__title">Register your organization</h2>
+          <p className="company-register__progress">Step {step} of 2</p>
+          <h2 className="company-register__title">
+            {step === 1 ? 'Create your company account' : 'A bit about your team'}
+          </h2>
           <p className="company-register__intro">
-            Start with a <strong>3-day free trial</strong>. Your application is reviewed before full access is granted.
+            {step === 1
+              ? 'Takes about a minute. You get a 3-day trial as soon as you verify your email.'
+              : 'Optional — you can skip this and add details later.'}
           </p>
         </div>
       </div>
 
+      <ol className="company-register__steps" aria-label="Registration progress">
+        <li className={step === 1 ? 'is-active' : 'is-done'}>Account</li>
+        <li className={step === 2 ? 'is-active' : ''}>Company</li>
+      </ol>
+
       {error && (
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', color: 'var(--color-danger)', marginBottom: '1rem', fontSize: '0.9rem' }}>
-          <AlertCircle size={16} /> {error}
-        </div>
+        <div className="company-register__banner"><AlertCircle size={16} /> {error}</div>
       )}
 
       <form onSubmit={handleSubmit}>
-        <section className="company-register__section">
-          <h3 className="company-register__section-title">Organization</h3>
+        {step === 1 && (
           <div className="company-register__grid">
             <label className="company-register__field" style={{ gridColumn: '1 / -1' }}>
-              <span>Company / organization name *</span>
-              <input className="input-field" value={form.companyName} onChange={(e) => set('companyName', e.target.value)} placeholder="Acme Corporation" required />
+              <span>Company name *</span>
+              <input
+                className={`input-field${show('companyName') ? ' is-invalid' : ''}`}
+                value={form.companyName}
+                onChange={(e) => set('companyName', e.target.value)}
+                onBlur={() => blur('companyName')}
+                placeholder="Acme Corporation"
+                autoComplete="organization"
+              />
+              <Hint error={show('companyName')} ok={form.companyName.trim().length >= 2 ? 'Looks good' : undefined} />
+            </label>
+            <label className="company-register__field" style={{ gridColumn: '1 / -1' }}>
+              <span>Your name *</span>
+              <input
+                className={`input-field${show('fullName') ? ' is-invalid' : ''}`}
+                value={form.fullName}
+                onChange={(e) => set('fullName', e.target.value)}
+                onBlur={() => blur('fullName')}
+                placeholder="Jane Doe"
+                autoComplete="name"
+              />
+              <Hint error={show('fullName')} />
             </label>
             <label className="company-register__field">
-              <span>Industry</span>
+              <span><Mail size={12} /> Admin email *</span>
+              <input
+                className={`input-field${show('email') ? ' is-invalid' : ''}`}
+                type="email"
+                value={form.email}
+                onChange={(e) => set('email', e.target.value)}
+                onBlur={() => blur('email')}
+                placeholder="admin@company.com"
+                autoComplete="email"
+              />
+              <Hint error={show('email')} ok={EMAIL_RE.test(form.email.trim()) ? 'Valid email' : undefined} />
+            </label>
+            <label className="company-register__field">
+              <span><Phone size={12} /> Phone *</span>
+              <input
+                className={`input-field${show('phone') ? ' is-invalid' : ''}`}
+                type="tel"
+                value={form.phone}
+                onChange={(e) => set('phone', e.target.value)}
+                onBlur={() => blur('phone')}
+                placeholder="+92 300 1234567"
+                autoComplete="tel"
+              />
+              <Hint error={show('phone')} ok={phoneDigits(form.phone).length >= 7 ? 'Looks good' : undefined} />
+            </label>
+            <label className="company-register__field">
+              <span>Password *</span>
+              <PasswordField
+                className={`input-field${show('password') ? ' is-invalid' : ''}`}
+                value={form.password}
+                onChange={(e) => set('password', e.target.value)}
+                onBlur={() => blur('password')}
+                placeholder="At least 6 characters"
+                autoComplete="new-password"
+              />
+              <Hint error={show('password')} ok={form.password.length >= 6 ? 'Strong enough' : undefined} />
+            </label>
+            <label className="company-register__field">
+              <span>Confirm password *</span>
+              <PasswordField
+                className={`input-field${show('confirmPassword') ? ' is-invalid' : ''}`}
+                value={form.confirmPassword}
+                onChange={(e) => set('confirmPassword', e.target.value)}
+                onBlur={() => blur('confirmPassword')}
+                placeholder="Repeat password"
+                autoComplete="new-password"
+              />
+              <Hint
+                error={show('confirmPassword')}
+                ok={form.confirmPassword.length > 0 && form.password === form.confirmPassword ? 'Passwords match' : undefined}
+              />
+            </label>
+          </div>
+        )}
+
+        {step === 2 && (
+          <div className="company-register__grid">
+            <label className="company-register__field">
+              <span>Industry <small>(optional)</small></span>
               <select
                 className="input-field"
                 value={industrySelect}
@@ -201,116 +404,50 @@ export default function CompanyRegister({ onBack, onRegistered, embedded = false
                 {presetIndustries.map((o) => (
                   <option key={o} value={o}>{o}</option>
                 ))}
-                <option value="Other">Other (type manually)</option>
+                <option value="Other">Other</option>
               </select>
             </label>
             {industryIsOther && (
               <label className="company-register__field">
-                <span>Your industry *</span>
+                <span>Your industry</span>
                 <input
                   className="input-field"
                   value={form.industry}
                   onChange={(e) => set('industry', e.target.value)}
-                  placeholder="e.g. Construction, Real Estate, Media…"
-                  required
-                  autoFocus
+                  onBlur={() => blur('industry')}
+                  placeholder="e.g. Construction"
                 />
+                <Hint error={show('industry')} />
               </label>
             )}
             <label className="company-register__field">
-              <span>Number of employees</span>
+              <span>Number of employees <small>(optional)</small></span>
               <select className="input-field" value={form.employeeCount} onChange={(e) => set('employeeCount', e.target.value)}>
                 <option value="">Select range</option>
                 {EMPLOYEE_COUNT_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
             </label>
-            <label className="company-register__field" style={{ gridColumn: '1 / -1' }}>
-              <span>Website</span>
-              <input className="input-field" type="url" value={form.website} onChange={(e) => set('website', e.target.value)} placeholder="https://yourcompany.com" />
-            </label>
           </div>
-        </section>
+        )}
 
-        <section className="company-register__section">
-          <h3 className="company-register__section-title"><User size={14} style={{ verticalAlign: 'middle' }} /> Primary contact</h3>
-          <div className="company-register__grid">
-            <label className="company-register__field">
-              <span>Full name *</span>
-              <input className="input-field" value={form.fullName} onChange={(e) => set('fullName', e.target.value)} placeholder="Jane Doe" required />
-            </label>
-            <label className="company-register__field">
-              <span>Job title</span>
-              <input className="input-field" value={form.jobTitle} onChange={(e) => set('jobTitle', e.target.value)} placeholder="HR Director" />
-            </label>
-            <label className="company-register__field">
-              <span><Mail size={12} /> Work email *</span>
-              <input className="input-field" type="email" value={form.email} onChange={(e) => set('email', e.target.value)} placeholder="admin@company.com" required />
-            </label>
-            <label className="company-register__field">
-              <span><Phone size={12} /> Phone *</span>
-              <input className="input-field" type="tel" value={form.phone} onChange={(e) => set('phone', e.target.value)} placeholder="+92 300 1234567" required />
-            </label>
-          </div>
-        </section>
-
-        <section className="company-register__section">
-          <h3 className="company-register__section-title">Location (optional)</h3>
-          <div className="company-register__grid">
-            <label className="company-register__field" style={{ gridColumn: '1 / -1' }}>
-              <span>Address</span>
-              <input className="input-field" value={form.addressLine} onChange={(e) => set('addressLine', e.target.value)} placeholder="Street address" />
-            </label>
-            <label className="company-register__field">
-              <span>City</span>
-              <input className="input-field" value={form.city} onChange={(e) => set('city', e.target.value)} placeholder="Karachi" />
-            </label>
-            <label className="company-register__field">
-              <span>Country</span>
-              <input className="input-field" value={form.country} onChange={(e) => set('country', e.target.value)} placeholder="Pakistan" />
-            </label>
-          </div>
-        </section>
-
-        <section className="company-register__section">
-          <h3 className="company-register__section-title"><CreditCard size={14} style={{ verticalAlign: 'middle' }} /> Subscription plan *</h3>
-          <div className="company-register__plans">
-            {SUBSCRIPTION_PLANS.map((plan) => (
-              <button
-                key={plan.id}
-                type="button"
-                className={`company-register__plan ${form.subscriptionPlan === plan.id ? 'company-register__plan--selected' : ''}`}
-                onClick={() => set('subscriptionPlan', plan.id as SubscriptionPlan)}
-              >
-                <strong>{plan.label}</strong>
-                <small>{plan.description}</small>
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <section className="company-register__section">
-          <h3 className="company-register__section-title">Account credentials</h3>
-          <div className="company-register__grid">
-            <label className="company-register__field">
-              <span>Password *</span>
-              <input className="input-field" type="password" value={form.password} onChange={(e) => set('password', e.target.value)} placeholder="Min. 6 characters" required />
-            </label>
-            <label className="company-register__field">
-              <span>Confirm password *</span>
-              <input className="input-field" type="password" value={form.confirmPassword} onChange={(e) => set('confirmPassword', e.target.value)} placeholder="Repeat password" required />
-            </label>
-            <label className="company-register__field" style={{ gridColumn: '1 / -1' }}>
-              <span>Additional notes (optional)</span>
-              <textarea className="input-field" rows={3} value={form.notes} onChange={(e) => set('notes', e.target.value)} placeholder="Tell us about your HR goals or special requirements…" />
-            </label>
-          </div>
-        </section>
-
-        <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '0.5rem' }} disabled={loading}>
-          {loading ? <><Loader2 size={16} className="animate-spin" /> Submitting registration…</> : 'Submit registration — await admin approval'}
-        </button>
-        <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: '0.75rem' }}>
-          By registering, you agree that your application will be reviewed by the Scorr platform admin before access is granted.
+        <div className="company-register__actions">
+          {step === 2 && (
+            <button type="button" className="btn btn-secondary" onClick={() => setStep(1)} disabled={loading}>
+              <ArrowLeft size={14} /> Back
+            </button>
+          )}
+          {step === 1 ? (
+            <button type="submit" className="btn btn-primary" disabled={!step1Ready}>
+              Continue <ArrowRight size={14} />
+            </button>
+          ) : (
+            <button type="submit" className="btn btn-primary" disabled={loading}>
+              {loading ? <><Loader2 size={16} className="animate-spin" /> Creating account…</> : <><CheckCircle2 size={16} /> Create account</>}
+            </button>
+          )}
+        </div>
+        <p className="company-register__legal">
+          By continuing you agree to Scorr’s monitoring and data usage policy. No credit card required.
         </p>
       </form>
     </div>

@@ -1,1266 +1,1035 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { AlertCircle, Building2, CheckCircle2, ChevronLeft, ClipboardList, Loader2, Pencil, Plus, Search, Send, Trash2, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { Profile, Kpi } from '../utils/kpiHelpers';
-import { Department, DepartmentKpiIndicator, sumIndicatorWeights } from '../utils/departmentHelpers';
-import '../styles/departments.css';
+import { Profile, Kpi, displayRoleLabel } from '../utils/kpiHelpers';
+import { Department } from '../utils/departmentHelpers';
+import { hydrateKpiLastEdits } from '../utils/kpiAssignmentEdits';
+import { emailKpiAssigned } from '../utils/kpiEmail';
+import { formatKpiWeight, KPI_WEIGHT_CAP, remainingKpiWeightBudget, sumEmployeeKpiWeights } from '../utils/kpiWeightHelpers';
+import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
+import EmployeeKpiWeightMeter from './EmployeeKpiWeightMeter';
+import AssignedKpiCard from './AssignedKpiCard';
+import { KPI_CATEGORIES, kpiCategoryMeta, type KpiCategoryId } from '../utils/kpiCategories';
+import EditAssignedKpiModal from './EditAssignedKpiModal';
 import '../styles/assign-tasks.css';
 import '../styles/manager-kpi-tasks.css';
-import { Plus, Loader2, Trash2, ClipboardList, UserPlus, ListChecks, Target, Users, Building2, Calendar, AlertCircle, CheckCircle2, Info, Search, RefreshCw } from 'lucide-react';
-import { emailKpiAssigned } from '../utils/kpiEmail';
-import EmployeeKpiBoardSummary from './EmployeeKpiBoardSummary';
-import DepartmentKpiIndicatorsEditor from './DepartmentKpiIndicatorsEditor';
-import KpiIndicatorSelector from './KpiIndicatorSelector';
-import { formatKpiWeight, sumEmployeeKpiWeights, selectedIndicatorsWeightSum, previewEmployeeAssignment, KPI_WEIGHT_CAP } from '../utils/kpiWeightHelpers';
-import EmployeeKpiWeightMeter from './EmployeeKpiWeightMeter';
-import AssignmentCapacityPreview from './AssignmentCapacityPreview';
-import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
-import { buildDepartmentAssignmentSections, buildAdminDepartmentOverview, filterAssignmentSections } from '../utils/assignTaskHelpers';
-import DepartmentAssignmentsOverview from './DepartmentAssignmentsOverview';
+import '../styles/admin-dashboard.css';
 
-function isAssignAlertError(message: string): boolean {
-  return /failed|error|must|required|cannot|not found|select at least|no departments|no kpi|not allowed|belong/i.test(message);
+type Desk = 'library' | 'assign' | 'board';
+
+type KpiTemplate = {
+  id: string;
+  name: string;
+  description: string | null;
+  kpi_category: string;
+  weight: number;
+  active: boolean;
+};
+
+function karachiToday(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Karachi',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
 }
 
-function currentMonthDateRange(): { start: string; end: string } {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const last = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  return { start: `${y}-${m}-01`, end: `${y}-${m}-${String(last).padStart(2, '0')}` };
+function defaultKpiDates(): { start: string; end: string } {
+  const start = karachiToday();
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Karachi',
+    year: 'numeric',
+    month: '2-digit',
+  }).formatToParts(new Date());
+  const y = Number(parts.find((p) => p.type === 'year')?.value);
+  const m = Number(parts.find((p) => p.type === 'month')?.value);
+  const last = new Date(y, m, 0).getDate();
+  const end = `${y}-${String(m).padStart(2, '0')}-${String(last).padStart(2, '0')}`;
+  return { start, end: end < start ? start : end };
 }
 
-function assignablePeople(users: Profile[] | null | undefined, admin: boolean): Profile[] {
-  return ((users as Profile[]) || [])
-    .filter((u) => u.role === 'employee' || (admin && u.role === 'manager'))
-    .filter((u) => !u.is_demo)
-    .sort((a, b) => a.full_name.localeCompare(b.full_name));
+function initials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? '')
+    .join('') || '?';
 }
+
+type DeptGroup = { id: string; name: string; people: Profile[] };
+
+function roleOrder(role: string): number {
+  if (role === 'manager') return 0;
+  if (role === 'employee') return 1;
+  return 2;
+}
+
+function matchPerson(p: Profile, q: string): boolean {
+  const s = q.trim().toLowerCase();
+  if (!s) return true;
+  return p.full_name.toLowerCase().includes(s) || p.email.toLowerCase().includes(s) || displayRoleLabel(p.role).toLowerCase().includes(s);
+}
+
+function groupPeopleByDepartment(people: Profile[], departments: Department[]): DeptGroup[] {
+  const known = new Set(departments.map((d) => d.id));
+  const groups: DeptGroup[] = [...departments]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((d) => ({
+      id: d.id,
+      name: d.name,
+      people: people
+        .filter((p) => p.department_id === d.id)
+        .sort((a, b) => roleOrder(a.role) - roleOrder(b.role) || a.full_name.localeCompare(b.full_name)),
+    }))
+    .filter((g) => g.people.length > 0);
+
+  const unassigned = people
+    .filter((p) => !p.department_id || !known.has(p.department_id))
+    .sort((a, b) => roleOrder(a.role) - roleOrder(b.role) || a.full_name.localeCompare(b.full_name));
+  if (unassigned.length) {
+    groups.push({ id: '_none', name: 'No department', people: unassigned });
+  }
+  return groups;
+}
+
+function StudioSteps({
+  step,
+  labels,
+}: {
+  step: number;
+  labels: string[];
+}) {
+  return (
+    <ol className="studio-steps" aria-label="Assignment steps">
+      {labels.map((label, i) => {
+        const n = i + 1;
+        return (
+          <li key={label} className={step === n ? 'is-on' : step > n ? 'is-done' : undefined}>
+            <span>{n}</span>
+            {label}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+const CATEGORY_HELP: Record<KpiCategoryId, string> = {
+  monthly_goal: 'They open the task in Scorr to start it (In progress), then mark Complete. Points follow Score, Weight, and whether they finish by the due date.',
+  quality: 'They open the task in Scorr to start it, then mark Complete. Points follow Score, Weight, and the due date.',
+  punctuality_behaviour: 'They open the task in Scorr to start it, then mark Complete. Points follow Score, Weight, and the due date.',
+  urgent_tasks: 'They open the task in Scorr to start it, then mark Complete. On time awards the full Score; after the due date awards half.',
+};
 
 interface ManagerKpiConfigProps {
   assignerId: string;
   isAdmin?: boolean;
-  /** Manager's department — assigned by admin only */
   managerDepartmentId?: string | null;
+  hideChrome?: boolean;
+  initialDesk?: Desk;
+  initialUserId?: string;
+  initialDeptId?: string;
 }
 
-export default function ManagerKpiConfig({ assignerId, isAdmin = false, managerDepartmentId }: ManagerKpiConfigProps) {
+export default function ManagerKpiConfig({
+  assignerId,
+  isAdmin = false,
+  managerDepartmentId,
+  initialDesk,
+  initialUserId,
+  initialDeptId,
+}: ManagerKpiConfigProps) {
+  const [desk, setDesk] = useState<Desk>(initialDesk || 'assign');
+  const [templates, setTemplates] = useState<KpiTemplate[]>([]);
   const [reports, setReports] = useState<Profile[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [indicators, setIndicators] = useState<DepartmentKpiIndicator[]>([]);
-  const [selectedUserId, setSelectedUserId] = useState('');
-  const [userKpis, setUserKpis] = useState<Kpi[]>([]);
+  const [assignUserId, setAssignUserId] = useState(initialUserId || '');
+  const [assignDeptId, setAssignDeptId] = useState(initialDeptId || '');
+  const [boardUserId, setBoardUserId] = useState(initialUserId || '');
+  const [boardDeptId, setBoardDeptId] = useState(initialDeptId || '');
+  const [assignKpis, setAssignKpis] = useState<Kpi[]>([]);
+  const [boardKpis, setBoardKpis] = useState<Kpi[]>([]);
+  const [peopleWithKpis, setPeopleWithKpis] = useState<Set<string>>(() => new Set());
+  const [assignKpiId, setAssignKpiId] = useState('');
   const [loading, setLoading] = useState(true);
-  const [kpiLoading, setKpiLoading] = useState(false);
-  const [indicatorsLoading, setIndicatorsLoading] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
   const [error, setError] = useState('');
-  const [managerTab, setManagerTab] = useState<'create' | 'assign' | 'assignments'>('create');
-  const [adminTab, setAdminTab] = useState<'assign' | 'overview'>('assign');
-  const [overviewDeptFilter, setOverviewDeptFilter] = useState('all');
-  const [overviewEmployeeFilter, setOverviewEmployeeFilter] = useState('all');
-  const [overviewStatusFilter, setOverviewStatusFilter] = useState<'all' | 'pending' | 'completed'>('all');
-  const [overviewManagerFilter, setOverviewManagerFilter] = useState('all');
-  const [overviewDateFrom, setOverviewDateFrom] = useState('');
-  const [overviewDateTo, setOverviewDateTo] = useState('');
-  const [overviewSearch, setOverviewSearch] = useState('');
-  const [overviewRefreshing, setOverviewRefreshing] = useState(false);
+  const [success, setSuccess] = useState('');
+  const [editingAssignment, setEditingAssignment] = useState<{ kpi: Kpi; siblings: Kpi[]; employeeName: string } | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState<KpiTemplate | null>(null);
+  const [libOpen, setLibOpen] = useState(false);
+  const [libQuery, setLibQuery] = useState('');
 
-  const [departmentId, setDepartmentId] = useState('');
+  const [libName, setLibName] = useState('');
+  const [libCategory, setLibCategory] = useState<KpiCategoryId>('monthly_goal');
+  const [libDescription, setLibDescription] = useState('');
+  const [libWeight, setLibWeight] = useState('10');
+
   const [assignNotes, setAssignNotes] = useState('');
-  const [assignStartDate, setAssignStartDate] = useState(() => currentMonthDateRange().start);
-  const [assignEndDate, setAssignEndDate] = useState(() => currentMonthDateRange().end);
-  const [assignSuccess, setAssignSuccess] = useState('');
-  const [selectedIndicatorIds, setSelectedIndicatorIds] = useState<string[]>([]);
-  const [teamKpisByUser, setTeamKpisByUser] = useState<Record<string, Kpi[]>>({});
+  const [assignStartDate, setAssignStartDate] = useState(() => defaultKpiDates().start);
+  const [assignEndDate, setAssignEndDate] = useState(() => defaultKpiDates().end);
+  const [assignWeight, setAssignWeight] = useState('');
+  const [assignScore, setAssignScore] = useState('');
+  const [boardSearch, setBoardSearch] = useState('');
+  const [pauseOngoingOnUrgent, setPauseOngoingOnUrgent] = useState(true);
 
-  const fetchIndicators = async (deptId: string, silent = false) => {
-    if (!deptId) { setIndicators([]); return; }
-    if (!silent) setIndicatorsLoading(true);
-    const { data, error: indErr } = await supabase.rpc('get_department_kpi_indicators', { p_department_id: deptId });
-    if (!indErr) setIndicators((data as DepartmentKpiIndicator[]) || []);
-    else setIndicators([]);
-    if (!silent) setIndicatorsLoading(false);
-  };
+  const assignPerson = reports.find((r) => r.id === assignUserId) || null;
+  const boardPerson = reports.find((r) => r.id === boardUserId) || null;
+  const remaining = remainingKpiWeightBudget(assignKpis);
+  const selectedTemplate = templates.find((t) => t.id === assignKpiId) || null;
+  const selectedWeight = Number(assignWeight || selectedTemplate?.weight || 0);
+  const selectedScore = Number(assignScore || selectedWeight || 0);
 
-  const fetchTeamKpis = async (team: Profile[]) => {
-    if (!team.length) { setTeamKpisByUser({}); return; }
-    const ids = team.map((r) => r.id);
-    const { data } = await supabase.from('kpis').select('*').in('user_id', ids).order('created_at', { ascending: false });
-    const grouped: Record<string, Kpi[]> = {};
-    for (const id of ids) grouped[id] = [];
-    for (const k of (data as Kpi[]) || []) {
-      if (grouped[k.user_id]) grouped[k.user_id].push(k);
-    }
-    setTeamKpisByUser(grouped);
-  };
   useEffect(() => {
-    (async () => {
-      setLoading(reports.length === 0 && departments.length === 0);
-      const [{ data: reps }, deptResult] = await Promise.all([
-        isAdmin
-          ? supabase.rpc('get_all_users_admin')
-          : supabase.rpc('get_direct_reports', { p_manager_id: assignerId }),
-        isAdmin
-          ? supabase.rpc('get_departments')
-          : managerDepartmentId
-            ? supabase.rpc('get_department_kpi_indicators', { p_department_id: managerDepartmentId })
-            : Promise.resolve({ data: null, error: null }),
-      ]);
-      const list = assignablePeople(reps as Profile[], isAdmin);
-      setReports(list);
-      if (isAdmin) {
-        const deptList = (deptResult.data as Department[]) || [];
-        setDepartments(deptList);
-      } else if (managerDepartmentId) {
-        setDepartmentId(managerDepartmentId);
-        const { data: mgrDepts } = await supabase.rpc('get_departments');
-        const dept = ((mgrDepts as Department[]) || []).find((d) => d.id === managerDepartmentId);
-        if (dept) {
-          setDepartments([dept]);
-        } else {
-          const inds = (deptResult.data as DepartmentKpiIndicator[]) || [];
-          setDepartments([{
-            id: managerDepartmentId,
-            name: inds[0]?.department_name || 'Your Department',
-            slug: '',
-            org_weight_pct: 0,
-            active: true,
-          }]);
-        }
-      } else {
-        setDepartments([]);
-        setDepartmentId('');
+    if (!selectedTemplate) {
+      setAssignWeight('');
+      setAssignScore('');
+      return;
+    }
+    const w = String(selectedTemplate.weight);
+    setAssignWeight(w);
+    setAssignScore(w);
+  }, [selectedTemplate?.id]);
+
+  const loadTemplates = async () => {
+    const { data, error: err } = await supabase.rpc('list_kpi_templates', { p_include_inactive: false });
+    if (err) {
+      setError(err.message);
+      setTemplates([]);
+      return;
+    }
+    setTemplates(((data as KpiTemplate[]) || []).filter((t) => t.active !== false));
+  };
+
+  const loadPeople = async () => {
+    const { data, error: rpcErr } = await supabase.rpc('get_assignable_kpi_people');
+    let list = ((data as Profile[]) || []).filter((u) => !u.is_demo).sort((a, b) => a.full_name.localeCompare(b.full_name));
+    if (rpcErr || !data) {
+      const fallback = isAdmin
+        ? await supabase.rpc('get_all_users_admin')
+        : await supabase.rpc('get_direct_reports', { p_manager_id: assignerId });
+      list = ((fallback.data as Profile[]) || [])
+        .filter((u) => !u.is_demo)
+        .filter((u) => {
+          if (isAdmin) return u.role === 'employee' || u.role === 'manager';
+          return u.role === 'employee' && (!managerDepartmentId || u.department_id === managerDepartmentId);
+        })
+        .sort((a, b) => a.full_name.localeCompare(b.full_name));
+    }
+    if (!isAdmin) {
+      list = list.filter((u) => u.role === 'employee' && (!managerDepartmentId || u.department_id === managerDepartmentId));
+    }
+    setReports(list);
+    await loadPeopleWithKpis(list);
+  };
+
+  const loadDepartments = async () => {
+    const { data } = await supabase.rpc('get_departments');
+    setDepartments(((data as Department[]) || []).filter((d) => d.active !== false));
+  };
+
+  const loadPeopleWithKpis = async (people: Profile[]) => {
+    const ids = people.map((p) => p.id);
+    if (ids.length === 0) {
+      setPeopleWithKpis(new Set());
+      return;
+    }
+    const { data } = await supabase.from('kpis').select('user_id').in('user_id', ids);
+    setPeopleWithKpis(new Set(((data || []) as { user_id: string }[]).map((row) => row.user_id)));
+  };
+
+  const fetchKpis = async (userId: string): Promise<Kpi[]> => {
+    if (!userId) return [];
+    const { data } = await supabase.from('kpis').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+    return hydrateKpiLastEdits((data as Kpi[]) || []);
+  };
+
+  useEffect(() => {
+    if (initialDesk) setDesk(initialDesk);
+  }, [initialDesk]);
+
+  useEffect(() => {
+    if (initialUserId) {
+      setAssignUserId(initialUserId);
+      setBoardUserId(initialUserId);
+    }
+  }, [initialUserId]);
+
+  useEffect(() => {
+    if (initialDeptId) {
+      setAssignDeptId(initialDeptId);
+      setBoardDeptId(initialDeptId);
+    } else if (initialUserId && reports.length > 0) {
+      const found = reports.find((r) => r.id === initialUserId);
+      if (found?.department_id) {
+        setAssignDeptId(found.department_id);
+        setBoardDeptId(found.department_id);
       }
+    }
+  }, [initialDeptId, initialUserId, reports]);
+
+  useEffect(() => {
+    const boot = async () => {
+      setLoading(true);
+      await Promise.all([loadTemplates(), loadPeople(), loadDepartments()]);
       setLoading(false);
-      if (list.length) void fetchTeamKpis(list);
-    })();
+    };
+    void boot();
   }, [assignerId, isAdmin, managerDepartmentId]);
 
   useEffect(() => {
-    void fetchIndicators(departmentId);
-  }, [departmentId]);
+    let cancelled = false;
+    void (async () => {
+      const list = await fetchKpis(assignUserId);
+      if (!cancelled) {
+        setAssignKpis(list);
+        setAssignKpiId('');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [assignUserId]);
 
   useEffect(() => {
-    if (indicators.length > 0) {
-      setSelectedIndicatorIds((prev) => {
-        const valid = prev.filter((id) => indicators.some((i) => i.id === id));
-        if (isAdmin) return valid;
-        return valid.length > 0 ? valid : indicators.map((i) => i.id);
-      });
-    } else {
-      setSelectedIndicatorIds([]);
-    }
-  }, [indicators, isAdmin]);
+    let cancelled = false;
+    void (async () => {
+      const list = await fetchKpis(boardUserId);
+      if (!cancelled) setBoardKpis(list);
+    })();
+    return () => { cancelled = true; };
+  }, [boardUserId]);
+
+  useSupabaseRealtime('kpi-library-assign', [{ table: 'kpis' }, { table: 'users' }, { table: 'departments' }], () => {
+    void loadPeople();
+    void loadTemplates();
+    void loadDepartments();
+    if (assignUserId) void fetchKpis(assignUserId).then(setAssignKpis);
+    if (boardUserId) void fetchKpis(boardUserId).then(setBoardKpis);
+  });
 
   useEffect(() => {
-    if (!isAdmin && (managerTab === 'assign' || managerTab === 'assignments') && departmentId) {
-      void fetchIndicators(departmentId);
-    }
-    if (!isAdmin && managerTab === 'assignments' && reports.length) {
-      void fetchTeamKpis(reports);
-    }
-  }, [isAdmin, managerTab, departmentId, reports]);
+    if (!libOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLibOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [libOpen]);
 
-  const fetchKpis = async (userId: string, silent = false) => {
-    if (!userId) { setUserKpis([]); return; }
-    if (!silent) setKpiLoading(true);
-    const { data } = await supabase.from('kpis').select('*').eq('user_id', userId).order('created_at', { ascending: false });
-    setUserKpis(data || []);
-    if (!silent) setKpiLoading(false);
-  };
+  const assignGroups = useMemo(() => groupPeopleByDepartment(reports, departments), [reports, departments]);
+  const boardPeople = useMemo(() => reports.filter((p) => peopleWithKpis.has(p.id)), [reports, peopleWithKpis]);
+  const boardGroups = useMemo(() => groupPeopleByDepartment(boardPeople, departments), [boardPeople, departments]);
 
-  useEffect(() => { fetchKpis(selectedUserId); }, [selectedUserId]);
-
-  useSupabaseRealtime(
-    `kpi-assign-${assignerId}`,
-    [{ table: 'kpis' }, { table: 'users' }, { table: 'departments' }, { table: 'department_kpi_indicators' }],
-    () => {
-      void (async () => {
-        const [{ data: reps }, deptResult] = await Promise.all([
-          isAdmin
-            ? supabase.rpc('get_all_users_admin')
-            : supabase.rpc('get_direct_reports', { p_manager_id: assignerId }),
-          isAdmin
-            ? supabase.rpc('get_departments')
-            : managerDepartmentId
-              ? supabase.rpc('get_department_kpi_indicators', { p_department_id: managerDepartmentId })
-              : Promise.resolve({ data: null, error: null }),
-        ]);
-        const teamList = assignablePeople(reps as Profile[], isAdmin);
-        setReports(teamList);
-        if (teamList.length) void fetchTeamKpis(teamList);
-        if (isAdmin) {
-          setDepartments((deptResult.data as Department[]) || []);
-        } else if (managerDepartmentId) {
-          const inds = (deptResult.data as DepartmentKpiIndicator[]) || [];
-          if (inds[0]?.department_name) {
-            setDepartments([{
-              id: managerDepartmentId,
-              name: inds[0].department_name,
-              slug: '',
-              org_weight_pct: 0,
-              active: true,
-            }]);
-          }
-        }
-        if (selectedUserId) fetchKpis(selectedUserId, true);
-        if (departmentId) void fetchIndicators(departmentId, true);
-      })();
-    },
+  const assignDept = assignGroups.find((g) => g.id === assignDeptId) || null;
+  const boardDept = boardGroups.find((g) => g.id === boardDeptId) || null;
+  const peopleInAssignDept = isAdmin ? assignDept?.people || [] : reports;
+  const peopleInBoardDept = useMemo(
+    () => (isAdmin ? boardDept?.people || [] : boardPeople).filter((p) => matchPerson(p, boardSearch)),
+    [isAdmin, boardDept, boardPeople, boardSearch],
   );
 
-  const selectedDept = departments.find((d) => d.id === departmentId);
-  const selectedEmployee = reports.find((r) => r.id === selectedUserId);
+  const deptNameOf = (id?: string | null) => departments.find((d) => d.id === id)?.name || 'No department';
+  const boardStep = isAdmin
+    ? (!boardDeptId ? 1 : !boardPerson ? 2 : 3)
+    : (!boardPerson ? 1 : 2);
 
-  const deptLabel = (deptId?: string | null) =>
-    departments.find((d) => d.id === deptId)?.name || 'No department';
+  useEffect(() => {
+    if (isAdmin) return;
+    if (!managerDepartmentId) return;
+    if (!assignDeptId && assignGroups.some((g) => g.id === managerDepartmentId)) setAssignDeptId(managerDepartmentId);
+    if (!boardDeptId && boardGroups.some((g) => g.id === managerDepartmentId)) setBoardDeptId(managerDepartmentId);
+  }, [isAdmin, managerDepartmentId, assignDeptId, boardDeptId, assignGroups, boardGroups]);
 
-  const departmentPeople = departmentId
-    ? reports.filter((r) => r.department_id === departmentId)
-    : [];
+  useEffect(() => {
+    if (boardUserId && !peopleWithKpis.has(boardUserId)) {
+      setBoardUserId('');
+      setBoardKpis([]);
+    }
+  }, [boardUserId, peopleWithKpis]);
 
-  const pickDepartment = (deptId: string) => {
-    setDepartmentId(deptId);
-    setSelectedUserId('');
-    setSelectedIndicatorIds([]);
-    setUserKpis([]);
-    setError('');
-    setAssignSuccess('');
+  const visibleTemplates = useMemo(() => {
+    const q = libQuery.trim().toLowerCase();
+    if (!q) return templates;
+    return templates.filter(
+      (t) => t.name.toLowerCase().includes(q) || (t.description || '').toLowerCase().includes(q) || kpiCategoryMeta(t.kpi_category).label.toLowerCase().includes(q),
+    );
+  }, [templates, libQuery]);
+
+  const whoHint = isAdmin
+    ? 'Choose department, then the employee or manager, then the KPI, dates, and an optional note.'
+    : managerDepartmentId
+      ? 'Choose the employee, then the KPI, dates, and an optional note.'
+      : 'Ask an admin to set your department before you can assign KPIs.';
+
+  const resetLibraryForm = () => {
+    setLibName('');
+    setLibDescription('');
+    setLibWeight('10');
+    setLibCategory('monthly_goal');
+    setEditingTemplate(null);
   };
 
-  const pickEmployee = (userId: string) => {
-    setSelectedUserId(userId);
-    if (!isAdmin) {
-      const emp = reports.find((r) => r.id === userId);
-      if (emp?.department_id) setDepartmentId(emp.department_id);
+  const openCreate = () => {
+    resetLibraryForm();
+    setError('');
+    setLibOpen(true);
+  };
+
+  const openEditTemplate = (tpl: KpiTemplate) => {
+    setEditingTemplate(tpl);
+    setLibName(tpl.name);
+    setLibDescription(tpl.description || '');
+    setLibWeight(String(tpl.weight));
+    setLibCategory((tpl.kpi_category as KpiCategoryId) || 'monthly_goal');
+    setError('');
+    setLibOpen(true);
+  };
+
+  const handleSaveTemplate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    const weight = Number(libWeight);
+    if (!libName.trim()) {
+      setError('KPI name is required.');
+      return;
+    }
+    if (!Number.isFinite(weight) || weight < 1 || weight > 100) {
+      setError('Weight must be between 1% and 100%.');
+      return;
+    }
+    setFormLoading(true);
+    try {
+      if (editingTemplate) {
+        const { error: err } = await supabase.rpc('update_kpi_template', {
+          p_id: editingTemplate.id,
+          p_name: libName.trim(),
+          p_description: libDescription.trim() || null,
+          p_category: libCategory,
+          p_weight: weight,
+          p_active: true,
+        });
+        if (err) throw err;
+        setSuccess('KPI updated.');
+      } else {
+        const { error: err } = await supabase.rpc('create_kpi_template', {
+          p_name: libName.trim(),
+          p_description: libDescription.trim() || null,
+          p_category: libCategory,
+          p_weight: weight,
+        });
+        if (err) throw err;
+        setSuccess('KPI saved to the library. Assign it from Assign Task.');
+      }
+      resetLibraryForm();
+      setLibOpen(false);
+      await loadTemplates();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Could not save this KPI.');
+    } finally {
+      setFormLoading(false);
     }
   };
 
-  const toggleIndicator = (id: string) => {
-    setSelectedIndicatorIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
+  const handleArchiveTemplate = async (tpl: KpiTemplate) => {
+    if (!confirm(`Remove “${tpl.name}” from the library? Existing assignments stay.`)) return;
+    const { error: err } = await supabase.rpc('update_kpi_template', {
+      p_id: tpl.id,
+      p_name: tpl.name,
+      p_description: tpl.description,
+      p_category: tpl.kpi_category,
+      p_weight: tpl.weight,
+      p_active: false,
+    });
+    if (err) setError(err.message);
+    else {
+      setSuccess('KPI removed from the library.');
+      await loadTemplates();
+    }
   };
-
-  const selectAllIndicators = () => setSelectedIndicatorIds(indicators.map((i) => i.id));
-  const clearAllIndicators = () => setSelectedIndicatorIds([]);
-
-  const selectedIndicators = indicators.filter((i) => selectedIndicatorIds.includes(i.id));
-  const selectedWeightTotal = selectedIndicatorsWeightSum(indicators, selectedIndicatorIds);
 
   const handleAssign = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setAssignSuccess('');
-    if (!selectedUserId || !departmentId || !assignStartDate || !assignEndDate) {
-      setError('Team member, start date and end date are required.');
+    setSuccess('');
+    if (isAdmin && !assignDeptId) {
+      setError('Select a department.');
       return;
     }
-    if (assignEndDate < assignStartDate) {
-      setError('End date must be on or after start date.');
+    if (!assignUserId) {
+      setError('Select who this is for.');
       return;
     }
-    if (indicators.length === 0) {
-      setError('Create KPIs first under the Create KPIs tab.');
-      return;
-    }
-    if (selectedIndicatorIds.length === 0) {
-      setError('Select at least one KPI to assign.');
-      return;
-    }
-    const empName = reports.find((r) => r.id === selectedUserId)?.full_name || 'Employee';
-    const assignCheck = previewEmployeeAssignment(userKpis, departmentId, selectedIndicators, empName);
-    if (!assignCheck.ok) {
-      setError(assignCheck.message || 'Cannot assign these KPI tasks.');
-      return;
-    }
-
-    setFormLoading(true);
-    try {
-      const { data, error: rpcErr } = await supabase.rpc('assign_department_kpi_board', {
-        p_employee_id: selectedUserId,
-        p_department_id: departmentId,
-        p_start_date: assignStartDate,
-        p_end_date: assignEndDate,
-        p_notes: assignNotes.trim() || null,
-        p_indicator_ids: selectedIndicatorIds,
-      });
-
-      if (rpcErr) throw rpcErr;
-
-      const row = Array.isArray(data) ? data[0] : data;
-      if (row?.employee_email) {
-        await emailKpiAssigned(
-          row.employee_email,
-          row.employee_name,
-          row.department_name || selectedDept?.name || 'Department',
-          assignEndDate,
-          `${row.kpi_count} KPI tasks assigned`,
-        );
-      }
-
-      setAssignSuccess(assignCheck.successMessage);
-
-      setAssignNotes('');
-      const month = currentMonthDateRange();
-      setAssignStartDate(month.start);
-      setAssignEndDate(month.end);
-      fetchKpis(selectedUserId);
-      void fetchTeamKpis(reports);
-      setManagerTab('assignments');
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to assign KPI tasks.');
-    } finally {
-      setFormLoading(false);
-    }
-  };
-
-  const handleAssignAdmin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setAssignSuccess('');
-    if (!departmentId) {
-      setError('Select a department first.');
-      return;
-    }
-    if (!selectedUserId) {
-      setError('Select an employee or manager from this department.');
+    if (!selectedTemplate) {
+      setError('Select a KPI from the library.');
       return;
     }
     if (!assignStartDate || !assignEndDate) {
-      setError('Start date and end date are required.');
-      return;
-    }
-    const selectedPerson = reports.find((r) => r.id === selectedUserId);
-    if (!selectedPerson || selectedPerson.department_id !== departmentId) {
-      setError('Choose an employee or manager who belongs to the selected department.');
+      setError('Start date and due date are required.');
       return;
     }
     if (assignEndDate < assignStartDate) {
-      setError('End date must be on or after start date.');
+      setError('Due date must be on or after start date.');
       return;
     }
-    if (indicators.length === 0) {
-      setError('This department has no KPI indicators configured.');
+    if (sumEmployeeKpiWeights(assignKpis) + selectedWeight > KPI_WEIGHT_CAP + 0.05) {
+      setError(`Open weights for this person cannot exceed 100% (${formatKpiWeight(remaining)} remaining, selected ${formatKpiWeight(selectedWeight)}).`);
       return;
     }
-    if (selectedIndicatorIds.length === 0) {
-      setError('Select at least one KPI to assign.');
+    if (!Number.isFinite(selectedWeight) || selectedWeight < 1 || selectedWeight > 100) {
+      setError('Weight must be between 1% and 100%.');
       return;
     }
-    const empName = reports.find((r) => r.id === selectedUserId)?.full_name || 'Employee';
-    const assignCheck = previewEmployeeAssignment(userKpis, departmentId, selectedIndicators, empName);
-    if (!assignCheck.ok) {
-      setError(assignCheck.message || 'Cannot assign these KPI tasks.');
+    if (!Number.isFinite(selectedScore) || selectedScore < 0) {
+      setError('Score cannot be negative.');
       return;
     }
-
     setFormLoading(true);
     try {
-      const { data, error: rpcErr } = await supabase.rpc('assign_department_kpi_board', {
-        p_employee_id: selectedUserId,
-        p_department_id: departmentId,
+      const tpl = selectedTemplate;
+      const isUrgent = tpl.kpi_category === 'urgent_tasks';
+      const ongoingIds = assignKpis
+        .filter((k) => k.completion_status !== 'completed' && !k.paused_at)
+        .map((k) => k.id);
+
+      const { data, error: rpcErr } = await supabase.rpc('assign_kpi_from_template', {
+        p_employee_id: assignUserId,
+        p_template_id: tpl.id,
         p_start_date: assignStartDate,
         p_end_date: assignEndDate,
         p_notes: assignNotes.trim() || null,
-        p_indicator_ids: selectedIndicatorIds,
+        p_weight: selectedWeight,
+        p_assigned_score: selectedScore,
       });
-
       if (rpcErr) throw rpcErr;
+
+      if (isUrgent && pauseOngoingOnUrgent && ongoingIds.length > 0) {
+        await supabase.rpc('pause_assigned_kpis', { p_kpi_ids: ongoingIds });
+      }
 
       const row = Array.isArray(data) ? data[0] : data;
       if (row?.employee_email) {
         await emailKpiAssigned(
           row.employee_email,
           row.employee_name,
-          row.department_name || selectedDept?.name || 'Department',
+          row.kpi_name || tpl.name,
           assignEndDate,
-          `${row.kpi_count} KPI metrics assigned`,
+          assignNotes.trim() || tpl.description || '',
         );
       }
-
-      setAssignSuccess(assignCheck.successMessage);
-
+      setSuccess(
+        isUrgent && pauseOngoingOnUrgent && ongoingIds.length > 0
+          ? `Assigned urgent task ${tpl.name} to ${assignPerson?.full_name || 'this person'} and paused ${ongoingIds.length} ongoing task(s).`
+          : `Assigned ${tpl.name} to ${assignPerson?.full_name || 'this person'}.`
+      );
+      setAssignKpiId('');
       setAssignNotes('');
-      const month = currentMonthDateRange();
-      setAssignStartDate(month.start);
-      setAssignEndDate(month.end);
-      fetchKpis(selectedUserId);
-      void fetchTeamKpis(reports);
-      setAdminTab('assign');
+      const dates = defaultKpiDates();
+      setAssignStartDate(dates.start);
+      setAssignEndDate(dates.end);
+      setAssignKpis(await fetchKpis(assignUserId));
+      await loadPeopleWithKpis(reports);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to assign KPI board.');
+      setError(err instanceof Error ? err.message : 'Could not assign this KPI.');
     } finally {
       setFormLoading(false);
     }
   };
 
-  const handleDelete = async (kpiId: string) => {
-    if (!confirm('Remove this KPI assignment?')) return;
+  const refreshOpenKpis = async () => {
+    await loadPeopleWithKpis(reports);
+    if (assignUserId) setAssignKpis(await fetchKpis(assignUserId));
+    if (boardUserId) setBoardKpis(await fetchKpis(boardUserId));
+  };
+
+  const handleDeleteAssigned = async (kpiId: string) => {
+    if (!confirm('Remove this assigned KPI?')) return;
     await supabase.from('kpis').delete().eq('id', kpiId);
-    if (selectedUserId) {
-      await supabase.rpc('rebalance_employee_kpi_weights', { p_user_id: selectedUserId });
-    }
-    fetchKpis(selectedUserId);
-    void fetchTeamKpis(reports);
+    await refreshOpenKpis();
   };
 
-  const fmt = (d?: string | null) => d ? new Date(d + 'T00:00:00').toLocaleDateString() : '—';
-
-  const assignmentRows = reports.flatMap((r) =>
-    (teamKpisByUser[r.id] || []).map((k) => ({ employee: r, kpi: k })),
-  );
-
-  const adminAssignmentSections = buildAdminDepartmentOverview(reports, teamKpisByUser, departments);
-  const managerAssignmentSections = buildDepartmentAssignmentSections(assignmentRows, departments);
-
-  const filteredAdminSections = filterAssignmentSections(adminAssignmentSections, {
-    departmentId: overviewDeptFilter,
-    search: overviewSearch,
-    employeeId: overviewEmployeeFilter,
-    status: overviewStatusFilter,
-    managerId: overviewManagerFilter,
-    dateFrom: overviewDateFrom,
-    dateTo: overviewDateTo,
-  });
-
-  const managerOptions = reports.filter((u) => u.role === 'manager');
-  const assignPreviewOk = previewEmployeeAssignment(
-    userKpis,
-    departmentId,
-    selectedIndicators,
-    selectedEmployee?.full_name,
-  ).ok;
-
-  const refreshOverview = async () => {
-    setOverviewRefreshing(true);
-    await fetchTeamKpis(reports);
-    setOverviewRefreshing(false);
-  };
-
-  const totalAssignments = Object.values(teamKpisByUser).reduce((n, arr) => n + arr.length, 0);
-  const pendingAssignments = assignmentRows.filter(({ kpi }) => kpi.completion_status !== 'completed').length;
-  const alertMessage = error || assignSuccess;
-
-  if (loading && reports.length === 0 && departments.length === 0) {
+  if (loading) {
     return (
-      <div className="assign-task-page-loading">
-        <Loader2 size={32} className="spin-icon" />
-        <span>Loading task assignment…</span>
-      </div>
-    );
-  }
-
-  if (!isAdmin) {
-    const deptIndicatorTotal = sumIndicatorWeights(indicators);
-    const managerPending = assignmentRows.filter(({ kpi }) => kpi.completion_status !== 'completed').length;
-
-    return (
-      <div className="mgr-kpi-page">
-        <header className="mgr-kpi-header glass-panel">
-          <div className="mgr-kpi-header__main">
-            <div className="mgr-kpi-header__icon">
-              <Target size={22} />
-            </div>
-            <div>
-              <h2 className="mgr-kpi-header__title">KPI Tasks — {selectedDept?.name || 'Your Department'}</h2>
-              <p className="mgr-kpi-header__subtitle">
-                Create department KPIs, assign tasks to your team, and track assignments. Each employee has an independent <strong>{KPI_WEIGHT_CAP}%</strong> KPI capacity. Unused weight is not redistributed.
-              </p>
-            </div>
-          </div>
-          <div className="mgr-kpi-stats">
-            <div className="mgr-kpi-stat mgr-kpi-stat--accent">
-              <span className="mgr-kpi-stat__label">Team members</span>
-              <strong>{reports.length}</strong>
-            </div>
-            <div className="mgr-kpi-stat">
-              <span className="mgr-kpi-stat__label">Active tasks</span>
-              <strong>{managerPending}</strong>
-            </div>
-            <div className="mgr-kpi-stat">
-              <span className="mgr-kpi-stat__label">Dept KPIs</span>
-              <strong>{indicators.length}</strong>
-            </div>
-            <div className="mgr-kpi-stat">
-              <span className="mgr-kpi-stat__label">Library total</span>
-              <strong>{deptIndicatorTotal.toFixed(0)}%</strong>
-            </div>
-          </div>
-        </header>
-
-        <div className="mgr-kpi-tabs tab-bar tab-bar--inline-mobile">
-          <button
-            type="button"
-            className={`tab-btn ${managerTab === 'create' ? 'tab-btn--active' : ''}`}
-            onClick={() => { setManagerTab('create'); setError(''); setAssignSuccess(''); }}
-          >
-            <ClipboardList size={16} /> Create KPIs
-          </button>
-          <button
-            type="button"
-            className={`tab-btn ${managerTab === 'assign' ? 'tab-btn--active' : ''}`}
-            onClick={() => { setManagerTab('assign'); setError(''); setAssignSuccess(''); }}
-          >
-            <UserPlus size={16} /> Assign Tasks
-          </button>
-          <button
-            type="button"
-            className={`tab-btn ${managerTab === 'assignments' ? 'tab-btn--active' : ''}`}
-            onClick={() => { setManagerTab('assignments'); setError(''); void fetchTeamKpis(reports); }}
-          >
-            <ListChecks size={16} /> Assignments ({totalAssignments})
-          </button>
-        </div>
-
-        {(error || assignSuccess) && (
-          <div
-            className={`assign-task-alert ${error ? 'assign-task-alert--error' : 'assign-task-alert--success'}`}
-            role="alert"
-          >
-            {error ? <AlertCircle size={18} /> : <CheckCircle2 size={18} />}
-            <span>{error || assignSuccess}</span>
-            <button
-              type="button"
-              className="assign-task-alert__dismiss"
-              onClick={() => { setError(''); setAssignSuccess(''); }}
-              aria-label="Dismiss"
-            >
-              ×
-            </button>
-          </div>
-        )}
-
-        {managerTab === 'create' ? (
-          <section className="mgr-kpi-card">
-            <h3><ClipboardList size={18} /> Department KPI template</h3>
-            <p>
-              Define KPI metrics for your department. You can add as many as you need; the library total can exceed 100%.
-              The 100% limit applies only when you assign KPIs to one employee.
-            </p>
-            {!managerDepartmentId ? (
-              <div className="assign-task-info">
-                <AlertCircle size={16} />
-                <span>No department assigned yet. Ask your company admin to assign you to a department in Users.</span>
-              </div>
-            ) : (
-              <DepartmentKpiIndicatorsEditor
-                departmentId={departmentId}
-                departmentName={selectedDept?.name || 'Department'}
-                showTemplateBanner
-              />
-            )}
-          </section>
-        ) : managerTab === 'assignments' ? (
-          <section className="mgr-kpi-card">
-            <h3><ListChecks size={18} /> Team assignments</h3>
-            <p>Tasks grouped by department and team member. Each employee is validated independently (pending/active weights ≤ {KPI_WEIGHT_CAP}%).</p>
-            {reports.length === 0 ? (
-              <div className="mgr-kpi-empty">
-                <Users size={40} strokeWidth={1.25} />
-                <h4>No team members</h4>
-                <p>No employees on your team yet.</p>
-              </div>
-            ) : assignmentRows.length === 0 ? (
-              <div className="mgr-kpi-empty">
-                <Target size={40} strokeWidth={1.25} />
-                <h4>No assignments yet</h4>
-                <p>Use <strong>Assign Tasks</strong> to assign KPIs to your team.</p>
-              </div>
-            ) : (
-              <DepartmentAssignmentsOverview
-                sections={managerAssignmentSections}
-                onDelete={(id) => void handleDelete(id)}
-                fmt={fmt}
-              />
-            )}
-          </section>
-        ) : (
-          <div className="mgr-kpi-grid">
-            <section className="mgr-kpi-card">
-              <h3><Users size={18} /> Employee preview</h3>
-              <p>Review current tasks and weight budget before assigning new KPIs.</p>
-
-              <div className="form-group">
-                <label htmlFor="mgr-preview-employee">Team member</label>
-                <select
-                  id="mgr-preview-employee"
-                  value={selectedUserId}
-                  onChange={(e) => setSelectedUserId(e.target.value)}
-                >
-                  <option value="">— Select team member —</option>
-                  {reports.map((r) => <option key={r.id} value={r.id}>{r.full_name}</option>)}
-                </select>
-              </div>
-
-              {reports.length === 0 ? (
-                <div className="mgr-kpi-empty">
-                  <Users size={36} strokeWidth={1.25} />
-                  <p>No employees on your team yet.</p>
-                </div>
-              ) : !selectedUserId ? (
-                <div className="mgr-kpi-empty">
-                  <Target size={36} strokeWidth={1.25} />
-                  <p>Select a team member to preview their KPI board.</p>
-                </div>
-              ) : kpiLoading && userKpis.length === 0 ? (
-                <div className="dash-loading"><Loader2 className="spin-icon" /></div>
-              ) : (
-                <>
-                  <EmployeeKpiWeightMeter kpis={userKpis} label="Current weight budget" />
-                  {userKpis.length > 0 && (
-                    <EmployeeKpiBoardSummary kpis={userKpis} employeeName={selectedEmployee?.full_name} />
-                  )}
-                  {userKpis.length === 0 ? (
-                    <div className="mgr-kpi-empty" style={{ padding: '1.5rem 0' }}>
-                      <p>No KPI tasks assigned yet.</p>
-                    </div>
-                  ) : (
-                    <div className="mgr-kpi-kpi-list">
-                      {userKpis.map((k) => (
-                        <article key={k.id} className="mgr-kpi-kpi-item">
-                          <div className="mgr-kpi-kpi-item__head">
-                            <div>
-                              <strong>{k.name}</strong>
-                              <span className={`badge badge-${k.completion_status === 'completed' ? 'on-track' : k.status.replace('_', '-')}`} style={{ marginLeft: '0.5rem', fontSize: '0.65rem' }}>
-                                {k.completion_status === 'completed' ? 'completed' : k.status.replace('_', ' ')}
-                              </span>
-                              <span className="dept-weight-badge" style={{ marginLeft: '0.35rem' }}>{formatKpiWeight(k.weight)}</span>
-                            </div>
-                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => void handleDelete(k.id)} title="Remove">
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                          {k.description && <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.35rem 0 0' }}>{k.description}</p>}
-                          <div className="mgr-kpi-kpi-item__meta">{fmt(k.start_date)} → {fmt(k.end_date)}</div>
-                        </article>
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
-            </section>
-
-            <section className="mgr-kpi-card">
-              <h3><Plus size={18} /> Assign KPI tasks</h3>
-              <p>Pick one or more KPIs. Each KPI keeps its template weight (a 40% KPI stays 40%). Re-assigning replaces pending tasks for this department only. This employee cannot exceed {KPI_WEIGHT_CAP}%.</p>
-
-              {!managerDepartmentId && (
-                <div className="assign-task-info">
-                  <AlertCircle size={16} />
-                  <span>No department assigned yet. Ask your admin to assign your department.</span>
-                </div>
-              )}
-              {managerDepartmentId && indicators.length === 0 && !indicatorsLoading && (
-                <div className="assign-task-info">
-                  <AlertCircle size={16} />
-                  <span>No KPIs created yet. Go to <strong>Create KPIs</strong> first.</span>
-                </div>
-              )}
-              {selectedUserId && (
-                <AssignmentCapacityPreview
-                  kpis={userKpis}
-                  departmentId={departmentId}
-                  selected={selectedIndicators}
-                  employeeName={selectedEmployee?.full_name}
-                  employeeDepartment={deptLabel(selectedEmployee?.department_id)}
-                />
-              )}
-
-              <form onSubmit={handleAssign} className="mgr-kpi-form">
-                <div className="form-group">
-                  <label htmlFor="mgr-assign-employee">Team member</label>
-                  <select
-                    id="mgr-assign-employee"
-                    value={selectedUserId}
-                    onChange={(e) => pickEmployee(e.target.value)}
-                    required
-                  >
-                    <option value="">— Select team member —</option>
-                    {reports.map((r) => (
-                      <option key={r.id} value={r.id}>{r.full_name} · {deptLabel(r.department_id)}</option>
-                    ))}
-                  </select>
-                  {selectedUserId && (
-                    <p className="assign-task-dept-preview">
-                      Employee department: <strong>{deptLabel(selectedEmployee?.department_id)}</strong>
-                      {' '}(assigning a KPI does not change their department)
-                    </p>
-                  )}
-                </div>
-
-                <KpiIndicatorSelector
-                  indicators={indicators}
-                  selectedIds={selectedIndicatorIds}
-                  onToggle={toggleIndicator}
-                  onSelectAll={selectAllIndicators}
-                  onClearAll={clearAllIndicators}
-                  loading={indicatorsLoading}
-                />
-
-                {selectedIndicatorIds.length > 0 && (
-                  <div className="mgr-kpi-assign-note">
-                    <Info size={16} />
-                    <span>
-                      Selected KPI keeps its configured weight: <strong>{formatKpiWeight(selectedWeightTotal)}</strong>.
-                      Other employees are not counted in this total.
-                    </span>
-                  </div>
-                )}
-
-                <div className="form-group">
-                  <label htmlFor="mgr-assign-notes">Notes (optional)</label>
-                  <textarea
-                    id="mgr-assign-notes"
-                    rows={2}
-                    placeholder="Instructions for this assignment…"
-                    value={assignNotes}
-                    onChange={(e) => setAssignNotes(e.target.value)}
-                  />
-                </div>
-
-                <div className="mgr-kpi-form__dates">
-                  <div className="form-group">
-                    <label htmlFor="mgr-assign-start"><Calendar size={14} /> Start date</label>
-                    <input
-                      id="mgr-assign-start"
-                      type="date"
-                      value={assignStartDate}
-                      onChange={(e) => setAssignStartDate(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="mgr-assign-end">End date</label>
-                    <input
-                      id="mgr-assign-end"
-                      type="date"
-                      value={assignEndDate}
-                      onChange={(e) => setAssignEndDate(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={
-                    formLoading ||
-                    !selectedUserId ||
-                    !departmentId ||
-                    indicators.length === 0 ||
-                    selectedIndicatorIds.length === 0 ||
-                    !assignPreviewOk
-                  }
-                >
-                  {formLoading ? (
-                    <Loader2 size={16} className="spin-icon" />
-                  ) : (
-                    <>
-                      <Target size={16} />
-                      Assign {selectedIndicatorIds.length} task{selectedIndicatorIds.length !== 1 ? 's' : ''} ({selectedWeightTotal.toFixed(0)}%)
-                    </>
-                  )}
-                </button>
-              </form>
-            </section>
-          </div>
-        )}
+      <div className="studio studio--loading">
+        <Loader2 className="spin-icon" size={28} />
+        <p>Loading workspace…</p>
       </div>
     );
   }
 
   return (
-    <div className="assign-task-page">
-      <header className="assign-task-header glass-panel">
-        <div className="assign-task-header__main">
-          <div className="assign-task-header__icon">
-            <Target size={22} />
-          </div>
-          <div>
-            <h2 className="assign-task-header__title">Assign Tasks</h2>
-            <p className="assign-task-header__subtitle">
-              Select a department, then an employee or manager in that department, then the KPI tasks and dates. Each person has an independent {KPI_WEIGHT_CAP}% capacity.
-            </p>
-          </div>
-        </div>
-
-        <div className="assign-task-stats">
-          <div className="assign-task-stat">
-            <Users size={16} />
-            <span className="assign-task-stat__label">Employees</span>
-            <strong>{reports.length}</strong>
-          </div>
-          <div className="assign-task-stat">
-            <Building2 size={16} />
-            <span className="assign-task-stat__label">Departments</span>
-            <strong>{departments.length}</strong>
-          </div>
-          <div className="assign-task-stat">
-            <ListChecks size={16} />
-            <span className="assign-task-stat__label">Active tasks</span>
-            <strong>{pendingAssignments}</strong>
-          </div>
-          <div className="assign-task-stat">
-            <ClipboardList size={16} />
-            <span className="assign-task-stat__label">Total assigned</span>
-            <strong>{totalAssignments}</strong>
-          </div>
-        </div>
-      </header>
-
-      <div className="assign-task-tabs tab-bar tab-bar--inline-mobile">
-        <button
-          type="button"
-          className={`tab-btn ${adminTab === 'overview' ? 'tab-btn--active' : ''}`}
-          onClick={() => { setAdminTab('overview'); setError(''); void fetchTeamKpis(reports); }}
-        >
-          <ListChecks size={16} /> By department ({totalAssignments})
+    <div className="studio">
+      <div className="studio-switch" role="tablist" aria-label="KPI workspace">
+        <button type="button" role="tab" aria-selected={desk === 'assign'} className={desk === 'assign' ? 'is-on' : undefined} onClick={() => { setDesk('assign'); setError(''); setSuccess(''); }}>
+          Assign Task
         </button>
-        <button
-          type="button"
-          className={`tab-btn ${adminTab === 'assign' ? 'tab-btn--active' : ''}`}
-          onClick={() => { setAdminTab('assign'); setError(''); setAssignSuccess(''); }}
-        >
-          <UserPlus size={16} /> New assignment
+        <button type="button" role="tab" aria-selected={desk === 'library'} className={desk === 'library' ? 'is-on' : undefined} onClick={() => { setDesk('library'); setError(''); setSuccess(''); }}>
+          KPI's
+        </button>
+        <button type="button" role="tab" aria-selected={desk === 'board'} className={desk === 'board' ? 'is-on' : undefined} onClick={() => { setDesk('board'); setError(''); setSuccess(''); }}>
+          Assigned Task
         </button>
       </div>
 
-      {alertMessage && (
-        <div
-          className={`assign-task-alert ${isAssignAlertError(alertMessage) ? 'assign-task-alert--error' : 'assign-task-alert--success'}`}
-          role="alert"
-        >
-          {isAssignAlertError(alertMessage) ? <AlertCircle size={18} /> : <CheckCircle2 size={18} />}
-          <span>{alertMessage}</span>
-          <button
-            type="button"
-            className="assign-task-alert__dismiss"
-            onClick={() => { setError(''); setAssignSuccess(''); }}
-            aria-label="Dismiss"
-          >
-            ×
-          </button>
+      {error && (
+        <div className="login-error-banner" role="alert">
+          <AlertCircle size={16} /> {error}
+        </div>
+      )}
+      {success && (
+        <div className="login-success-banner">
+          <CheckCircle2 size={16} /> {success}
         </div>
       )}
 
-      {adminTab === 'overview' ? (
-        <section className="assign-task-card glass-panel assign-task-overview">
-          <div className="assign-task-overview__head">
+      {desk === 'library' ? (
+        <>
+          <div className="studio-hero">
             <div>
-              <h3><ListChecks size={18} /> All assignments by department</h3>
-              <p>
-                Every department with employees and their KPI tasks. Filters apply per assignment. Each employee&apos;s weight is independent.
-              </p>
+              <p className="studio-kicker">Library</p>
+              <h2>Company KPIs</h2>
+              <p>Create the KPI once. It stays here with its weight until you assign it to someone.</p>
             </div>
-          </div>
-
-          <div className="assign-task-overview-toolbar">
-            <div className="assign-task-overview-toolbar__search form-group">
-              <Search size={16} className="assign-task-overview-toolbar__search-icon" />
-              <input
-                type="search"
-                className="form-input"
-                placeholder="Search department, employee, or task…"
-                value={overviewSearch}
-                onChange={(e) => setOverviewSearch(e.target.value)}
-              />
-            </div>
-            <div className="form-group" style={{ margin: 0, minWidth: 160, flex: '0 1 180px' }}>
-              <label className="form-label" style={{ fontSize: '0.72rem' }}>Employee</label>
-              <select
-                className="form-input"
-                value={overviewEmployeeFilter}
-                onChange={(e) => setOverviewEmployeeFilter(e.target.value)}
-              >
-                <option value="all">All employees</option>
-                {reports.map((r) => (
-                  <option key={r.id} value={r.id}>{r.full_name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="form-group" style={{ margin: 0, minWidth: 160, flex: '0 1 180px' }}>
-              <label className="form-label" style={{ fontSize: '0.72rem' }}>Department</label>
-              <select
-                className="form-input"
-                value={overviewDeptFilter}
-                onChange={(e) => setOverviewDeptFilter(e.target.value)}
-              >
-                <option value="all">All departments</option>
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-                {adminAssignmentSections.some((s) => s.deptId === '__unassigned__') && (
-                  <option value="__unassigned__">Unassigned</option>
-                )}
-              </select>
-            </div>
-            <div className="form-group" style={{ margin: 0, minWidth: 140, flex: '0 1 150px' }}>
-              <label className="form-label" style={{ fontSize: '0.72rem' }}>Status</label>
-              <select
-                className="form-input"
-                value={overviewStatusFilter}
-                onChange={(e) => setOverviewStatusFilter(e.target.value as 'all' | 'pending' | 'completed')}
-              >
-                <option value="all">All statuses</option>
-                <option value="pending">Active / pending</option>
-                <option value="completed">Completed</option>
-              </select>
-            </div>
-            {managerOptions.length > 0 && (
-              <div className="form-group" style={{ margin: 0, minWidth: 160, flex: '0 1 180px' }}>
-                <label className="form-label" style={{ fontSize: '0.72rem' }}>Manager</label>
-                <select
-                  className="form-input"
-                  value={overviewManagerFilter}
-                  onChange={(e) => setOverviewManagerFilter(e.target.value)}
-                >
-                  <option value="all">All managers</option>
-                  {managerOptions.map((m) => (
-                    <option key={m.id} value={m.id}>{m.full_name}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-            <div className="form-group" style={{ margin: 0, minWidth: 140, flex: '0 1 150px' }}>
-              <label className="form-label" style={{ fontSize: '0.72rem' }}>Start from</label>
-              <input
-                type="date"
-                className="form-input"
-                value={overviewDateFrom}
-                onChange={(e) => setOverviewDateFrom(e.target.value)}
-              />
-            </div>
-            <div className="form-group" style={{ margin: 0, minWidth: 140, flex: '0 1 150px' }}>
-              <label className="form-label" style={{ fontSize: '0.72rem' }}>End to</label>
-              <input
-                type="date"
-                className="form-input"
-                value={overviewDateTo}
-                onChange={(e) => setOverviewDateTo(e.target.value)}
-              />
-            </div>
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={() => void refreshOverview()}
-              disabled={overviewRefreshing}
-            >
-              <RefreshCw size={14} className={overviewRefreshing ? 'spin-icon' : ''} />
-              Refresh
+            <button type="button" className="btn btn-primary" onClick={openCreate}>
+              <Plus size={16} /> New KPI
             </button>
           </div>
 
-          {departments.length === 0 ? (
-            <div className="assign-task-empty">
-              <Building2 size={40} strokeWidth={1.25} />
-              <h4>No departments yet</h4>
-              <p>Add departments under the <strong>Departments</strong> tab before assigning tasks.</p>
+          <div className="studio-toolbar">
+            <div className="studio-search">
+              <Search size={16} />
+              <input type="search" value={libQuery} onChange={(e) => setLibQuery(e.target.value)} placeholder="Search KPIs" aria-label="Search KPIs" />
             </div>
-          ) : reports.length === 0 ? (
-            <div className="assign-task-empty">
-              <Users size={40} strokeWidth={1.25} />
-              <h4>No employees yet</h4>
-              <p>Create employee accounts under the <strong>Users</strong> tab, then return here to assign KPI tasks.</p>
-            </div>
-          ) : filteredAdminSections.length === 0 ? (
-            <div className="assign-task-empty">
-              <Target size={40} strokeWidth={1.25} />
-              <h4>No matches</h4>
-              <p>Try a different search or department filter.</p>
+            <span className="studio-count">{visibleTemplates.length} in library</span>
+          </div>
+
+          {visibleTemplates.length === 0 ? (
+            <div className="studio-empty">
+              <ClipboardList size={40} strokeWidth={1.25} />
+              <h3>{templates.length === 0 ? 'Start with your first KPI' : 'No matches'}</h3>
+              <p>
+                {templates.length === 0
+                  ? 'Name it, set the category and weight, then assign it from Assign Task.'
+                  : 'Try a different search.'}
+              </p>
+              {templates.length === 0 && (
+                <button type="button" className="btn btn-primary" onClick={openCreate}>
+                  <Plus size={16} /> New KPI
+                </button>
+              )}
             </div>
           ) : (
-            <DepartmentAssignmentsOverview
-              sections={filteredAdminSections}
-              onDelete={(id) => void handleDelete(id)}
-              fmt={fmt}
-              showEmptyEmployees
-              defaultExpanded
-            />
-          )}
-        </section>
-      ) : (
-        <>
-          {departments.length === 0 && (
-            <div className="assign-task-info">
-              <Info size={16} />
-              <span>No departments yet. Add departments under the <strong>Departments</strong> tab before assigning tasks.</span>
+            <div className="studio-grid">
+              {visibleTemplates.map((tpl) => (
+                <article key={tpl.id} className="studio-kpi">
+                  <div className="studio-kpi__pct" aria-label={`${formatKpiWeight(Number(tpl.weight))} weight`}>
+                    <strong>{formatKpiWeight(Number(tpl.weight))}</strong>
+                  </div>
+                  <div className="studio-kpi__body">
+                    <h3>{tpl.name}</h3>
+                    <span className="studio-tag">{kpiCategoryMeta(tpl.kpi_category).label}</span>
+                    {tpl.description && <p>{tpl.description}</p>}
+                    <div className="studio-bar" aria-hidden>
+                      <i style={{ width: `${Math.min(100, Number(tpl.weight))}%` }} />
+                    </div>
+                  </div>
+                  <div className="studio-kpi__actions">
+                    <button type="button" className="studio-action" onClick={() => openEditTemplate(tpl)}>
+                      <Pencil size={14} strokeWidth={2.25} />
+                      Edit
+                    </button>
+                    <button type="button" className="studio-action studio-action--danger" onClick={() => void handleArchiveTemplate(tpl)}>
+                      <Trash2 size={14} strokeWidth={2.25} />
+                      Remove
+                    </button>
+                  </div>
+                </article>
+              ))}
             </div>
           )}
+        </>
+      ) : desk === 'assign' ? (
+        <>
+          <div className="studio-hero studio-hero--assign">
+            <div>
+              <p className="studio-kicker">Assignment</p>
+              <h2>Assign Task</h2>
+              <p>{whoHint}</p>
+            </div>
+          </div>
+          {(isAdmin ? assignGroups.length === 0 : reports.length === 0) ? (
+            <div className="studio-empty studio-empty--panel">
+              <Building2 size={36} strokeWidth={1.5} />
+              <h3>{isAdmin ? 'No departments with people' : 'No employees yet'}</h3>
+              <p>{isAdmin ? 'Add people to a department first.' : 'No department employees yet.'}</p>
+            </div>
+          ) : (
+            <form onSubmit={handleAssign} className="studio-assign-form">
+              <div className="studio-assign-form__row">
+                {isAdmin && (
+                  <label className="studio-assign-field">
+                    Department
+                    <select
+                      value={assignDeptId}
+                      onChange={(e) => {
+                        setAssignDeptId(e.target.value);
+                        setAssignUserId('');
+                        setAssignKpiId('');
+                        setError('');
+                      }}
+                      required
+                    >
+                      <option value="">Select department</option>
+                      {assignGroups.map((g) => (
+                        <option key={g.id} value={g.id}>
+                          {g.name} ({g.people.length})
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
 
-          <div className="assign-task-grid">
-            <section className="assign-task-card glass-panel">
-              <h3><Users size={18} /> Employee preview</h3>
-              <p>Choose a department first. Then pick someone in that department to review their KPI board.</p>
-
-              <div className="form-group" style={{ margin: 0 }}>
-                <label htmlFor="admin-preview-dept">Department</label>
-                <select
-                  id="admin-preview-dept"
-                  value={departmentId}
-                  onChange={(e) => pickDepartment(e.target.value)}
-                  disabled={departments.length === 0}
-                >
-                  <option value="">— Select department —</option>
-                  {departments.map((d) => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group" style={{ margin: '0.75rem 0 0' }}>
-                <label htmlFor="admin-preview-employee">Employee or manager</label>
-                <select
-                  id="admin-preview-employee"
-                  value={selectedUserId}
-                  onChange={(e) => setSelectedUserId(e.target.value)}
-                  disabled={!departmentId}
-                >
-                  <option value="">
-                    {!departmentId
-                      ? '— Select a department first —'
-                      : departmentPeople.length === 0
-                        ? '— No employees or managers in this department —'
-                        : '— Select employee or manager —'}
-                  </option>
-                  {departmentPeople.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.full_name}{r.role === 'manager' ? ' · Manager' : ' · Employee'}
+                <label className="studio-assign-field">
+                  {isAdmin ? 'Employee or manager' : 'Employee'}
+                  <select
+                    value={assignUserId}
+                    onChange={(e) => {
+                      setAssignUserId(e.target.value);
+                      setAssignKpiId('');
+                      setError('');
+                    }}
+                    disabled={isAdmin && !assignDeptId}
+                    required
+                  >
+                    <option value="">
+                      {isAdmin && !assignDeptId ? 'Select a department first' : 'Select employee'}
                     </option>
-                  ))}
-                </select>
+                    {peopleInAssignDept.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.full_name} · {displayRoleLabel(p.role)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               </div>
 
-              {departments.length === 0 ? (
-                <div className="assign-task-empty" style={{ marginTop: '1rem' }}>
-                  <Building2 size={36} strokeWidth={1.25} />
-                  <h4>No departments</h4>
-                  <p>Add departments under <strong>Departments</strong> first.</p>
+              {assignPerson && (
+                <div className="studio-assign-person">
+                  <div className="studio-assign-person__who">
+                    <span className={`studio-av studio-av--lg studio-av--${assignPerson.role}`} aria-hidden>
+                      {initials(assignPerson.full_name)}
+                    </span>
+                    <div>
+                      <strong>{assignPerson.full_name}</strong>
+                      <p>
+                        {displayRoleLabel(assignPerson.role)} · {assignPerson.email}
+                        {assignDept ? ` · ${assignDept.name}` : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <EmployeeKpiWeightMeter kpis={assignKpis} pendingWeight={selectedWeight} />
                 </div>
-              ) : !departmentId ? (
-                <div className="assign-task-empty" style={{ marginTop: '1rem' }}>
-                  <Building2 size={36} strokeWidth={1.25} />
-                  <p>Select a department to see its employees and managers.</p>
-                </div>
-              ) : departmentPeople.length === 0 ? (
-                <div className="assign-task-empty" style={{ marginTop: '1rem' }}>
-                  <Users size={36} strokeWidth={1.25} />
-                  <h4>No people in {selectedDept?.name}</h4>
-                  <p>Assign employees or managers to this department under <strong>Users</strong>.</p>
-                </div>
-              ) : !selectedUserId ? (
-                <div className="assign-task-empty" style={{ marginTop: '1rem' }}>
-                  <Target size={36} strokeWidth={1.25} />
-                  <p>Select an employee or manager to preview their assigned tasks.</p>
-                </div>
-              ) : kpiLoading && userKpis.length === 0 ? (
-                <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
-                  <Loader2 className="spin-icon" />
-                </div>
-              ) : userKpis.length === 0 ? (
-                <div className="assign-task-empty" style={{ marginTop: '1rem' }}>
-                  <ClipboardList size={36} strokeWidth={1.25} />
-                  <h4>No tasks yet</h4>
-                  <p>{selectedEmployee?.full_name} has no KPI tasks. Use the form to assign their first board.</p>
+              )}
+
+              {templates.length === 0 ? (
+                <div className="studio-empty studio-empty--compact">
+                  <p>Create a KPI in the library first.</p>
+                  <button type="button" className="btn btn-primary" onClick={() => { setDesk('library'); openCreate(); }}>
+                    <Plus size={16} /> New KPI
+                  </button>
                 </div>
               ) : (
-                <>
-                  <EmployeeKpiWeightMeter kpis={userKpis} label="Employee KPI capacity" />
-                  <EmployeeKpiBoardSummary kpis={userKpis} employeeName={selectedEmployee?.full_name} />
-                  <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0.75rem 0' }}>
-                    Current: <strong>{formatKpiWeight(sumEmployeeKpiWeights(userKpis))}</strong>
-                    {' · '}Remaining: <strong>{formatKpiWeight(KPI_WEIGHT_CAP - sumEmployeeKpiWeights(userKpis))}</strong>
-                    {' · '}Other employees are not included in this total.
-                  </p>
-                  <div className="assign-task-kpi-list">
-                    {userKpis.map((k) => (
-                      <article key={k.id} className="assign-task-kpi-item">
-                        <div className="assign-task-kpi-item__head">
-                          <div>
-                            <span className="kpi-dept">{k.department || 'General'}</span>
-                            <strong style={{ display: 'block', marginTop: '0.2rem' }}>{k.name}</strong>
-                            <span className="dept-weight-badge">{formatKpiWeight(k.weight)}</span>
-                            <span className={`badge badge-${k.completion_status === 'completed' ? 'on-track' : k.status.replace('_', '-')}`} style={{ marginLeft: '0.5rem', fontSize: '0.65rem' }}>
-                              {k.completion_status === 'completed' ? 'completed' : k.status.replace('_', ' ')}
-                            </span>
-                          </div>
-                          <button type="button" className="btn btn-secondary btn-sm" onClick={() => void handleDelete(k.id)} title="Remove">
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                        {k.description && <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.35rem 0 0' }}>{k.description}</p>}
-                        <div className="assign-task-kpi-item__meta">
-                          {fmt(k.start_date)} → {fmt(k.end_date)} · Redos: {k.redo_count ?? 0}/3
-                        </div>
-                      </article>
+                <label className="studio-assign-field">
+                  KPI
+                  <select
+                    value={assignKpiId}
+                    onChange={(e) => setAssignKpiId(e.target.value)}
+                    disabled={!assignUserId}
+                    required
+                  >
+                    <option value="">{assignUserId ? 'Select KPI' : 'Select a person first'}</option>
+                    {templates.map((tpl) => (
+                      <option key={tpl.id} value={tpl.id}>
+                        {tpl.name} · {kpiCategoryMeta(tpl.kpi_category).label} · {formatKpiWeight(Number(tpl.weight))}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+
+              {selectedTemplate && (
+                <div className="studio-dates">
+                  <label className="studio-assign-field">
+                    Weight (%)
+                    <input
+                      type="number"
+                      min={1}
+                      max={100}
+                      step={0.5}
+                      value={assignWeight}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setAssignWeight(next);
+                        setAssignScore((prev) => (prev === assignWeight || prev === '' ? next : prev));
+                      }}
+                      required
+                    />
+                  </label>
+                  <label className="studio-assign-field">
+                    Score (points if completed on time)
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      value={assignScore}
+                      onChange={(e) => setAssignScore(e.target.value)}
+                      required
+                    />
+                    <span className="studio-muted">Can be higher than weight if you choose.</span>
+                  </label>
+                </div>
+              )}
+
+              <div className="studio-dates">
+                <label className="studio-assign-field">
+                  Start date
+                  <input
+                    type="date"
+                    value={assignStartDate}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setAssignStartDate(next);
+                      if (assignEndDate && next && assignEndDate < next) setAssignEndDate(next);
+                    }}
+                    required
+                  />
+                </label>
+                <label className="studio-assign-field">
+                  Due date
+                  <input type="date" value={assignEndDate} onChange={(e) => setAssignEndDate(e.target.value)} required />
+                </label>
+              </div>
+
+              {selectedTemplate?.kpi_category === 'urgent_tasks' && (
+                <label className="studio-checkbox-field">
+                  <input
+                    type="checkbox"
+                    checked={pauseOngoingOnUrgent}
+                    onChange={(e) => setPauseOngoingOnUrgent(e.target.checked)}
+                  />
+                  <span>Pause ongoing tasks while they work on this urgent task (auto-extends due dates when resumed)</span>
+                </label>
+              )}
+
+              <label className="studio-notes studio-assign-field">
+                Additional note <span>(optional)</span>
+                <textarea rows={4} value={assignNotes} onChange={(e) => setAssignNotes(e.target.value)} placeholder="Anything this person should know" />
+              </label>
+
+              <div className="studio-assign-bar">
+                <p>
+                  {!assignUserId || !assignKpiId
+                    ? 'Complete the selections above, then assign.'
+                    : `Assign ${selectedTemplate?.name || 'KPI'} (${formatKpiWeight(selectedWeight)}) · ${formatKpiWeight(Math.max(0, remaining - selectedWeight))} left after`}
+                </p>
+                <button type="submit" className="btn btn-primary" disabled={formLoading || !assignUserId || !assignKpiId}>
+                  {formLoading ? <Loader2 size={18} className="spin-icon" /> : <Send size={18} />}
+                  Assign KPI{assignPerson ? ` to ${assignPerson.full_name.split(' ')[0]}` : ''}
+                </button>
+              </div>
+            </form>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="studio-hero">
+            <div>
+              <p className="studio-kicker">Review</p>
+              <h2>Assigned Task</h2>
+              <p>
+                {isAdmin
+                  ? 'Only people who already have KPIs. Select a department, then a person, to check progress.'
+                  : 'Only employees in your department who already have KPIs. Select a person to check progress.'}
+              </p>
+            </div>
+          </div>
+          <StudioSteps
+            step={boardStep}
+            labels={isAdmin ? ['Department', 'Person', 'Progress'] : ['Person', 'Progress']}
+          />
+          <div className="studio-flow">
+            {isAdmin && boardStep === 1 && (
+              boardGroups.length === 0 ? (
+                <div className="studio-empty studio-empty--panel">
+                  <ClipboardList size={36} strokeWidth={1.5} />
+                  <h3>No assigned KPIs yet</h3>
+                  <p>People appear here after a KPI is assigned to them.</p>
+                </div>
+              ) : (
+                <div className="studio-choice-grid">
+                  {boardGroups.map((g) => {
+                    const managers = g.people.filter((p) => p.role === 'manager').length;
+                    const employees = g.people.filter((p) => p.role === 'employee').length;
+                    return (
+                      <button key={g.id} type="button" className="studio-choice" onClick={() => { setBoardDeptId(g.id); setBoardUserId(''); setBoardSearch(''); }}>
+                        <Building2 size={22} strokeWidth={1.75} />
+                        <strong>{g.name}</strong>
+                        <em>
+                          {g.people.length} with KPIs
+                          {managers ? ` · ${managers} manager${managers === 1 ? '' : 's'}` : ''}
+                          {employees ? ` · ${employees} employee${employees === 1 ? '' : 's'}` : ''}
+                        </em>
+                      </button>
+                    );
+                  })}
+                </div>
+              )
+            )}
+
+            {((isAdmin && boardStep === 2 && boardDept) || (!isAdmin && boardStep === 1)) && (
+              boardPeople.length === 0 && !isAdmin ? (
+                <div className="studio-empty studio-empty--panel">
+                  <ClipboardList size={36} strokeWidth={1.5} />
+                  <h3>No assigned KPIs yet</h3>
+                  <p>People appear here after a KPI is assigned to them.</p>
+                </div>
+              ) : (
+              <>
+                <div className="studio-flow__bar">
+                  {isAdmin && (
+                    <button type="button" className="studio-back" onClick={() => { setBoardDeptId(''); setBoardUserId(''); setBoardSearch(''); }}>
+                      <ChevronLeft size={16} /> Departments
+                    </button>
+                  )}
+                  <h3>{isAdmin ? boardDept?.name : 'Your team'}</h3>
+                  <div className="studio-search">
+                    <Search size={16} />
+                    <input type="search" value={boardSearch} onChange={(e) => setBoardSearch(e.target.value)} placeholder={isAdmin ? 'Search this department' : 'Search employees'} aria-label="Search people with KPIs" />
+                  </div>
+                </div>
+                {peopleInBoardDept.length === 0 ? (
+                  <p className="studio-muted">{isAdmin ? 'No matches in this department.' : 'No matches.'}</p>
+                ) : (
+                  <div className="studio-choice-grid studio-choice-grid--people">
+                    {peopleInBoardDept.map((p) => (
+                      <button key={p.id} type="button" className="studio-choice studio-choice--person" onClick={() => setBoardUserId(p.id)}>
+                        <span className={`studio-av studio-av--lg studio-av--${p.role}`} aria-hidden>{initials(p.full_name)}</span>
+                        <strong>{p.full_name}</strong>
+                        <em>{displayRoleLabel(p.role)}</em>
+                      </button>
                     ))}
                   </div>
-                </>
-              )}
-            </section>
+                )}
+              </>
+              )
+            )}
 
-            <section className="assign-task-card glass-panel">
-              <h3><Plus size={18} /> New assignment</h3>
-              <p>Department → employee or manager in that department → KPI tasks → dates. You can assign only after each step is complete.</p>
-
-              <form onSubmit={handleAssignAdmin} className="assign-task-form">
-                <div className="assign-task-form__section">
-                  <p className="assign-task-form__section-title">1 · Department</p>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label htmlFor="admin-assign-dept">Department</label>
-                    <select
-                      id="admin-assign-dept"
-                      value={departmentId}
-                      onChange={(e) => pickDepartment(e.target.value)}
-                      required
-                      disabled={departments.length === 0}
-                    >
-                      <option value="">— Select department —</option>
-                      {departments.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.name} · {d.indicator_count ?? 0} KPI{d.indicator_count !== 1 ? 's' : ''}
-                        </option>
-                      ))}
-                    </select>
+            {((isAdmin && boardStep === 3) || (!isAdmin && boardStep === 2)) && boardPerson && (
+                <div className="studio-main__scroll">
+                  <div className="studio-flow__bar">
+                    <button type="button" className="studio-back" onClick={() => { setBoardUserId(''); setBoardSearch(''); }}>
+                      <ChevronLeft size={16} /> {isAdmin ? (boardDept?.name || 'People') : 'Employees'}
+                    </button>
                   </div>
-                  {selectedDept && (
-                    <div className="assign-task-dept-preview">
-                      <strong>{selectedDept.name}</strong>
-                      {indicatorsLoading ? ' — loading KPIs…' : ` — ${indicators.length} KPI metric${indicators.length !== 1 ? 's' : ''} · ${departmentPeople.length} people`}
+                  <header className="studio-person-head">
+                    <span className={`studio-av studio-av--lg studio-av--${boardPerson.role}`} aria-hidden>{initials(boardPerson.full_name)}</span>
+                    <div>
+                      <h3>{boardPerson.full_name}</h3>
+                      <p>{boardPerson.email} · {displayRoleLabel(boardPerson.role)} · {deptNameOf(boardPerson.department_id)} · {boardKpis.length} assigned</p>
                     </div>
-                  )}
-                </div>
-
-                <div className="assign-task-form__section">
-                  <p className="assign-task-form__section-title">2 · Employee or manager</p>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label htmlFor="admin-assign-employee">Person in this department</label>
-                    <select
-                      id="admin-assign-employee"
-                      value={selectedUserId}
-                      onChange={(e) => pickEmployee(e.target.value)}
-                      required
-                      disabled={!departmentId}
-                    >
-                      <option value="">
-                        {!departmentId
-                          ? '— Select a department first —'
-                          : departmentPeople.length === 0
-                            ? '— No employees or managers in this department —'
-                            : '— Select employee or manager —'}
-                      </option>
-                      {departmentPeople.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {r.full_name}{r.role === 'manager' ? ' · Manager' : ' · Employee'}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  {selectedUserId && (
-                    <AssignmentCapacityPreview
-                      kpis={userKpis}
-                      departmentId={departmentId}
-                      selected={selectedIndicators}
-                      employeeName={selectedEmployee?.full_name}
-                      employeeDepartment={selectedDept?.name || deptLabel(selectedEmployee?.department_id)}
-                    />
-                  )}
-                </div>
-
-                <div className="assign-task-form__section">
-                  <p className="assign-task-form__section-title">3 · KPI tasks</p>
-                  {!departmentId ? (
-                    <p className="assign-task-dept-preview">Select a department first to load its KPI tasks.</p>
-                  ) : !selectedUserId ? (
-                    <p className="assign-task-dept-preview">Select an employee or manager, then choose KPI tasks.</p>
+                  </header>
+                  <EmployeeKpiWeightMeter kpis={boardKpis} compact />
+                  {boardKpis.length === 0 ? (
+                    <div className="studio-empty studio-empty--compact">
+                      <p>This person no longer has assigned KPIs.</p>
+                    </div>
                   ) : (
-                    <>
-                      <KpiIndicatorSelector
-                        indicators={indicators}
-                        selectedIds={selectedIndicatorIds}
-                        onToggle={toggleIndicator}
-                        onSelectAll={selectAllIndicators}
-                        onClearAll={clearAllIndicators}
-                        loading={indicatorsLoading}
-                        emptyHint="This department has no KPI metrics. Add them under Performance → KPI Management first."
-                      />
-                      {selectedIndicatorIds.length > 0 && (
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.6rem 0 0' }}>
-                          Configured weight stays the same: <strong>{formatKpiWeight(selectedWeightTotal)}</strong>.
-                        </p>
-                      )}
-                    </>
+                    <ul className="studio-assigned studio-assigned--board">
+                      {boardKpis.map((kpi) => (
+                        <li key={kpi.id}>
+                          <AssignedKpiCard
+                            kpi={kpi}
+                            employeeName={boardPerson.full_name}
+                            onEdit={() => setEditingAssignment({ kpi, siblings: boardKpis, employeeName: boardPerson.full_name })}
+                            onRemove={() => void handleDeleteAssigned(kpi.id)}
+                            onUpdated={() => void refreshOpenKpis()}
+                          />
+                        </li>
+                      ))}
+                    </ul>
                   )}
                 </div>
-
-                <div className="assign-task-form__section">
-                  <p className="assign-task-form__section-title">4 · Schedule &amp; notes</p>
-                  <div className="assign-task-form__dates">
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label htmlFor="admin-assign-start"><Calendar size={14} style={{ verticalAlign: '-2px', marginRight: '0.25rem' }} />Start date</label>
-                      <input
-                        id="admin-assign-start"
-                        type="date"
-                        value={assignStartDate}
-                        onChange={(e) => setAssignStartDate(e.target.value)}
-                        required
-                        disabled={!selectedUserId || selectedIndicatorIds.length === 0}
-                      />
-                    </div>
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label htmlFor="admin-assign-end">End date</label>
-                      <input
-                        id="admin-assign-end"
-                        type="date"
-                        value={assignEndDate}
-                        onChange={(e) => setAssignEndDate(e.target.value)}
-                        required
-                        disabled={!selectedUserId || selectedIndicatorIds.length === 0}
-                      />
-                    </div>
-                  </div>
-                  <div className="form-group" style={{ margin: '0.75rem 0 0' }}>
-                    <label htmlFor="admin-assign-notes">Notes (optional)</label>
-                    <textarea
-                      id="admin-assign-notes"
-                      rows={3}
-                      placeholder="Instructions or context for this assignment…"
-                      value={assignNotes}
-                      onChange={(e) => setAssignNotes(e.target.value)}
-                      disabled={!selectedUserId || selectedIndicatorIds.length === 0}
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={
-                    formLoading ||
-                    !departmentId ||
-                    !selectedUserId ||
-                    departmentPeople.every((p) => p.id !== selectedUserId) ||
-                    indicators.length === 0 ||
-                    selectedIndicatorIds.length === 0 ||
-                    !assignStartDate ||
-                    !assignEndDate ||
-                    !assignPreviewOk
-                  }
-                >
-                  {formLoading ? (
-                    <Loader2 size={16} className="spin-icon" />
-                  ) : (
-                    <>
-                      <Target size={16} />
-                      Assign {selectedIndicatorIds.length} task{selectedIndicatorIds.length !== 1 ? 's' : ''} ({selectedWeightTotal.toFixed(0)}%) &amp; notify
-                    </>
-                  )}
-                </button>
-              </form>
-            </section>
+            )}
           </div>
         </>
+      )}
+
+      {libOpen && (
+        <>
+          <div className="studio-drawer__dim" onClick={() => setLibOpen(false)} />
+          <aside className="studio-drawer" role="dialog" aria-labelledby="kpi-drawer-title">
+            <header>
+              <div>
+                <h3 id="kpi-drawer-title">{editingTemplate ? 'Edit KPI' : 'New KPI'}</h3>
+                <p>This is saved to the library. Assign it later from Assign Task.</p>
+              </div>
+              <button type="button" className="studio-icon-btn" onClick={() => setLibOpen(false)} aria-label="Close">
+                <X size={18} />
+              </button>
+            </header>
+            <form onSubmit={handleSaveTemplate} className="studio-drawer__form">
+              <label>
+                Name
+                <input value={libName} onChange={(e) => setLibName(e.target.value)} placeholder="e.g. Monthly sales target" required autoFocus />
+              </label>
+              <fieldset className="studio-cats">
+                <legend>Category</legend>
+                <div>
+                  {KPI_CATEGORIES.map((c) => (
+                    <button key={c.id} type="button" className={libCategory === c.id ? 'is-on' : undefined} onClick={() => setLibCategory(c.id)}>
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+                <p>{CATEGORY_HELP[libCategory]}</p>
+              </fieldset>
+              <label>
+                Weight %
+                <input type="number" min={1} max={100} step={1} value={libWeight} onChange={(e) => setLibWeight(e.target.value)} required />
+              </label>
+              <label>
+                Description <span>(optional)</span>
+                <textarea rows={3} value={libDescription} onChange={(e) => setLibDescription(e.target.value)} placeholder="What this KPI measures" />
+              </label>
+              <div className="studio-drawer__foot">
+                <button type="button" className="btn btn-secondary" onClick={() => setLibOpen(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={formLoading}>
+                  {formLoading ? <Loader2 size={16} className="spin-icon" /> : <Plus size={16} />}
+                  {editingTemplate ? 'Save' : 'Create KPI'}
+                </button>
+              </div>
+            </form>
+          </aside>
+        </>
+      )}
+
+      {editingAssignment && (
+        <EditAssignedKpiModal
+          kpi={editingAssignment.kpi}
+          siblingKpis={editingAssignment.siblings}
+          employeeName={editingAssignment.employeeName}
+          onClose={() => setEditingAssignment(null)}
+          onSaved={() => {
+            setEditingAssignment(null);
+            void refreshOpenKpis();
+          }}
+        />
       )}
     </div>
   );

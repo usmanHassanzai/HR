@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
-import { Profile } from '../utils/kpiHelpers';
+import { Profile, Kpi } from '../utils/kpiHelpers';
 import {
   Gift,
   Plus,
@@ -17,9 +17,19 @@ import {
   Clock,
   Package,
   Users,
+  Eye,
+  Check,
+  X,
+  Search,
+  Target,
+  ChevronRight,
+  ArrowLeft,
 } from 'lucide-react';
 import { tierColorForScore } from '../utils/rewardsTiers';
-import AdminOrgKpiPointsBoard from './AdminOrgKpiPointsBoard';
+import { kpiCategoryMeta } from '../utils/kpiCategories';
+import { isKpiLateCompletion, kpiAssignedScore, kpiScoreContribution } from '../utils/kpiScoreHelpers';
+import AdminOrgKpiPointsBoard, { type OrgKpiPointsRow } from './AdminOrgKpiPointsBoard';
+import AdminKpiAwardsPanel from './AdminKpiAwardsPanel';
 import '../styles/admin-rewards.css';
 
 interface CatalogItem {
@@ -32,6 +42,7 @@ interface CatalogItem {
 }
 
 interface MonthlyRow {
+  employee_id: string;
   full_name: string;
   role: string;
   kpi_score: number;
@@ -49,6 +60,343 @@ interface Redemption {
   rewards_catalog?: { name: string; icon: string };
 }
 
+interface PersonPointsSummary {
+  employee_id: string;
+  full_name: string;
+  role: string;
+  email: string;
+  department_name: string | null;
+  health_score: number;
+  kpi_points: number;
+  total_earned: number;
+  used_points: number;
+  balance: number;
+  completed_kpis: number;
+  total_kpis: number;
+  pending_kpis: number;
+  this_month_points: number;
+  this_month_score: number;
+  months: MonthlyRow[];
+}
+
+function monthBounds(month: string): { start: string; end: string; label: string } {
+  const monthObj = new Date(month);
+  if (Number.isNaN(monthObj.getTime())) {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth() + 1;
+    const start = `${y}-${String(m).padStart(2, '0')}-01`;
+    const lastDay = new Date(y, m, 0).getDate();
+    const end = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    return { start, end, label: now.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) };
+  }
+  const y = monthObj.getFullYear();
+  const m = monthObj.getMonth() + 1;
+  const start = `${y}-${String(m).padStart(2, '0')}-01`;
+  const lastDay = new Date(y, m, 0).getDate();
+  const end = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  return {
+    start,
+    end,
+    label: monthObj.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }),
+  };
+}
+
+function filterKpisForMonth(allKpis: Kpi[], monthStart: string, monthEnd: string): Kpi[] {
+  return allKpis.filter((k) => {
+    const completedDate = (k.completed_at || k.updated_at || '').slice(0, 10);
+    const endDate = (k.end_date || '').slice(0, 10);
+    const startDate = (k.start_date || k.created_at || '').slice(0, 10);
+    if (k.completion_status === 'completed' && completedDate >= monthStart && completedDate <= monthEnd) {
+      return true;
+    }
+    if (endDate >= monthStart && endDate <= monthEnd) {
+      return true;
+    }
+    return startDate <= monthEnd && (endDate ? endDate >= monthStart : true);
+  });
+}
+
+function TaskHistoryTable({ kpis, monthLabel }: { kpis: Kpi[]; monthLabel: string }) {
+  const completedKpis = kpis.filter((k) => k.completion_status === 'completed');
+  const openKpis = kpis.filter((k) => k.completion_status !== 'completed');
+
+  if (kpis.length === 0) {
+    return (
+      <div className="admin-rewards-empty" style={{ padding: '1.5rem 1rem' }}>
+        <CheckCircle2 size={32} strokeWidth={1.25} />
+        <h4>No tasks for {monthLabel}</h4>
+        <p>No KPI tasks were assigned or completed in this period.</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="person-points-detail__task-meta">
+        <span className="person-points-detail__task-stat person-points-detail__task-stat--done">
+          ✓ {completedKpis.length} completed
+        </span>
+        {openKpis.length > 0 && (
+          <span className="person-points-detail__task-stat">
+            {openKpis.length} in progress / open
+          </span>
+        )}
+      </div>
+      <div className="admin-rewards-table-wrap">
+        <table className="admin-rewards-table person-points-detail__tasks">
+          <thead>
+            <tr>
+              <th>Task</th>
+              <th>Category</th>
+              <th>Weight</th>
+              <th>Score</th>
+              <th>Awarded</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {kpis.map((kpi) => {
+              const isDone = kpi.completion_status === 'completed';
+              const isLate = isKpiLateCompletion(kpi);
+              const awarded = kpiScoreContribution(kpi);
+              const cat = kpiCategoryMeta(kpi.kpi_category);
+              const completedDateStr = kpi.completed_at || (isDone ? kpi.updated_at : null);
+
+              return (
+                <tr key={kpi.id}>
+                  <td>
+                    <strong>{kpi.name}</strong>
+                    {kpi.description && (
+                      <p className="person-points-detail__task-desc">{kpi.description}</p>
+                    )}
+                  </td>
+                  <td>{cat.label}</td>
+                  <td>{kpi.weight || 0}%</td>
+                  <td>{kpiAssignedScore(kpi)} pts</td>
+                  <td>
+                    <strong className={isDone ? (isLate ? 'person-points-detail__late' : 'person-points-detail__awarded') : 'person-points-detail__open'}>
+                      {isDone ? `${awarded} pts` : '0 (open)'}
+                    </strong>
+                    {isDone && isLate && <span className="person-points-detail__late-note">50% late</span>}
+                  </td>
+                  <td>
+                    {isDone ? (
+                      <>
+                        <span className="badge badge-on-track person-points-detail__badge">
+                          <Check size={11} /> Done
+                        </span>
+                        {completedDateStr && (
+                          <span className="person-points-detail__done-date">
+                            {new Date(completedDateStr).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <span className="person-points-detail__open">In progress</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
+function PersonPointsDetailModal({
+  person,
+  initialMonth,
+  onClose,
+}: {
+  person: PersonPointsSummary;
+  initialMonth?: string;
+  onClose: () => void;
+}) {
+  const defaultMonth = initialMonth || person.months[0]?.month || new Date().toISOString().slice(0, 10);
+  const [selectedMonth, setSelectedMonth] = useState(defaultMonth);
+  const [allKpis, setAllKpis] = useState<Kpi[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const { start: monthStart, end: monthEnd, label: monthDisplay } = monthBounds(selectedMonth);
+  const monthKpis = useMemo(
+    () => filterKpisForMonth(allKpis, monthStart, monthEnd),
+    [allKpis, monthStart, monthEnd],
+  );
+
+  const selectedLedger = person.months.find((m) => m.month.slice(0, 7) === selectedMonth.slice(0, 7));
+  const displayScore = selectedLedger?.kpi_score ?? person.this_month_score;
+  const displayBonus = selectedLedger?.points_earned ?? person.this_month_points;
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadTasks() {
+      setLoading(true);
+      setError(null);
+      try {
+        const { data, error: kpiErr } = await supabase
+          .from('kpis')
+          .select('*')
+          .eq('user_id', person.employee_id)
+          .order('end_date', { ascending: false });
+        if (kpiErr) throw kpiErr;
+        if (isMounted) setAllKpis((data || []) as Kpi[]);
+      } catch (err) {
+        if (isMounted) {
+          setError(err instanceof Error ? err.message : 'Failed to load task history');
+        }
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+    void loadTasks();
+    return () => { isMounted = false; };
+  }, [person.employee_id]);
+
+  return (
+    <div className="user-hub-overlay" onClick={onClose}>
+      <div className="user-hub-dialog person-points-detail" onClick={(e) => e.stopPropagation()}>
+        <div className="user-hub-topbar">
+          <button type="button" className="user-hub-back" onClick={onClose}>
+            <ArrowLeft size={18} />
+            Back
+          </button>
+          <button type="button" className="user-hub-close" onClick={onClose} aria-label="Close">
+            <X size={20} />
+          </button>
+        </div>
+
+        <header className="user-hub-hero">
+          <div className="user-hub-hero__info">
+            <div className={`admin-user-card__avatar admin-user-card__avatar--${person.role}`}>
+              {person.full_name.slice(0, 2).toUpperCase()}
+            </div>
+            <div className="user-hub-hero__text">
+              <div className="user-hub-hero__title-row">
+                <h2>{person.full_name}</h2>
+                <span className={`admin-role-badge admin-role-badge--${person.role}`}>
+                  {person.role.toUpperCase()}
+                </span>
+              </div>
+              <p className="user-hub-hero__email">{person.email}</p>
+              <div className="user-hub-hero__tags">
+                {person.department_name && (
+                  <span className="user-hub-tag">{person.department_name}</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div className="user-hub-body">
+          <div className="person-points-detail__metrics">
+            <div className="person-points-detail__metric">
+              <span>KPI score</span>
+              <strong style={{ color: tierColorForScore(displayScore) }}>{Math.round(displayScore)}%</strong>
+            </div>
+            <div className="person-points-detail__metric">
+              <span>Performance pts</span>
+              <strong>{person.kpi_points.toLocaleString()}</strong>
+            </div>
+            <div className="person-points-detail__metric">
+              <span>Month bonus</span>
+              <strong style={{ color: 'var(--color-success)' }}>+{displayBonus.toLocaleString()}</strong>
+            </div>
+            <div className="person-points-detail__metric">
+              <span>Total earned</span>
+              <strong>{person.total_earned.toLocaleString()}</strong>
+            </div>
+            <div className="person-points-detail__metric">
+              <span>Balance</span>
+              <strong>{person.balance.toLocaleString()}</strong>
+            </div>
+            <div className="person-points-detail__metric">
+              <span>Tasks</span>
+              <strong>{person.completed_kpis}/{person.total_kpis}</strong>
+            </div>
+          </div>
+
+          {person.months.length > 0 && (
+            <section className="person-points-detail__section">
+              <h4 className="user-hub-section-title">Monthly bonus history</h4>
+              <div className="admin-rewards-table-wrap">
+                <table className="admin-rewards-table">
+                  <thead>
+                    <tr>
+                      <th>Month</th>
+                      <th>KPI score</th>
+                      <th>Reward points</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {person.months.map((m) => (
+                      <tr
+                        key={m.month}
+                        className={`admin-rewards-row--clickable${selectedMonth.slice(0, 7) === m.month.slice(0, 7) ? ' person-points-detail__month--active' : ''}`}
+                        onClick={() => setSelectedMonth(m.month)}
+                      >
+                        <td><strong>{new Date(m.month).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</strong></td>
+                        <td style={{ color: tierColorForScore(m.kpi_score), fontWeight: 700 }}>{Math.round(m.kpi_score)}%</td>
+                        <td style={{ color: 'var(--color-success)', fontWeight: 700 }}>+{m.points_earned.toLocaleString()}</td>
+                        <td>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={(e) => { e.stopPropagation(); setSelectedMonth(m.month); }}
+                          >
+                            View tasks
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
+          <section className="person-points-detail__section">
+            <div className="person-points-detail__section-head">
+              <h4 className="user-hub-section-title">Task history — {monthDisplay}</h4>
+              {person.months.length > 1 && (
+                <select
+                  className="person-points-detail__month-select"
+                  value={selectedMonth.slice(0, 10)}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                >
+                  {person.months.map((m) => (
+                    <option key={m.month} value={m.month.slice(0, 10)}>
+                      {new Date(m.month).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            {loading ? (
+              <div className="admin-rewards-loading" style={{ padding: '2rem 1rem' }}>
+                <Loader2 size={24} className="spin-icon" />
+                <span>Loading tasks…</span>
+              </div>
+            ) : error ? (
+              <div className="admin-rewards-alert admin-rewards-alert--error">
+                <AlertCircle size={16} />
+                <span>{error}</span>
+              </div>
+            ) : (
+              <TaskHistoryTable kpis={monthKpis} monthLabel={monthDisplay} />
+            )}
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function isAlertError(message: string): boolean {
   return /^error|failed|cannot|must/i.test(message);
 }
@@ -62,9 +410,13 @@ export default function AdminRewards() {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [msg, setMsg] = useState('');
-  const [activeTab, setActiveTab] = useState<'board' | 'monthly' | 'redemptions' | 'catalog'>('board');
+  const [activeTab, setActiveTab] = useState<'board' | 'monthly' | 'redemptions' | 'catalog' | 'awards'>('board');
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: '', description: '', icon: '🎁', point_cost: 1000 });
+  const [boardRows, setBoardRows] = useState<OrgKpiPointsRow[]>([]);
+  const [selectedPerson, setSelectedPerson] = useState<PersonPointsSummary | null>(null);
+  const [selectedPersonMonth, setSelectedPersonMonth] = useState<string | undefined>();
+  const [monthlySearch, setMonthlySearch] = useState('');
 
   const showMsg = useCallback((text: string) => {
     setMsg(text);
@@ -108,12 +460,24 @@ export default function AdminRewards() {
     ]);
 
     if (boardRes.data) {
-      const total = ((boardRes.data as { kpi_points?: number }[]) || []).reduce(
-        (s, r) => s + (Number(r.kpi_points) || 0),
-        0,
-      );
+      const rows = ((boardRes.data as OrgKpiPointsRow[]) || []).map((r) => ({
+        ...r,
+        health_score: Number(r.health_score) || 0,
+        kpi_points: Number(r.kpi_points) || 0,
+        total_earned: Number(r.total_earned) || 0,
+        used_points: Number(r.used_points) || 0,
+        balance: (Number(r.total_earned) || 0) - (Number(r.used_points) || 0),
+        completed_kpis: Number(r.completed_kpis) || 0,
+        total_kpis: Number(r.total_kpis) || 0,
+        pending_kpis: Number(r.pending_kpis) || 0,
+        this_month_points: r.this_month_points == null ? 0 : Number(r.this_month_points),
+        this_month_score: r.this_month_score == null ? Number(r.health_score) || 0 : Number(r.this_month_score),
+      }));
+      setBoardRows(rows);
+      const total = rows.reduce((s, r) => s + (Number(r.kpi_points) || 0), 0);
       setOrgKpiPointsTotal(Math.round(total * 100) / 100);
     } else {
+      setBoardRows([]);
       setOrgKpiPointsTotal(0);
     }
 
@@ -123,7 +487,8 @@ export default function AdminRewards() {
       setMonthly(
         ledgerRes.data
           .filter((r: { users?: { is_demo?: boolean } }) => !r.users?.is_demo)
-          .map((r: { users?: { full_name?: string; role?: string }; kpi_score: number; points_earned: number; month: string }) => ({
+          .map((r: { employee_id: string; users?: { full_name?: string; role?: string }; kpi_score: number; points_earned: number; month: string }) => ({
+            employee_id: r.employee_id,
             full_name: r.users?.full_name ?? 'Unknown',
             role: r.users?.role ?? '',
             kpi_score: r.kpi_score,
@@ -218,6 +583,62 @@ export default function AdminRewards() {
   const bonusesThisPeriod = monthly.filter((m) => m.points_earned > 0).length;
   const totalPointsIssued = monthly.reduce((s, m) => s + m.points_earned, 0);
 
+  const personSummaries = useMemo(() => {
+    const byPerson = new Map<string, PersonPointsSummary>();
+
+    for (const row of boardRows) {
+      if (row.role === 'admin') continue;
+      byPerson.set(row.user_id, {
+        employee_id: row.user_id,
+        full_name: row.full_name,
+        role: row.role,
+        email: row.email,
+        department_name: row.department_name,
+        health_score: row.health_score,
+        kpi_points: row.kpi_points,
+        total_earned: row.total_earned,
+        used_points: row.used_points,
+        balance: row.balance,
+        completed_kpis: row.completed_kpis,
+        total_kpis: row.total_kpis,
+        pending_kpis: row.pending_kpis,
+        this_month_points: row.this_month_points ?? 0,
+        this_month_score: row.this_month_score ?? row.health_score,
+        months: [],
+      });
+    }
+
+    for (const m of monthly) {
+      const existing = byPerson.get(m.employee_id);
+      if (existing) {
+        existing.months.push(m);
+      }
+    }
+
+    for (const p of byPerson.values()) {
+      p.months.sort((a, b) => b.month.localeCompare(a.month));
+    }
+
+    return Array.from(byPerson.values()).sort((a, b) => a.full_name.localeCompare(b.full_name));
+  }, [boardRows, monthly]);
+
+  const filteredPersons = useMemo(() => {
+    const q = monthlySearch.trim().toLowerCase();
+    if (!q) return personSummaries;
+    return personSummaries.filter(
+      (p) =>
+        p.full_name.toLowerCase().includes(q) ||
+        p.email.toLowerCase().includes(q) ||
+        (p.department_name || '').toLowerCase().includes(q) ||
+        p.role.toLowerCase().includes(q),
+    );
+  }, [personSummaries, monthlySearch]);
+
+  const openPersonDetail = (person: PersonPointsSummary, month?: string) => {
+    setSelectedPersonMonth(month);
+    setSelectedPerson(person);
+  };
+
   if (loading && catalog.length === 0) {
     return (
       <div className="admin-rewards-loading">
@@ -237,8 +658,7 @@ export default function AdminRewards() {
           <div>
             <h2 className="admin-rewards-header__title">Rewards &amp; Points</h2>
             <p className="admin-rewards-header__subtitle">
-              Manage your company reward catalog, run monthly KPI bonuses, and fulfill redemptions. Only your
-              organization&apos;s employees are shown — demo sandbox accounts are hidden.
+              Automatic KPI gifts, monthly Reward Points from score bands (not raw KPI points), catalog, and redemptions.
             </p>
           </div>
         </div>
@@ -246,7 +666,7 @@ export default function AdminRewards() {
         <div className="admin-rewards-stats">
           <div className="admin-rewards-stat admin-rewards-stat--accent">
             <Trophy size={16} />
-            <span className="admin-rewards-stat__label">Org KPI points</span>
+            <span className="admin-rewards-stat__label">Performance pts</span>
             <strong>{orgKpiPointsTotal.toLocaleString()}</strong>
           </div>
           <div className="admin-rewards-stat">
@@ -275,10 +695,17 @@ export default function AdminRewards() {
       <div className="admin-rewards-tabs tab-bar tab-bar--inline-mobile">
         <button
           type="button"
+          className={`tab-btn ${activeTab === 'awards' ? 'tab-btn--active' : ''}`}
+          onClick={() => setActiveTab('awards')}
+        >
+          <Gift size={16} /> KPI awards
+        </button>
+        <button
+          type="button"
           className={`tab-btn ${activeTab === 'board' ? 'tab-btn--active' : ''}`}
           onClick={() => setActiveTab('board')}
         >
-          <Users size={16} /> Org KPI points
+          <Users size={16} /> Team points
         </button>
         <button
           type="button"
@@ -317,14 +744,16 @@ export default function AdminRewards() {
         </div>
       )}
 
+      {activeTab === 'awards' && <AdminKpiAwardsPanel />}
+
       {activeTab === 'board' && <AdminOrgKpiPointsBoard />}
 
       {activeTab === 'monthly' && (
         <section className="admin-rewards-card glass-panel">
           <div className="admin-rewards-card__head">
             <div>
-              <h3><Star size={18} /> Monthly points engine</h3>
-              <p>Automatic tiered bonuses from KPI scores. Points never expire.</p>
+              <h3><Star size={18} /> Monthly points — person by person</h3>
+              <p>Each employee and manager is listed individually. Click any person to see their full points breakdown, monthly bonus history, and completed tasks.</p>
             </div>
             <button type="button" className="btn btn-primary btn-sm" onClick={() => void runMonthlyJob()} disabled={running || orgUserCount === 0}>
               {running ? <Loader2 size={14} className="spin-icon" /> : <PlayCircle size={14} />}
@@ -341,45 +770,115 @@ export default function AdminRewards() {
             <div className="admin-rewards-empty">
               <Users size={40} strokeWidth={1.25} />
               <h4>No company employees yet</h4>
-              <p>Add employees under <strong>Users</strong>, then run the monthly job to award points.</p>
+              <p>Add employees under <strong>People</strong>, then run the monthly job to award points.</p>
             </div>
-          ) : monthly.length === 0 ? (
+          ) : personSummaries.length === 0 ? (
             <div className="admin-rewards-empty">
               <Star size={40} strokeWidth={1.25} />
-              <h4>No monthly data yet</h4>
+              <h4>No people data yet</h4>
               <p>Click <strong>Run now</strong> to calculate this month&apos;s bonuses, or wait for the scheduled job.</p>
             </div>
           ) : (
-            <div className="admin-rewards-table-wrap">
-              <table className="admin-rewards-table">
-                <thead>
-                  <tr>
-                    <th>Employee</th>
-                    <th>Role</th>
-                    <th>Month</th>
-                    <th>KPI score</th>
-                    <th>Points</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {monthly.map((r, i) => (
-                    <tr key={`${r.full_name}-${r.month}-${i}`}>
-                      <td><strong>{r.full_name}</strong></td>
-                      <td>
-                        <span className="badge badge-on-track" style={{ fontSize: '0.6rem' }}>{r.role}</span>
-                      </td>
-                      <td>{new Date(r.month).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}</td>
-                      <td style={{ color: tierColorForScore(r.kpi_score), fontWeight: 600 }}>{Math.round(r.kpi_score)}%</td>
-                      <td style={{ fontWeight: 700, color: r.points_earned ? 'var(--color-success)' : 'var(--text-muted)' }}>
-                        {r.points_earned ? `+${r.points_earned.toLocaleString()}` : '—'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <>
+              <div className="person-points-toolbar">
+                <label className="person-points-toolbar__search">
+                  <Search size={16} />
+                  <input
+                    type="search"
+                    placeholder="Search by name, email, department, or role…"
+                    value={monthlySearch}
+                    onChange={(e) => setMonthlySearch(e.target.value)}
+                  />
+                </label>
+                <span className="person-points-toolbar__count">
+                  {filteredPersons.length} person{filteredPersons.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+
+              {filteredPersons.length === 0 ? (
+                <p className="person-points-empty">No people match your search.</p>
+              ) : (
+                <div className="person-points-grid">
+                  {filteredPersons.map((person) => {
+                    const latest = person.months[0];
+                    const score = latest?.kpi_score ?? person.this_month_score;
+                    const bonus = latest?.points_earned ?? person.this_month_points;
+                    const monthLabel = latest
+                      ? new Date(latest.month).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
+                      : 'Current month';
+
+                    return (
+                      <button
+                        key={person.employee_id}
+                        type="button"
+                        className="person-points-card"
+                        onClick={() => openPersonDetail(person, latest?.month)}
+                      >
+                        <div className="person-points-card__top">
+                          <div className={`admin-user-card__avatar admin-user-card__avatar--${person.role}`}>
+                            {person.full_name.slice(0, 2).toUpperCase()}
+                          </div>
+                          <div className="person-points-card__identity">
+                            <strong>{person.full_name}</strong>
+                            <span>{person.email}</span>
+                            <div className="person-points-card__tags">
+                              <span className={`admin-role-badge admin-role-badge--${person.role}`}>
+                                {person.role}
+                              </span>
+                              {person.department_name && (
+                                <span className="person-points-card__dept">{person.department_name}</span>
+                              )}
+                            </div>
+                          </div>
+                          <ChevronRight size={18} className="person-points-card__arrow" />
+                        </div>
+
+                        <div className="person-points-card__stats">
+                          <div className="person-points-card__stat">
+                            <span>{monthLabel} KPI</span>
+                            <strong style={{ color: tierColorForScore(score) }}>{Math.round(score)}%</strong>
+                          </div>
+                          <div className="person-points-card__stat">
+                            <span>Month bonus</span>
+                            <strong style={{ color: bonus ? 'var(--color-success)' : 'var(--text-muted)' }}>
+                              +{bonus.toLocaleString()}
+                            </strong>
+                          </div>
+                          <div className="person-points-card__stat">
+                            <span>Performance</span>
+                            <strong>{person.kpi_points.toLocaleString()}</strong>
+                          </div>
+                          <div className="person-points-card__stat">
+                            <span>Balance</span>
+                            <strong>{person.balance.toLocaleString()}</strong>
+                          </div>
+                        </div>
+
+                        <div className="person-points-card__footer">
+                          <span><Target size={13} /> {person.completed_kpis}/{person.total_kpis} tasks done</span>
+                          <span className="person-points-card__cta">
+                            <Eye size={13} /> View full details
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
         </section>
+      )}
+
+      {selectedPerson && (
+        <PersonPointsDetailModal
+          person={selectedPerson}
+          initialMonth={selectedPersonMonth}
+          onClose={() => {
+            setSelectedPerson(null);
+            setSelectedPersonMonth(undefined);
+          }}
+        />
       )}
 
       {activeTab === 'redemptions' && (

@@ -324,7 +324,7 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
         </div>
         <div className="landing-steps" style={{ maxWidth: 1200, margin: '0 auto' }}>
           {[
-            { n: 1, title: 'Register your company', desc: 'Submit organization details and choose a plan. Start with a 3-day free trial while approval is processed.' },
+            { n: 1, title: 'Register your company', desc: 'Two short steps, email verification, then a 3-day free trial — no waiting for approval.' },
             { n: 2, title: 'Manager assigns tasks', desc: 'Set KPIs with deadlines and departments for each employee.' },
             { n: 3, title: 'Employee delivers', desc: 'Track progress, check in daily, request leave, and mark tasks complete on time.' },
             { n: 4, title: 'Score, reward & report', desc: 'Monthly scores convert to points. Leadership exports analytics and manages the full org.' },
@@ -416,14 +416,14 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
             </h2>
             <p className="landing-login-copy">
               {authMode === 'register' ? (
-                <>Each company gets isolated data — your own admins, managers, and employees. New organizations receive a <strong>3-day free trial</strong> while registration is reviewed.</>
+                <>Create your company in two short steps. Verify your email and start a <strong>3-day free trial</strong> immediately — then we’ll walk you through adding people, shifts, and KPIs.</>
               ) : (
                 <>Access your company dashboard at <strong className="landing-accent-text">scorr.walfia.ai</strong>. Use your approved company credentials, or try the isolated <strong>3-day demo sandbox</strong> below.</>
               )}
             </p>
             <ul className="landing-login-list">
               {(authMode === 'register'
-                ? ['Fill organization & contact details', 'Choose subscription plan', 'Start 3-day free trial period', 'Wait for admin approval, then sign in']
+                ? ['Company name, admin email, phone & password', 'Optional industry and team size', 'Verify email with a 6-digit code', 'Guided setup: people, shifts, KPIs']
                 : ['Employee — KPIs, attendance & rewards', 'Manager — assign tasks, approve leave', 'Admin — users, reports & branding']
               ).map((t) => (
                 <li key={t}><Check size={16} /> {t}</li>

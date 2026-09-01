@@ -11,21 +11,23 @@ import {
   AttendanceStatus,
   LeaveType,
   ATTENDANCE_STATUS_LABEL,
-  LEAVE_TYPE_LABEL,
+  formatLeaveType,
   APPROVAL_LABEL,
   approvalBadgeClass,
 } from '../utils/attendanceHelpers';
 import { emailLeaveRequestNotifications } from '../utils/attendanceEmail';
 import GeoAttendancePanel from './GeoAttendancePanel';
 import MyShiftCard from './MyShiftCard';
-import ShiftManagementPanel from './ShiftManagementPanel';
+import ShiftManagementPanel, { CompanyLocationWindowCard } from './ShiftManagementPanel';
 import AdminAttendanceDirectory from './AdminAttendanceDirectory';
 import ManagerTeamAttendanceDirectory from './ManagerTeamAttendanceDirectory';
 import EmployeeAttendanceHistory from './EmployeeAttendanceHistory';
 import { Department } from '../utils/departmentHelpers';
+import { canMarkRemoteAttendance, workModeLabel } from '../utils/workModeHelpers';
+import { GEO_CLOCK_EVENT, localYmd } from '../utils/geoAttendance';
 import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
 import {
-  Clock, Loader2, CheckCircle, XCircle, Palmtree,
+  Loader2, CheckCircle, XCircle, Palmtree, LogOut,
   UserCheck, Users, Inbox, History, ClipboardList, CalendarClock,
   CalendarCheck, Building2, AlertCircle, CheckCircle2,
 } from 'lucide-react';
@@ -36,12 +38,14 @@ import '../styles/employee-attendance.css';
 
 interface AttendanceLeavePanelProps {
   profile: Profile;
-  mode: 'employee' | 'manager' | 'admin';
+  mode: 'employee' | 'manager' | 'admin' | 'hr';
+  initialAdminTab?: AdminTab;
+  initialUserId?: string;
 }
 
 type EmployeeTab = 'today' | 'leave' | 'history';
 type ManagerTab = 'approvals' | 'today' | 'team' | 'shifts' | 'history';
-type AdminTab = 'leave' | 'shifts' | 'history';
+type AdminTab = 'leave' | 'remote' | 'shifts' | 'history';
 
 function ApprovalActions({
   onApprove,
@@ -64,7 +68,7 @@ function ApprovalActions({
   );
 }
 
-export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeavePanelProps) {
+export default function AttendanceLeavePanel({ profile, mode, initialAdminTab, initialUserId }: AttendanceLeavePanelProps) {
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState('');
   const [balance, setBalance] = useState<LeaveBalance | null>(null);
@@ -78,11 +82,16 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
   const [teamMembers, setTeamMembers] = useState<Profile[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
 
-  const [employeeTab, setEmployeeTab] = useState<EmployeeTab>('today');
   const [managerTab, setManagerTab] = useState<ManagerTab>('approvals');
-  const [adminTab, setAdminTab] = useState<AdminTab>('leave');
+  const [adminTab, setAdminTab] = useState<AdminTab>(initialAdminTab || 'leave');
+
+  useEffect(() => {
+    if (initialAdminTab) setAdminTab(initialAdminTab);
+  }, [initialAdminTab]);
+  const [employeeTab, setEmployeeTab] = useState<EmployeeTab>('today');
 
   const [leaveType, setLeaveType] = useState<LeaveType>('annual');
+  const [leaveCustomType, setLeaveCustomType] = useState('');
   const [leaveStart, setLeaveStart] = useState('');
   const [leaveEnd, setLeaveEnd] = useState('');
   const [leaveReason, setLeaveReason] = useState('');
@@ -91,14 +100,26 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
   const [markUserId, setMarkUserId] = useState('');
   const [markDate, setMarkDate] = useState(new Date().toISOString().slice(0, 10));
   const [markStatus, setMarkStatus] = useState<AttendanceStatus>('present');
+  const [markingId, setMarkingId] = useState<string | null>(null);
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+  const [remoteMarks, setRemoteMarks] = useState<Record<string, AttendanceStatus>>({});
 
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
 
+  const [shiftDate, setShiftDate] = useState<string | null>(null);
+
   const userId = profile.id;
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const checkedInToday = myAttendance.some((a) => a.attendance_date === todayStr);
+  const todayStr = localYmd();
+  const activeAttendance = myAttendance.find((a) => a.clock_in_at && !a.clock_out_at)
+    ?? myAttendance.find((a) => a.attendance_date === (shiftDate ?? todayStr));
+  const todayRecord = activeAttendance ?? myAttendance.find((a) => a.attendance_date === todayStr);
+  const checkedInToday = !!todayRecord && todayRecord.status !== 'absent' && !!todayRecord.clock_in_at;
+  const stillOnSiteToday = checkedInToday && !todayRecord?.clock_out_at;
+  const checkedOutToday = checkedInToday && !!todayRecord?.clock_out_at;
+  const isRemoteWorker = profile.work_mode === 'remote';
+  const isHybridWorker = profile.work_mode === 'hybrid';
   const pendingCount = pendingLeaves.length;
 
   const mapLeaveRows = (rows: LeaveRequest[], members: Profile[]): PendingLeaveRequest[] => {
@@ -109,6 +130,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
         id: lr.id,
         user_id: lr.user_id,
         leave_type: lr.leave_type,
+        leave_custom_type: lr.leave_custom_type,
         start_date: lr.start_date,
         end_date: lr.end_date,
         days_count: lr.days_count,
@@ -170,24 +192,32 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
     if (!opts?.silent) setLoading(true);
     if (!opts?.silent) setMsg('');
     try {
-      if (mode === 'admin') {
+      if (mode === 'admin' || mode === 'hr') {
         const [{ data: deptData }, { data: usersData, error: usersErr }, pending] = await Promise.all([
           supabase.rpc('get_departments'),
           supabase.rpc('get_all_users_admin'),
-          loadPendingLeavesForAdmin(),
+          mode === 'admin' ? loadPendingLeavesForAdmin() : Promise.resolve([] as PendingLeaveRequest[]),
         ]);
         if (usersErr) throw new Error(usersErr.message);
         setDepartments((deptData || []) as Department[]);
         setTeamMembers(
           ((usersData || []) as Profile[]).filter(
-            (u) => (u.role === 'employee' || u.role === 'manager') && !u.is_demo,
+            (u) => (u.role === 'employee' || u.role === 'manager' || u.role === 'hr') && !u.is_demo,
           ),
         );
         setPendingLeaves(pending);
+        const { data: ownAtt } = await supabase
+          .from('attendance_records')
+          .select('*')
+          .eq('user_id', userId)
+          .gte('attendance_date', `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`)
+          .lte('attendance_date', `${currentYear}-${String(currentMonth).padStart(2, '0')}-${new Date(currentYear, currentMonth, 0).getDate()}`)
+          .order('attendance_date', { ascending: false });
+        setMyAttendance((ownAtt || []) as AttendanceRecord[]);
         return;
       }
 
-      const [balRes, yearSumRes, monthSumRes, yearLeaveRes, monthLeaveRes, attRes, leaveRes] = await Promise.all([
+      const [balRes, yearSumRes, monthSumRes, yearLeaveRes, monthLeaveRes, attRes, leaveRes, shiftDateRes] = await Promise.all([
         supabase.rpc('get_leave_balance', { p_user_id: userId }),
         supabase.rpc('get_my_attendance_summary', { p_year: currentYear }),
         supabase.rpc('get_my_attendance_summary', { p_year: currentYear, p_month: currentMonth }),
@@ -206,6 +236,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
           .eq('user_id', userId)
           .order('created_at', { ascending: false })
           .limit(20),
+        mode === 'employee' ? supabase.rpc('get_my_shift_attendance_date') : Promise.resolve({ data: null, error: null }),
       ]);
 
       const rpcError =
@@ -225,6 +256,10 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
       if (monthLeaveRes.data?.[0]) setMonthLeaveSummary(monthLeaveRes.data[0] as LeaveSummary);
       setMyAttendance((attRes.data || []) as AttendanceRecord[]);
       setMyLeaves((leaveRes.data || []) as LeaveRequest[]);
+      if (mode === 'employee') {
+        const rawShiftDate = shiftDateRes.data;
+        setShiftDate(typeof rawShiftDate === 'string' ? rawShiftDate.slice(0, 10) : localYmd());
+      }
 
       if (mode === 'manager') {
         const { data: reports, error: reportsErr } = await supabase.rpc('get_direct_reports', { p_manager_id: userId });
@@ -248,6 +283,20 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    const onClock = () => {
+      void load({ silent: true });
+      setHistoryRefreshKey((k) => k + 1);
+    };
+    window.addEventListener(GEO_CLOCK_EVENT, onClock);
+    return () => window.removeEventListener(GEO_CLOCK_EVENT, onClock);
+  }, [load]);
+
+  const onClockUpdate = useCallback(() => {
+    void load();
+    setHistoryRefreshKey((k) => k + 1);
+  }, [load]);
+
   useSupabaseRealtime(
     `attendance-sync-${userId}`,
     mode === 'employee'
@@ -265,18 +314,50 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
   const checkInToday = async () => {
     setSubmitting(true);
     setMsg('');
-    const { error } = await supabase.rpc('check_in_attendance', { p_date: todayStr });
+    const { error } = await supabase.rpc('check_in_attendance');
     setSubmitting(false);
     if (error) setMsg(error.message);
     else {
       setMsg('Checked in successfully — approved automatically.');
       load();
+      setHistoryRefreshKey((k) => k + 1);
+      window.dispatchEvent(new CustomEvent(GEO_CLOCK_EVENT));
+    }
+  };
+
+  const checkOutToday = async (opts?: { thenRequestLeave?: boolean }) => {
+    setSubmitting(true);
+    setMsg('');
+    const { error } = await supabase.rpc('check_out_attendance');
+    setSubmitting(false);
+    if (error) setMsg(error.message);
+    else {
+      setMsg(
+        opts?.thenRequestLeave
+          ? 'Checked out for the rest of your shift. Submit your leave request on the next tab.'
+          : 'Checked out. Duration saved to your attendance history.',
+      );
+      load();
+      setHistoryRefreshKey((k) => k + 1);
+      window.dispatchEvent(new CustomEvent(GEO_CLOCK_EVENT));
+      if (opts?.thenRequestLeave) {
+        setLeaveStart(todayStr);
+        setLeaveEnd(todayStr);
+        setLeaveType('other');
+        setLeaveCustomType('Urgent leave');
+        setLeaveReason((prev) => prev || 'Leaving shift early');
+        setEmployeeTab('leave');
+      }
     }
   };
 
   const submitLeave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!leaveStart || !leaveEnd) return;
+    if (leaveType === 'other' && !leaveCustomType.trim()) {
+      setMsg('Please write the type of leave.');
+      return;
+    }
     setSubmitting(true);
     setMsg('');
     const { data, error } = await supabase.rpc('submit_leave_request', {
@@ -284,6 +365,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
       p_start: leaveStart,
       p_end: leaveEnd,
       p_reason: leaveReason || null,
+      p_custom_type: leaveType === 'other' ? leaveCustomType.trim() : null,
     });
     setSubmitting(false);
     if (error) setMsg(error.message);
@@ -297,29 +379,205 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
       setLeaveStart('');
       setLeaveEnd('');
       setLeaveReason('');
-      setEmployeeTab('history');
+      setLeaveCustomType('');
+      setLeaveType('annual');
+      setEmployeeTab('leave');
       setManagerTab('today');
       load();
     }
   };
 
-  const markTeamAttendance = async () => {
-    if (!markUserId) return;
+  const markTeamAttendance = async (userIdOverride?: string, statusOverride?: AttendanceStatus) => {
+    const targetId = userIdOverride || markUserId;
+    const status = statusOverride || markStatus;
+    if (!targetId) return;
+    const previous = remoteMarks[targetId];
+    setRemoteMarks((prev) => ({ ...prev, [targetId]: status }));
     setSubmitting(true);
+    setMarkingId(`${targetId}:${status}`);
     setMsg('');
     const { error } = await supabase.rpc('mark_attendance', {
-      p_user_id: markUserId,
+      p_user_id: targetId,
       p_date: markDate,
-      p_status: markStatus,
+      p_status: status,
       p_notes: null,
+    });
+    setSubmitting(false);
+    setMarkingId(null);
+    if (error) {
+      setRemoteMarks((prev) => {
+        const next = { ...prev };
+        if (previous) next[targetId] = previous;
+        else delete next[targetId];
+        return next;
+      });
+      setMsg(error.message);
+    } else {
+      const name = teamMembers.find((m) => m.id === targetId)?.full_name || 'Employee';
+      setMsg(`${name} marked ${ATTENDANCE_STATUS_LABEL[status].toLowerCase()} for ${markDate}. Saved to their attendance history.`);
+      setHistoryRefreshKey((k) => k + 1);
+      load();
+    }
+  };
+
+  const markHybridRemoteDay = async (status: AttendanceStatus) => {
+    setSubmitting(true);
+    setMsg('');
+    const { error } = await supabase.rpc('mark_hybrid_remote_day', {
+      p_date: todayStr,
+      p_status: status,
     });
     setSubmitting(false);
     if (error) setMsg(error.message);
     else {
-      setMsg('Team attendance saved.');
+      setMsg(status === 'present' ? 'Remote day marked present and saved to your history.' : 'Remote day marked absent.');
       load();
     }
   };
+
+  const remoteStaff = teamMembers.filter(
+    (m) => canMarkRemoteAttendance(m.work_mode) && m.id !== userId && (m.role === 'employee' || m.role === 'manager'),
+  );
+  const remoteStaffKey = remoteStaff.map((m) => m.id).sort().join(',');
+
+  useEffect(() => {
+    const ids = remoteStaffKey ? remoteStaffKey.split(',') : [];
+    if (ids.length === 0) {
+      setRemoteMarks({});
+      return;
+    }
+    let cancelled = false;
+    void supabase
+      .from('attendance_records')
+      .select('user_id, status')
+      .eq('attendance_date', markDate)
+      .in('user_id', ids)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const next: Record<string, AttendanceStatus> = {};
+        for (const row of data || []) {
+          next[row.user_id] = row.status as AttendanceStatus;
+        }
+        setRemoteMarks(next);
+      });
+    return () => { cancelled = true; };
+  }, [markDate, remoteStaffKey]);
+
+  const renderRemoteMarkList = () => (
+    <>
+      <div className="form-group" style={{ maxWidth: 220, marginBottom: '1rem' }}>
+        <label htmlFor="remote-mark-date">Date</label>
+        <input
+          id="remote-mark-date"
+          type="date"
+          value={markDate}
+          max={todayStr}
+          onChange={(e) => setMarkDate(e.target.value)}
+        />
+      </div>
+      {remoteStaff.length === 0 ? (
+        <p className="mgr-attendance-card__subtitle">
+          No remote or hybrid staff yet. Set Work location to Remote or Hybrid in Users, then mark them here.
+        </p>
+      ) : (
+        <div className="mgr-remote-mark-list">
+          {remoteStaff.map((m) => {
+            const marked = remoteMarks[m.id];
+            return (
+            <div key={m.id} className="mgr-remote-mark-row">
+              <div>
+                <strong>{m.full_name}</strong>
+                <span>
+                  {workModeLabel(m.work_mode)} {m.role === 'manager' ? 'manager' : 'employee'} · {m.email}
+                </span>
+              </div>
+              <div className="mgr-remote-mark-row__actions">
+                <button
+                  type="button"
+                  className={`btn btn-sm mgr-mark-btn mgr-mark-btn--present${marked === 'present' ? ' is-active' : ''}`}
+                  disabled={submitting}
+                  onClick={() => void markTeamAttendance(m.id, 'present')}
+                >
+                  {markingId === `${m.id}:present` ? <Loader2 size={14} className="spin-icon" /> : <CheckCircle size={14} />}
+                  Present
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn-sm mgr-mark-btn mgr-mark-btn--absent${marked === 'absent' ? ' is-active' : ''}`}
+                  disabled={submitting}
+                  onClick={() => void markTeamAttendance(m.id, 'absent')}
+                >
+                  {markingId === `${m.id}:absent` ? <Loader2 size={14} className="spin-icon" /> : <XCircle size={14} />}
+                  Absent
+                </button>
+              </div>
+            </div>
+            );
+          })}
+        </div>
+      )}
+    </>
+  );
+
+  const renderRemoteSelfCard = () => (
+    <section className={mode === 'employee' ? 'emp-attendance-card' : 'mgr-attendance-card'}>
+      <h3>
+        <UserCheck size={18} /> Remote attendance
+      </h3>
+      <p>
+        You work remotely. Your supervisor marks you present or absent. That record is saved automatically in your
+        history.
+      </p>
+      {todayRecord ? (
+        <p style={{ marginBottom: 0 }}>
+          Today: <strong>{ATTENDANCE_STATUS_LABEL[todayRecord.status]}</strong>
+          {todayRecord.notes ? ` · ${todayRecord.notes}` : ''}
+        </p>
+      ) : (
+        <p style={{ marginBottom: 0 }}>Not marked yet for today.</p>
+      )}
+    </section>
+  );
+
+  const renderHybridTodayCard = () => (
+    <section className={mode === 'employee' ? 'emp-attendance-card' : 'mgr-attendance-card'}>
+      <h3>
+        <UserCheck size={18} /> Hybrid — remote day
+      </h3>
+      <p>
+        In the office today? Use GPS check-in. Working from home? Mark present or absent here. Your supervisor can also
+        mark a remote day for you.
+      </p>
+      {todayRecord ? (
+        <p style={{ marginBottom: '0.75rem' }}>
+          Today: <strong>{ATTENDANCE_STATUS_LABEL[todayRecord.status]}</strong>
+          {todayRecord.attendance_source === 'geo' ? ' · Office GPS' : ''}
+          {todayRecord.notes ? ` · ${todayRecord.notes}` : ''}
+        </p>
+      ) : (
+        <p style={{ marginBottom: '0.75rem' }}>No office check-in or remote mark yet today.</p>
+      )}
+      <div className="mgr-remote-mark-row__actions">
+        <button
+          type="button"
+          className={`btn btn-sm mgr-mark-btn mgr-mark-btn--present${todayRecord?.status === 'present' && todayRecord.attendance_source !== 'geo' ? ' is-active' : ''}`}
+          disabled={submitting || (todayRecord?.attendance_source === 'geo' && !!todayRecord.clock_in_at)}
+          onClick={() => void markHybridRemoteDay('present')}
+        >
+          {submitting ? <Loader2 size={14} className="spin-icon" /> : <CheckCircle size={14} />}
+          Working from home
+        </button>
+        <button
+          type="button"
+          className={`btn btn-sm mgr-mark-btn mgr-mark-btn--absent${todayRecord?.status === 'absent' ? ' is-active' : ''}`}
+          disabled={submitting || (todayRecord?.attendance_source === 'geo' && !!todayRecord.clock_in_at)}
+          onClick={() => void markHybridRemoteDay('absent')}
+        >
+          <XCircle size={14} /> Absent today
+        </button>
+      </div>
+    </section>
+  );
 
   const reviewLeave = async (id: string, approve: boolean) => {
     setSubmitting(true);
@@ -365,20 +623,40 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
     <div className="attendance-hero">
       <h3 className="attendance-hero__title">Today — {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</h3>
       <p className="attendance-hero__hint">
-        Tap check-in once per working day. Your attendance is approved automatically.
+        Check in when you arrive and check out when you leave — even in the middle of your shift (for example urgent leave).
+        Each visit is saved separately and added to your hours.
       </p>
-      <button
-        type="button"
-        className="btn btn-primary attendance-hero__btn"
-        disabled={submitting || checkedInToday}
-        onClick={checkInToday}
-      >
-        {checkedInToday ? (
-          <><CheckCircle size={18} /> Checked in today</>
-        ) : (
-          <><Clock size={18} /> Check in now</>
+      <div className="attendance-hero__actions">
+        <button
+          type="button"
+          className={`btn attendance-hero__btn att-toggle att-toggle--in${stillOnSiteToday ? ' is-active' : ''}`}
+          disabled={submitting}
+          onClick={() => { if (!stillOnSiteToday) void checkInToday(); }}
+        >
+          {submitting && !stillOnSiteToday ? <Loader2 size={18} className="spin-icon" /> : <CheckCircle size={18} />}
+          Check in
+        </button>
+        <button
+          type="button"
+          className={`btn attendance-hero__btn att-toggle att-toggle--out${checkedOutToday ? ' is-active' : ''}`}
+          disabled={submitting || !stillOnSiteToday}
+          onClick={() => { if (stillOnSiteToday) void checkOutToday(); }}
+        >
+          {submitting && stillOnSiteToday ? <Loader2 size={18} className="spin-icon" /> : <LogOut size={18} />}
+          Check out
+        </button>
+        {stillOnSiteToday && mode === 'employee' && (
+          <button
+            type="button"
+            className="btn btn-secondary attendance-hero__btn attendance-hero__btn--leave-early"
+            disabled={submitting}
+            onClick={() => void checkOutToday({ thenRequestLeave: true })}
+          >
+            {submitting ? <Loader2 size={18} className="spin-icon" /> : <Palmtree size={18} />}
+            Check out &amp; request leave
+          </button>
         )}
-      </button>
+      </div>
     </div>
   );
 
@@ -392,8 +670,22 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
           <select value={leaveType} onChange={(e) => setLeaveType(e.target.value as LeaveType)}>
             <option value="annual">Annual leave</option>
             <option value="sick">Sick leave</option>
+            <option value="other">Other</option>
           </select>
         </div>
+        {leaveType === 'other' && (
+          <div className="form-group">
+            <label>Write the type of leave</label>
+            <input
+              type="text"
+              value={leaveCustomType}
+              onChange={(e) => setLeaveCustomType(e.target.value)}
+              placeholder="e.g. Maternity, Hajj, unpaid"
+              maxLength={80}
+              required
+            />
+          </div>
+        )}
         <div className="form-group">
           <label>From</label>
           <input type="date" value={leaveStart} onChange={(e) => setLeaveStart(e.target.value)} required />
@@ -429,7 +721,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
                 {r.employee_role && <span className="attendance-role-tag">{r.employee_role}</span>}
               </span>
               <span className="attendance-approval-item__meta">
-                {LEAVE_TYPE_LABEL[r.leave_type]} · {r.start_date} to {r.end_date} · {r.days_count} day{r.days_count !== 1 ? 's' : ''}
+                {formatLeaveType(r.leave_type, r.leave_custom_type)} · {r.start_date} to {r.end_date} · {r.days_count} day{r.days_count !== 1 ? 's' : ''}
               </span>
               {r.reason && <span className="attendance-approval-item__reason">"{r.reason}"</span>}
             </div>
@@ -448,6 +740,32 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
     return (
       <div className="rewards-loading">
         <Loader2 size={28} className="spin-icon" />
+      </div>
+    );
+  }
+
+  if (mode === 'hr') {
+    return (
+      <div className="admin-attendance-page">
+        {msg && (
+          <div
+            className={`admin-attendance-alert ${/failed|error|not enough/i.test(msg) ? 'admin-attendance-alert--error' : 'admin-attendance-alert--success'}`}
+            role="alert"
+          >
+            {/failed|error|not enough/i.test(msg) ? <AlertCircle size={18} /> : <CheckCircle2 size={18} />}
+            <span>{msg}</span>
+          </div>
+        )}
+        <section className="admin-attendance-card glass-panel">
+          <h3>
+            <CalendarClock size={18} /> Create &amp; assign shifts
+          </h3>
+          <p>
+            Set start/end times and working days, then assign to one person or many at once. Admins can still view
+            and change the same schedules.
+          </p>
+          <ShiftManagementPanel mode="hr" teamMembers={teamMembers} onUpdate={load} />
+        </section>
       </div>
     );
   }
@@ -499,30 +817,60 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
           </div>
         )}
 
-        <div className="admin-attendance-tabs tab-bar tab-bar--inline-mobile">
+        <CompanyLocationWindowCard />
+
+        <div className="attendance-section-tabs admin-attendance-tabs tab-bar tab-bar--inline-mobile" role="tablist" aria-label="Attendance sections">
           <button
             type="button"
             className={`tab-btn ${adminTab === 'leave' ? 'tab-btn--active' : ''}`}
             onClick={() => setAdminTab('leave')}
+            aria-label="Leave approvals"
           >
-            <Inbox size={16} /> Leave approvals
+            <Inbox size={16} />
+            <span>Leave</span>
             {pendingLeaves.length > 0 && <span className="admin-attendance-count-badge">{pendingLeaves.length}</span>}
+          </button>
+          <button
+            type="button"
+            className={`tab-btn ${adminTab === 'remote' ? 'tab-btn--active' : ''}`}
+            onClick={() => setAdminTab('remote')}
+            aria-label="Remote and hybrid attendance"
+          >
+            <UserCheck size={16} />
+            <span>Remote</span>
           </button>
           <button
             type="button"
             className={`tab-btn ${adminTab === 'shifts' ? 'tab-btn--active' : ''}`}
             onClick={() => setAdminTab('shifts')}
+            aria-label="Shifts"
           >
-            <CalendarClock size={16} /> Shifts
+            <CalendarClock size={16} />
+            <span>Shifts</span>
           </button>
           <button
             type="button"
             className={`tab-btn ${adminTab === 'history' ? 'tab-btn--active' : ''}`}
             onClick={() => setAdminTab('history')}
+            aria-label="Attendance history"
           >
-            <History size={16} /> Attendance history
+            <History size={16} />
+            <span>History</span>
           </button>
         </div>
+
+        {adminTab === 'remote' && (
+          <section className="admin-attendance-card glass-panel">
+            <h3>
+              <UserCheck size={18} /> Mark remote &amp; hybrid staff
+            </h3>
+            <p>
+              Mark remote and hybrid employees and managers present or absent for work-from-home days. Office-only
+              staff still use GPS. Records are saved in their attendance history.
+            </p>
+            {renderRemoteMarkList()}
+          </section>
+        )}
 
         {adminTab === 'leave' && (
           <section className="admin-attendance-card glass-panel">
@@ -544,7 +892,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
           </section>
         )}
 
-        {adminTab === 'history' && <AdminAttendanceDirectory departments={departments} />}
+        {adminTab === 'history' && <AdminAttendanceDirectory departments={departments} initialUserId={initialUserId} />}
       </div>
     );
   }
@@ -561,8 +909,8 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
             <div>
               <h2 className="mgr-attendance-header__title">Attendance &amp; Leave</h2>
               <p className="mgr-attendance-header__subtitle">
-                Approve team leave, mark attendance, manage shifts, and download each employee&apos;s
-                history as a separate monthly or yearly report. Check-ins are approved automatically.
+                Approve team leave, mark attendance, manage shifts, and download your own or each employee&apos;s
+                history as a monthly or yearly report. Check-ins are approved automatically.
               </p>
             </div>
           </div>
@@ -601,7 +949,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
           </div>
         )}
 
-        <div className="mgr-attendance-tabs tab-bar tab-bar--inline-mobile">
+        <div className="attendance-section-tabs mgr-attendance-tabs tab-bar tab-bar--inline-mobile" role="tablist" aria-label="Attendance sections">
           <button
             type="button"
             className={`tab-btn ${managerTab === 'approvals' ? 'tab-btn--active' : ''}`}
@@ -660,7 +1008,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
                     <div className="attendance-approval-item__main">
                       <span className="attendance-approval-item__name">Leave · {r.employee_name}</span>
                       <span className="attendance-approval-item__meta">
-                        {LEAVE_TYPE_LABEL[r.leave_type]} · {r.start_date} to {r.end_date} · {r.days_count} days
+                        {formatLeaveType(r.leave_type, r.leave_custom_type)} · {r.start_date} to {r.end_date} · {r.days_count} days
                       </span>
                       {r.reason && <span className="attendance-approval-item__reason">&ldquo;{r.reason}&rdquo;</span>}
                     </div>
@@ -675,8 +1023,15 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
         {managerTab === 'today' && (
           <>
             <MyShiftCard />
-            <GeoAttendancePanel onClockUpdate={load} />
-            {renderCheckInHero('Admin')}
+            {isRemoteWorker ? (
+              renderRemoteSelfCard()
+            ) : (
+              <>
+                <GeoAttendancePanel onClockUpdate={onClockUpdate} />
+                {isHybridWorker && renderHybridTodayCard()}
+                {renderCheckInHero('Admin')}
+              </>
+            )}
             {renderQuickStats()}
             {renderLeaveForm('Your leave goes to admin for approval.')}
           </>
@@ -693,45 +1048,51 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
             <h3>
               <Users size={18} /> Mark team attendance
             </h3>
-            <p className="mgr-attendance-card__subtitle">Record attendance for a team member on a specific date.</p>
-            {teamMembers.length === 0 ? (
+            <p className="mgr-attendance-card__subtitle">
+              For remote and hybrid people, mark <strong>Present</strong> or <strong>Absent</strong> on work-from-home
+              days. Office days for hybrid staff still use GPS.
+            </p>
+            {teamMembers.filter((m) => m.role === 'employee').length === 0 ? (
               <div className="mgr-attendance-empty">
                 <Users size={32} strokeWidth={1.25} />
                 <h4>No team members</h4>
                 <p>Assign employees to your team to mark their attendance here.</p>
               </div>
             ) : (
-              <div className="attendance-form-grid">
-                <div className="form-group">
-                  <label>Team member</label>
-                  <select value={markUserId} onChange={(e) => setMarkUserId(e.target.value)}>
-                    {teamMembers.map((m) => (
-                      <option key={m.id} value={m.id}>{m.full_name}</option>
-                    ))}
-                  </select>
+              <>
+                {renderRemoteMarkList()}
+
+                <h4 className="mgr-attendance-subhead">Any team member</h4>
+                <div className="attendance-form-grid">
+                  <div className="form-group">
+                    <label>Team member</label>
+                    <select value={markUserId} onChange={(e) => setMarkUserId(e.target.value)}>
+                      {teamMembers.filter((m) => m.role === 'employee').map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.full_name}
+                          {canMarkRemoteAttendance(m.work_mode) ? ` (${workModeLabel(m.work_mode)})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Status</label>
+                    <select value={markStatus} onChange={(e) => setMarkStatus(e.target.value as AttendanceStatus)}>
+                      <option value="present">Present</option>
+                      <option value="absent">Absent</option>
+                    </select>
+                  </div>
+                  <button type="button" className="btn btn-primary" disabled={submitting || !markUserId} onClick={() => void markTeamAttendance()}>
+                    Save to history
+                  </button>
                 </div>
-                <div className="form-group">
-                  <label>Date</label>
-                  <input type="date" value={markDate} onChange={(e) => setMarkDate(e.target.value)} />
-                </div>
-                <div className="form-group">
-                  <label>Status</label>
-                  <select value={markStatus} onChange={(e) => setMarkStatus(e.target.value as AttendanceStatus)}>
-                    {(Object.keys(ATTENDANCE_STATUS_LABEL) as AttendanceStatus[]).map((s) => (
-                      <option key={s} value={s}>{ATTENDANCE_STATUS_LABEL[s]}</option>
-                    ))}
-                  </select>
-                </div>
-                <button type="button" className="btn btn-primary" disabled={submitting} onClick={markTeamAttendance}>
-                  Save
-                </button>
-              </div>
+              </>
             )}
           </section>
         )}
 
         {managerTab === 'history' && (
-          <ManagerTeamAttendanceDirectory profile={profile} teamMembers={teamMembers} />
+          <ManagerTeamAttendanceDirectory profile={profile} teamMembers={teamMembers} refreshKey={historyRefreshKey} />
         )}
       </div>
     );
@@ -758,7 +1119,13 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
           <div className="emp-attendance-stat emp-attendance-stat--accent">
             <UserCheck size={16} />
             <span className="emp-attendance-stat__label">Today</span>
-            <strong>{checkedInToday ? 'Checked in' : 'Not yet'}</strong>
+            <strong>
+              {isRemoteWorker
+                ? (todayRecord ? ATTENDANCE_STATUS_LABEL[todayRecord.status] : 'Waiting on manager')
+                : isHybridWorker
+                  ? (todayRecord ? ATTENDANCE_STATUS_LABEL[todayRecord.status] : 'Office GPS or WFH')
+                : checkedInToday ? 'Checked in' : 'Not yet'}
+            </strong>
           </div>
           <div className="emp-attendance-stat">
             <CalendarCheck size={16} />
@@ -788,35 +1155,55 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
         </div>
       )}
 
-      <div className="emp-attendance-tabs tab-bar tab-bar--inline-mobile">
+      <div
+        className="attendance-section-tabs emp-attendance-tabs tab-bar tab-bar--inline-mobile"
+        role="tablist"
+        aria-label="Attendance sections"
+      >
         <button
           type="button"
+          role="tab"
+          aria-selected={employeeTab === 'today'}
           className={`tab-btn ${employeeTab === 'today' ? 'tab-btn--active' : ''}`}
           onClick={() => setEmployeeTab('today')}
         >
-          <UserCheck size={16} /> Today
+          <UserCheck size={16} />
+          <span>Mark attendance</span>
         </button>
         <button
           type="button"
+          role="tab"
+          aria-selected={employeeTab === 'leave'}
           className={`tab-btn ${employeeTab === 'leave' ? 'tab-btn--active' : ''}`}
           onClick={() => setEmployeeTab('leave')}
         >
-          <Palmtree size={16} /> Request leave
+          <Palmtree size={16} />
+          <span>Request leave</span>
         </button>
         <button
           type="button"
+          role="tab"
+          aria-selected={employeeTab === 'history'}
           className={`tab-btn ${employeeTab === 'history' ? 'tab-btn--active' : ''}`}
           onClick={() => setEmployeeTab('history')}
         >
-          <History size={16} /> History
+          <History size={16} />
+          <span>Attendance history</span>
         </button>
       </div>
 
       {employeeTab === 'today' && (
         <>
           <MyShiftCard />
-          <GeoAttendancePanel onClockUpdate={load} />
-          {renderCheckInHero('Your manager')}
+          {isRemoteWorker ? (
+            renderRemoteSelfCard()
+          ) : (
+            <>
+              <GeoAttendancePanel onClockUpdate={onClockUpdate} />
+              {isHybridWorker && renderHybridTodayCard()}
+              {renderCheckInHero('Your manager')}
+            </>
+          )}
           {renderQuickStats()}
           {summary && (
             <section className="emp-attendance-card">
@@ -828,11 +1215,9 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
         </>
       )}
 
-      {employeeTab === 'leave' && renderLeaveForm('Your manager will be notified and can approve the request.')}
-
-      {employeeTab === 'history' && (
+      {employeeTab === 'leave' && (
         <>
-          <EmployeeAttendanceHistory profile={profile} />
+          {renderLeaveForm('Your manager will be notified and can approve the request.')}
           {myLeaves.length > 0 && (
             <section className="emp-attendance-card">
               <h3>
@@ -843,7 +1228,7 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
                 {myLeaves.map((r) => (
                   <div key={r.id} className="emp-attendance-leave-item">
                     <div>
-                      <strong>{LEAVE_TYPE_LABEL[r.leave_type]}</strong>
+                      <strong>{formatLeaveType(r.leave_type, r.leave_custom_type)}</strong>
                       <span>
                         {r.start_date} → {r.end_date} · {r.days_count} day{r.days_count !== 1 ? 's' : ''}
                       </span>
@@ -861,6 +1246,10 @@ export default function AttendanceLeavePanel({ profile, mode }: AttendanceLeaveP
             </section>
           )}
         </>
+      )}
+
+      {employeeTab === 'history' && (
+        <EmployeeAttendanceHistory profile={profile} refreshKey={historyRefreshKey} />
       )}
     </div>
   );

@@ -114,3 +114,17 @@ body.native-app select {
   max-width: 420px;
   margin: 0 auto 1.5rem;
 }
+
+/* Admin Users: APK WebView is often ≥900px, so force stacked cards instead of the desktop table */
+html.native-app .admin-users-table-wrap,
+body.native-app .admin-users-table-wrap,
+#root.native-app-root .admin-users-table-wrap {
+  display: none !important;
+}
+
+html.native-app .admin-users-mobile-list,
+body.native-app .admin-users-mobile-list,
+#root.native-app-root .admin-users-mobile-list {
+  display: flex !important;
+  flex-direction: column;
+}

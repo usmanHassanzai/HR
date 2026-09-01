@@ -13,16 +13,24 @@ import { Profile } from '../utils/kpiHelpers';
 import {
   AttendanceHistoryRow,
   TeamAttendanceHistoryRow,
-  formatDateTime,
   formatWorkDuration,
+  describeAttendanceHistory,
 } from '../utils/shiftHelpers';
-import { APPROVAL_LABEL, approvalBadgeClass, ApprovalStatus } from '../utils/attendanceHelpers';
+import { APPROVAL_LABEL, approvalBadgeClass, ApprovalStatus, ATTENDANCE_STATUS_LABEL, attendanceStatusBadgeClass } from '../utils/attendanceHelpers';
 import { downloadAttendanceCsv, downloadTeamAttendanceCsv } from '../utils/exportAttendance';
+import {
+  AttendanceBrowseView,
+  attendanceYearOptions,
+  canViewYearlyAttendance,
+  historyMonthParam,
+} from '../utils/attendancePeriod';
+import AttendanceMonthWiseList from './AttendanceMonthWiseList';
 import '../styles/manager-attendance.css';
 
 interface ManagerTeamAttendanceDirectoryProps {
   profile: Profile;
   teamMembers: Profile[];
+  refreshKey?: number;
 }
 
 interface EmployeeGroup {
@@ -30,7 +38,7 @@ interface EmployeeGroup {
   rows: TeamAttendanceHistoryRow[];
 }
 
-type BrowsePeriod = 'month' | 'year';
+type BrowsePeriod = AttendanceBrowseView;
 
 function initials(name: string): string {
   return name
@@ -81,6 +89,7 @@ function mapHistoryRow(r: AttendanceHistoryRow, user: Profile): TeamAttendanceHi
 export default function ManagerTeamAttendanceDirectory({
   profile,
   teamMembers,
+  refreshKey = 0,
 }: ManagerTeamAttendanceDirectoryProps) {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
@@ -89,8 +98,10 @@ export default function ManagerTeamAttendanceDirectory({
   const [rows, setRows] = useState<TeamAttendanceHistoryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({ [profile.id]: true });
+  const [ownRows, setOwnRows] = useState<TeamAttendanceHistoryRow[]>([]);
 
+  const yearOptions = attendanceYearOptions(profile.created_at);
   const monthLabel = new Date(year, month - 1, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
   const yearLabel = String(year);
   const periodLabel = browsePeriod === 'month' ? monthLabel : yearLabel;
@@ -102,19 +113,31 @@ export default function ManagerTeamAttendanceDirectory({
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase.rpc('get_team_attendance_history', {
-      p_year: year,
-      p_month: browsePeriod === 'month' ? month : null,
-      p_user_id: null,
-      p_department_id: null,
-      p_scope: 'team',
-    });
+    const [{ data, error }, { data: mine, error: mineErr }] = await Promise.all([
+      supabase.rpc('get_team_attendance_history', {
+        p_year: year,
+        p_month: historyMonthParam(browsePeriod, month),
+        p_user_id: null,
+        p_department_id: null,
+        p_scope: 'team',
+      }),
+      supabase.rpc('get_attendance_history', {
+        p_year: year,
+        p_month: historyMonthParam(browsePeriod, month),
+        p_user_id: profile.id,
+      }),
+    ]);
 
     const allRows = !error ? ((data || []) as TeamAttendanceHistoryRow[]) : [];
     const reportIds = new Set(directReports.map((m) => m.id));
     setRows(allRows.filter((r) => reportIds.has(r.user_id)));
+    setOwnRows(
+      !mineErr && mine
+        ? (mine as AttendanceHistoryRow[]).map((r) => mapHistoryRow(r, profile))
+        : [],
+    );
     setLoading(false);
-  }, [year, month, browsePeriod, directReports]);
+  }, [year, month, browsePeriod, directReports, refreshKey, profile]);
 
   useEffect(() => {
     void load();
@@ -127,13 +150,18 @@ export default function ManagerTeamAttendanceDirectory({
       byUser.get(r.user_id)!.push(r);
     }
 
-    const groups: EmployeeGroup[] = directReports.map((user) => ({
+    const mine: EmployeeGroup = {
+      user: profile,
+      rows: [...ownRows].sort((a, b) => b.attendance_date.localeCompare(a.attendance_date)),
+    };
+
+    const team: EmployeeGroup[] = directReports.map((user) => ({
       user,
       rows: (byUser.get(user.id) || []).sort((a, b) => b.attendance_date.localeCompare(a.attendance_date)),
     }));
 
-    return groups.sort((a, b) => a.user.full_name.localeCompare(b.user.full_name));
-  }, [directReports, rows]);
+    return [mine, ...team.sort((a, b) => a.user.full_name.localeCompare(b.user.full_name))];
+  }, [directReports, rows, ownRows, profile]);
 
   const totalRecords = rows.length;
   const totalPresent = rows.filter((r) => r.clock_in_at).length;
@@ -143,12 +171,12 @@ export default function ManagerTeamAttendanceDirectory({
   };
 
   const fetchEmployeeRows = async (userId: string, period: BrowsePeriod): Promise<TeamAttendanceHistoryRow[]> => {
-    const user = directReports.find((m) => m.id === userId);
+    const user = userId === profile.id ? profile : directReports.find((m) => m.id === userId);
     if (!user) return [];
 
     const { data, error } = await supabase.rpc('get_attendance_history', {
       p_year: year,
-      p_month: period === 'month' ? month : null,
+      p_month: historyMonthParam(period, month),
       p_user_id: userId,
     });
 
@@ -187,7 +215,7 @@ export default function ManagerTeamAttendanceDirectory({
 
       const { data, error } = await supabase.rpc('get_team_attendance_history', {
         p_year: year,
-        p_month: period === 'month' ? month : null,
+        p_month: historyMonthParam(period, month),
         p_user_id: null,
         p_department_id: null,
         p_scope: 'team',
@@ -205,29 +233,30 @@ export default function ManagerTeamAttendanceDirectory({
   return (
     <section className="mgr-attendance-card">
       <h3>
-        <History size={18} /> Team attendance history
+        <History size={18} /> Attendance history
       </h3>
       <p>
-        Each direct report has their own attendance record. Expand an employee to review check-ins, then download
-        their history as a monthly or yearly CSV report.
+        Your records are first. Use this month (daily), month by month, or the full year. Full year for a person opens
+        after they have been with the company for one year. Team members are listed below.
       </p>
 
       <div className="mgr-attendance-filters">
         <div className="form-group">
-          <label htmlFor="mgr-att-period">Browse</label>
+          <label htmlFor="mgr-att-period">Show</label>
           <select
             id="mgr-att-period"
             value={browsePeriod}
             onChange={(e) => setBrowsePeriod(e.target.value as BrowsePeriod)}
           >
-            <option value="month">Monthly view</option>
-            <option value="year">Yearly view</option>
+            <option value="month">This month (daily)</option>
+            <option value="monthwise">Month by month</option>
+            <option value="year">Full year</option>
           </select>
         </div>
         <div className="form-group">
           <label htmlFor="mgr-att-year">Year</label>
           <select id="mgr-att-year" value={year} onChange={(e) => setYear(Number(e.target.value))}>
-            {[year - 1, year, year + 1].map((y) => (
+            {yearOptions.map((y) => (
               <option key={y} value={y}>
                 {y}
               </option>
@@ -270,6 +299,11 @@ export default function ManagerTeamAttendanceDirectory({
 
       <div className="mgr-attendance-stats">
         <div className="mgr-attendance-stat">
+          <User size={16} />
+          <span className="mgr-attendance-stat__label">Your days present</span>
+          <strong>{ownRows.filter((r) => r.clock_in_at).length}</strong>
+        </div>
+        <div className="mgr-attendance-stat">
           <Users size={16} />
           <span className="mgr-attendance-stat__label">Direct reports</span>
           <strong>{directReports.length}</strong>
@@ -289,21 +323,17 @@ export default function ManagerTeamAttendanceDirectory({
       {loading ? (
         <div className="mgr-attendance-loading">
           <Loader2 size={28} className="spin-icon" />
-          <span>Loading team attendance…</span>
-        </div>
-      ) : directReports.length === 0 ? (
-        <div className="mgr-attendance-empty">
-          <Users size={40} strokeWidth={1.25} />
-          <h4>No direct reports yet</h4>
-          <p>Assign employees to your team to track and export their attendance history.</p>
+          <span>Loading attendance…</span>
         </div>
       ) : (
         <div className="mgr-attendance-employee-list">
           {employeeGroups.map((group) => {
-            const isOpen = expanded[group.user.id] ?? false;
+            const isSelf = group.user.id === profile.id;
+            const isOpen = expanded[group.user.id] ?? isSelf;
             const daysPresent = group.rows.filter((r) => r.clock_in_at).length;
             const totalMins = group.rows.reduce((s, r) => s + (r.work_minutes || 0), 0);
-            const firstName = group.user.full_name.split(' ')[0];
+            const personCanYear = canViewYearlyAttendance(group.user.created_at);
+            const firstName = isSelf ? 'my' : `${group.user.full_name.split(' ')[0]}'s`;
 
             return (
               <article key={group.user.id} className="mgr-attendance-employee">
@@ -316,7 +346,8 @@ export default function ManagerTeamAttendanceDirectory({
                   <span className="mgr-attendance-employee__avatar">{initials(group.user.full_name)}</span>
                   <span className="mgr-attendance-employee__info">
                     <span className="mgr-attendance-employee__name-row">
-                      <strong>{group.user.full_name}</strong>
+                      <strong>{isSelf ? `${group.user.full_name} (you)` : group.user.full_name}</strong>
+                      {isSelf && <span className="mgr-attendance-you-badge">Your history</span>}
                     </span>
                     <span className="mgr-attendance-employee__email">{group.user.email}</span>
                     <span className="mgr-attendance-employee__stats">
@@ -351,24 +382,32 @@ export default function ManagerTeamAttendanceDirectory({
                         ) : (
                           <Download size={14} />
                         )}
-                        Download {firstName}&apos;s month
+                        Download {isSelf ? 'my month' : `${firstName} month`}
                       </button>
                       <button
                         type="button"
                         className="btn btn-secondary btn-sm"
-                        disabled={exporting !== null}
+                        disabled={exporting !== null || !personCanYear}
                         onClick={() => void exportEmployee(group, 'year')}
+                        title={personCanYear ? undefined : 'Full year opens after 1 year with the company'}
                       >
                         {exporting === `${group.user.id}-year` ? (
                           <Loader2 size={14} className="spin-icon" />
                         ) : (
                           <Download size={14} />
                         )}
-                        Download {firstName}&apos;s year
+                        Download {isSelf ? 'my year' : `${firstName} year`}
                       </button>
                     </div>
 
-                    {group.rows.length === 0 ? (
+                    {browsePeriod === 'year' && !personCanYear ? (
+                      <p className="mgr-attendance-empty-inline">
+                        <User size={16} />
+                        Full year attendance opens after 1 year with the company.
+                      </p>
+                    ) : browsePeriod === 'monthwise' ? (
+                      <AttendanceMonthWiseList rows={group.rows} year={year} />
+                    ) : group.rows.length === 0 ? (
                       <p className="mgr-attendance-empty-inline">
                         <User size={16} />
                         No attendance records for {periodLabel}.
@@ -384,20 +423,28 @@ export default function ManagerTeamAttendanceDirectory({
                               <th>Clock out</th>
                               <th>Duration</th>
                               <th>Source</th>
+                              <th>Attendance</th>
                               <th>Status</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {group.rows.map((r) => (
+                            {group.rows.map((r) => {
+                              const timing = describeAttendanceHistory(r);
+                              return (
                               <tr key={r.id}>
                                 <td>
                                   <strong>{r.attendance_date}</strong>
                                 </td>
-                                <td>{r.shift_name || '—'}</td>
-                                <td>{formatDateTime(r.clock_in_at)}</td>
-                                <td>{formatDateTime(r.clock_out_at)}</td>
-                                <td>{formatWorkDuration(r.work_minutes)}</td>
+                                <td className={timing.shiftEmpty ? 'att-cell-muted' : undefined}>{timing.shift}</td>
+                                <td>{timing.clockIn}</td>
+                                <td className={timing.clockOutEmpty ? 'att-cell-muted' : undefined}>{timing.clockOut}</td>
+                                <td className={timing.durationEmpty ? 'att-cell-muted' : undefined}>{timing.duration}</td>
                                 <td>{r.attendance_source === 'geo' ? 'GPS' : r.attendance_source || 'Manual'}</td>
+                                <td>
+                                  <span className={`badge ${attendanceStatusBadgeClass(r.status)}`}>
+                                    {ATTENDANCE_STATUS_LABEL[r.status as keyof typeof ATTENDANCE_STATUS_LABEL] || r.status}
+                                  </span>
+                                </td>
                                 <td>
                                   <span
                                     className={`badge ${approvalBadgeClass(r.approval_status as ApprovalStatus)}`}
@@ -406,7 +453,8 @@ export default function ManagerTeamAttendanceDirectory({
                                   </span>
                                 </td>
                               </tr>
-                            ))}
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>

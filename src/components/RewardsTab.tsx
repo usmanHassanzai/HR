@@ -3,8 +3,10 @@ import { supabase } from '../lib/supabase';
 import { Trophy, Star, Gift, Loader2, CheckCircle, Clock, Sparkles, BarChart2 } from 'lucide-react';
 import RewardsWorkflowBanner from './RewardsWorkflowBanner';
 import { MONTHLY_POINTS_TIERS, REWARD_CATALOG_COST, tierColorForScore } from '../utils/rewardsTiers';
-import { employeeTotalKpiPoints } from '../utils/kpiScoreHelpers';
+import { employeePerformancePoints } from '../utils/kpiScoreHelpers';
 import { Kpi } from '../utils/kpiHelpers';
+import type { KpiAwardProgress } from '../utils/kpiAwardHelpers';
+import KpiAwardProgressList from './KpiAwardProgressList';
 
 interface CatalogItem {
   id: string;
@@ -56,6 +58,7 @@ export default function RewardsTab({
   const [loading, setLoading] = useState(true);
   const [redeeming, setRedeeming] = useState<string | null>(null);
   const [msg, setMsg] = useState('');
+  const [awardProgress, setAwardProgress] = useState<KpiAwardProgress[]>([]);
 
   useEffect(() => { void fetchAll(); }, [userId]);
 
@@ -65,17 +68,19 @@ export default function RewardsTab({
 
   const fetchAll = async () => {
     setLoading(true);
-    const [catRes, ledgerRes, redemRes, kpiRes] = await Promise.all([
+    const [catRes, ledgerRes, redemRes, kpiRes, awardRes] = await Promise.all([
       supabase.from('rewards_catalog').select('*').eq('active', true).order('point_cost'),
       supabase.from('points_ledger').select('*').eq('employee_id', userId).order('month', { ascending: false }),
       supabase.from('reward_redemptions').select('*, rewards_catalog(name, icon)').eq('employee_id', userId).order('redeemed_at', { ascending: false }),
       supabase.from('kpis').select('*').eq('user_id', userId),
+      supabase.rpc('get_kpi_award_progress', { p_user_id: userId }),
     ]);
     if (catRes.data) setCatalog(catRes.data);
     if (ledgerRes.data) setLedger(ledgerRes.data);
     if (redemRes.data) setRedemptions(redemRes.data);
+    if (awardRes.data) setAwardProgress(awardRes.data as KpiAwardProgress[]);
     if (kpiPointsProp != null) setKpiPoints(kpiPointsProp);
-    else if (!kpiRes.error) setKpiPoints(employeeTotalKpiPoints((kpiRes.data || []) as Kpi[]));
+    else if (!kpiRes.error) setKpiPoints(employeePerformancePoints((kpiRes.data || []) as Kpi[]));
     setLoading(false);
   };
 
@@ -129,7 +134,7 @@ export default function RewardsTab({
         <div className="rewards-hero-glow" />
         <div className="rewards-hero-content">
           <div className="rewards-hero-left">
-            <span className="rewards-hero-label"><Sparkles size={16} /> Your Points Balance</span>
+            <span className="rewards-hero-label"><Sparkles size={16} /> Reward Balance</span>
             <div className="rewards-hero-balance">{balance.toLocaleString()}</div>
             <p className="rewards-hero-meta">
               {rewardsEarned} lifetime reward{rewardsEarned !== 1 ? 's' : ''} earned
@@ -155,11 +160,13 @@ export default function RewardsTab({
 
       {msg && <div className="rewards-toast rewards-toast--success">{msg}</div>}
 
+      <KpiAwardProgressList rows={awardProgress} />
+
       {/* Monthly tier rules */}
       <div className="glass-panel rewards-tier-panel">
         <h3 className="rewards-section-title" style={{ marginBottom: '0.75rem' }}>Monthly Performance Rewards</h3>
         <p className="rewards-section-desc" style={{ marginBottom: '0.85rem' }}>
-          Points are awarded each month based on your KPI score. They <strong>never expire</strong> and accumulate until you redeem.
+          Points are awarded each month from your <strong>KPI Score %</strong> using the bands below — not from Performance Points. They <strong>never expire</strong> and accumulate until you redeem.
         </p>
         <div className="rewards-tier-grid">
           {MONTHLY_POINTS_TIERS.map((tier) => (
@@ -177,16 +184,16 @@ export default function RewardsTab({
           <BarChart2 size={20} />
           <div>
             <div className="stat-card-value">{kpiPoints.toLocaleString()}</div>
-            <div className="stat-card-label">Total KPI Points</div>
+            <div className="stat-card-label">Performance Points</div>
           </div>
         </div>
         <div className="stat-card">
           <Star size={20} />
           <div>
             <div className="stat-card-value">
-              {thisMonthEntry?.points_earned ? `+${thisMonthEntry.points_earned}` : '—'}
+              {thisMonthEntry ? `+${thisMonthEntry.points_earned}` : '—'}
             </div>
-            <div className="stat-card-label">This Month&apos;s Bonus</div>
+            <div className="stat-card-label">Reward Points this month</div>
           </div>
         </div>
         <div className="stat-card">
@@ -195,7 +202,7 @@ export default function RewardsTab({
             <div className="stat-card-value" style={{ color: thisMonthEntry ? tierColorForScore(thisMonthEntry.kpi_score) : undefined }}>
               {thisMonthEntry ? `${Math.round(thisMonthEntry.kpi_score)}%` : '—'}
             </div>
-            <div className="stat-card-label">Monthly KPI Score</div>
+            <div className="stat-card-label">KPI Score</div>
           </div>
         </div>
         <div className="stat-card stat-card--gold">
@@ -214,11 +221,15 @@ export default function RewardsTab({
           <div className="reward-catalog-grid">
             {catalog.map((item) => {
               const canRedeem = balance >= item.point_cost;
+              const needMore = Math.max(0, item.point_cost - balance);
               return (
-                <div key={item.id} className={`reward-card ${canRedeem ? 'reward-card--unlocked' : ''}`}>
+                <div key={item.id} className={`reward-card ${canRedeem ? 'reward-card--unlocked' : 'reward-card--locked'}`}>
                   <div className="reward-card-icon">{item.icon}</div>
                   <h4>{item.name}</h4>
                   <p>{item.description}</p>
+                  {!canRedeem && (
+                    <p className="reward-card-need">Need {needMore.toLocaleString()} more Reward Points</p>
+                  )}
                   <div className="reward-card-footer">
                     <span className="reward-card-cost">{item.point_cost.toLocaleString()} pts</span>
                     <button
@@ -226,7 +237,7 @@ export default function RewardsTab({
                       disabled={!canRedeem || redeeming === item.id}
                       onClick={() => handleRedeem(item)}
                     >
-                      {redeeming === item.id ? <Loader2 size={13} className="spin-icon" /> : canRedeem ? 'Redeem' : 'Locked'}
+                      {redeeming === item.id ? <Loader2 size={13} className="spin-icon" /> : canRedeem ? 'Redeem' : `Need ${needMore.toLocaleString()} more`}
                     </button>
                   </div>
                 </div>

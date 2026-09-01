@@ -1,5 +1,5 @@
 import { sendKpiEmail } from './kpiEmail';
-import { LeaveType, LEAVE_TYPE_LABEL } from './attendanceHelpers';
+import { LeaveType, formatLeaveType } from './attendanceHelpers';
 
 interface AdminRecipient {
   email: string;
@@ -9,6 +9,7 @@ interface AdminRecipient {
 export interface LeaveRequestEmailPayload {
   employee_name: string;
   leave_type: LeaveType;
+  leave_custom_type?: string | null;
   start_date: string;
   end_date: string;
   days_count: number;
@@ -20,7 +21,7 @@ export interface LeaveRequestEmailPayload {
 }
 
 export async function emailLeaveRequestNotifications(payload: LeaveRequestEmailPayload) {
-  const typeLabel = LEAVE_TYPE_LABEL[payload.leave_type] || payload.leave_type;
+  const typeLabel = formatLeaveType(payload.leave_type, payload.leave_custom_type);
   const reasonLine = payload.reason ? `\nReason: ${payload.reason}` : '';
 
   if (payload.requester_role === 'manager') {

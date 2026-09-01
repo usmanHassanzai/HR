@@ -16,6 +16,34 @@
   border-radius: var(--border-radius-md);
 }
 
+.attendance-section-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0.45rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.attendance-section-tabs .tab-btn {
+  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: center;
+  isolation: isolate;
+}
+
+.attendance-section-tabs .tab-btn svg {
+  flex-shrink: 0;
+}
+
+.attendance-section-tabs .tab-btn span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .attendance-tab {
   flex: 1;
   min-width: fit-content;
@@ -93,11 +121,42 @@
   margin: 0;
 }
 
+.attendance-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  width: 100%;
+}
+
+.attendance-hero__btn--leave-early {
+  flex: 1 1 100%;
+  max-width: none;
+  justify-content: center;
+}
+
 .attendance-hero__btn {
   width: 100%;
   max-width: 280px;
   padding: 0.9rem 1.25rem !important;
   font-size: 1rem !important;
+}
+
+.att-toggle {
+  background: var(--btn-secondary-bg);
+  color: var(--btn-secondary-text);
+  border: 1px solid var(--border-color);
+  box-shadow: none;
+}
+
+.att-toggle:hover:not(:disabled) {
+  border-color: var(--border-hover);
+}
+
+.att-toggle--in.is-active,
+.att-toggle--out.is-active {
+  background: var(--color-success, #16a34a);
+  color: #fff;
+  border-color: transparent;
 }
 
 .attendance-quick-stats {
@@ -298,6 +357,11 @@
   border-bottom: 1px solid var(--border-color);
 }
 
+.attendance-history-table .att-cell-muted {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
 .attendance-leave-chip {
   display: flex;
   flex-wrap: wrap;
@@ -340,6 +404,12 @@
 /* ── Geo attendance ── */
 .geo-attendance-panel {
   border-left: 4px solid var(--accent-primary);
+}
+
+.geo-attendance-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .geo-toggle-row {
@@ -997,4 +1067,46 @@
   font-size: 0.68rem;
   font-weight: 600;
   text-transform: uppercase;
+}
+
+@media (max-width: 900px) {
+  .attendance-section-tabs.tab-bar,
+  .attendance-section-tabs.tab-bar--inline-mobile {
+    display: flex;
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    gap: 0.4rem;
+    padding: 0.35rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .attendance-section-tabs.tab-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .attendance-section-tabs.tab-bar .tab-btn,
+  .attendance-section-tabs.admin-attendance-tabs .tab-btn {
+    flex: 0 0 auto !important;
+    flex-shrink: 0 !important;
+    min-width: max-content !important;
+    width: auto;
+    max-width: none;
+    white-space: nowrap;
+    justify-content: center;
+    border-radius: 999px;
+    padding: 0.52rem 0.9rem;
+    font-size: 0.8rem;
+    min-height: 42px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .attendance-section-tabs .tab-btn span {
+    overflow: visible;
+    text-overflow: unset;
+  }
 }

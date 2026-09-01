@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense, type ReactNode } from 'react';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { Profile } from './utils/kpiHelpers';
 import AppLoginScreen from './components/AppLoginScreen';
@@ -12,15 +12,27 @@ import { isDemoProfile } from './utils/demoMode';
 import { isPlatformRoute, fetchMyCompany, Company } from './utils/companyHelpers';
 import { useSupabaseRealtime } from './utils/useSupabaseRealtime';
 import { usePortalSessionGuard } from './utils/usePortalSessionGuard';
+import {
+  clearGeoHold,
+  isGeoHold,
+  setAttendanceLogoutProfile,
+  subscribeGeoHold,
+} from './utils/attendanceBackgroundSession';
 import Header from './components/Header';
 import GeoAttendanceTracker from './components/GeoAttendanceTracker';
+import PrivilegedMfaGate from './components/PrivilegedMfaGate';
+import { GEO_DASHBOARD_OPEN_EVENT } from './utils/geoAttendance';
+import { startPresenceHeartbeat } from './utils/presenceHeartbeat';
+import { roleRequiresMfa } from './utils/mfaHelpers';
 import { Loader2, AlertCircle } from 'lucide-react';
 
 const LandingPage = lazy(() => import('./components/LandingPage'));
 const PlatformOwnerPortal = lazy(() => import('./components/PlatformOwnerPortal'));
 const EmployeeDashboard = lazy(() => import('./components/EmployeeDashboard'));
 const ManagerDashboard = lazy(() => import('./components/ManagerDashboard'));
+const CompanySetupWizard = lazy(() => import('./components/CompanySetupWizard'));
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
+const HrDashboard = lazy(() => import('./components/HrDashboard'));
 
 function RouteFallback() {
   return (
@@ -38,7 +50,27 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [demoExpired, setDemoExpired] = useState(false);
-  usePortalSessionGuard(Boolean(session));
+  const [geoHold, setGeoHold] = useState(() => isGeoHold());
+  const [privilegedMfaOk, setPrivilegedMfaOk] = useState(false);
+  usePortalSessionGuard(Boolean(session), { idle: Boolean(session) && !geoHold });
+
+  useEffect(() => {
+    setAttendanceLogoutProfile(profile);
+  }, [profile]);
+
+  useEffect(() => subscribeGeoHold(() => setGeoHold(isGeoHold())), []);
+
+  useEffect(() => {
+    if (!session || !profile || geoHold) return;
+    if (profile.role !== 'employee' && profile.role !== 'manager') return;
+    window.dispatchEvent(new Event(GEO_DASHBOARD_OPEN_EVENT));
+  }, [session, profile, geoHold]);
+
+  useEffect(() => {
+    if (!session || !profile || geoHold) return;
+    if (profile.role !== 'employee' && profile.role !== 'manager') return;
+    return startPresenceHeartbeat();
+  }, [session, profile, geoHold]);
 
   const fetchUserProfile = async (userId: string) => {
     try {
@@ -109,12 +141,17 @@ function App() {
         return;
       }
       if (activeSession?.user) {
-        if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+        if (event === 'SIGNED_IN') {
+          clearGeoHold();
+          setGeoHold(false);
+          void fetchUserProfile(activeSession.user.id);
+        } else if (event === 'USER_UPDATED') {
           void fetchUserProfile(activeSession.user.id);
         }
       } else {
         setProfile(null);
         setCompany(null);
+        setPrivilegedMfaOk(false);
         setLoading(false);
       }
     });
@@ -151,6 +188,8 @@ function App() {
   );
 
   const handleLoginSuccess = async (activeSession: any) => {
+    clearGeoHold();
+    setGeoHold(false);
     setSession(activeSession);
     setLoading(true);
     setError('');
@@ -161,9 +200,14 @@ function App() {
   };
 
   const handleLogout = () => {
+    if (isGeoHold()) {
+      setGeoHold(true);
+      return;
+    }
     setSession(null);
     setProfile(null);
     setCompany(null);
+    setPrivilegedMfaOk(false);
     applyBranding(loadBranding(false));
   };
 
@@ -220,24 +264,39 @@ function App() {
   }
 
   // Same login experience as mobile web (Landing → Sign in), not a separate APK-only layout
-  if (!session || !profile) {
-    // APK / installed app: only Sign In + Register Company (no marketing website)
-    if (isAppShell()) {
-      return (
-        <NativeScrollRoot>
-          <AppLoginScreen onLoginSuccess={handleLoginSuccess} />
-        </NativeScrollRoot>
-      );
-    }
-    return (
-      <Suspense fallback={<RouteFallback />}>
-        <LandingPage onLoginSuccess={handleLoginSuccess} />
-      </Suspense>
-    );
-  }
+  const loginScreen = isAppShell() ? (
+    <NativeScrollRoot>
+      <AppLoginScreen onLoginSuccess={handleLoginSuccess} />
+    </NativeScrollRoot>
+  ) : (
+    <Suspense fallback={<RouteFallback />}>
+      <LandingPage onLoginSuccess={handleLoginSuccess} />
+    </Suspense>
+  );
 
-  if (demoExpired && isDemoProfile(profile)) {
-    return (
+  const staffSession = session && profile && (profile.role === 'employee' || profile.role === 'manager');
+  const geoTracker = staffSession ? <GeoAttendanceTracker profile={profile} /> : null;
+
+  let main: ReactNode;
+  if (geoHold && session && profile) {
+    main = (
+      <>
+        <div className="geo-hold-banner" role="status">
+          <p>
+            You left the dashboard, but location is still checked every 5 minutes until your shift ends.
+            Keep this page open. Sign in again whenever you want to return.
+          </p>
+          <button type="button" className="btn btn-primary" onClick={() => void handleLoginSuccess(session)}>
+            Back to dashboard
+          </button>
+        </div>
+        {loginScreen}
+      </>
+    );
+  } else if (!session || !profile) {
+    main = loginScreen;
+  } else if (demoExpired && isDemoProfile(profile)) {
+    main = (
       <NativeScrollRoot>
         <div className="dashboard-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
           <div className="glass-panel" style={{ maxWidth: 520, padding: '2rem', textAlign: 'center' }}>
@@ -251,37 +310,74 @@ function App() {
         </div>
       </NativeScrollRoot>
     );
-  }
-
-  if (company && company.status !== 'active') {
-    return (
+  } else if (company && company.status !== 'active') {
+    main = (
       <NativeScrollRoot>
         <CompanyPendingScreen company={company} onLogout={handleLogout} />
+      </NativeScrollRoot>
+    );
+  } else if (
+    profile.role === 'admin'
+    && company?.status === 'active'
+    && !company.onboarding_completed_at
+    && !isDemoProfile(profile)
+  ) {
+    main = (
+      <NativeScrollRoot>
+        <Suspense fallback={<RouteFallback />}>
+          <CompanySetupWizard
+            profile={profile}
+            company={company}
+            onFinished={() => {
+              if (session?.user?.id) void fetchUserProfile(session.user.id);
+            }}
+          />
+        </Suspense>
+      </NativeScrollRoot>
+    );
+  } else if (roleRequiresMfa(profile) && !privilegedMfaOk) {
+    main = (
+      <NativeScrollRoot>
+        <PrivilegedMfaGate
+          onSatisfied={() => setPrivilegedMfaOk(true)}
+          onCancel={() => {
+            void supabase.auth.signOut();
+            handleLogout();
+          }}
+        />
+      </NativeScrollRoot>
+    );
+  } else {
+    main = (
+      <NativeScrollRoot>
+        <div className={`dashboard-container${profile.role === 'admin' || profile.role === 'manager' || profile.role === 'employee' || profile.role === 'hr' ? ' dashboard-container--admin' : ''}`}>
+          {isDemoProfile(profile) && <DemoModeBanner />}
+          <Header profile={profile} organizationName={company?.name} onLogout={handleLogout} />
+
+          <main className="dashboard-main" style={{ marginTop: profile.role === 'admin' || profile.role === 'manager' || profile.role === 'hr' ? 0 : '1rem' }}>
+            <Suspense fallback={<RouteFallback />}>
+              {profile.role === 'admin' && (
+                <AdminDashboard profile={profile} organizationName={company?.name} />
+              )}
+              {profile.role === 'hr' && (
+                <HrDashboard profile={profile} organizationName={company?.name} />
+              )}
+              {profile.role === 'manager' && (
+                <ManagerDashboard profile={profile} organizationName={company?.name} />
+              )}
+              {profile.role === 'employee' && <EmployeeDashboard profile={profile} />}
+            </Suspense>
+          </main>
+        </div>
       </NativeScrollRoot>
     );
   }
 
   return (
-    <NativeScrollRoot>
-      <div className={`dashboard-container${profile.role === 'admin' ? ' dashboard-container--admin' : ''}`}>
-        {isDemoProfile(profile) && <DemoModeBanner />}
-        <Header profile={profile} organizationName={company?.name} onLogout={handleLogout} />
-
-        {(profile.role === 'employee' || profile.role === 'manager') && (
-          <GeoAttendanceTracker profile={profile} />
-        )}
-
-        <main className="dashboard-main" style={{ marginTop: profile.role === 'admin' ? 0 : '1rem' }}>
-          <Suspense fallback={<RouteFallback />}>
-            {profile.role === 'admin' && (
-              <AdminDashboard profile={profile} organizationName={company?.name} />
-            )}
-            {profile.role === 'manager' && <ManagerDashboard profile={profile} />}
-            {profile.role === 'employee' && <EmployeeDashboard profile={profile} />}
-          </Suspense>
-        </main>
-      </div>
-    </NativeScrollRoot>
+    <>
+      {geoTracker}
+      {main}
+    </>
   );
 }
 

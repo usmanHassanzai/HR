@@ -68,7 +68,7 @@ export default function TeamEmployeePointsPanel({ managerId, onSelectEmployee }:
               <div className="dash-team-points__metrics">
                 <div>
                   <strong className="dash-team-points__balance">{member.summary.balance.toLocaleString()}</strong>
-                  <span>Balance</span>
+                  <span>Reward Balance</span>
                 </div>
                 <div>
                   <strong>{member.summary.thisMonthPoints != null ? `+${member.summary.thisMonthPoints}` : '—'}</strong>
@@ -76,7 +76,7 @@ export default function TeamEmployeePointsPanel({ managerId, onSelectEmployee }:
                 </div>
                 <div>
                   <strong>{member.summary.totalEarned.toLocaleString()}</strong>
-                  <span>Earned</span>
+                  <span>Reward Earned</span>
                 </div>
               </div>
               {member.summary.canRedeem && (

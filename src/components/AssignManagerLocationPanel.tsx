@@ -136,7 +136,7 @@ export default function AssignManagerLocationPanel({
       return;
     }
     const emp = employees.find((u) => u.id === employeeId);
-    setMsg(`Assigned "${selectedEmpOffice.name}" to ${emp?.full_name || 'employee'}.`);
+    setMsg(`Assigned "${selectedEmpOffice.name}" to ${emp?.full_name || 'user'}.`);
     setEmployeeId('');
     await load();
     onAssigned?.();
@@ -147,14 +147,14 @@ export default function AssignManagerLocationPanel({
       setMsg('Please select an office location first.');
       return;
     }
-    const empOnlyCount = employees.filter((u) => u.role === 'employee').length;
-    if (empOnlyCount === 0) {
-      setMsg('No employees found in your organization.');
+    const staffCount = employees.length;
+    if (staffCount === 0) {
+      setMsg('No employees or managers found in your organization.');
       return;
     }
     if (
       !confirm(
-        `Assign "${selectedEmpOffice.name}" to all ${empOnlyCount} employee${empOnlyCount === 1 ? '' : 's'}? Existing employee assignments will be updated.`,
+        `Assign "${selectedEmpOffice.name}" to all ${staffCount} employee${staffCount === 1 ? '' : 's'} and manager${staffCount === 1 ? '' : 's'}? Existing personal assignments will be updated, and each manager’s team will inherit this zone.`,
       )
     ) {
       return;
@@ -169,7 +169,9 @@ export default function AssignManagerLocationPanel({
       setMsg(error.message);
       return;
     }
-    setMsg(`Assigned "${selectedEmpOffice.name}" to ${data ?? empOnlyCount} employee${(data ?? empOnlyCount) === 1 ? '' : 's'}.`);
+    setMsg(
+      `Assigned "${selectedEmpOffice.name}" to ${data ?? staffCount} employee${(data ?? staffCount) === 1 ? '' : 's'} and manager${(data ?? staffCount) === 1 ? '' : 's'}.`,
+    );
     await load();
     onAssigned?.();
   };
@@ -272,8 +274,8 @@ export default function AssignManagerLocationPanel({
             <UserCheck size={18} /> Step 2 — Assign office GPS
           </h3>
           <p className="attendance-card__subtitle">
-            Assign an office zone to all employees at once, or to any individual. You can also assign by manager so
-            their team inherits the same zone.
+            Assign an office zone to all employees and managers at once, or to any individual. You can also assign by
+            manager so their team inherits the same zone.
           </p>
         </>
       )}
@@ -332,10 +334,11 @@ export default function AssignManagerLocationPanel({
         <>
           <section className="admin-office-assign-block">
             <h4 className="attendance-card__title" style={{ fontSize: '0.95rem', marginBottom: '0.35rem' }}>
-              <Users size={16} /> Assign to employees
+              <Users size={16} /> Assign to employees and managers
             </h4>
             <p className="attendance-card__subtitle" style={{ marginBottom: '1rem' }}>
-              Personal assignment overrides the manager team zone for that person.
+              Personal assignment overrides the manager team zone for that person. Assign to all gives every employee
+              and manager this office GPS.
             </p>
 
             <form onSubmit={assignEmployee} className="attendance-form-grid attendance-form-grid--wide">
@@ -351,9 +354,9 @@ export default function AssignManagerLocationPanel({
                 </select>
               </div>
               <div className="form-group">
-                <label>Employee</label>
+                <label>Employee or manager</label>
                 <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
-                  <option value="">— Select employee —</option>
+                  <option value="">— Select person —</option>
                   {employees.map((u) => (
                     <option key={u.id} value={u.id}>
                       {u.full_name}
@@ -383,7 +386,7 @@ export default function AssignManagerLocationPanel({
                   className="btn btn-primary"
                   disabled={savingEmp || !employeeId || !empOfficeId}
                 >
-                  {savingEmp ? <Loader2 size={16} className="spin-icon" /> : <><UserPlus size={16} /> Assign to employee</>}
+                  {savingEmp ? <Loader2 size={16} className="spin-icon" /> : <><UserPlus size={16} /> Assign to person</>}
                 </button>
                 <button
                   type="button"
@@ -391,27 +394,27 @@ export default function AssignManagerLocationPanel({
                   disabled={assigningAll || !empOfficeId}
                   onClick={() => void assignAllEmployees()}
                 >
-                  {assigningAll ? <Loader2 size={16} className="spin-icon" /> : <><Users size={16} /> Assign to all employees</>}
+                  {assigningAll ? <Loader2 size={16} className="spin-icon" /> : <><Users size={16} /> Assign to all employees and managers</>}
                 </button>
               </div>
             </form>
 
-            {unassignedEmployees.filter((u) => u.role === 'employee').length > 0 && (
+            {unassignedEmployees.length > 0 && (
               <p className="geo-hint" style={{ marginTop: '0.75rem' }}>
-                {unassignedEmployees.filter((u) => u.role === 'employee').length} employee
-                {unassignedEmployees.filter((u) => u.role === 'employee').length === 1 ? '' : 's'} without a personal
-                office assignment
+                {unassignedEmployees.length} employee
+                {unassignedEmployees.length === 1 ? '' : 's'} / manager
+                {unassignedEmployees.length === 1 ? '' : 's'} without a personal office assignment
                 {assignments.length > 0 ? ' (may still inherit from their manager).' : '.'}
               </p>
             )}
 
             <div style={{ marginTop: '1.25rem' }}>
               <h4 className="attendance-card__title" style={{ fontSize: '0.9rem', marginBottom: '0.75rem' }}>
-                Employee assignments ({employeeAssignments.length})
+                Assignments ({employeeAssignments.length})
               </h4>
               {employeeAssignments.length === 0 ? (
                 <p className="attendance-empty" style={{ margin: 0 }}>
-                  No employees assigned yet. Use Assign to employee or Assign to all employees.
+                  No one assigned yet. Use Assign to person or Assign to all employees and managers.
                 </p>
               ) : (
                 <div className="attendance-approval-list">

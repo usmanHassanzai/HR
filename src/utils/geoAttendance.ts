@@ -2,6 +2,7 @@
 
 import { Capacitor } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
+import { supabase } from '../lib/supabase';
 
 export interface OfficeLocation {
   id: string;
@@ -12,6 +13,37 @@ export interface OfficeLocation {
   radius_meters: number;
   active: boolean;
   is_demo?: boolean;
+}
+
+/** Legacy interval constant — continuous GPS polling is disabled. */
+export const AUTO_LOCATION_CHECK_MS = 0;
+
+export const GEO_PING_EVENT = 'scorr-geo-ping';
+export const GEO_CLOCK_EVENT = 'scorr-geo-clock';
+export const GEO_DASHBOARD_OPEN_EVENT = 'scorr-geo-dashboard-open';
+
+export interface GeoPingEventDetail {
+  result: GeoPingResult;
+  latitude?: number;
+  longitude?: number;
+  accuracy?: number | null;
+  auto?: boolean;
+  checkedAt: number;
+}
+
+export function dispatchGeoPing(detail: GeoPingEventDetail) {
+  window.dispatchEvent(new CustomEvent(GEO_PING_EVENT, { detail }));
+  if (
+    detail.result.action === 'clock_in' ||
+    detail.result.action === 'clock_out' ||
+    detail.result.action === 'clock_out_shift_end'
+  ) {
+    window.dispatchEvent(new CustomEvent(GEO_CLOCK_EVENT, { detail: detail.result }));
+  }
+}
+
+export function localYmd(d = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 export interface GeoPingResult {
@@ -49,6 +81,58 @@ export function effectiveGeofenceRadius(radiusMeters: number, accuracyMeters?: n
 }
 
 const GEO_ENABLED_KEY = 'scorr-geo-attendance';
+const LAST_GPS_KEY = 'scorr-last-gps-fix';
+const LAST_GPS_MAX_AGE_MS = 15 * 60 * 1000;
+
+interface StoredGpsFix {
+  latitude: number;
+  longitude: number;
+  accuracy: number | null;
+  timestamp: number;
+}
+
+function rememberGpsFix(pos: GeolocationPosition): GeolocationPosition {
+  try {
+    const fix: StoredGpsFix = {
+      latitude: pos.coords.latitude,
+      longitude: pos.coords.longitude,
+      accuracy: pos.coords.accuracy ?? null,
+      timestamp: pos.timestamp || Date.now(),
+    };
+    sessionStorage.setItem(LAST_GPS_KEY, JSON.stringify(fix));
+  } catch {
+    /* ignore */
+  }
+  return pos;
+}
+
+function storedFixToPosition(fix: StoredGpsFix): GeolocationPosition {
+  return {
+    coords: {
+      latitude: fix.latitude,
+      longitude: fix.longitude,
+      accuracy: fix.accuracy ?? 80,
+      altitude: null,
+      altitudeAccuracy: null,
+      heading: null,
+      speed: null,
+    },
+    timestamp: fix.timestamp,
+  } as GeolocationPosition;
+}
+
+export function getLastGpsFix(maxAgeMs = LAST_GPS_MAX_AGE_MS): GeolocationPosition | null {
+  try {
+    const raw = sessionStorage.getItem(LAST_GPS_KEY);
+    if (!raw) return null;
+    const fix = JSON.parse(raw) as StoredGpsFix;
+    if (!Number.isFinite(fix.latitude) || !Number.isFinite(fix.longitude)) return null;
+    if (Date.now() - fix.timestamp > maxAgeMs) return null;
+    return storedFixToPosition(fix);
+  } catch {
+    return null;
+  }
+}
 
 /** Always on — attendance GPS cannot be turned off in-app. */
 export function isGeoAttendanceEnabled(): boolean {
@@ -71,30 +155,15 @@ export function setGeoAttendanceEnabled(_enabled: boolean): void {
 }
 
 /**
- * Auto-request location as soon as the user is signed in.
- * Phones/browsers still show one system Allow dialog — apps cannot grant location silently.
+ * Request when-in-use location permission only. Does not read GPS.
  */
 export async function bootstrapAttendanceLocation(): Promise<void> {
   setGeoAttendanceEnabled(true);
 
   if (Capacitor.isNativePlatform()) {
     await ensureBackgroundLocationReady();
-    await requestCurrentPosition().catch(() => undefined);
     return;
   }
-
-  if (!navigator.geolocation || !window.isSecureContext) return;
-
-  try {
-    if (navigator.permissions?.query) {
-      const status = await navigator.permissions.query({ name: 'geolocation' });
-      if (status.state === 'denied') return;
-    }
-  } catch {
-    /* Permissions API unsupported — still try getCurrentPosition */
-  }
-
-  await requestCurrentPosition().catch(() => undefined);
 }
 
 /** Haversine distance in meters (client-side preview). */
@@ -121,15 +190,72 @@ export function getGeoPermissionState(): GeoPermissionState {
   return 'prompt';
 }
 
-export function requestCurrentPosition(opts?: {
+export async function requestCurrentPosition(opts?: {
   maximumAge?: number;
   timeout?: number;
   enableHighAccuracy?: boolean;
 }): Promise<GeolocationPosition> {
-  if (Capacitor.isNativePlatform()) {
-    return requestNativePosition(opts);
+  const attempts: Array<{ maximumAge: number; timeout: number; enableHighAccuracy: boolean }> = [
+    {
+      enableHighAccuracy: opts?.enableHighAccuracy ?? false,
+      timeout: opts?.timeout ?? 12000,
+      maximumAge: opts?.maximumAge ?? 90_000,
+    },
+    { enableHighAccuracy: false, timeout: 10000, maximumAge: 180_000 },
+    { enableHighAccuracy: true, timeout: 20000, maximumAge: 30_000 },
+  ];
+
+  let lastError: unknown;
+  for (const attempt of attempts) {
+    try {
+      const pos = Capacitor.isNativePlatform()
+        ? await requestNativePosition(attempt)
+        : await requestBrowserPosition(attempt);
+      return rememberGpsFix(pos);
+    } catch (err) {
+      lastError = err;
+    }
   }
-  return requestBrowserPosition(opts);
+
+  const cached = getLastGpsFix();
+  if (cached) return cached;
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error('Location timed out. Check GPS is on and try again.');
+}
+
+/** Logout does not read GPS. Clock-out is an explicit attendance action. */
+export async function pingAttendanceBeforeLogout(): Promise<void> {
+  return;
+}
+
+export type GeoClockIntent = 'clock_in' | 'clock_out';
+
+/** One GPS read, then server clock-in or clock-out. No interval logging. */
+export async function submitGeoClockEvent(intent: GeoClockIntent): Promise<GeoPingResult> {
+  const pos = await requestCurrentPosition({
+    maximumAge: 0,
+    timeout: 20_000,
+    enableHighAccuracy: true,
+  });
+  const { data, error } = await supabase.rpc('process_geo_attendance_ping', {
+    p_latitude: pos.coords.latitude,
+    p_longitude: pos.coords.longitude,
+    p_accuracy: pos.coords.accuracy ?? null,
+    p_intent: intent,
+  });
+  if (error) throw error;
+  const result = data as GeoPingResult;
+  dispatchGeoPing({
+    result,
+    latitude: pos.coords.latitude,
+    longitude: pos.coords.longitude,
+    accuracy: pos.coords.accuracy ?? null,
+    auto: false,
+    checkedAt: Date.now(),
+  });
+  return result;
 }
 
 /**
@@ -237,10 +363,10 @@ function requestBrowserPosition(opts?: {
 export function geoActionLabel(action: GeoPingResult['action']): string {
   switch (action) {
     case 'clock_in': return 'Clocked in at office';
-    case 'clock_out': return 'Clocked out (left office)';
+    case 'clock_out': return 'Clocked out (exit location saved)';
     case 'clock_out_shift_end': return 'Clocked out (shift ended)';
     case 'already_clocked_in': return 'On site · visit in progress';
-    case 'already_clocked_out': return 'Away from office · visit saved';
+    case 'already_clocked_out': return 'Checked out · you can clock in again during the shift';
     case 'outside_office': return 'Outside office zone';
     case 'shift_not_started': return 'Shift has not started yet';
     case 'not_work_day': return 'Not scheduled to work today';
@@ -249,13 +375,74 @@ export function geoActionLabel(action: GeoPingResult['action']): string {
   }
 }
 
-/** Request location (incl. background where the OS allows) for attendance while minimized. */
+export type AttendanceWatchId = string | number;
+
+/** Keep watching GPS after the dashboard is closed/minimized. Does not check out by itself. */
+export async function watchAttendancePosition(
+  onPosition: (lat: number, lng: number, accuracy: number | null) => void,
+): Promise<AttendanceWatchId> {
+  if (Capacitor.isNativePlatform()) {
+    await ensureBackgroundLocationReady();
+    return Geolocation.watchPosition(
+      {
+        enableHighAccuracy: false,
+        timeout: 20000,
+        maximumAge: 60000,
+        minimumUpdateInterval: 60_000,
+        interval: 60_000,
+      },
+      (pos, err) => {
+        if (err || !pos) return;
+        rememberGpsFix({
+          coords: {
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            accuracy: pos.coords.accuracy ?? null,
+            altitude: pos.coords.altitude ?? null,
+            altitudeAccuracy: pos.coords.altitudeAccuracy ?? null,
+            heading: pos.coords.heading ?? null,
+            speed: pos.coords.speed ?? null,
+          },
+          timestamp: pos.timestamp,
+        } as GeolocationPosition);
+        onPosition(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy ?? null);
+      },
+    );
+  }
+
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Geolocation is not supported on this device.'));
+      return;
+    }
+    const id = navigator.geolocation.watchPosition(
+      (pos) => {
+        rememberGpsFix(pos);
+        onPosition(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy ?? null);
+      },
+      () => undefined,
+      { enableHighAccuracy: false, maximumAge: 60000, timeout: 20000 },
+    );
+    resolve(id);
+  });
+}
+
+export async function clearAttendanceWatch(id: AttendanceWatchId | null): Promise<void> {
+  if (id == null) return;
+  if (Capacitor.isNativePlatform() && typeof id === 'string') {
+    await Geolocation.clearWatch({ id });
+    return;
+  }
+  if (typeof id === 'number') navigator.geolocation.clearWatch(id);
+}
+
+/** When-in-use location only — no background / always-on GPS. */
 export async function ensureBackgroundLocationReady(): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
 
   const perm = await Geolocation.checkPermissions();
   if (perm.location === 'denied' && perm.coarseLocation === 'denied') {
-    throw new Error('Location blocked. Open Settings → Scorr → Location → Allow all the time.');
+    throw new Error('Location blocked. Open Settings → Scorr → Location → While using the app.');
   }
 
   if (perm.location !== 'granted') {
@@ -263,14 +450,7 @@ export async function ensureBackgroundLocationReady(): Promise<void> {
       permissions: ['location', 'coarseLocation'],
     });
     if (req.location !== 'granted' && req.coarseLocation !== 'granted') {
-      throw new Error('Location permission required for automatic attendance.');
+      throw new Error('Location permission is required to clock in or out.');
     }
-  }
-
-  // Re-prompt so Android can offer "Allow all the time" after when-in-use is granted.
-  try {
-    await Geolocation.requestPermissions({ permissions: ['location'] });
-  } catch {
-    /* already granted or not supported */
   }
 }

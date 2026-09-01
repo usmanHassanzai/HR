@@ -1,16 +1,23 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Building2,
   Loader2,
   RefreshCw,
   Search,
   Trophy,
   Users,
-  UserCheck,
-  User,
+  Eye,
+  Check,
+  X,
+  ArrowLeft,
+  AlertCircle,
+  CheckCircle2,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
+import { Kpi } from '../utils/kpiHelpers';
+import { tierColorForScore } from '../utils/rewardsTiers';
+import { kpiCategoryMeta } from '../utils/kpiCategories';
+import { isKpiLateCompletion, kpiAssignedScore, kpiScoreContribution } from '../utils/kpiScoreHelpers';
 import '../styles/admin-kpi-points.css';
 
 export interface OrgKpiPointsRow {
@@ -30,14 +37,24 @@ export interface OrgKpiPointsRow {
   balance: number;
   this_month_points: number | null;
   this_month_score: number | null;
+  kpi_period_start: string | null;
+  kpi_period_end: string | null;
 }
 
 type RoleFilter = 'all' | 'manager' | 'employee' | 'admin';
-type ViewMode = 'people' | 'departments';
+
+interface AdminOrgKpiPointsBoardProps {
+  /** Admin sees every department; manager is limited to their department. */
+  variant?: 'admin' | 'manager';
+  /** Used to keep a manager inside their own department/team. */
+  managerProfile?: { id: string; department_id?: string | null };
+  initialSearch?: string;
+}
 
 function roleLabel(role: string): string {
   if (role === 'admin') return 'Admin';
   if (role === 'manager') return 'Manager';
+  if (role === 'hr') return 'HR';
   return 'Employee';
 }
 
@@ -48,29 +65,279 @@ function healthClass(score: number): string {
 }
 
 function normalizeRows(data: unknown): OrgKpiPointsRow[] {
-  return ((data as OrgKpiPointsRow[]) || []).map((r) => ({
-    ...r,
-    health_score: Number(r.health_score) || 0,
-    total_kpis: Number(r.total_kpis) || 0,
-    completed_kpis: Number(r.completed_kpis) || 0,
-    pending_kpis: Number(r.pending_kpis) || 0,
-    kpi_points: Number(r.kpi_points) || 0,
-    total_earned: Number(r.total_earned) || 0,
-    used_points: Number(r.used_points) || 0,
-    balance: Number(r.balance) || 0,
-    this_month_points: r.this_month_points == null ? null : Number(r.this_month_points),
-    this_month_score: r.this_month_score == null ? null : Number(r.this_month_score),
-  }));
+  return ((data as OrgKpiPointsRow[]) || []).map((r) => {
+    const kpiPts = Number(r.kpi_points) || 0;
+    const earned = Number(r.total_earned) || 0;
+    const used = Number(r.used_points) || 0;
+    return {
+      ...r,
+      health_score: Number(r.health_score) || 0,
+      total_kpis: Number(r.total_kpis) || 0,
+      completed_kpis: Number(r.completed_kpis) || 0,
+      pending_kpis: Number(r.pending_kpis) || 0,
+      kpi_points: kpiPts,
+      total_earned: earned,
+      used_points: used,
+      balance: earned - used,
+      this_month_points: r.this_month_points == null ? 0 : Number(r.this_month_points),
+      this_month_score: r.this_month_score == null ? Number(r.health_score) || 0 : Number(r.this_month_score),
+      kpi_period_start: r.kpi_period_start || null,
+      kpi_period_end: r.kpi_period_end || null,
+    };
+  });
 }
 
-export default function AdminOrgKpiPointsBoard() {
+function formatKpiDate(value: string | null): string | null {
+  if (!value) return null;
+  const d = new Date(`${value.slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function currentMonthLabel(): string {
+  return new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+}
+
+interface OrgUserMonthModalProps {
+  userId: string;
+  fullName: string;
+  role: string;
+  healthScore: number;
+  thisMonthPoints: number | null;
+  onClose: () => void;
+}
+
+function OrgUserMonthModal({
+  userId,
+  fullName,
+  role,
+  healthScore,
+  thisMonthPoints,
+  onClose,
+}: OrgUserMonthModalProps) {
+  const [kpis, setKpis] = useState<Kpi[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const now = new Date();
+  const monthDisplay = now.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  const y = now.getFullYear();
+  const m = now.getMonth() + 1;
+  const monthStart = `${y}-${String(m).padStart(2, '0')}-01`;
+  const lastDay = new Date(y, m, 0).getDate();
+  const monthEnd = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadTasks() {
+      setLoading(true);
+      setError(null);
+      try {
+        const { data, error: kpiErr } = await supabase
+          .from('kpis')
+          .select('*')
+          .eq('user_id', userId)
+          .order('end_date', { ascending: false });
+
+        if (kpiErr) throw kpiErr;
+
+        if (isMounted) {
+          const allUserKpis = (data || []) as Kpi[];
+          const monthKpis = allUserKpis.filter((k) => {
+            const completedDate = (k.completed_at || k.updated_at || '').slice(0, 10);
+            const endDate = (k.end_date || '').slice(0, 10);
+            const startDate = (k.start_date || k.created_at || '').slice(0, 10);
+
+            if (k.completion_status === 'completed' && completedDate >= monthStart && completedDate <= monthEnd) {
+              return true;
+            }
+            if (endDate >= monthStart && endDate <= monthEnd) {
+              return true;
+            }
+            return startDate <= monthEnd && (endDate ? endDate >= monthStart : true);
+          });
+          setKpis(monthKpis);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError(err instanceof Error ? err.message : 'Failed to load task history');
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadTasks();
+    return () => {
+      isMounted = false;
+    };
+  }, [userId, monthStart, monthEnd]);
+
+  const completedKpis = kpis.filter((k) => k.completion_status === 'completed');
+  const openKpis = kpis.filter((k) => k.completion_status !== 'completed');
+
+  return (
+    <div className="user-hub-overlay" onClick={onClose}>
+      <div className="user-hub-dialog org-user-month-modal" style={{ maxWidth: '840px' }} onClick={(e) => e.stopPropagation()}>
+        <div className="user-hub-topbar">
+          <button type="button" className="user-hub-back" onClick={onClose}>
+            <ArrowLeft size={18} />
+            Back
+          </button>
+          <button type="button" className="user-hub-close" onClick={onClose} aria-label="Close dialog">
+            <X size={20} />
+          </button>
+        </div>
+
+        <header className="user-hub-hero">
+          <div className="user-hub-hero__info">
+            <div className={`admin-user-card__avatar admin-user-card__avatar--${role}`}>
+              {fullName.slice(0, 2).toUpperCase()}
+            </div>
+            <div className="user-hub-hero__text">
+              <div className="user-hub-hero__title-row">
+                <h2>{fullName}</h2>
+                <span className={`admin-role-badge admin-role-badge--${role}`}>
+                  {role.toUpperCase()}
+                </span>
+              </div>
+              <p className="user-hub-hero__email">
+                Current Month (<strong>{monthDisplay}</strong>) · KPI Score: <strong style={{ color: tierColorForScore(healthScore) }}>{Number(healthScore).toFixed(2)}%</strong> · Bonus: <strong style={{ color: 'var(--color-success)' }}>+{Number(thisMonthPoints ?? 0).toLocaleString()} pts</strong>
+              </p>
+            </div>
+          </div>
+        </header>
+
+        <div className="user-hub-body">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <h4 className="user-hub-section-title" style={{ margin: 0 }}>
+              Completed &amp; Assigned Tasks for {monthDisplay} ({kpis.length} total)
+            </h4>
+            <div style={{ display: 'flex', gap: '0.6rem', fontSize: '0.8rem' }}>
+              <span style={{ color: 'var(--color-success)', fontWeight: 700 }}>
+                ✓ {completedKpis.length} Completed
+              </span>
+              {openKpis.length > 0 && (
+                <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>
+                  · {openKpis.length} In Progress / Open
+                </span>
+              )}
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="admin-rewards-loading" style={{ padding: '2rem 1rem' }}>
+              <Loader2 size={24} className="spin-icon" />
+              <span>Loading tasks for {monthDisplay}…</span>
+            </div>
+          ) : error ? (
+            <div className="admin-rewards-alert admin-rewards-alert--error">
+              <AlertCircle size={16} />
+              <span>{error}</span>
+            </div>
+          ) : kpis.length === 0 ? (
+            <div className="admin-rewards-empty" style={{ padding: '2rem 1rem' }}>
+              <CheckCircle2 size={36} strokeWidth={1.25} />
+              <h4>No tasks found for this month</h4>
+              <p>No KPI tasks were logged or completed for {fullName} in {monthDisplay}.</p>
+            </div>
+          ) : (
+            <div className="admin-rewards-table-wrap">
+              <table className="admin-rewards-table" style={{ width: '100%' }}>
+                <thead>
+                  <tr>
+                    <th>Task / KPI Name</th>
+                    <th>Category</th>
+                    <th>Weight</th>
+                    <th>Score</th>
+                    <th>Points Awarded</th>
+                    <th>Status &amp; Completion</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {kpis.map((kpi) => {
+                    const isDone = kpi.completion_status === 'completed';
+                    const isLate = isKpiLateCompletion(kpi);
+                    const awarded = kpiScoreContribution(kpi);
+                    const cat = kpiCategoryMeta(kpi.kpi_category);
+                    const completedDateStr = kpi.completed_at || (isDone ? kpi.updated_at : null);
+
+                    return (
+                      <tr key={kpi.id}>
+                        <td>
+                          <strong>{kpi.name}</strong>
+                          {kpi.description && (
+                            <p style={{ margin: '0.2rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)', maxWidth: '280px' }}>
+                              {kpi.description}
+                            </p>
+                          )}
+                        </td>
+                        <td>
+                          <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
+                            {cat.label}
+                          </span>
+                        </td>
+                        <td style={{ fontWeight: 600 }}>{kpi.weight || 0}%</td>
+                        <td style={{ fontWeight: 600 }}>{kpiAssignedScore(kpi)} pts</td>
+                        <td>
+                          <strong style={{ color: isDone ? (isLate ? '#d97706' : 'var(--color-success)') : 'var(--text-muted)' }}>
+                            {isDone ? `${awarded} pts` : '0 pts (open)'}
+                          </strong>
+                          {isDone && isLate && (
+                            <span style={{ display: 'block', fontSize: '0.68rem', color: '#d97706' }}>
+                              (50% late deduction)
+                            </span>
+                          )}
+                        </td>
+                        <td>
+                          {isDone ? (
+                            <div>
+                              <span className="badge badge-on-track" style={{ fontSize: '0.68rem', fontWeight: 700 }}>
+                                <Check size={11} style={{ display: 'inline', verticalAlign: '-1px', marginRight: '2px' }} /> Completed
+                              </span>
+                              {completedDateStr && (
+                                <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
+                                  {new Date(completedDateStr).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                              In progress
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function AdminOrgKpiPointsBoard({
+  variant = 'admin',
+  managerProfile,
+  initialSearch = '',
+}: AdminOrgKpiPointsBoardProps) {
+  const isManagerView = variant === 'manager';
   const [rows, setRows] = useState<OrgKpiPointsRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialSearch || '');
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
-  const [deptFilter, setDeptFilter] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<ViewMode>('people');
+  const [selectedRow, setSelectedRow] = useState<OrgKpiPointsRow | null>(null);
+
+  useEffect(() => {
+    if (initialSearch) setSearch(initialSearch);
+  }, [initialSearch]);
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) {
@@ -103,25 +370,15 @@ export default function AdminOrgKpiPointsBoard() {
     () => { void load({ silent: true }); },
   );
 
-  const departments = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const r of rows) {
-      if (r.department_id && r.department_name) map.set(r.department_id, r.department_name);
-    }
-    return Array.from(map.entries())
-      .map(([id, name]) => ({ id, name }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [rows]);
+  const scopedRows = useMemo(() => {
+    if (!isManagerView) return rows;
+    return rows.filter((r) => r.role !== 'admin' || r.user_id === managerProfile?.id);
+  }, [isManagerView, managerProfile, rows]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return rows.filter((r) => {
+    return scopedRows.filter((r) => {
       if (roleFilter !== 'all' && r.role !== roleFilter) return false;
-      if (deptFilter !== 'all') {
-        if (deptFilter === '__none__') {
-          if (r.department_id) return false;
-        } else if (r.department_id !== deptFilter) return false;
-      }
       if (!q) return true;
       return (
         r.full_name.toLowerCase().includes(q) ||
@@ -130,71 +387,13 @@ export default function AdminOrgKpiPointsBoard() {
         roleLabel(r.role).toLowerCase().includes(q)
       );
     });
-  }, [rows, search, roleFilter, deptFilter]);
-
-  const stats = useMemo(() => {
-    const managers = rows.filter((r) => r.role === 'manager').length;
-    const employees = rows.filter((r) => r.role === 'employee').length;
-    const avgHealth =
-      rows.length === 0
-        ? 0
-        : Math.round(rows.reduce((s, r) => s + r.health_score, 0) / rows.length);
-    const totalBalance = rows.reduce((s, r) => s + r.balance, 0);
-    const totalEarned = rows.reduce((s, r) => s + r.total_earned, 0);
-    const totalKpiPoints = Math.round(rows.reduce((s, r) => s + r.kpi_points, 0) * 100) / 100;
-    return { managers, employees, avgHealth, totalBalance, totalEarned, totalKpiPoints, depts: departments.length };
-  }, [rows, departments.length]);
-
-  const deptGroups = useMemo(() => {
-    const groups = new Map<
-      string,
-      {
-        id: string;
-        name: string;
-        members: OrgKpiPointsRow[];
-        avgHealth: number;
-        totalBalance: number;
-        totalEarned: number;
-        totalKpiPoints: number;
-      }
-    >();
-
-    for (const r of filtered) {
-      const id = r.department_id || '__none__';
-      const name = r.department_name || 'Unassigned';
-      if (!groups.has(id)) {
-        groups.set(id, {
-          id,
-          name,
-          members: [],
-          avgHealth: 0,
-          totalBalance: 0,
-          totalEarned: 0,
-          totalKpiPoints: 0,
-        });
-      }
-      groups.get(id)!.members.push(r);
-    }
-
-    return Array.from(groups.values())
-      .map((g) => {
-        const n = g.members.length || 1;
-        return {
-          ...g,
-          avgHealth: Math.round(g.members.reduce((s, m) => s + m.health_score, 0) / n),
-          totalBalance: g.members.reduce((s, m) => s + m.balance, 0),
-          totalEarned: g.members.reduce((s, m) => s + m.total_earned, 0),
-          totalKpiPoints: Math.round(g.members.reduce((s, m) => s + m.kpi_points, 0) * 100) / 100,
-        };
-      })
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [filtered]);
+  }, [scopedRows, search, roleFilter]);
 
   if (loading && rows.length === 0) {
     return (
       <div className="admin-kpi-points-loading">
         <Loader2 size={28} className="spin-icon" />
-        <span>Loading organization KPI points…</span>
+        <span>Loading each person&apos;s scores…</span>
       </div>
     );
   }
@@ -207,54 +406,10 @@ export default function AdminOrgKpiPointsBoard() {
             <Trophy size={22} />
           </div>
           <div>
-            <h2 className="admin-kpi-points__title">Organization KPI points</h2>
+            <h2 className="admin-kpi-points__title">Each person&apos;s scores</h2>
             <p className="admin-kpi-points__subtitle">
-              Watch KPI achievement and rewards points for every department, manager, and employee.
+              KPI score, performance points, and reward points are listed per person — not as a team or department total. Reward points come from monthly score bands (90%→1000, 80%→500, 70%→250, below 70%→0).
             </p>
-          </div>
-        </div>
-        <div className="admin-kpi-points__stats">
-          <div className="admin-kpi-points__stat">
-            <Building2 size={14} />
-            <div>
-              <strong>{stats.depts}</strong>
-              <span>Departments</span>
-            </div>
-          </div>
-          <div className="admin-kpi-points__stat">
-            <UserCheck size={14} />
-            <div>
-              <strong>{stats.managers}</strong>
-              <span>Managers</span>
-            </div>
-          </div>
-          <div className="admin-kpi-points__stat">
-            <User size={14} />
-            <div>
-              <strong>{stats.employees}</strong>
-              <span>Employees</span>
-            </div>
-          </div>
-          <div className="admin-kpi-points__stat admin-kpi-points__stat--accent">
-            <Trophy size={14} />
-            <div>
-              <strong>{stats.totalKpiPoints.toLocaleString()}</strong>
-              <span>Total KPI pts</span>
-            </div>
-          </div>
-          <div className="admin-kpi-points__stat">
-            <UserCheck size={14} />
-            <div>
-              <strong>{stats.avgHealth}%</strong>
-              <span>Avg KPI</span>
-            </div>
-          </div>
-          <div className="admin-kpi-points__stat">
-            <Users size={14} />
-            <div>
-              <strong>{stats.totalBalance.toLocaleString()}</strong>
-              <span>Points balance</span>
-            </div>
           </div>
         </div>
       </header>
@@ -273,7 +428,7 @@ export default function AdminOrgKpiPointsBoard() {
           <Search size={16} />
           <input
             type="search"
-            placeholder="Search name, email, department…"
+            placeholder="Search people…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             aria-label="Search people"
@@ -285,33 +440,8 @@ export default function AdminOrgKpiPointsBoard() {
             <option value="all">All roles</option>
             <option value="manager">Managers</option>
             <option value="employee">Employees</option>
-            <option value="admin">Admins</option>
+            {!isManagerView && <option value="admin">Admins</option>}
           </select>
-          <select value={deptFilter} onChange={(e) => setDeptFilter(e.target.value)} aria-label="Filter by department">
-            <option value="all">All departments</option>
-            <option value="__none__">Unassigned</option>
-            {departments.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
-          <div className="admin-kpi-points__view-toggle" role="group" aria-label="View mode">
-            <button
-              type="button"
-              className={viewMode === 'people' ? 'is-active' : ''}
-              onClick={() => setViewMode('people')}
-            >
-              People
-            </button>
-            <button
-              type="button"
-              className={viewMode === 'departments' ? 'is-active' : ''}
-              onClick={() => setViewMode('departments')}
-            >
-              By department
-            </button>
-          </div>
           <button type="button" className="btn btn-secondary btn-sm" onClick={() => void load()} title="Refresh">
             <RefreshCw size={14} className={loading ? 'spin-icon' : undefined} />
             Refresh
@@ -319,48 +449,33 @@ export default function AdminOrgKpiPointsBoard() {
         </div>
       </div>
 
-      {viewMode === 'departments' ? (
-        <div className="admin-kpi-points__dept-list">
-          {deptGroups.length === 0 ? (
-            <p className="admin-kpi-points__empty">No people match your filters.</p>
-          ) : (
-            deptGroups.map((g) => (
-              <section key={g.id} className="admin-kpi-points__dept glass-panel">
-                <header className="admin-kpi-points__dept-head">
-                  <div>
-                    <h3>
-                      <Building2 size={16} /> {g.name}
-                    </h3>
-                    <p>
-                      {g.members.length} member{g.members.length !== 1 ? 's' : ''} · Avg KPI{' '}
-                      <strong className={healthClass(g.avgHealth)}>{g.avgHealth}%</strong>
-                    </p>
-                  </div>
-                  <div className="admin-kpi-points__dept-totals">
-                    <span>
-                      KPI pts <strong>{g.totalKpiPoints.toLocaleString()}</strong>
-                    </span>
-                    <span>
-                      Balance <strong>{g.totalBalance.toLocaleString()}</strong>
-                    </span>
-                    <span>
-                      Earned <strong>{g.totalEarned.toLocaleString()}</strong>
-                    </span>
-                  </div>
-                </header>
-                <PeopleTable rows={g.members} />
-              </section>
-            ))
-          )}
-        </div>
-      ) : (
-        <div className="admin-kpi-points__table-wrap glass-panel">
-          {filtered.length === 0 ? (
-            <p className="admin-kpi-points__empty">No people match your filters.</p>
-          ) : (
-            <PeopleTable rows={filtered} showDepartment />
-          )}
-        </div>
+      <section className="admin-kpi-points__dept glass-panel">
+        <header className="admin-kpi-points__dept-head">
+          <div>
+            <h3>
+              <Users size={16} /> People
+            </h3>
+            <p>
+              {filtered.length} person{filtered.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+        </header>
+        {filtered.length === 0 ? (
+          <p className="admin-kpi-points__empty">No people match your filters.</p>
+        ) : (
+          <PeopleTable rows={filtered} onSelectRow={(row) => setSelectedRow(row)} />
+        )}
+      </section>
+
+      {selectedRow && (
+        <OrgUserMonthModal
+          userId={selectedRow.user_id}
+          fullName={selectedRow.full_name}
+          role={selectedRow.role}
+          healthScore={selectedRow.health_score}
+          thisMonthPoints={selectedRow.this_month_points}
+          onClose={() => setSelectedRow(null)}
+        />
       )}
     </div>
   );
@@ -368,42 +483,55 @@ export default function AdminOrgKpiPointsBoard() {
 
 function PeopleTable({
   rows,
-  showDepartment = false,
+  onSelectRow,
 }: {
   rows: OrgKpiPointsRow[];
-  showDepartment?: boolean;
+  onSelectRow: (row: OrgKpiPointsRow) => void;
 }) {
   return (
     <div className="admin-kpi-points__scroll">
-      <table className="admin-kpi-points__table">
+      <table className="admin-kpi-points__table admin-kpi-points__table--clickable">
         <thead>
           <tr>
             <th>Person</th>
             <th>Role</th>
-            {showDepartment && <th>Department</th>}
             <th>KPI score</th>
-            <th>KPI points</th>
+            <th>Performance pts</th>
             <th>KPI tasks</th>
             <th>This month</th>
-            <th>Earned</th>
-            <th>Balance</th>
+            <th>Reward earned</th>
+            <th>Reward balance</th>
+            <th>History</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={r.user_id}>
+            <tr
+              key={r.user_id}
+              className="admin-kpi-points__row--clickable"
+              onClick={() => onSelectRow(r)}
+              title={`Click to view ${r.full_name}'s completed tasks for this month`}
+            >
               <td>
-                <div className="admin-kpi-points__person">
-                  <strong>{r.full_name}</strong>
-                  <span>{r.email}</span>
-                </div>
+                <button
+                  type="button"
+                  className="admin-kpi-points__member-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectRow(r);
+                  }}
+                >
+                  <div className="admin-kpi-points__person">
+                    <strong>{r.full_name}</strong>
+                    <span>{r.email}</span>
+                  </div>
+                </button>
               </td>
               <td>
                 <span className={`admin-kpi-points__role admin-kpi-points__role--${r.role}`}>
                   {roleLabel(r.role)}
                 </span>
               </td>
-              {showDepartment && <td>{r.department_name || '—'}</td>}
               <td>
                 <strong className={`admin-kpi-points__health ${healthClass(r.health_score)}`}>
                   {Number(r.health_score).toFixed(2)}%
@@ -419,20 +547,40 @@ function PeopleTable({
                 )}
               </td>
               <td>
-                {r.this_month_points != null ? (
-                  <>
-                    +{r.this_month_points}
+                <div className="admin-kpi-points__month">
+                  <span className="admin-kpi-points__month-dates">
+                    {(() => {
+                      const start = formatKpiDate(r.kpi_period_start);
+                      const end = formatKpiDate(r.kpi_period_end);
+                      if (start && end && start !== end) return `${start} – ${end}`;
+                      if (start || end) return start || end;
+                      return currentMonthLabel();
+                    })()}
+                  </span>
+                  <span className="admin-kpi-points__month-pts">
+                    +{Number(r.this_month_points ?? 0).toLocaleString()} reward pts
                     {r.this_month_score != null && (
-                      <span className="admin-kpi-points__muted"> ({Math.round(r.this_month_score)}%)</span>
+                      <span> · {Number(r.this_month_score).toFixed(2)}%</span>
                     )}
-                  </>
-                ) : (
-                  '—'
-                )}
+                  </span>
+                </div>
               </td>
               <td>{r.total_earned.toLocaleString()}</td>
               <td>
                 <strong>{r.balance.toLocaleString()}</strong>
+              </td>
+              <td>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectRow(r);
+                  }}
+                  style={{ padding: '0.28rem 0.6rem', fontSize: '0.76rem', gap: '0.3rem' }}
+                >
+                  <Eye size={13} /> Tasks
+                </button>
               </td>
             </tr>
           ))}

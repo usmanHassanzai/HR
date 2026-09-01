@@ -1,158 +1,117 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Profile } from '../utils/kpiHelpers';
 import {
   Trophy,
-  Star,
   Gift,
   Loader2,
   CheckCircle,
-  Clock,
-  Users,
   AlertCircle,
-  Sparkles,
-  ArrowRight,
+  Users,
 } from 'lucide-react';
-import { REWARD_CATALOG_COST } from '../utils/rewardsTiers';
+import type { KpiAwardPipelineRow, KpiAwardProgress } from '../utils/kpiAwardHelpers';
+import KpiAwardProgressList from './KpiAwardProgressList';
 import '../styles/manager-rewards.css';
+import '../styles/employee-rewards.css';
 
 interface ManagerRewardsPanelProps {
   managerId: string;
-  onGoToPersonal?: () => void;
 }
 
-interface TeamMemberPoints {
+type TeamGiftRow = {
   id: string;
   full_name: string;
   email: string;
-  totalEarned: number;
-  totalUsed: number;
-  balance: number;
-  rewardsUnlocked: number;
+  isSelf: boolean;
+  progress: KpiAwardProgress[];
+};
+
+function giftLine(rows: KpiAwardProgress[], key: string, fallback: string): string {
+  const row = rows.find((r) => r.rule_key === key);
+  if (!row) return fallback;
+  if (row.qualified) return 'Qualified';
+  if (key === 'dinner_voucher') {
+    return row.latest_score != null ? `${Math.round(Number(row.latest_score))}% this month` : '—';
+  }
+  return `${Number(row.current_months || 0)}/${Number(row.required_months || 0)} months`;
 }
 
-interface TeamRedemption {
-  id: string;
-  employee_id: string;
-  points_used: number;
-  status: string;
-  redeemed_at: string;
-  users?: { full_name: string };
-  rewards_catalog?: { name: string; icon: string };
+function statusLabel(status: string): string {
+  if (status === 'approved') return 'Approved';
+  if (status === 'issued' || status === 'fulfilled') return 'Delivered';
+  return 'Pending';
 }
 
-function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? '')
-    .join('') || '?';
-}
-
-function redemptionStatusClass(status: string): string {
-  if (status === 'pending') return 'mgr-rewards-status mgr-rewards-status--pending';
-  if (status === 'approved') return 'mgr-rewards-status mgr-rewards-status--approved';
-  return 'mgr-rewards-status mgr-rewards-status--fulfilled';
-}
-
-export default function ManagerRewardsPanel({ managerId, onGoToPersonal }: ManagerRewardsPanelProps) {
-  const [team, setTeam] = useState<TeamMemberPoints[]>([]);
-  const [redemptions, setRedemptions] = useState<TeamRedemption[]>([]);
-  const [ownBalance, setOwnBalance] = useState(0);
-  const [ownEarned, setOwnEarned] = useState(0);
+export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelProps) {
+  const [myProgress, setMyProgress] = useState<KpiAwardProgress[]>([]);
+  const [team, setTeam] = useState<TeamGiftRow[]>([]);
+  const [queue, setQueue] = useState<KpiAwardPipelineRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState('');
   const [msgError, setMsgError] = useState(false);
 
-  useEffect(() => { void fetchAll(); }, [managerId]);
-
-  const fetchAll = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
-
-    const [reports, ownLedgerRes, ownRedemRes] = await Promise.all([
+    const [mineRes, reportsRes, pipeRes] = await Promise.all([
+      supabase.rpc('get_kpi_award_progress', { p_user_id: managerId }),
       supabase.rpc('get_direct_reports', { p_manager_id: managerId }),
-      supabase.from('points_ledger').select('points_earned').eq('employee_id', managerId),
-      supabase.from('reward_redemptions').select('points_used').eq('employee_id', managerId),
+      supabase.rpc('get_kpi_award_pipeline'),
     ]);
 
-    const ownE = (ownLedgerRes.data || []).reduce((s, r) => s + r.points_earned, 0);
-    const ownU = (ownRedemRes.data || []).reduce((s, r) => s + r.points_used, 0);
-    setOwnEarned(ownE);
-    setOwnBalance(ownE - ownU);
+    if (mineRes.data) setMyProgress(mineRes.data as KpiAwardProgress[]);
 
-    const members: Profile[] = reports.data || [];
-    if (!members.length) {
-      setTeam([]);
-      setRedemptions([]);
-      setLoading(false);
-      return;
-    }
-
-    const ids = members.map((m) => m.id);
-    const [ledgerRes, redemRes] = await Promise.all([
-      supabase.from('points_ledger').select('employee_id, points_earned').in('employee_id', ids),
-      supabase.from('reward_redemptions')
-        .select('*, users(full_name), rewards_catalog(name, icon)')
-        .in('employee_id', ids)
-        .order('redeemed_at', { ascending: false }),
-    ]);
-
-    const earnedMap = new Map<string, number>();
-    (ledgerRes.data || []).forEach((r) => {
-      earnedMap.set(r.employee_id, (earnedMap.get(r.employee_id) || 0) + r.points_earned);
-    });
-
-    const usedMap = new Map<string, number>();
-    (redemRes.data || []).forEach((r) => {
-      usedMap.set(r.employee_id, (usedMap.get(r.employee_id) || 0) + r.points_used);
-    });
-
-    setTeam(
-      members.map((m) => {
-        const earned = earnedMap.get(m.id) || 0;
-        const used = usedMap.get(m.id) || 0;
-        return {
-          id: m.id,
-          full_name: m.full_name,
-          email: m.email,
-          totalEarned: earned,
-          totalUsed: used,
-          balance: earned - used,
-          rewardsUnlocked: Math.floor(earned / REWARD_CATALOG_COST),
-        };
-      }).sort((a, b) => b.balance - a.balance),
+    const members = ((reportsRes.data || []) as Profile[]).filter((u) => !u.is_demo);
+    const progressLists = await Promise.all(
+      members.map((m) => supabase.rpc('get_kpi_award_progress', { p_user_id: m.id })),
     );
 
-    setRedemptions(redemRes.data || []);
-    setLoading(false);
-  };
+    setTeam([
+      {
+        id: managerId,
+        full_name: 'You',
+        email: '',
+        isSelf: true,
+        progress: (mineRes.data || []) as KpiAwardProgress[],
+      },
+      ...members.map((m, i) => ({
+        id: m.id,
+        full_name: m.full_name,
+        email: m.email,
+        isSelf: false,
+        progress: (progressLists[i]?.data || []) as KpiAwardProgress[],
+      })),
+    ]);
 
-  const updateStatus = async (id: string, status: string) => {
+    if (pipeRes.error) {
+      setQueue([]);
+    } else {
+      setQueue(((pipeRes.data || []) as KpiAwardPipelineRow[]).filter((r) => r.bucket === 'eligible'));
+    }
+    setLoading(false);
+  }, [managerId]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const updateGift = async (id: string, status: string) => {
     setMsg('');
     setMsgError(false);
-    const { error } = await supabase.from('reward_redemptions').update({ status }).eq('id', id);
+    const { error } = await supabase.rpc('set_kpi_award_status', { p_id: id, p_status: status });
     if (error) {
       setMsgError(true);
       setMsg(error.message);
     } else {
-      setMsg(status === 'fulfilled' ? 'Reward marked as fulfilled.' : 'Redemption approved.');
-      void fetchAll();
+      setMsg(status === 'fulfilled' || status === 'issued' ? 'Gift marked delivered.' : 'Gift approved.');
+      void load();
     }
   };
 
-  const pending = redemptions.filter((r) => r.status === 'pending');
-  const approved = redemptions.filter((r) => r.status === 'approved');
-  const fulfilled = redemptions.filter((r) => r.status === 'fulfilled');
-  const openQueue = [...pending, ...approved];
-  const teamTotalBalance = team.reduce((s, m) => s + m.balance, 0);
-  const eligibleCount = team.filter((t) => t.balance >= REWARD_CATALOG_COST).length;
-
-  if (loading && team.length === 0) {
+  if (loading && myProgress.length === 0 && team.length === 0) {
     return (
       <div className="mgr-rewards-loading">
         <Loader2 size={28} className="spin-icon" />
-        <span>Loading team rewards…</span>
+        <span>Loading rewards…</span>
       </div>
     );
   }
@@ -165,28 +124,16 @@ export default function ManagerRewardsPanel({ managerId, onGoToPersonal }: Manag
             <Trophy size={22} />
           </div>
           <div>
-            <h2 className="mgr-rewards-header__title">Team Rewards</h2>
+            <h2 className="mgr-rewards-header__title">Company rewards</h2>
             <p className="mgr-rewards-header__subtitle">
-              Approve and fulfill your team&apos;s reward redemptions, track points balances, and manage the redemption workflow for direct reports.
+              The same three gifts as employees: movie tickets, dinner for 2, and a surprise gift. You can earn them too, and approve them person by person.
             </p>
           </div>
         </div>
         <div className="mgr-rewards-stats">
-          <div className="mgr-rewards-stat mgr-rewards-stat--accent">
-            <span className="mgr-rewards-stat__label">Direct reports</span>
-            <strong>{team.length}</strong>
-          </div>
-          <div className="mgr-rewards-stat mgr-rewards-stat--warning">
-            <span className="mgr-rewards-stat__label">Pending action</span>
-            <strong>{pending.length}</strong>
-          </div>
           <div className="mgr-rewards-stat mgr-rewards-stat--gold">
-            <span className="mgr-rewards-stat__label">Can redeem</span>
-            <strong>{eligibleCount}</strong>
-          </div>
-          <div className="mgr-rewards-stat">
-            <span className="mgr-rewards-stat__label">Team balance</span>
-            <strong>{teamTotalBalance.toLocaleString()}</strong>
+            <span className="mgr-rewards-stat__label">Gifts to arrange</span>
+            <strong>{queue.length}</strong>
           </div>
         </div>
       </header>
@@ -198,161 +145,83 @@ export default function ManagerRewardsPanel({ managerId, onGoToPersonal }: Manag
         </div>
       )}
 
-      <div className="mgr-rewards-layout">
-        <section className="mgr-rewards-card">
-          <h3>
-            <Gift size={18} /> Redemption queue
-            {openQueue.length > 0 && (
-              <span className="mgr-rewards-count-badge">{openQueue.length} open</span>
-            )}
-          </h3>
-          <p>When an employee redeems a reward, approve it here and mark fulfilled once delivered.</p>
-
-          {openQueue.length === 0 ? (
-            <div className="mgr-rewards-empty">
-              <Gift size={40} strokeWidth={1.25} />
-              <h4>Queue is clear</h4>
-              <p>No open redemptions — your team hasn&apos;t claimed any rewards yet.</p>
-            </div>
-          ) : (
-            <div className="mgr-rewards-queue">
-              {openQueue.map((r) => (
-                <article
-                  key={r.id}
-                  className={`mgr-rewards-queue-item mgr-rewards-queue-item--${r.status}`}
-                >
-                  <span className="mgr-rewards-queue-item__icon">{r.rewards_catalog?.icon ?? '🎁'}</span>
-                  <div className="mgr-rewards-queue-item__body">
-                    <strong>{r.users?.full_name}</strong>
-                    <span>
-                      {r.rewards_catalog?.name} · {new Date(r.redeemed_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <span className="mgr-rewards-queue-item__pts">−{r.points_used.toLocaleString()} pts</span>
-                  <div className="mgr-rewards-queue-item__actions">
-                    {r.status === 'pending' && (
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => void updateStatus(r.id, 'approved')}
-                      >
-                        Approve
-                      </button>
-                    )}
-                    {r.status !== 'fulfilled' && (
-                      <button
-                        type="button"
-                        className="btn btn-primary btn-sm"
-                        onClick={() => void updateStatus(r.id, 'fulfilled')}
-                      >
-                        <CheckCircle size={13} /> Fulfil
-                      </button>
-                    )}
-                    <span className={redemptionStatusClass(r.status)}>{r.status}</span>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <aside className="mgr-rewards-own">
-          <span className="mgr-rewards-own__eyebrow"><Sparkles size={12} /> Your points</span>
-          <div className="mgr-rewards-own__balance">{ownBalance.toLocaleString()}</div>
-          <p className="mgr-rewards-own__meta">
-            {ownEarned.toLocaleString()} pts earned lifetime · Managers earn tiered monthly points (up to +1,000 at ≥90%).
-          </p>
-          <div className="mgr-rewards-workflow-compact">
-            <strong>Your role:</strong> Approve team redemptions → mark fulfilled when delivered.
-            Admins manage the catalog and monthly point calculations.
-          </div>
-          {onGoToPersonal && (
-            <button type="button" className="btn btn-primary" onClick={onGoToPersonal}>
-              <Star size={15} /> My KPIs &amp; Points
-              <ArrowRight size={14} />
-            </button>
-          )}
-        </aside>
-      </div>
+      <KpiAwardProgressList
+        rows={myProgress}
+        title="Your rewards"
+        intro="These gifts come from your monthly KPI score — the same rules as everyone else."
+      />
 
       <section className="mgr-rewards-card">
-        <h3><Users size={18} /> Team points overview</h3>
-        <p>Points balances and redemption eligibility for each direct report ({REWARD_CATALOG_COST.toLocaleString()} pts to redeem).</p>
-
-        {team.length === 0 ? (
+        <h3>
+          <Gift size={18} /> Gifts to arrange
+          {queue.length > 0 && <span className="mgr-rewards-count-badge">{queue.length}</span>}
+        </h3>
+        <p>Approve, then mark delivered when the gift is given.</p>
+        {queue.length === 0 ? (
           <div className="mgr-rewards-empty">
-            <Users size={40} strokeWidth={1.25} />
-            <h4>No direct reports</h4>
-            <p>No employees assigned to your team yet.</p>
+            <CheckCircle size={36} strokeWidth={1.25} />
+            <h4>Nothing waiting</h4>
+            <p>No pending movie tickets, dinner vouchers, or surprise gifts right now.</p>
           </div>
+        ) : (
+          <div className="mgr-rewards-queue">
+            {queue.map((r) => (
+              <article key={r.qualification_id || `${r.employee_id}-${r.rule_key}`} className="mgr-rewards-queue-item">
+                <div className="mgr-rewards-queue-item__body">
+                  <strong>{r.full_name}</strong>
+                  <span>{r.reward_name} · {statusLabel(r.status || 'pending')}</span>
+                </div>
+                {r.qualification_id && (r.status === 'pending' || r.status === 'pending_fulfillment') && (
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => void updateGift(r.qualification_id!, 'approved')}>
+                    Approve
+                  </button>
+                )}
+                {r.qualification_id && r.status !== 'issued' && r.status !== 'fulfilled' && (
+                  <button type="button" className="btn btn-primary btn-sm" onClick={() => void updateGift(r.qualification_id!, 'fulfilled')}>
+                    Delivered
+                  </button>
+                )}
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="mgr-rewards-card">
+        <h3>
+          <Users size={18} /> Each person
+        </h3>
+        <p>Progress toward each company gift.</p>
+        {team.length === 0 ? (
+          <p className="mgr-rewards-empty" style={{ padding: '1rem' }}>No team members to show yet.</p>
         ) : (
           <div className="mgr-rewards-table-wrap">
             <table className="mgr-rewards-table">
               <thead>
                 <tr>
-                  <th>Employee</th>
-                  <th>Balance</th>
-                  <th>Earned</th>
-                  <th>Used</th>
-                  <th>Rewards</th>
-                  <th>Status</th>
+                  <th>Person</th>
+                  <th>2 movie tickets</th>
+                  <th>Dinner for 2</th>
+                  <th>Surprise gift</th>
                 </tr>
               </thead>
               <tbody>
-                {team.map((m, i) => {
-                  const ptsToGo = REWARD_CATALOG_COST - (m.balance % REWARD_CATALOG_COST || REWARD_CATALOG_COST);
-                  return (
-                    <tr key={m.id} className={i === 0 && m.balance > 0 ? 'mgr-rewards-table__top' : ''}>
-                      <td>
-                        <div className="mgr-rewards-table__member">
-                          <div className="mgr-rewards-table__avatar" aria-hidden>{initials(m.full_name)}</div>
-                          <div>
-                            <strong>{m.full_name}</strong>
-                            <span>{m.email}</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td><span className="mgr-rewards-table__pts">{m.balance.toLocaleString()}</span></td>
-                      <td>{m.totalEarned.toLocaleString()}</td>
-                      <td>{m.totalUsed.toLocaleString()}</td>
-                      <td>{m.rewardsUnlocked}</td>
-                      <td>
-                        {m.balance >= REWARD_CATALOG_COST ? (
-                          <span className="badge badge-on-track">Can redeem</span>
-                        ) : m.balance > 0 ? (
-                          <span className="badge badge-at-risk">{ptsToGo.toLocaleString()} pts to go</span>
-                        ) : (
-                          <span className="badge badge-off-track">Building</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {team.map((m) => (
+                  <tr key={m.id}>
+                    <td>
+                      <strong>{m.full_name}</strong>
+                      {m.email ? <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{m.email}</div> : null}
+                    </td>
+                    <td>{giftLine(m.progress, 'movie_tickets', '0/3 months')}</td>
+                    <td>{giftLine(m.progress, 'dinner_voucher', '—')}</td>
+                    <td>{giftLine(m.progress, 'surprise_gift', '0/6 months')}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
         )}
       </section>
-
-      {fulfilled.length > 0 && (
-        <section className="mgr-rewards-card">
-          <h3><CheckCircle size={18} /> Recently fulfilled</h3>
-          <p>Last {Math.min(5, fulfilled.length)} completed redemptions.</p>
-          <div className="mgr-rewards-queue">
-            {fulfilled.slice(0, 5).map((r) => (
-              <article key={r.id} className="mgr-rewards-queue-item mgr-rewards-queue-item--fulfilled">
-                <span className="mgr-rewards-queue-item__icon">{r.rewards_catalog?.icon ?? '🎁'}</span>
-                <div className="mgr-rewards-queue-item__body">
-                  <strong>{r.users?.full_name}</strong>
-                  <span>{r.rewards_catalog?.name}</span>
-                </div>
-                <Clock size={14} style={{ color: 'var(--color-success)', flexShrink: 0 }} />
-                <span className={redemptionStatusClass('fulfilled')}>fulfilled</span>
-              </article>
-            ))}
-          </div>
-        </section>
-      )}
     </div>
   );
 }

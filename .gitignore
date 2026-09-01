@@ -14,6 +14,12 @@ dist-ssr
 .env
 .env.*
 !.env.example
+*.pem
+*.p12
+id_rsa
+id_rsa.pub
+secrets/
+supabase/.temp/
 
 # Editor directories and files
 .vscode/*

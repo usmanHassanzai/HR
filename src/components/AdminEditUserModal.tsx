@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Pencil, Loader2, CheckCircle, X, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { Profile, UserRole } from '../utils/kpiHelpers';
+import { Profile, UserRole, WorkMode, roleNeedsDepartment } from '../utils/kpiHelpers';
 import { Department } from '../utils/departmentHelpers';
+import { WORK_MODE_OPTIONS, normalizeWorkMode } from '../utils/workModeHelpers';
 
 interface AdminEditUserModalProps {
   user: Profile;
@@ -32,6 +33,7 @@ export default function AdminEditUserModal({
   const [role, setRole] = useState<UserRole>(user.role);
   const [departmentId, setDepartmentId] = useState(user.department_id ?? '');
   const [managerId, setManagerId] = useState(user.manager_id ?? '');
+  const [workMode, setWorkMode] = useState<WorkMode>(normalizeWorkMode(user.work_mode));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -39,14 +41,24 @@ export default function AdminEditUserModal({
   const isSelf = user.id === currentAdminId;
 
   const supervisors = useMemo(() => {
-    const list = allUsers
-      .filter((m) => (m.role === 'manager' || m.role === 'admin') && m.id !== user.id)
+    return allUsers
+      .filter(
+        (m) =>
+          m.id !== user.id &&
+          (m.role === 'admin' ||
+            (m.role === 'manager' && !!departmentId && m.department_id === departmentId)),
+      )
       .sort((a, b) => {
         if (a.role === b.role) return a.full_name.localeCompare(b.full_name);
         return a.role === 'admin' ? -1 : 1;
       });
-    return list;
-  }, [allUsers, user.id]);
+  }, [allUsers, user.id, departmentId]);
+
+  const editDeptName = departments.find((d) => d.id === departmentId)?.name ?? '';
+  const staleSupervisor =
+    managerId && !supervisors.some((m) => m.id === managerId)
+      ? allUsers.find((m) => m.id === managerId)
+      : null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,7 +69,7 @@ export default function AdminEditUserModal({
       setError('Full name is required.');
       return;
     }
-    if (role !== 'admin' && !departmentId) {
+    if (roleNeedsDepartment(role) && !departmentId) {
       setError('Select a department for managers and employees.');
       return;
     }
@@ -72,10 +84,18 @@ export default function AdminEditUserModal({
         p_user_id: user.id,
         p_full_name: name,
         p_role: role,
-        p_department_id: role === 'admin' ? null : departmentId || null,
-        p_manager_id: role === 'admin' ? null : managerId || null,
+        p_department_id: roleNeedsDepartment(role) ? departmentId || null : null,
+        p_manager_id: roleNeedsDepartment(role) ? managerId || null : null,
       });
       if (updateError) throw updateError;
+
+      if (role === 'employee' || role === 'manager') {
+        const { error: modeErr } = await supabase.rpc('set_user_work_mode', {
+          p_user_id: user.id,
+          p_work_mode: workMode,
+        });
+        if (modeErr) throw modeErr;
+      }
 
       setSuccess(true);
       onSaved();
@@ -183,7 +203,7 @@ export default function AdminEditUserModal({
                 onChange={(e) => {
                   const next = e.target.value as UserRole;
                   setRole(next);
-                  if (next === 'admin') {
+                  if (next === 'admin' || next === 'hr') {
                     setDepartmentId('');
                     setManagerId('');
                   }
@@ -192,6 +212,7 @@ export default function AdminEditUserModal({
               >
                 <option value="employee">Employee</option>
                 <option value="manager">Manager</option>
+                <option value="hr">HR (company-wide shifts)</option>
                 <option value="admin">Admin</option>
               </select>
               {isSelf && (
@@ -201,13 +222,22 @@ export default function AdminEditUserModal({
               )}
             </div>
 
-            {role !== 'admin' && (
+            {roleNeedsDepartment(role) && (
               <div className="form-group" style={{ margin: 0 }}>
                 <label>{role === 'manager' ? 'Department *' : 'Department *'}</label>
                 <select
                   className="input-field"
                   value={departmentId}
-                  onChange={(e) => setDepartmentId(e.target.value)}
+                  onChange={(e) => {
+                    const nextDept = e.target.value;
+                    setDepartmentId(nextDept);
+                    const current = allUsers.find((m) => m.id === managerId);
+                    const keep =
+                      !!current &&
+                      (current.role === 'admin' ||
+                        (current.role === 'manager' && current.department_id === nextDept));
+                    if (!keep) setManagerId('');
+                  }}
                   required
                 >
                   <option value="">— Select department —</option>
@@ -222,9 +252,29 @@ export default function AdminEditUserModal({
 
             {(role === 'employee' || role === 'manager') && (
               <div className="form-group" style={{ margin: 0 }}>
+                <label>Work location</label>
+                <select
+                  className="input-field"
+                  value={workMode}
+                  onChange={(e) => setWorkMode(e.target.value as WorkMode)}
+                >
+                  {WORK_MODE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {(role === 'employee' || role === 'manager') && (
+              <div className="form-group" style={{ margin: 0 }}>
                 <label>Assign manager / admin</label>
                 <select className="input-field" value={managerId} onChange={(e) => setManagerId(e.target.value)}>
                   <option value="">— None —</option>
+                  {staleSupervisor && (
+                    <option value={staleSupervisor.id}>
+                      {supervisorLabel(staleSupervisor, departments)} (other department)
+                    </option>
+                  )}
                   {supervisors.filter((m) => m.role === 'admin').length > 0 && (
                     <optgroup label="Admins">
                       {supervisors
@@ -237,7 +287,7 @@ export default function AdminEditUserModal({
                     </optgroup>
                   )}
                   {supervisors.filter((m) => m.role === 'manager').length > 0 && (
-                    <optgroup label="Managers">
+                    <optgroup label={editDeptName ? `Managers · ${editDeptName}` : 'Department manager'}>
                       {supervisors
                         .filter((m) => m.role === 'manager')
                         .map((m) => (

@@ -8,6 +8,7 @@ export const MONTHLY_POINTS_TIERS = [
   { minScore: 0, points: 0, label: 'Below target (<70%)' },
 ] as const;
 
+/** Monthly KPI Score % → Reward Points. Example: 15% → 0 (not 15). */
 export function monthlyPointsForScore(score: number): number {
   if (score >= 90) return 1000;
   if (score >= 80) return 500;

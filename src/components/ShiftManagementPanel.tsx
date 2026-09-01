@@ -17,7 +17,7 @@ interface OrgShiftAssignment extends TeamShiftAssignment {
 
 interface ShiftManagementPanelProps {
   teamMembers: Profile[];
-  mode?: 'manager' | 'admin';
+  mode?: 'manager' | 'admin' | 'hr';
   onUpdate?: () => void;
 }
 
@@ -28,7 +28,7 @@ export default function ShiftManagementPanel({
   mode = 'manager',
   onUpdate,
 }: ShiftManagementPanelProps) {
-  const isAdmin = mode === 'admin';
+  const isOrgWide = mode === 'admin' || mode === 'hr';
   const [shifts, setShifts] = useState<WorkShift[]>([]);
   const [assignments, setAssignments] = useState<OrgShiftAssignment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,10 +38,9 @@ export default function ShiftManagementPanel({
   const [name, setName] = useState('');
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('18:00');
-  const [grace, setGrace] = useState(30);
-  const [days, setDays] = useState<number[]>(DEFAULT_DAYS);
   const [overnight, setOvernight] = useState(false);
-  const [applyToAll, setApplyToAll] = useState(!isAdmin);
+  const [days, setDays] = useState<number[]>(DEFAULT_DAYS);
+  const [applyToAll, setApplyToAll] = useState(!isOrgWide);
   const [editId, setEditId] = useState<string | null>(null);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [assignShiftId, setAssignShiftId] = useState('');
@@ -49,7 +48,7 @@ export default function ShiftManagementPanel({
   const assignablePeople = useMemo(
     () =>
       teamMembers
-        .filter((m) => m.role === 'employee' || m.role === 'manager')
+        .filter((m) => m.role === 'employee' || m.role === 'manager' || m.role === 'hr')
         .slice()
         .sort((a, b) => a.full_name.localeCompare(b.full_name)),
     [teamMembers],
@@ -60,7 +59,7 @@ export default function ShiftManagementPanel({
   const load = useCallback(async () => {
     setLoading(true);
     setMsg('');
-    const assignmentRpc = isAdmin ? 'get_org_shift_assignments' : 'get_team_shift_assignments';
+    const assignmentRpc = isOrgWide ? 'get_org_shift_assignments' : 'get_team_shift_assignments';
     const [shRes, asRes] = await Promise.all([
       supabase.rpc('get_manager_shifts'),
       supabase.rpc(assignmentRpc),
@@ -70,7 +69,7 @@ export default function ShiftManagementPanel({
     if (asRes.error && !shRes.error) setMsg(asRes.error.message);
     else setAssignments((asRes.data || []) as OrgShiftAssignment[]);
     setLoading(false);
-  }, [isAdmin]);
+  }, [isOrgWide]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -101,10 +100,9 @@ export default function ShiftManagementPanel({
     setName('');
     setStartTime('09:00');
     setEndTime('18:00');
-    setGrace(30);
     setDays(DEFAULT_DAYS);
     setOvernight(false);
-    setApplyToAll(!isAdmin);
+    setApplyToAll(!isOrgWide);
   };
 
   const saveShift = async (e: React.FormEvent) => {
@@ -121,9 +119,9 @@ export default function ShiftManagementPanel({
       p_start_time: startTime,
       p_end_time: endTime,
       p_days_of_week: days,
-      p_grace_minutes: grace,
+      p_grace_minutes: 60,
       p_crosses_midnight: overnight,
-      p_apply_to_all: isAdmin ? false : applyToAll,
+      p_apply_to_all: isOrgWide ? false : applyToAll,
     };
     if (editId) payload.p_shift_id = editId;
 
@@ -136,7 +134,7 @@ export default function ShiftManagementPanel({
 
     const shiftId = data as string;
 
-    if (!isAdmin && applyToAll && employeeCount > 0) {
+    if (!isOrgWide && applyToAll && employeeCount > 0) {
       const { error: assignErr } = await supabase.rpc('assign_shift_to_all_team', { p_shift_id: shiftId });
       if (assignErr && !/does not exist/i.test(assignErr.message)) {
         setMsg(`Shift saved but team assign failed: ${assignErr.message}`);
@@ -146,7 +144,7 @@ export default function ShiftManagementPanel({
       }
     }
 
-    if (isAdmin && selectedUserIds.length > 0) {
+    if (isOrgWide && selectedUserIds.length > 0) {
       const { data: assigned, error: assignErr } = await supabase.rpc('admin_assign_shift', {
         p_shift_id: shiftId,
         p_user_ids: selectedUserIds,
@@ -163,8 +161,8 @@ export default function ShiftManagementPanel({
     } else {
       setMsg(
         editId
-          ? `Shift updated${!isAdmin && applyToAll ? ` and applied to ${employeeCount} employee(s).` : '.'}`
-          : `Shift saved${!isAdmin && applyToAll ? ` and applied to all ${employeeCount} team member(s).` : '.'}`,
+          ? `Shift updated${!isOrgWide && applyToAll ? ` and applied to ${employeeCount} employee(s).` : '.'}`
+          : `Shift saved${!isOrgWide && applyToAll ? ` and applied to all ${employeeCount} team member(s).` : '.'}`,
       );
     }
 
@@ -226,10 +224,9 @@ export default function ShiftManagementPanel({
     setName(s.name);
     setStartTime(s.start_time.slice(0, 5));
     setEndTime(s.end_time.slice(0, 5));
-    setGrace(s.grace_minutes);
     setDays(s.days_of_week);
     setOvernight(s.crosses_midnight ?? isOvernightShift(s.start_time, s.end_time));
-    setApplyToAll(isAdmin ? false : (s.apply_to_all ?? true));
+    setApplyToAll(isOrgWide ? false : (s.apply_to_all ?? true));
     setAssignShiftId(s.id);
   };
 
@@ -254,8 +251,8 @@ export default function ShiftManagementPanel({
           <CalendarClock size={18} /> {editId ? 'Edit shift' : 'Create shift'}
         </h3>
         <p className="attendance-card__subtitle">
-          {isAdmin
-            ? 'Create any schedule (including overnight), then assign it directly to managers and employees in your organization.'
+          {isOrgWide
+            ? 'Create any schedule (including overnight), then assign it directly to any person in your organization. No extra approval is required.'
             : 'Set any shift schedule — including overnight (e.g. 8:00 PM today to 8:00 AM tomorrow). When saved, it can be applied to all employees on your team.'}
         </p>
         <form onSubmit={saveShift} className="attendance-form-grid attendance-form-grid--wide">
@@ -271,9 +268,10 @@ export default function ShiftManagementPanel({
             <label>End time</label>
             <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} required />
           </div>
-          <div className="form-group">
-            <label>Early check-in (minutes)</label>
-            <input type="number" min={0} max={120} value={grace} onChange={(e) => setGrace(Number(e.target.value))} />
+          <div className="form-group attendance-form-span-full">
+            <p className="attendance-card__subtitle" style={{ margin: 0 }}>
+              Everyone can clock in from 1 hour before this start time. After the end time they have 1 hour to clock out — that extra time is counted if they do it themselves. If Scorr is closed, they are checked out at end time. If they stay logged in, checkout waits that extra hour.
+            </p>
           </div>
           <div className="form-group attendance-form-span-full">
             <label className="geo-toggle-row" style={{ margin: 0 }}>
@@ -285,7 +283,7 @@ export default function ShiftManagementPanel({
               <span>Overnight shift — end time is on the <strong>next day</strong> (e.g. 8 PM → 8 AM)</span>
             </label>
           </div>
-          {!isAdmin && (
+          {!isOrgWide && (
             <div className="form-group attendance-form-span-full">
               <label className="geo-toggle-row" style={{ margin: 0 }}>
                 <input
@@ -326,10 +324,10 @@ export default function ShiftManagementPanel({
         </form>
       </div>
 
-      {isAdmin && (
+      {isOrgWide && (
         <div className="attendance-card">
           <h3 className="attendance-card__title">
-            <Users size={18} /> Assign shift to managers &amp; employees
+            <Users size={18} /> Assign shift to people (one or many)
           </h3>
           <p className="attendance-card__subtitle">
             Choose a saved shift, select people, then assign in one click.
@@ -396,18 +394,18 @@ export default function ShiftManagementPanel({
                   <span className="shift-list__meta">
                     {formatShiftTimeRange(s.start_time, s.end_time, s.crosses_midnight)}
                     {' · '}{formatShiftDays(s.days_of_week)}
-                    {!isAdmin && s.apply_to_all && ' · All team'}
+                    {!isOrgWide && s.apply_to_all && ' · All team'}
                     {s.assigned_count != null && s.assigned_count > 0 && ` · ${s.assigned_count} assigned`}
                   </span>
                 </div>
                 <div className="shift-list__actions">
                   <button type="button" className="btn btn-secondary btn-sm" onClick={() => startEdit(s)}>Edit</button>
-                  {!isAdmin && (
+                  {!isOrgWide && (
                     <button type="button" className="btn btn-secondary btn-sm" disabled={submitting} onClick={() => void reapplyToAll(s.id)} title="Apply to all team">
                       <Users size={14} />
                     </button>
                   )}
-                  {isAdmin && (
+                  {isOrgWide && (
                     <button
                       type="button"
                       className="btn btn-secondary btn-sm"
@@ -430,14 +428,14 @@ export default function ShiftManagementPanel({
       {assignments.length > 0 && (
         <div className="attendance-card">
           <h3 className="attendance-card__title">
-            <Users size={18} /> {isAdmin ? 'Organization shift status' : 'Team shift status'}
+            <Users size={18} /> {isOrgWide ? 'Organization shift status' : 'Team shift status'}
           </h3>
           <div className="team-points-table-wrap">
             <table className="attendance-history-table">
               <thead>
                 <tr>
-                  <th>{isAdmin ? 'Person' : 'Employee'}</th>
-                  {isAdmin && <th>Role</th>}
+                  <th>{isOrgWide ? 'Person' : 'Employee'}</th>
+                  {isOrgWide && <th>Role</th>}
                   <th>Shift</th>
                   <th>Hours</th>
                   <th>Since</th>
@@ -447,7 +445,7 @@ export default function ShiftManagementPanel({
                 {assignments.map((a) => (
                   <tr key={a.user_id}>
                     <td>{a.full_name}</td>
-                    {isAdmin && <td style={{ textTransform: 'capitalize' }}>{a.employee_role || '—'}</td>}
+                    {isOrgWide && <td style={{ textTransform: 'capitalize' }}>{a.employee_role || '—'}</td>}
                     <td>{a.shift_name || '—'}</td>
                     <td>{a.start_time && a.end_time ? formatShiftTimeRange(a.start_time, a.end_time) : '—'}</td>
                     <td>{a.effective_from || '—'}</td>
@@ -458,6 +456,67 @@ export default function ShiftManagementPanel({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function timeValue(t: string | null | undefined): string {
+  return (t || '17:30').toString().slice(0, 5);
+}
+
+export function CompanyLocationWindowCard() {
+  const [start, setStart] = useState('17:30');
+  const [end, setEnd] = useState('04:00');
+  const [saving, setSaving] = useState(false);
+  const [note, setNote] = useState('');
+
+  useEffect(() => {
+    void (async () => {
+      const { data } = await supabase.rpc('get_company_location_window');
+      const row = (data as { start_time?: string; end_time?: string }[] | null)?.[0];
+      if (row?.start_time) setStart(timeValue(row.start_time));
+      if (row?.end_time) setEnd(timeValue(row.end_time));
+    })();
+  }, []);
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setNote('');
+    const { error } = await supabase.rpc('upsert_company_location_window', {
+      p_start: start,
+      p_end: end,
+    });
+    setSaving(false);
+    setNote(error ? error.message : 'Company location window saved. People without an assigned shift use these hours.');
+  };
+
+  return (
+    <div className="attendance-card" style={{ marginBottom: '1rem' }}>
+      <h3 className="attendance-card__title">
+        <CalendarClock size={18} /> Company location window
+      </h3>
+      <p className="attendance-card__subtitle">
+        GPS is used only at clock-in and clock-out, and only inside this window (default 5:30 PM–4:00 AM).
+        Assigned shifts override these hours for that person.
+      </p>
+      <form onSubmit={(e) => void save(e)} className="attendance-form-grid">
+        <div className="form-group">
+          <label>Window start</label>
+          <input type="time" value={start} onChange={(e) => setStart(e.target.value)} required />
+        </div>
+        <div className="form-group">
+          <label>Window end</label>
+          <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} required />
+        </div>
+        <div className="form-group" style={{ alignSelf: 'end' }}>
+          <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>
+            {saving ? <Loader2 size={14} className="spin-icon" /> : null}
+            Save window
+          </button>
+        </div>
+      </form>
+      {note && <p className="geo-hint">{note}</p>}
     </div>
   );
 }

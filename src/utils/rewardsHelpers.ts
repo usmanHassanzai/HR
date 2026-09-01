@@ -113,6 +113,8 @@ export interface TeamPointsBoardRow {
   this_month_points: number | null;
   this_month_score: number | null;
   is_self: boolean;
+  kpi_period_start?: string | null;
+  kpi_period_end?: string | null;
 }
 
 /** Own points + teammates (same manager / department / direct reports). */
@@ -122,12 +124,18 @@ export async function fetchTeamPointsBoard(): Promise<TeamPointsBoardRow[]> {
     console.error('get_team_points_board', error.message);
     return [];
   }
-  return ((data as TeamPointsBoardRow[]) || []).map((row) => ({
-    ...row,
-    total_earned: Number(row.total_earned) || 0,
-    used_points: Number(row.used_points) || 0,
-    balance: Number(row.balance) || 0,
-    this_month_points: row.this_month_points == null ? null : Number(row.this_month_points),
-    this_month_score: row.this_month_score == null ? null : Number(row.this_month_score),
-  }));
+  return ((data as TeamPointsBoardRow[]) || []).map((row) => {
+    const earned = Number(row.total_earned) || 0;
+    const used = Number(row.used_points) || 0;
+    return {
+      ...row,
+      total_earned: earned,
+      used_points: used,
+      balance: earned - used,
+      this_month_points: row.this_month_points == null ? null : Number(row.this_month_points),
+      this_month_score: row.this_month_score == null ? null : Number(row.this_month_score),
+      kpi_period_start: row.kpi_period_start || null,
+      kpi_period_end: row.kpi_period_end || null,
+    };
+  });
 }

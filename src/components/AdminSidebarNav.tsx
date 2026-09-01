@@ -22,6 +22,10 @@ interface AdminSidebarNavProps {
   onNavOpenChange: (open: boolean) => void;
   platformOwner?: boolean;
   organizationName?: string | null;
+  brandTitle?: string;
+  brandSubtitle?: string;
+  ariaLabel?: string;
+  sidebarId?: string;
   stats?: { users: number; departments: number; managers: number };
 }
 
@@ -44,12 +48,18 @@ export default function AdminSidebarNav({
   onNavOpenChange,
   platformOwner,
   organizationName,
+  brandTitle,
+  brandSubtitle,
+  ariaLabel = 'Admin navigation',
+  sidebarId = 'admin-sidebar',
   stats,
 }: AdminSidebarNavProps) {
   useCloseOnEscape(navOpen, () => onNavOpenChange(false));
 
   useEffect(() => {
     if (!navOpen) return;
+    const mq = window.matchMedia('(max-width: 899px)');
+    if (!mq.matches) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
@@ -62,19 +72,22 @@ export default function AdminSidebarNav({
     onNavOpenChange(false);
   };
 
+  const flatItems = groups.flatMap((group) => group.items);
+
   return (
+    <>
     <aside
-      id="admin-sidebar"
+      id={sidebarId}
       className={`admin-shell__sidebar ${navOpen ? 'admin-shell__sidebar--open' : ''}`}
-      aria-label="Admin navigation"
+      aria-label={ariaLabel}
     >
       <div className="admin-shell__sidebar-brand">
         <div className="admin-shell__sidebar-logo">
           <LayoutDashboard size={20} />
         </div>
         <div className="admin-shell__sidebar-brand-text">
-          <strong>{organizationName?.trim() || 'Scorr Admin'}</strong>
-          <span>{organizationName?.trim() ? 'Admin control center' : 'Control center'}</span>
+          <strong>{brandTitle || organizationName?.trim() || 'Scorr Admin'}</strong>
+          <span>{brandSubtitle || (organizationName?.trim() ? 'Workspace' : 'Workspace')}</span>
         </div>
         <button
           type="button"
@@ -89,7 +102,9 @@ export default function AdminSidebarNav({
       <nav className="admin-shell__nav">
         {groups.map((group) => (
           <div key={group.label} className="admin-shell__nav-group">
-            <p className="admin-shell__nav-group-label">{group.label}</p>
+            {group.label !== 'Menu' && (
+              <p className="admin-shell__nav-group-label">{group.label}</p>
+            )}
             <ul className="admin-shell__nav-list">
               {group.items.map((item) => {
                 const active = activeTab === item.id;
@@ -141,25 +156,50 @@ export default function AdminSidebarNav({
         )}
       </div>
     </aside>
+
+    <nav className="app-bottom-nav" aria-label={ariaLabel}>
+      {flatItems.map((item) => {
+        const active = activeTab === item.id;
+        return (
+          <button
+            key={item.id}
+            type="button"
+            className={`app-bottom-nav__item ${active ? 'app-bottom-nav__item--active' : ''}`}
+            onClick={() => handleSelect(item.id)}
+            aria-current={active ? 'page' : undefined}
+          >
+            <span className="app-bottom-nav__icon">{item.icon}</span>
+            <span className="app-bottom-nav__label">{item.label}</span>
+            {item.badge != null && item.badge > 0 && (
+              <span className="app-bottom-nav__badge">{item.badge > 9 ? '9+' : item.badge}</span>
+            )}
+          </button>
+        );
+      })}
+    </nav>
+    </>
   );
 }
 
 export function getAdminNavMeta(id: string): { label: string; description: string } {
   const map: Record<string, { label: string; description: string }> = {
-    companies: { label: 'Registered Companies', description: 'Review and approve new organization sign-ups.' },
-    users: { label: 'Users', description: 'Manage accounts, roles, departments, and access.' },
-    departments: { label: 'Departments', description: 'Configure departments and organizational weightages.' },
-    kpiManagement: { label: 'KPI Management', description: 'Create and edit department KPI libraries. Totals may exceed 100%; each employee assignment is capped at 100%.' },
-    kpis: { label: 'Assign Task', description: 'Assign KPIs to employees. Each employee has an independent 100% weight capacity.' },
-    kpiPoints: { label: 'KPI Points', description: 'View KPI scores and rewards points for every department, manager, and employee.' },
-    export: { label: 'Reports', description: 'Export monthly and quarterly organization reports.' },
-    analytics: { label: 'Analytics', description: 'KPI health, trends, forecasts, and attainment.' },
-    branding: { label: 'Branding', description: 'Customize logo, colors, and company identity.' },
-    rewards: { label: 'Rewards', description: 'Configure points, tiers, and redemption workflows.' },
-    attendance: { label: 'Attendance', description: 'Leave requests, approvals, and attendance history.' },
-    dailyReports: { label: 'Daily Reports', description: 'Read manager and employee daily work submissions by department.' },
-    office: { label: 'Office GPS', description: 'Set office location and geofence for check-ins.' },
-    tracking: { label: 'Live Tracking', description: 'Real-time team location and field activity.' },
+    home: { label: 'Today', description: '' },
+    employees: { label: 'Employees', description: 'Accounts, roles, and departments.' },
+    users: { label: 'People', description: 'Add teammates, set roles, and manage logins.' },
+    kpis: { label: 'Assign Task', description: 'Create KPIs, assign them, and review or edit assigned tasks.' },
+    dailyReports: { label: 'Daily Reports', description: 'Staff daily work logs.' },
+    kpiPoints: { label: 'KPI & Rewards', description: "Each person's KPI score, performance points, and reward points." },
+    analytics: { label: 'Analytics', description: 'Trends and attainment.' },
+    attendance: { label: 'Attendance', description: 'Leave, check-ins, and live map.' },
+    office: { label: 'Office GPS', description: 'Geofence and check-ins.' },
+    tracking: { label: 'Live Tracking', description: 'Field team locations.' },
+    departments: { label: 'Departments', description: 'Org structure.' },
+    rewards: { label: 'Rewards', description: 'Catalog, points, and redemptions.' },
+    export: { label: 'Export', description: 'Monthly and quarterly exports.' },
+    settings: { label: 'Settings', description: 'Logo and company theme.' },
+    companies: { label: 'Registered Companies', description: 'Approve new company sign-ups.' },
+    kpiManagement: { label: 'KPIs', description: 'Individual assignments and points.' },
+    branding: { label: 'Settings', description: 'Logo and company theme.' },
   };
   return map[id] ?? { label: 'Admin', description: 'Organization administration.' };
 }

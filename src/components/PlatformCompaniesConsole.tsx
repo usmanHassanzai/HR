@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { Profile } from '../utils/kpiHelpers';
-import { PlatformCompanyRow, PlatformNotification } from '../utils/companyHelpers';
+import { PlatformCompanyRow, PlatformNotification, isWalfiaDefaultCompany } from '../utils/companyHelpers';
 import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
 import {
   Shield,
@@ -149,6 +149,7 @@ function PendingCard({
   onReject: () => void;
   onDelete: () => void;
 }) {
+  const protectedOrg = isWalfiaDefaultCompany(c);
   return (
     <article className="platform-pending-card">
       <div className="platform-pending-card__top">
@@ -156,6 +157,7 @@ function PendingCard({
           <h4 className="platform-pending-card__name">
             {c.name}
             <StatusBadge status={c.status} />
+            {protectedOrg && <span className="platform-status platform-status--protected">Protected</span>}
           </h4>
           <p className="platform-pending-card__meta">
             <Mail size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />
@@ -177,9 +179,11 @@ function PendingCard({
           <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={onReject}>
             <XCircle size={14} /> Reject
           </button>
-          <button type="button" className="btn btn-secondary btn-sm platform-btn-delete" disabled={busy} onClick={onDelete}>
-            <Trash2 size={14} /> Delete
-          </button>
+          {!protectedOrg && (
+            <button type="button" className="btn btn-secondary btn-sm platform-btn-delete" disabled={busy} onClick={onDelete}>
+              <Trash2 size={14} /> Delete
+            </button>
+          )}
         </div>
       </div>
       <CompanyDetails c={c} />
@@ -263,6 +267,10 @@ export default function PlatformCompaniesConsole({ profile, embedded = false, on
   };
 
   const removeCompany = async (c: PlatformCompanyRow) => {
+    if (isWalfiaDefaultCompany(c)) {
+      setAlert({ kind: 'error', text: 'The Walfia default organization cannot be deleted.' });
+      return;
+    }
     const label = c.name || c.contact_email || 'this company';
     if (
       !confirm(
@@ -332,7 +340,12 @@ export default function PlatformCompaniesConsole({ profile, embedded = false, on
           {rows.map((c) => (
             <tr key={c.id}>
               <td>
-                <span className="platform-table__company">{c.name}</span>
+                <span className="platform-table__company">
+                  {c.name}
+                  {isWalfiaDefaultCompany(c) && (
+                    <span className="platform-status platform-status--protected">Protected</span>
+                  )}
+                </span>
                 <span className="platform-table__sub">{c.contact_email}</span>
                 {c.contact_phone && <span className="platform-table__sub">{c.contact_phone}</span>}
               </td>
@@ -372,15 +385,19 @@ export default function PlatformCompaniesConsole({ profile, embedded = false, on
                       </button>
                     </>
                   )}
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm platform-btn-delete"
-                    disabled={actionLoading === c.id}
-                    onClick={() => removeCompany(c)}
-                    title="Delete company"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                  {isWalfiaDefaultCompany(c) ? (
+                    <span className="platform-table__sub">Cannot delete</span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm platform-btn-delete"
+                      disabled={actionLoading === c.id}
+                      onClick={() => removeCompany(c)}
+                      title="Delete company"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
                 </div>
               </td>
             </tr>

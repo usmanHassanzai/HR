@@ -100,15 +100,10 @@ export function buildAdminDepartmentOverview(
         .filter((e) => e.department_id === dept.id)
         .sort((a, b) => a.full_name.localeCompare(b.full_name));
 
-      const groups: EmployeeAssignmentGroup[] = deptEmployees.map((employee) => {
-        const all = teamKpisByUser[employee.id] || [];
-        const tasks = all.filter((k) => {
-          if (k.department_id) return k.department_id === dept.id;
-          const kDept = (k.department || '').trim().toLowerCase();
-          return kDept === dept.name.toLowerCase() || kDept === dept.slug.toLowerCase();
-        });
-        return { employee, tasks };
-      });
+      const groups: EmployeeAssignmentGroup[] = deptEmployees.map((employee) => ({
+        employee,
+        tasks: teamKpisByUser[employee.id] || [],
+      }));
 
       return {
         deptId: dept.id,
@@ -138,6 +133,43 @@ export function buildAdminDepartmentOverview(
   return sections;
 }
 
+function personId(employee: Profile): string {
+  return String(employee.id || '');
+}
+
+function applyTaskFilters(
+  tasks: Kpi[],
+  opts: {
+    status?: 'all' | 'pending' | 'completed';
+    dateFrom?: string;
+    dateTo?: string;
+    search?: string;
+  },
+): Kpi[] {
+  let next = tasks;
+  if (opts.status === 'pending') {
+    next = next.filter((k) => k.completion_status !== 'completed');
+  } else if (opts.status === 'completed') {
+    next = next.filter((k) => k.completion_status === 'completed');
+  }
+  if (opts.dateFrom) {
+    next = next.filter((k) => (k.start_date || '') >= opts.dateFrom!);
+  }
+  if (opts.dateTo) {
+    next = next.filter((k) => (k.end_date || k.start_date || '') <= opts.dateTo!);
+  }
+  const q = opts.search?.trim().toLowerCase();
+  if (q) {
+    next = next.filter(
+      (k) =>
+        k.name.toLowerCase().includes(q) ||
+        (k.description || '').toLowerCase().includes(q) ||
+        (k.assignment_notes || '').toLowerCase().includes(q),
+    );
+  }
+  return next;
+}
+
 export function filterAssignmentSections(
   sections: DepartmentAssignmentSection[],
   opts: {
@@ -150,40 +182,56 @@ export function filterAssignmentSections(
     dateTo?: string;
   },
 ): DepartmentAssignmentSection[] {
-  let list = sections;
-  if (opts.departmentId && opts.departmentId !== 'all') {
-    list = list.filter((s) => s.deptId === opts.departmentId);
+  const employeeId = opts.employeeId && opts.employeeId !== 'all' ? String(opts.employeeId) : '';
+  const departmentId = opts.departmentId && opts.departmentId !== 'all' ? opts.departmentId : '';
+  const q = opts.search?.trim().toLowerCase() || '';
+
+  if (employeeId) {
+    const merged = new Map<string, EmployeeAssignmentGroup>();
+    let home: DepartmentAssignmentSection | undefined;
+    for (const section of sections) {
+      for (const group of section.employees) {
+        if (personId(group.employee) !== employeeId) continue;
+        const existing = merged.get(employeeId);
+        const tasks = applyTaskFilters(group.tasks, opts);
+        if (existing) {
+          const seen = new Set(existing.tasks.map((t) => t.id));
+          existing.tasks = existing.tasks.concat(tasks.filter((t) => !seen.has(t.id)));
+        } else {
+          merged.set(employeeId, { employee: group.employee, tasks });
+          home = section;
+        }
+        if (departmentId && section.deptId === departmentId) home = section;
+      }
+    }
+    const group = merged.get(employeeId);
+    if (!group || !home) return [];
+    if ((opts.status && opts.status !== 'all') || opts.dateFrom || opts.dateTo || q) {
+      if (group.tasks.length === 0 && !(q && group.employee.full_name.toLowerCase().includes(q))) {
+        return [];
+      }
+    }
+    return [{
+      ...home,
+      employees: [group],
+      taskCount: group.tasks.length,
+    }];
   }
-  const q = opts.search?.trim().toLowerCase();
+
+  let list = departmentId ? sections.filter((s) => s.deptId === departmentId) : sections;
 
   return list
     .map((section) => {
       const employees = section.employees
         .map((g) => {
-          if (opts.employeeId && opts.employeeId !== 'all' && g.employee.id !== opts.employeeId) return null;
           if (opts.managerId && opts.managerId !== 'all' && g.employee.manager_id !== opts.managerId) return null;
 
-          let tasks = g.tasks;
-          if (opts.status === 'pending') {
-            tasks = tasks.filter((k) => k.completion_status !== 'completed');
-          } else if (opts.status === 'completed') {
-            tasks = tasks.filter((k) => k.completion_status === 'completed');
-          }
-          if (opts.dateFrom) {
-            tasks = tasks.filter((k) => (k.start_date || '') >= opts.dateFrom!);
-          }
-          if (opts.dateTo) {
-            tasks = tasks.filter((k) => (k.end_date || k.start_date || '') <= opts.dateTo!);
-          }
+          let tasks = applyTaskFilters(g.tasks, { ...opts, search: undefined });
           if (q) {
             const empMatch =
               g.employee.full_name.toLowerCase().includes(q) ||
               g.employee.email.toLowerCase().includes(q);
-            const matchingTasks = tasks.filter(
-              (k) =>
-                k.name.toLowerCase().includes(q) ||
-                (k.description || '').toLowerCase().includes(q),
-            );
+            const matchingTasks = applyTaskFilters(g.tasks, opts);
             if (empMatch) return { ...g, tasks };
             if (matchingTasks.length) return { ...g, tasks: matchingTasks };
             return null;

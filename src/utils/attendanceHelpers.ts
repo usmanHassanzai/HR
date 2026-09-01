@@ -1,6 +1,6 @@
 export type AttendanceStatus = 'present' | 'absent' | 'late' | 'half_day';
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
-export type LeaveType = 'annual' | 'sick';
+export type LeaveType = 'annual' | 'sick' | 'other';
 
 export interface LeaveBalance {
   year: number;
@@ -63,6 +63,7 @@ export interface PendingLeaveRequest {
   id: string;
   user_id: string;
   leave_type: LeaveType;
+  leave_custom_type?: string | null;
   start_date: string;
   end_date: string;
   days_count: number;
@@ -78,6 +79,7 @@ export interface LeaveRequest {
   id: string;
   user_id: string;
   leave_type: LeaveType;
+  leave_custom_type?: string | null;
   start_date: string;
   end_date: string;
   days_count: number;
@@ -100,7 +102,16 @@ export const ATTENDANCE_STATUS_LABEL: Record<AttendanceStatus, string> = {
 export const LEAVE_TYPE_LABEL: Record<LeaveType, string> = {
   annual: 'Annual Leave',
   sick: 'Sick Leave',
+  other: 'Other',
 };
+
+export function formatLeaveType(type: LeaveType | string, custom?: string | null): string {
+  if (type === 'other') {
+    const written = custom?.trim();
+    return written ? `Other (${written})` : 'Other';
+  }
+  return LEAVE_TYPE_LABEL[type as LeaveType] || String(type);
+}
 
 export const APPROVAL_LABEL: Record<ApprovalStatus, string> = {
   pending: 'Pending',
@@ -111,5 +122,11 @@ export const APPROVAL_LABEL: Record<ApprovalStatus, string> = {
 export function approvalBadgeClass(status: ApprovalStatus): string {
   if (status === 'approved') return 'badge-on-track';
   if (status === 'rejected') return 'badge-off-track';
+  return 'badge-at-risk';
+}
+
+export function attendanceStatusBadgeClass(status: AttendanceStatus | string): string {
+  if (status === 'absent') return 'badge-off-track';
+  if (status === 'present') return 'badge-on-track';
   return 'badge-at-risk';
 }

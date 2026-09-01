@@ -1,0 +1,2 @@
+-- Re-apply overnight shift attendance after auth-safe resolve_shift_attendance_date fix.
+-- (Included in apply-all-migrations after overnight_shift_attendance_date.sql)

@@ -2,10 +2,16 @@ import { supabase } from '../lib/supabase';
 import { Kpi, Profile, KpiSubmission } from './kpiHelpers';
 import {
   calculateOverallKpiScore,
-  kpiAchievedPct,
+  kpiAssignedScore,
   kpiScoreContribution,
   performanceRatingForScore,
+  isKpiLateCompletion,
 } from './kpiScoreHelpers';
+
+function kpiTimingLabel(kpi: Kpi): string {
+  if (kpi.completion_status !== 'completed') return 'Open';
+  return isKpiLateCompletion(kpi) ? 'Late (half points)' : 'On time';
+}
 
 export interface ReportData {
   generatedAt: string;
@@ -81,7 +87,7 @@ export function exportToCsv(data: ReportData) {
     list.push(kpi);
     kpisByUser.set(kpi.user_id, list);
   }
-  const header = 'Employee,Department,KPI,Weight,Employee Score,Weighted Score,Overall KPI Score,Performance Rating';
+  const header = 'Employee,Department,KPI,Weight,Score,Timing,Points Awarded,Overall KPI Score,Performance Band';
   const rows = data.kpis.map((kpi) => {
     const user = userMap.get(kpi.user_id);
     const userKpis = kpisByUser.get(kpi.user_id) || [];
@@ -91,7 +97,8 @@ export function exportToCsv(data: ReportData) {
       kpi.department || kpi.category || '',
       kpi.name,
       String(kpi.weight ?? ''),
-      String(kpiAchievedPct(kpi)),
+      String(kpiAssignedScore(kpi)),
+      kpiTimingLabel(kpi),
       String(kpiScoreContribution(kpi)),
       String(overall),
       performanceRatingForScore(overall),
@@ -114,10 +121,11 @@ export async function exportToExcel(data: ReportData) {
       Department: kpi.department || kpi.category || '',
       KPI: kpi.name,
       Weight: kpi.weight,
-      'Employee Score': kpiAchievedPct(kpi),
-      'Weighted Score': kpiScoreContribution(kpi),
+      Score: kpiAssignedScore(kpi),
+      Timing: kpiTimingLabel(kpi),
+      'Points Awarded': kpiScoreContribution(kpi),
       'Overall KPI Score': overall,
-      'Performance Rating': performanceRatingForScore(overall),
+      'Performance Band': performanceRatingForScore(overall),
     };
   });
 
@@ -163,7 +171,7 @@ export async function exportToPdf(data: ReportData) {
     const employee = userMap.get(kpi.user_id)?.full_name || 'Unknown';
     const userKpis = data.kpis.filter((k) => k.user_id === kpi.user_id);
     const overall = calculateOverallKpiScore(userKpis);
-    const line = `${employee} — ${kpi.name}: weight ${kpi.weight}%  score ${kpiAchievedPct(kpi)}%  weighted ${kpiScoreContribution(kpi)}  overall ${overall}% ${performanceRatingForScore(overall)}`;
+    const line = `${employee} — ${kpi.name}: weight ${kpi.weight}%  score ${kpiAssignedScore(kpi)}  ${kpiTimingLabel(kpi)}  awarded ${kpiScoreContribution(kpi)}  overall ${overall}% ${performanceRatingForScore(overall)}`;
     doc.text(line, 14, y);
     y += 5;
     if (kpi.ai_narrative) {

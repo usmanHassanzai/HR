@@ -1,7 +1,7 @@
 /* Manager dashboard — mobile only professional layout */
 
 @media (max-width: 768px) {
-  .dashboard-container:has(.mgr-dash) {
+  .dashboard-container:has(.mgr-dash):not(.dashboard-container--admin) {
     padding-left: max(0.75rem, env(safe-area-inset-left));
     padding-right: max(0.75rem, env(safe-area-inset-right));
     padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));

@@ -813,11 +813,11 @@
 
 .landing-login-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 440px);
   gap: 3rem;
-  max-width: 1000px;
+  max-width: 1040px;
   margin: 0 auto;
-  align-items: center;
+  align-items: start;
 }
 
 @media (max-width: 860px) {
@@ -837,8 +837,14 @@
   text-align: center !important;
 }
 
+.landing-login-card-wrap {
+  min-width: 0;
+  width: 100%;
+}
+
 .landing-login-card-wrap .login-card {
   max-width: 100%;
+  margin: 0 auto;
 }
 
 .landing-login-card-wrap .login-page {
@@ -1358,8 +1364,10 @@
   width: 100%;
 }
 
-.landing-login-grid--register .login-card {
-  max-width: none;
+.landing-login-grid--register .login-card,
+.landing-login-grid--register .login-card--embedded {
+  max-width: 720px;
+  padding: 2rem 2.1rem !important;
 }
 
 .landing-footer__inner {

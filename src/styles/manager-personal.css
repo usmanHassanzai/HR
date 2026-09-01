@@ -89,6 +89,10 @@
 }
 
 .mgr-personal-stat--accent strong { color: var(--accent-primary); }
+
+.mgr-personal-stat .btn {
+  margin-left: auto;
+}
 .mgr-personal-stat--success strong { color: var(--color-success); }
 .mgr-personal-stat--gold strong { color: #d97706; }
 
@@ -288,6 +292,7 @@
 .mgr-personal-kpi-card--green { border-left-color: var(--color-success); }
 .mgr-personal-kpi-card--yellow { border-left-color: var(--color-warning); }
 .mgr-personal-kpi-card--red { border-left-color: var(--color-danger); }
+.mgr-personal-kpi-card--gray { border-left-color: #94a3b8; }
 
 .mgr-personal-kpi-card__head {
   display: flex;
