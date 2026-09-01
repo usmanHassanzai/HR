@@ -28,10 +28,88 @@ export interface DailyReportDeptSummary {
 
 export function todayIsoDate(): string {
   const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+  return toIsoDate(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+export function toIsoDate(year: number, monthIndex: number, day: number): string {
+  const y = year;
+  const m = String(monthIndex + 1).padStart(2, '0');
+  const d = String(day).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+export function parseIsoDate(iso: string): Date {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
+}
+
+export function addDaysIso(iso: string, delta: number): string {
+  const d = parseIsoDate(iso);
+  d.setDate(d.getDate() + delta);
+  return toIsoDate(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+export function calendarMonthLabel(year: number, monthIndex: number): string {
+  return new Date(year, monthIndex, 1).toLocaleDateString(undefined, {
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+export interface CalendarDayCell {
+  iso: string;
+  day: number;
+  inMonth: boolean;
+}
+
+/** Sunday-start grid cells for a month (includes leading/trailing days). */
+export function monthGridDays(year: number, monthIndex: number): CalendarDayCell[] {
+  const first = new Date(year, monthIndex, 1);
+  const last = new Date(year, monthIndex + 1, 0);
+  const startPad = first.getDay();
+  const totalCells = Math.ceil((startPad + last.getDate()) / 7) * 7;
+  const cells: CalendarDayCell[] = [];
+
+  for (let i = 0; i < totalCells; i += 1) {
+    const dayNum = i - startPad + 1;
+    const inMonth = dayNum >= 1 && dayNum <= last.getDate();
+    const date = inMonth
+      ? new Date(year, monthIndex, dayNum)
+      : dayNum < 1
+        ? new Date(year, monthIndex, dayNum)
+        : new Date(year, monthIndex + 1, dayNum - last.getDate());
+    cells.push({
+      iso: toIsoDate(date.getFullYear(), date.getMonth(), date.getDate()),
+      day: date.getDate(),
+      inMonth,
+    });
+  }
+
+  return cells;
+}
+
+export async function fetchAdminDailyReportDateCounts(
+  year: number,
+  monthIndex: number,
+): Promise<Map<string, number>> {
+  const start = toIsoDate(year, monthIndex, 1);
+  const lastDay = new Date(year, monthIndex + 1, 0).getDate();
+  const end = toIsoDate(year, monthIndex, lastDay);
+
+  const { data, error } = await supabase
+    .from('daily_work_reports')
+    .select('report_date')
+    .gte('report_date', start)
+    .lte('report_date', end);
+
+  if (error) throw error;
+
+  const counts = new Map<string, number>();
+  for (const row of data || []) {
+    const key = String(row.report_date).slice(0, 10);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return counts;
 }
 
 export function formatReportDate(iso: string): string {

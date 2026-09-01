@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Building2,
-  Calendar,
   Search,
   Users,
   Briefcase,
@@ -18,12 +17,15 @@ import { Department } from '../utils/departmentHelpers';
 import {
   AdminDailyWorkReport,
   DailyReportDeptSummary,
+  fetchAdminDailyReportDateCounts,
   fetchAdminDailyReportDeptSummary,
   fetchAdminDailyWorkReports,
   formatReportDate,
   formatReportTime,
+  parseIsoDate,
   todayIsoDate,
 } from '../utils/dailyWorkReportHelpers';
+import ReportDateCalendar from './ReportDateCalendar';
 import '../styles/daily-work-reports.css';
 import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
 
@@ -65,6 +67,7 @@ export default function AdminDailyWorkReports({ initialSearch = '', initialDeptI
   const [users, setUsers] = useState<Profile[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [reports, setReports] = useState<AdminDailyWorkReport[]>([]);
+  const [reportCountsByDate, setReportCountsByDate] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -86,6 +89,24 @@ export default function AdminDailyWorkReports({ initialSearch = '', initialDeptI
     const t = setTimeout(() => setSearchDebounced(search.trim().toLowerCase()), 280);
     return () => clearTimeout(t);
   }, [search]);
+
+  const calendarMonth = useMemo(() => {
+    const d = parseIsoDate(reportDate);
+    return { year: d.getFullYear(), month: d.getMonth() };
+  }, [reportDate]);
+
+  const loadCalendarCounts = useCallback(async (year: number, month: number) => {
+    try {
+      const counts = await fetchAdminDailyReportDateCounts(year, month);
+      setReportCountsByDate(counts);
+    } catch (err) {
+      console.error(err);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadCalendarCounts(calendarMonth.year, calendarMonth.month);
+  }, [calendarMonth.year, calendarMonth.month, loadCalendarCounts]);
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) {
@@ -109,13 +130,14 @@ export default function AdminDailyWorkReports({ initialSearch = '', initialDeptI
         (u) => u.role === 'manager' || u.role === 'employee',
       ));
       setDepartments((deptsRes.data as Department[]) || []);
+      void loadCalendarCounts(calendarMonth.year, calendarMonth.month);
     } catch (err) {
       console.error(err);
       setError(err instanceof Error ? err.message : 'Failed to load daily reports');
     } finally {
       setLoading(false);
     }
-  }, [reportDate]);
+  }, [reportDate, calendarMonth.year, calendarMonth.month, loadCalendarCounts]);
 
   useEffect(() => {
     void load();
@@ -222,8 +244,8 @@ export default function AdminDailyWorkReports({ initialSearch = '', initialDeptI
           <span className="dash-eyebrow">Saved daily in database</span>
           <h2>Daily work reports</h2>
           <p>
-            Choose a department from the dropdown to review that team’s managers and employees.
-            Select <strong>All departments</strong> to see every daily report for the date.
+            Pick a date on the calendar — like booking a flight — then choose a department to review
+            managers and employees for that day.
           </p>
         </div>
         <button type="button" className="btn btn-secondary" onClick={() => void load()}>
@@ -262,6 +284,17 @@ export default function AdminDailyWorkReports({ initialSearch = '', initialDeptI
         </div>
       </div>
 
+      <div className="dwr-admin__layout">
+        <aside className="dwr-cal-rail glass-panel">
+          <ReportDateCalendar
+            selectedDate={reportDate}
+            maxDate={today}
+            reportCountsByDate={reportCountsByDate}
+            onSelectDate={setReportDate}
+          />
+        </aside>
+
+        <div className="dwr-admin__content">
       <div className="dwr-admin__toolbar glass-panel">
         <label className="dwr-toolbar-field dwr-toolbar-field--dept">
           <Building2 size={14} />
@@ -284,12 +317,6 @@ export default function AdminDailyWorkReports({ initialSearch = '', initialDeptI
               <option value="unassigned">Unassigned{deptOptionMeta(null)}</option>
             )}
           </select>
-        </label>
-
-        <label className="dwr-toolbar-field">
-          <Calendar size={14} />
-          <span>Report date</span>
-          <input type="date" value={reportDate} max={today} onChange={(e) => setReportDate(e.target.value)} />
         </label>
 
         <label className="dwr-toolbar-field dwr-toolbar-field--grow">
@@ -418,6 +445,8 @@ export default function AdminDailyWorkReports({ initialSearch = '', initialDeptI
           </div>
         )}
       </section>
+        </div>
+      </div>
     </div>
   );
 }
