@@ -9,8 +9,8 @@ interface PrivilegedMfaGateProps {
 }
 
 /**
- * Admins and managers must enroll and verify a TOTP app (AAL2)
- * before the privileged dashboards render.
+ * All production accounts (admin, manager, HR, employee) must enroll and verify
+ * a TOTP app (AAL2) before their dashboard renders. Demo accounts are skipped.
  */
 export default function PrivilegedMfaGate({ onSatisfied, onCancel }: PrivilegedMfaGateProps) {
   const [phase, setPhase] = useState<'loading' | 'enroll' | 'verify'>('loading');

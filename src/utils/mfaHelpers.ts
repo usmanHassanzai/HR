@@ -5,7 +5,13 @@ import { isDemoProfile } from './demoMode';
 export function roleRequiresMfa(profile: Profile | null): boolean {
   if (!profile) return false;
   if (isDemoProfile(profile)) return false;
-  return profile.role === 'admin' || profile.role === 'manager' || profile.role === 'hr' || Boolean(profile.is_platform_owner);
+  return (
+    profile.role === 'admin'
+    || profile.role === 'manager'
+    || profile.role === 'hr'
+    || profile.role === 'employee'
+    || Boolean(profile.is_platform_owner)
+  );
 }
 
 export async function currentMfaLevel(): Promise<'aal1' | 'aal2' | null> {
