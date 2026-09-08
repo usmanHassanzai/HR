@@ -13,7 +13,7 @@ import AdminSidebarNav, { findAdminNavIcon, type AdminNavGroup } from './AdminSi
 import AdminHamburgerButton from './AdminHamburgerButton';
 import '../styles/admin-dashboard.css';
 import '../styles/manager-personal.css';
-import { formatKpiWeight } from '../utils/kpiWeightHelpers';
+import { formatKpiWeight, KPI_WEIGHT_CAP } from '../utils/kpiWeightHelpers';
 import {
   availableKpiYears,
   employeeKpiMonthBreakdown,
@@ -30,6 +30,7 @@ import {
 } from '../utils/kpiScoreHelpers';
 import { karachiYearMonth, kpiCategoryMeta } from '../utils/kpiCategories';
 import { formatLatePenaltyLabel, kpiScoringRule } from '../utils/kpiScoringRules';
+import { fetchRewardsSummary, type RewardsSummary } from '../utils/rewardsHelpers';
 import KpiEvaluationBlock from './KpiEvaluationBlock';
 import '../styles/employee-mobile.css';
 import '../styles/employee-kpis.css';
@@ -37,6 +38,8 @@ import '../styles/employee-kpis.css';
 const EmployeeRewardsPanel = lazy(() => import('./EmployeeRewardsPanel'));
 const AttendanceLeavePanel = lazy(() => import('./AttendanceLeavePanel'));
 const DailyWorkReportPanel = lazy(() => import('./DailyWorkReportPanel'));
+const AccountSecurityPanel = lazy(() => import('./AccountSecurityPanel'));
+const BackupCodesLowBanner = lazy(() => import('./BackupCodesLowBanner'));
 
 interface EmployeeDashboardProps {
   profile: Profile;
@@ -59,6 +62,33 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
   const [filterYear, setFilterYear] = useState(initialYm.year);
   const [filterMonth, setFilterMonth] = useState(initialYm.monthIndex);
   const [kpiSearch, setKpiSearch] = useState('');
+  const [listMode, setListMode] = useState<'open' | 'history'>('open');
+  const [rewardsSummary, setRewardsSummary] = useState<RewardsSummary | null>(null);
+  const [redemptions, setRedemptions] = useState<{
+    id: string;
+    points_used: number;
+    status: string;
+    redeemed_at: string;
+    rewards_catalog?: { name: string } | null;
+  }[]>([]);
+
+  const fetchRewardsMeta = async () => {
+    try {
+      const [summary, redemRes] = await Promise.all([
+        fetchRewardsSummary(activeUser.id),
+        supabase
+          .from('reward_redemptions')
+          .select('id, points_used, status, redeemed_at, rewards_catalog(name)')
+          .eq('employee_id', activeUser.id)
+          .order('redeemed_at', { ascending: false })
+          .limit(24),
+      ]);
+      setRewardsSummary(summary);
+      setRedemptions((redemRes.data || []) as typeof redemptions);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const fetchKpis = async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
@@ -74,6 +104,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
       } else {
         setKpis(await hydrateKpiLastEdits((data as Kpi[]) || []));
       }
+      await fetchRewardsMeta();
     } catch (err) {
       console.error(err);
     } finally {
@@ -163,6 +194,20 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
     });
   }, [periodKpis, kpiSearch]);
 
+  const openKpis = useMemo(
+    () => visibleKpis.filter((k) => k.completion_status !== 'completed'),
+    [visibleKpis],
+  );
+  const historyKpis = useMemo(
+    () => [...visibleKpis.filter((k) => k.completion_status === 'completed')].sort((a, b) => {
+      const aKey = a.completed_at || a.end_date || '';
+      const bKey = b.completed_at || b.end_date || '';
+      return bKey.localeCompare(aKey);
+    }),
+    [visibleKpis],
+  );
+  const listedKpis = listMode === 'history' ? historyKpis : openKpis;
+
   const patchKpi = (id: string, patch: Partial<Kpi>) => {
     setKpis((prev) => prev.map((k) => (k.id === id ? { ...k, ...patch } : k)));
   };
@@ -172,6 +217,22 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
     return new Date(`${d}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   };
 
+  const fmtFullDate = (iso?: string | null) => {
+    if (!iso) return '—';
+    const raw = iso.includes('T') ? iso : `${iso.slice(0, 10)}T00:00:00`;
+    return new Date(raw).toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+  };
+
+  const fmtMonthYear = (iso?: string | null) => {
+    if (!iso) return '—';
+    const raw = iso.includes('T') ? iso : `${iso.slice(0, 10)}T00:00:00`;
+    return new Date(raw).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  };
+
   const dateRange = (start?: string | null, end?: string | null) => {
     const a = fmtDate(start);
     const b = fmtDate(end);
@@ -179,6 +240,24 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
     if (a === b) return a;
     return `${a} – ${b}`;
   };
+
+  const monthlyWeightLabel = periodMode === 'month'
+    ? 'Monthly KPI weightage'
+    : periodMode === 'year'
+      ? 'Year KPI weightage'
+      : 'Period weightage';
+  const periodWeightText = periodKpis.length
+    ? `${formatKpiWeight(periodSummary.totalWeight)} of ${KPI_WEIGHT_CAP}%`
+    : '—';
+  const overallWeightText = kpis.length
+    ? `${formatKpiWeight(overallSummary.totalWeight)} of ${KPI_WEIGHT_CAP}%`
+    : '—';
+  const notRedeemedText = rewardsSummary
+    ? rewardsSummary.balance.toLocaleString()
+    : '—';
+  const redeemedText = rewardsSummary
+    ? rewardsSummary.usedPoints.toLocaleString()
+    : '—';
 
   const navGroups = useMemo<AdminNavGroup[]>(() => [{
     label: 'Menu',
@@ -305,8 +384,8 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
             </div>
             <dl className="emp-kpi-month__stats">
               <div>
-                <dt>Weight assigned</dt>
-                <dd>{periodKpis.length ? formatKpiWeight(periodSummary.totalWeight) : '—'}</dd>
+                <dt>{monthlyWeightLabel}</dt>
+                <dd>{periodWeightText}</dd>
               </div>
               <div>
                 <dt>Points awarded</dt>
@@ -317,7 +396,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
                 <dd>{periodKpis.length ? `${periodSummary.completed}/${periodSummary.kpiCount}` : '—'}</dd>
               </div>
               <div>
-                <dt>Open weight</dt>
+                <dt>Open weightage</dt>
                 <dd>{periodKpis.length ? formatKpiWeight(periodSummary.openWeight) : '—'}</dd>
               </div>
             </dl>
@@ -338,22 +417,31 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
             </div>
             <dl className="emp-kpi-month__stats">
               <div>
-                <dt>Weight assigned</dt>
-                <dd>{kpis.length ? formatKpiWeight(overallSummary.totalWeight) : '—'}</dd>
+                <dt>Overall KPI weightage</dt>
+                <dd>{overallWeightText}</dd>
               </div>
               <div>
                 <dt>Points awarded</dt>
                 <dd>{kpis.length ? formatKpiScore(overallSummary.pointsAwarded) : '—'}</dd>
               </div>
               <div>
-                <dt>Completed</dt>
-                <dd>{kpis.length ? `${overallSummary.completed}/${overallSummary.kpiCount}` : '—'}</dd>
+                <dt>Points not redeemed</dt>
+                <dd>{notRedeemedText}</dd>
               </div>
               <div>
-                <dt>Open weight</dt>
-                <dd>{kpis.length ? formatKpiWeight(overallSummary.openWeight) : '—'}</dd>
+                <dt>Points redeemed</dt>
+                <dd>{redeemedText}</dd>
               </div>
             </dl>
+            {rewardsSummary && (
+              <p className="emp-kpi-month__note">
+                Reward points stay available until you redeem them
+                {rewardsSummary.totalEarned > 0
+                  ? ` · ${rewardsSummary.totalEarned.toLocaleString()} earned lifetime`
+                  : ''}
+                .
+              </p>
+            )}
           </article>
         </div>
 
@@ -363,12 +451,12 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
             <strong>{periodKpis.length}</strong>
           </div>
           <div className="emp-kpi-summary__chip">
-            <span>Showing</span>
-            <strong>{visibleKpis.length}</strong>
+            <span>Open</span>
+            <strong>{openKpis.length}</strong>
           </div>
           <div className="emp-kpi-summary__chip">
-            <span>Pending in period</span>
-            <strong>{periodSummary.pending}</strong>
+            <span>In history</span>
+            <strong>{historyKpis.length}</strong>
           </div>
         </div>
       </section>
@@ -392,10 +480,47 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
       ) : (
         <div className="emp-kpi-list">
           <div className="emp-kpi-list__head">
-            <h3>{periodMode === 'overall' ? 'All assigned tasks' : `Tasks · ${selectedLabel}`}</h3>
-            <p>Weight is capacity. Score is the points you can earn. Awarded points count toward the selected period KPI %.</p>
+            <div>
+              <h3>{periodMode === 'overall' ? 'All assigned tasks' : `Tasks · ${selectedLabel}`}</h3>
+              <p>
+                Each card shows that task&apos;s KPI weightage. Monthly weightage is the sum for the selected period (cap {KPI_WEIGHT_CAP}%).
+                Completed tasks move to History with month, year, and date.
+              </p>
+            </div>
+            <div className="emp-kpi-list__modes" role="tablist" aria-label="Open or history">
+              <button
+                type="button"
+                role="tab"
+                className={`emp-kpi-list__mode${listMode === 'open' ? ' emp-kpi-list__mode--active' : ''}`}
+                aria-selected={listMode === 'open'}
+                onClick={() => setListMode('open')}
+              >
+                Open ({openKpis.length})
+              </button>
+              <button
+                type="button"
+                role="tab"
+                className={`emp-kpi-list__mode${listMode === 'history' ? ' emp-kpi-list__mode--active' : ''}`}
+                aria-selected={listMode === 'history'}
+                onClick={() => setListMode('history')}
+              >
+                History ({historyKpis.length})
+              </button>
+            </div>
           </div>
-          {visibleKpis.map((kpi) => {
+
+          {listedKpis.length === 0 ? (
+            <div className="emp-kpi-empty glass-panel emp-kpi-empty--compact">
+              <Target size={28} strokeWidth={1.5} />
+              <h3>{listMode === 'history' ? 'No completed KPIs yet' : 'No open KPIs'}</h3>
+              <p>
+                {listMode === 'history'
+                  ? 'When you mark tasks Complete, they appear here with month, year, and date. After you redeem reward points, redemptions are listed below.'
+                  : 'All tasks in this period are complete — open History to review them.'}
+              </p>
+            </div>
+          ) : (
+            listedKpis.map((kpi) => {
             const badge = kpiProgressBadge(kpi);
             const points = formatKpiTaskPoints(kpi);
             const assigned = kpiAssignedScore(kpi);
@@ -404,8 +529,9 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
             const complete = kpi.completion_status === 'completed';
             const latePenalized = isKpiLatePenaltyApplied(kpi);
             const penaltyLabel = formatLatePenaltyLabel(kpiScoringRule(kpi));
+            const historyDate = kpi.completed_at || kpi.end_date;
             return (
-              <article key={kpi.id} className={`emp-kpi-item kpi-card--${badge.light}${paused ? ' emp-kpi-item--paused' : ''}`}>
+              <article key={kpi.id} className={`emp-kpi-item kpi-card--${badge.light}${paused ? ' emp-kpi-item--paused' : ''}${complete ? ' emp-kpi-item--history' : ''}`}>
                 <div className="emp-kpi-item__top">
                   <div className="emp-kpi-item__tags">
                     <span className="emp-kpi-item__cat">{kpiCategoryMeta(kpi.kpi_category).label}</span>
@@ -413,13 +539,16 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
                     {periodMode !== 'overall' && (
                       <span className="emp-kpi-item__scope">{selectedLabel}</span>
                     )}
+                    {complete && (
+                      <span className="emp-kpi-item__scope">{fmtMonthYear(historyDate)}</span>
+                    )}
                   </div>
                   <span className={`kpi-traffic kpi-traffic--${badge.light}`}>{badge.label}</span>
                 </div>
                 <h3>{kpi.name}</h3>
                 <dl className="emp-kpi-facts">
                   <div>
-                    <dt>Weight</dt>
+                    <dt>KPI weightage</dt>
                     <dd>{formatKpiWeight(kpi.weight)}</dd>
                   </div>
                   <div>
@@ -431,10 +560,18 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
                     <dd>{complete ? formatKpiScore(awarded) : '—'}</dd>
                   </div>
                   <div>
-                    <dt>Dates</dt>
-                    <dd>{dateRange(kpi.start_date, kpi.end_date)}</dd>
+                    <dt>{complete ? 'Completed' : 'Dates'}</dt>
+                    <dd>{complete ? fmtFullDate(historyDate) : dateRange(kpi.start_date, kpi.end_date)}</dd>
                   </div>
                 </dl>
+                {complete && (
+                  <div className="emp-kpi-history-meta">
+                    <span>Month / year</span>
+                    <strong>{fmtMonthYear(historyDate)}</strong>
+                    <span>Date</span>
+                    <strong>{fmtFullDate(historyDate)}</strong>
+                  </div>
+                )}
                 <div className="emp-kpi-detail">
                   <div className="emp-kpi-detail__row">
                     <span>Timing</span>
@@ -450,8 +587,8 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
                     <span>Contribution</span>
                     <strong>
                       {complete
-                        ? `${formatKpiScore(awarded)} pts of ${formatKpiWeight(kpi.weight)} weight`
-                        : `0 pts until Complete (weight ${formatKpiWeight(kpi.weight)} still counts)`}
+                        ? `${formatKpiScore(awarded)} pts of ${formatKpiWeight(kpi.weight)} weightage`
+                        : `0 pts until Complete (weightage ${formatKpiWeight(kpi.weight)} still counts)`}
                     </strong>
                   </div>
                 </div>
@@ -469,7 +606,26 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
                 />
               </article>
             );
-          })}
+          })
+          )}
+
+          {listMode === 'history' && redemptions.length > 0 && (
+            <section className="emp-kpi-redeem-history">
+              <h3>Redeemed rewards</h3>
+              <p>Points you already redeemed. Open tasks and unredeemed balance stay on the Overview and Open tabs.</p>
+              <ul>
+                {redemptions.map((r) => (
+                  <li key={r.id}>
+                    <div>
+                      <strong>{r.rewards_catalog?.name || 'Reward'}</strong>
+                      <span>{fmtFullDate(r.redeemed_at)} · {fmtMonthYear(r.redeemed_at)}</span>
+                    </div>
+                    <em>−{Number(r.points_used).toLocaleString()} pts · {r.status}</em>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </div>
       )}
       </div>
@@ -546,7 +702,9 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
         <AttendanceLeavePanel profile={profile} mode={profile.role === 'manager' ? 'manager' : 'employee'} />
         </Suspense>
       ) : activeTab === 'settings' ? (
+        <Suspense fallback={<TabFallback />}>
         <div className="app-settings-stack">
+          <BackupCodesLowBanner />
           {!hideChangePassword && (
             <div className="app-settings-block">
               <button type="button" className="btn btn-secondary" onClick={() => setShowChangePassword(true)}>
@@ -555,12 +713,15 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
             </div>
           )}
           <details className="app-settings-block" open>
+            <summary>Account security (2FA recovery)</summary>
+            <AccountSecurityPanel fullName={activeUser.full_name} />
+          </details>
+          <details className="app-settings-block" open>
             <summary>Daily report</summary>
-            <Suspense fallback={<TabFallback />}>
-              <DailyWorkReportPanel profile={profile} />
-            </Suspense>
+            <DailyWorkReportPanel profile={profile} />
           </details>
         </div>
+        </Suspense>
       ) : activeTab === 'kpis' ? (
         kpiBoard
       ) : null}

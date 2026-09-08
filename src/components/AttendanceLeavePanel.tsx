@@ -657,6 +657,15 @@ export default function AttendanceLeavePanel({ profile, mode, initialAdminTab, i
           </button>
         )}
       </div>
+      {stillOnSiteToday ? (
+        <p className="attendance-present-banner" role="status">
+          You are still present in the office and working. This stays visible after every check-in until you check out.
+        </p>
+      ) : checkedOutToday ? (
+        <p className="attendance-present-banner attendance-present-banner--out" role="status">
+          You checked out. Check in again during your shift if you return — the present message will show again.
+        </p>
+      ) : null}
     </div>
   );
 

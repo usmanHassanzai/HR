@@ -23,7 +23,8 @@ import GeoAttendanceTracker from './components/GeoAttendanceTracker';
 import PrivilegedMfaGate from './components/PrivilegedMfaGate';
 import { GEO_DASHBOARD_OPEN_EVENT } from './utils/geoAttendance';
 import { startPresenceHeartbeat } from './utils/presenceHeartbeat';
-import { roleRequiresMfa } from './utils/mfaHelpers';
+import { roleRequiresMfa, currentMfaLevel, getVerifiedTotpFactorId } from './utils/mfaHelpers';
+import { confirmRecoveryEmailToken, completeEmailMfaRecovery, hasMfaSessionGrant } from './utils/mfaRecovery';
 import { Loader2, AlertCircle } from 'lucide-react';
 
 const LandingPage = lazy(() => import('./components/LandingPage'));
@@ -52,13 +53,66 @@ function App() {
   const [demoExpired, setDemoExpired] = useState(false);
   const [geoHold, setGeoHold] = useState(() => isGeoHold());
   const [privilegedMfaOk, setPrivilegedMfaOk] = useState(false);
+  const [mfaLinkMsg, setMfaLinkMsg] = useState('');
   usePortalSessionGuard(Boolean(session), { idle: Boolean(session) && !geoHold });
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const action = params.get('mfa_action');
+    const token = params.get('token');
+    if (!action || !token) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        if (action === 'confirm_email') {
+          await confirmRecoveryEmailToken(token);
+          if (!cancelled) setMfaLinkMsg('Recovery email confirmed. You can use email recovery if you lose your authenticator.');
+        } else if (action === 'reset_2fa') {
+          const msg = await completeEmailMfaRecovery(token);
+          if (!cancelled) setMfaLinkMsg(msg);
+        }
+      } catch (e) {
+        if (!cancelled) setMfaLinkMsg(e instanceof Error ? e.message : 'Recovery link failed.');
+      } finally {
+        params.delete('mfa_action');
+        params.delete('token');
+        const next = `${window.location.pathname}${params.toString() ? `?${params}` : ''}${window.location.hash}`;
+        window.history.replaceState({}, '', next);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     setAttendanceLogoutProfile(profile);
   }, [profile]);
 
   useEffect(() => subscribeGeoHold(() => setGeoHold(isGeoHold())), []);
+
+  useEffect(() => {
+    if (!session?.user?.id || !profile || !roleRequiresMfa(profile)) return;
+    let cancelled = false;
+    void (async () => {
+      // Session grants only count when a verified authenticator still exists.
+      // After an authenticator reset, leftover grants must not skip MFA setup.
+      const [grant, verifiedId, level] = await Promise.all([
+        hasMfaSessionGrant().catch(() => false),
+        getVerifiedTotpFactorId().catch(() => null),
+        currentMfaLevel().catch(() => null),
+      ]);
+      if (cancelled) return;
+      if (level === 'aal2' && verifiedId) {
+        setPrivilegedMfaOk(true);
+        return;
+      }
+      if (grant && verifiedId) {
+        setPrivilegedMfaOk(true);
+        return;
+      }
+      setPrivilegedMfaOk(false);
+    })();
+    return () => { cancelled = true; };
+  }, [session?.user?.id, profile?.id, profile?.role]);
 
   useEffect(() => {
     if (!session || !profile || geoHold) return;
@@ -144,6 +198,7 @@ function App() {
         if (event === 'SIGNED_IN') {
           clearGeoHold();
           setGeoHold(false);
+          setPrivilegedMfaOk(false);
           void fetchUserProfile(activeSession.user.id);
         } else if (event === 'USER_UPDATED') {
           void fetchUserProfile(activeSession.user.id);
@@ -339,6 +394,7 @@ function App() {
     main = (
       <NativeScrollRoot>
         <PrivilegedMfaGate
+          fullName={profile.full_name}
           onSatisfied={() => setPrivilegedMfaOk(true)}
           onCancel={() => {
             void supabase.auth.signOut();
@@ -350,6 +406,14 @@ function App() {
   } else {
     main = (
       <NativeScrollRoot>
+        {mfaLinkMsg && (
+          <div className="login-error-banner" role="status" style={{ margin: '0.75rem 1rem 0' }}>
+            {mfaLinkMsg}
+            <button type="button" className="btn btn-secondary" style={{ marginLeft: '0.5rem', padding: '0.2rem 0.5rem' }} onClick={() => setMfaLinkMsg('')}>
+              Dismiss
+            </button>
+          </div>
+        )}
         <div className={`dashboard-container${profile.role === 'admin' || profile.role === 'manager' || profile.role === 'employee' || profile.role === 'hr' ? ' dashboard-container--admin' : ''}`}>
           {isDemoProfile(profile) && <DemoModeBanner />}
           <Header profile={profile} organizationName={company?.name} onLogout={handleLogout} />

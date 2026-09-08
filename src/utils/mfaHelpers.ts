@@ -24,9 +24,36 @@ export async function currentMfaLevel(): Promise<'aal1' | 'aal2' | null> {
 }
 
 export async function hasVerifiedTotpFactor(): Promise<boolean> {
+  return Boolean(await getVerifiedTotpFactorId());
+}
+
+/** Remove unfinished enrollments that block re-setup with the same name. */
+export async function clearUnverifiedTotpFactors(): Promise<void> {
   const { data, error } = await supabase.auth.mfa.listFactors();
-  if (error) return false;
-  return (data?.totp || []).some((f) => f.status === 'verified');
+  if (error || !data) return;
+  const candidates = [
+    ...(data.totp || []),
+    ...((data as { all?: { id: string; status: string; factor_type?: string }[] }).all || []),
+  ];
+  const seen = new Set<string>();
+  for (const factor of candidates) {
+    if (!factor?.id || seen.has(factor.id)) continue;
+    seen.add(factor.id);
+    const type = (factor as { factor_type?: string }).factor_type;
+    if (type && type !== 'totp') continue;
+    if (factor.status === 'verified') continue;
+    await supabase.auth.mfa.unenroll({ factorId: factor.id });
+  }
+}
+
+export async function getVerifiedTotpFactorId(): Promise<string | null> {
+  const { data, error } = await supabase.auth.mfa.listFactors();
+  if (error || !data) return null;
+  const totp = (data.totp || []).find((f) => f.status === 'verified');
+  if (totp) return totp.id;
+  const fromAll = ((data as { all?: { id: string; status: string; factor_type?: string }[] }).all || [])
+    .find((f) => f.status === 'verified' && (!f.factor_type || f.factor_type === 'totp'));
+  return fromAll?.id || null;
 }
 
 async function invokeAuthenticator(payload: Record<string, unknown>) {

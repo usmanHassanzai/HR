@@ -27,6 +27,7 @@ console.log('🚀 Scorr — prepare for manual deploy (scorr.walfia.ai)\n');
 run('node', ['scripts/apply-all-migrations.mjs'], 'Supabase migrations');
 run('node', ['scripts/deploy-forgot-password.mjs'], 'Edge function: forgot_password');
 run('node', ['scripts/deploy-reset-authenticator.mjs'], 'Edge function: reset_authenticator');
+run('node', ['scripts/deploy-mfa-recovery.mjs'], 'Edge function: mfa_recovery');
 run('node', ['scripts/deploy-kpi-email.mjs'], 'Edge function: kpi_email');
 run('npm', ['run', 'build'], 'Production build');
 

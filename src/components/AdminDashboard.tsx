@@ -20,6 +20,8 @@ import AdminUsersPage from './AdminUsersPage';
 const AdminDailyWorkReports = lazy(() => import('./AdminDailyWorkReports'));
 const Analytics = lazy(() => import('./Analytics'));
 const BrandingSettings = lazy(() => import('./BrandingSettings'));
+const AccountSecurityPanel = lazy(() => import('./AccountSecurityPanel'));
+const BackupCodesLowBanner = lazy(() => import('./BackupCodesLowBanner'));
 const AdminRewards = lazy(() => import('./AdminRewards'));
 const AdminOrgKpiPointsBoard = lazy(() => import('./AdminOrgKpiPointsBoard'));
 const AttendanceLeavePanel = lazy(() => import('./AttendanceLeavePanel'));
@@ -361,6 +363,9 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
         <div className="admin-shell__content">
           <div className="admin-shell__panel">
       <Suspense fallback={<TabFallback />}>
+      {!isDemoProfile(profile) && (
+        <BackupCodesLowBanner onOpenSettings={() => setActiveTab('settings')} />
+      )}
       {activeTab === 'companies' && platformOwner ? (
         <PlatformCompaniesConsole profile={profile} embedded />
       ) : activeTab === 'export' ? (
@@ -425,6 +430,10 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
         />
       ) : activeTab === 'settings' ? (
         <div className="app-settings-stack">
+          <details className="app-settings-block" open>
+            <summary>Account security (2FA recovery)</summary>
+            <AccountSecurityPanel fullName={profile.full_name} />
+          </details>
           <details className="app-settings-block" open>
             <summary>Branding</summary>
             <BrandingSettings isDemo={isDemoProfile(profile)} />

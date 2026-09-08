@@ -283,7 +283,7 @@ export default function AdminAttendanceDirectory({ departments, initialUserId }:
                   </td>
                   <td className={timing.shiftEmpty ? 'att-cell-muted' : undefined}>{timing.shift}</td>
                   <td>{timing.clockIn}</td>
-                  <td className={timing.clockOutEmpty ? 'att-cell-muted' : undefined}>{timing.clockOut}</td>
+                  <td className={timing.stillPresent ? 'att-cell-present' : timing.clockOutEmpty ? 'att-cell-muted' : undefined}>{timing.clockOut}</td>
                   <td className={timing.durationEmpty ? 'att-cell-muted' : undefined}>{timing.duration}</td>
                   <td>{r.attendance_source === 'geo' ? 'GPS' : r.attendance_source || 'Manual'}</td>
                   <td>

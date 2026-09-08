@@ -238,6 +238,7 @@ serve(async (req) => {
       }
     }
 
+    await admin.from('mfa_session_grants').delete().eq('user_id', target.id);
     await admin
       .from('mfa_reset_requests')
       .update({ resolved_at: new Date().toISOString(), resolved_by: caller.id })

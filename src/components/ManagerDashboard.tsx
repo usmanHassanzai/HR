@@ -19,6 +19,8 @@ const DailyWorkReportPanel = lazy(() => import('./DailyWorkReportPanel'));
 const ManagerRewardsPanel = lazy(() => import('./ManagerRewardsPanel'));
 const AttendanceLeavePanel = lazy(() => import('./AttendanceLeavePanel'));
 const AdminLiveTracking = lazy(() => import('./AdminLiveTracking'));
+const AccountSecurityPanel = lazy(() => import('./AccountSecurityPanel'));
+const BackupCodesLowBanner = lazy(() => import('./BackupCodesLowBanner'));
 
 type ManagerTab = 'mine' | 'employees' | 'kpis' | 'attendance' | 'rewards' | 'settings';
 
@@ -178,11 +180,16 @@ export default function ManagerDashboard({ profile, organizationName }: ManagerD
           </div>
         ) : (
           <div className="app-settings-stack">
+            <BackupCodesLowBanner onOpenSettings={() => setActiveTab('settings')} />
             <div className="app-settings-block">
               <button type="button" className="btn btn-secondary" onClick={() => setShowChangePassword(true)}>
                 <KeyRound size={16} /> Change password
               </button>
             </div>
+            <details className="app-settings-block" open>
+              <summary>Account security (2FA recovery)</summary>
+              <AccountSecurityPanel fullName={profile.full_name} />
+            </details>
             <details className="app-settings-block" open>
               <summary>Daily report</summary>
               <DailyWorkReportPanel profile={profile} />

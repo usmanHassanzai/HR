@@ -141,18 +141,6 @@ export function formatDateTime(iso: string | null | undefined): string {
   });
 }
 
-function todayYmd(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-}
-
-function isSameLocalDate(iso: string, ymd?: string | null): boolean {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return false;
-  const local = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  return local === (ymd || todayYmd());
-}
-
 export function resolveWorkMinutes(row: {
   clock_in_at?: string | null;
   clock_out_at?: string | null;
@@ -180,6 +168,7 @@ export function describeAttendanceHistory(row: {
   shiftEmpty: boolean;
   clockOutEmpty: boolean;
   durationEmpty: boolean;
+  stillPresent: boolean;
 } {
   const shift = row.shift_name?.trim() || 'Unassigned';
   const clockIn = row.clock_in_at
@@ -192,11 +181,7 @@ export function describeAttendanceHistory(row: {
         minute: '2-digit',
       })
     : 'No clock-in';
-  const stillOpen = Boolean(
-    row.clock_in_at
-    && !row.clock_out_at
-    && (row.attendance_date === todayYmd() || isSameLocalDate(row.clock_in_at)),
-  );
+  const stillOpen = Boolean(row.clock_in_at && !row.clock_out_at);
   const clockOut = row.clock_out_at
     ? new Date(row.clock_out_at).toLocaleString(undefined, {
         weekday: 'short',
@@ -207,12 +192,14 @@ export function describeAttendanceHistory(row: {
         minute: '2-digit',
       })
     : stillOpen
-      ? 'Still on site'
+      ? 'Still present in office'
       : 'No clock-out';
   const mins = resolveWorkMinutes(row);
   let duration = formatWorkDuration(mins);
-  if (stillOpen && mins != null && mins > 0) {
-    duration = `${formatWorkDuration(mins)} (open)`;
+  if (stillOpen) {
+    duration = mins != null && mins > 0
+      ? `${formatWorkDuration(mins)} · still working`
+      : 'Still working';
   }
   return {
     shift,
@@ -220,8 +207,9 @@ export function describeAttendanceHistory(row: {
     clockOut,
     duration,
     shiftEmpty: !row.shift_name?.trim(),
-    clockOutEmpty: !row.clock_out_at,
-    durationEmpty: mins == null || mins <= 0,
+    clockOutEmpty: !row.clock_out_at && !stillOpen,
+    durationEmpty: !stillOpen && (mins == null || mins <= 0),
+    stillPresent: stillOpen,
   };
 }
 

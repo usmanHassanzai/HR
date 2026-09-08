@@ -251,7 +251,8 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
   const siteRadius = workSite?.radius_meters ?? offices.find((o) => o.active)?.radius_meters ?? 150;
   const inWindow = shouldCaptureLocationNow(windowInfo);
   const inExitWindow = windowInfo ? isWithinShiftExitWindow(locationWindowToMyShift(windowInfo)) : false;
-  const openShift = Boolean(clockIn && !clockOut);
+  const openVisit = visits.some((v) => !v.clock_out_at);
+  const openShift = Boolean((clockIn && !clockOut) || openVisit);
 
   return (
     <div className="attendance-card geo-attendance-panel">
@@ -284,8 +285,13 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
         </p>
       )}
       {openShift && (
-        <p className="geo-hint" style={{ marginBottom: '0.75rem' }}>
-          You are checked in. Use <strong>Clock out</strong> when you leave — even mid-shift if you need urgent leave, then submit a request under Request leave.
+        <p className="attendance-present-banner" role="status" style={{ marginBottom: '0.75rem' }}>
+          You are still present in the office and working. Check out when you leave — you can check in again any time during the shift.
+        </p>
+      )}
+      {!openShift && clockIn && clockOut && inWindow && (
+        <p className="attendance-present-banner attendance-present-banner--out" role="status" style={{ marginBottom: '0.75rem' }}>
+          Checked out. Clock in again if you return before the shift ends.
         </p>
       )}
       {openShift && !inWindow && inExitWindow && (
