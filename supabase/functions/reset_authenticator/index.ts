@@ -35,6 +35,14 @@ function tokenAal(jwt: string): string {
   }
 }
 
+function roleLabel(role: string | null | undefined): string {
+  if (role === 'admin') return 'Admin';
+  if (role === 'manager') return 'Manager';
+  if (role === 'hr') return 'HR';
+  if (role === 'employee') return 'Employee';
+  return role || 'User';
+}
+
 async function sendEmail(to: string[], subject: string, body: string) {
   const apiKey = Deno.env.get('RESEND_API_KEY');
   const from = Deno.env.get('KPI_EMAIL_FROM') || 'Scorr <noreply@scorr.walfia.ai>';
@@ -79,7 +87,7 @@ serve(async (req) => {
     const { data: authData, error: authErr } = await admin.auth.getUser(jwt);
     const callerId = authData?.user?.id;
     if (authErr || !callerId) {
-      return json(req, { error: 'Not authenticated.' }, 401);
+      return json(req, { error: 'Not authenticated. Sign out and sign in again, then request a reset.' }, 401);
     }
 
     const { data: caller, error: callerErr } = await admin
@@ -92,29 +100,58 @@ serve(async (req) => {
     }
 
     if (requestReset) {
-      const { data: target } = await admin
-        .from('users')
-        .select('id, email, full_name, role, company_id')
-        .eq('id', callerId)
-        .maybeSingle();
-      if (!target) return json(req, { error: 'Not authenticated.' }, 401);
-
-      const { data: admins } = await admin
-        .from('users')
-        .select('id, email, full_name')
-        .eq('company_id', target.company_id)
-        .eq('role', 'admin')
-        .eq('is_demo', false);
-
-      const adminEmails = (admins || [])
-        .filter((a) => a.id !== target.id && a.email)
-        .map((a) => a.email as string);
-
+      const target = caller;
+      const who = `${roleLabel(target.role)} ${target.full_name} (${target.email})`;
       const msg = [
-        `${target.full_name} (${target.email}) cannot open their authenticator app.`,
-        'In Scorr go to People → ⋮ next to their name → Reset authenticator.',
+        `${who} cannot open their authenticator app and requested a reset.`,
+        'In Scorr go to People → open their profile → Reset Authenticator.',
         'They will scan a new QR the next time they sign in.',
       ].join('\n');
+
+      const nowIso = new Date().toISOString();
+      const { data: existingReq } = await admin
+        .from('mfa_reset_requests')
+        .select('id')
+        .eq('user_id', target.id)
+        .is('resolved_at', null)
+        .maybeSingle();
+
+      if (existingReq?.id) {
+        const { error: updErr } = await admin
+          .from('mfa_reset_requests')
+          .update({
+            created_at: nowIso,
+            company_id: target.company_id,
+            requester_role: target.role,
+            requester_name: target.full_name,
+            requester_email: target.email,
+            message: msg,
+          })
+          .eq('id', existingReq.id);
+        if (updErr) console.error('[reset_authenticator] request update', updErr.message);
+      } else {
+        const { error: insertErr } = await admin.from('mfa_reset_requests').insert({
+          user_id: target.id,
+          company_id: target.company_id,
+          requester_role: target.role,
+          requester_name: target.full_name,
+          requester_email: target.email,
+          message: msg,
+        });
+        if (insertErr) console.error('[reset_authenticator] request insert', insertErr.message);
+      }
+
+      const { data: admins } = target.company_id
+        ? await admin
+            .from('users')
+            .select('id, email, full_name')
+            .eq('company_id', target.company_id)
+            .eq('role', 'admin')
+            .eq('is_demo', false)
+        : { data: [] as { id: string; email: string | null; full_name: string | null }[] };
+
+      const peerAdmins = (admins || []).filter((a) => a.id !== target.id && a.email);
+      const adminEmails = peerAdmins.map((a) => a.email as string);
 
       if (adminEmails.length) {
         await sendEmail(
@@ -131,7 +168,10 @@ serve(async (req) => {
             p_type: 'alert',
           });
         }
-      } else if (target.company_id) {
+      }
+
+      // Sole admin / no peer admins — escalate to platform owner inbox.
+      if ((!adminEmails.length || target.role === 'admin') && target.company_id) {
         await admin.from('platform_owner_notifications').insert({
           company_id: target.company_id,
           title: 'Authenticator reset requested',
@@ -139,7 +179,12 @@ serve(async (req) => {
         });
       }
 
-      return json(req, { ok: true, requested: true });
+      return json(req, {
+        ok: true,
+        requested: true,
+        notifiedAdmins: adminEmails.length,
+        escalatedToPlatform: !adminEmails.length || target.role === 'admin',
+      });
     }
 
     if (!targetId) {
@@ -192,6 +237,12 @@ serve(async (req) => {
         return json(req, { error: 'Could not remove the old authenticator.' }, 500);
       }
     }
+
+    await admin
+      .from('mfa_reset_requests')
+      .update({ resolved_at: new Date().toISOString(), resolved_by: caller.id })
+      .eq('user_id', target.id)
+      .is('resolved_at', null);
 
     await admin.rpc('create_system_notification', {
       p_user_id: target.id,

@@ -163,14 +163,39 @@ export default function AdminUsersPage({
   const [formMsg, setFormMsg] = useState({ type: '', text: '' });
   const [emailingUserId, setEmailingUserId] = useState<string | null>(null);
   const [resettingMfaId, setResettingMfaId] = useState<string | null>(null);
+  const [mfaResetRequests, setMfaResetRequests] = useState<{
+    id: string;
+    user_id: string;
+    requester_name: string | null;
+    requester_email: string | null;
+    requester_role: string | null;
+    created_at: string;
+  }[]>([]);
   const [quickEdit, setQuickEdit] = useState<{ userId: string; field: 'role' | 'department' | 'reports' } | null>(null);
   const [quickSaving, setQuickSaving] = useState(false);
   const [quickError, setQuickError] = useState('');
   const [pendingRole, setPendingRole] = useState<UserRole | null>(null);
 
+  const loadMfaResetRequests = async () => {
+    if (demo || profile.role !== 'admin') {
+      setMfaResetRequests([]);
+      return;
+    }
+    const { data } = await supabase
+      .from('mfa_reset_requests')
+      .select('id, user_id, requester_name, requester_email, requester_role, created_at')
+      .is('resolved_at', null)
+      .order('created_at', { ascending: false });
+    setMfaResetRequests(data || []);
+  };
+
   useEffect(() => {
     writeDraft({ email, password, fullName, role, managerId, departmentId, jobTitle });
   }, [email, password, fullName, role, managerId, departmentId, jobTitle]);
+
+  useEffect(() => {
+    void loadMfaResetRequests();
+  }, [demo, profile.role, users.length]);
 
   useEffect(() => {
     if (!menuId && !quickEdit) return;
@@ -410,12 +435,22 @@ export default function AdminUsersPage({
     setResettingMfaId(user.id);
     try {
       await resetAuthenticatorForUser(user.id);
+      await loadMfaResetRequests();
       alert(`Authenticator reset for ${user.full_name}. Ask them to sign in and scan the new QR code.`);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Could not reset authenticator.');
     } finally {
       setResettingMfaId(null);
     }
+  };
+
+  const handleResetFromRequest = async (userId: string) => {
+    const person = users.find((u) => u.id === userId);
+    if (!person) {
+      alert('That person is not in your People list. Refresh and try again.');
+      return;
+    }
+    await handleResetAuthenticator(person);
   };
 
   const chips: { id: RoleFilter; label: string; count: number }[] = [
@@ -798,6 +833,47 @@ export default function AdminUsersPage({
           </button>
         ))}
       </div>
+
+      {!demo && mfaResetRequests.length > 0 && (
+        <div
+          className="login-error-banner"
+          role="status"
+          style={{
+            marginBottom: '1rem',
+            background: 'color-mix(in srgb, var(--accent-primary) 10%, transparent)',
+            borderColor: 'color-mix(in srgb, var(--accent-primary) 35%, transparent)',
+            color: 'inherit',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem' }}>
+            <ShieldOff size={18} style={{ flexShrink: 0, marginTop: 2 }} />
+            <div style={{ flex: 1 }}>
+              <strong>Authenticator reset requested</strong>
+              <ul style={{ margin: '0.5rem 0 0', paddingLeft: '1.1rem', lineHeight: 1.45 }}>
+                {mfaResetRequests.map((req) => (
+                  <li key={req.id} style={{ marginBottom: '0.45rem' }}>
+                    <span>
+                      {req.requester_name || 'Someone'}
+                      {req.requester_role ? ` (${displayRoleLabel(req.requester_role as UserRole)})` : ''}
+                      {req.requester_email ? ` · ${req.requester_email}` : ''}
+                    </span>
+                    {' '}
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ marginLeft: '0.35rem', padding: '0.25rem 0.65rem', fontSize: '0.8rem' }}
+                      disabled={resettingMfaId === req.user_id}
+                      onClick={() => void handleResetFromRequest(req.user_id)}
+                    >
+                      {resettingMfaId === req.user_id ? 'Resetting…' : 'Reset authenticator'}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
 
       <section className="people-panel">
         <div className="people-toolbar">

@@ -21,9 +21,16 @@ export default function PrivilegedMfaGate({ onSatisfied, onCancel }: PrivilegedM
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [requestNote, setRequestNote] = useState('');
+  const [requestBusy, setRequestBusy] = useState(false);
 
   const start = useCallback(async () => {
     setError('');
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session?.access_token) {
+      setError('Your session expired. Sign out, sign in again, then continue.');
+      setPhase('verify');
+      return;
+    }
     const level = await currentMfaLevel();
     if (level === 'aal2') {
       onSatisfied();
@@ -62,9 +69,23 @@ export default function PrivilegedMfaGate({ onSatisfied, onCancel }: PrivilegedM
       setError('Enter the 6-digit code from your authenticator app.');
       return;
     }
+    if (!factorId) {
+      setError('Authenticator is not ready. Sign out and sign in again, or request a reset below.');
+      return;
+    }
     setBusy(true);
     setError('');
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session?.access_token) {
+        throw new Error('Your session expired. Sign out, sign in again, then request a reset if needed.');
+      }
+      // Refresh so MFA challenge uses a current user JWT (avoids “missing sub claim”).
+      const { error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError) {
+        console.warn('MFA session refresh:', refreshError.message);
+      }
+
       const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
         factorId,
       });
@@ -77,23 +98,41 @@ export default function PrivilegedMfaGate({ onSatisfied, onCancel }: PrivilegedM
       if (verifyError) throw new Error(verifyError.message);
       onSatisfied();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Invalid code. Try again.');
+      const raw = e instanceof Error ? e.message : 'Invalid code. Try again.';
+      if (/missing sub claim/i.test(raw)) {
+        setError('Sign-in session expired. Sign out, sign in with your password, then enter a fresh code — or request an admin reset below.');
+      } else {
+        setError(raw);
+      }
     } finally {
       setBusy(false);
     }
   };
 
   const askAdminReset = async () => {
-    setBusy(true);
+    setRequestBusy(true);
     setError('');
     setRequestNote('');
     try {
-      await requestAuthenticatorReset();
-      setRequestNote('Your company admin was notified. After they reset it, sign in again and you will get a new QR code.');
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session?.access_token) {
+        throw new Error('Your session expired. Sign out, sign in with your password, then tap Request reset again.');
+      }
+      const result = await requestAuthenticatorReset() as {
+        notifiedAdmins?: number;
+        escalatedToPlatform?: boolean;
+      } | null;
+      if ((result?.notifiedAdmins || 0) > 0) {
+        setRequestNote('Request sent. Your company admin was notified by email and in Scorr. After they reset it, sign out, sign in again, and scan the new QR code.');
+      } else if (result?.escalatedToPlatform) {
+        setRequestNote('Request sent to the Scorr platform team (no other company admin is available). After they reset it, sign out, sign in again, and scan the new QR code.');
+      } else {
+        setRequestNote('Request recorded. Your admin can reset it from People. After they do, sign out, sign in again, and scan the new QR code.');
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not send the reset request.');
     } finally {
-      setBusy(false);
+      setRequestBusy(false);
     }
   };
 
@@ -105,9 +144,9 @@ export default function PrivilegedMfaGate({ onSatisfied, onCancel }: PrivilegedM
           <h2 style={{ fontFamily: 'var(--font-display)', margin: 0 }}>Authenticator required</h2>
         </div>
         <p style={{ color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
-          A phone camera or QR scanner will not open this. Install an authenticator app
-          (Google Authenticator, Microsoft Authenticator, or Authy), add Scorr there, then
-          type the 6-digit code that app shows into the box below. The code changes every 30 seconds.
+          {phase === 'verify'
+            ? 'Open your authenticator app (Google Authenticator, Microsoft Authenticator, or Authy) and type the current 6-digit code below. The code changes every 30 seconds.'
+            : 'A phone camera or QR scanner will not open this. Install an authenticator app (Google Authenticator, Microsoft Authenticator, or Authy), add Scorr there, then type the 6-digit code that app shows into the box below.'}
         </p>
 
         {phase === 'loading' && (
@@ -147,7 +186,7 @@ export default function PrivilegedMfaGate({ onSatisfied, onCancel }: PrivilegedM
               <p style={{ color: 'var(--color-danger)', fontSize: '0.85rem', marginTop: '0.5rem' }}>{error}</p>
             )}
             {requestNote && (
-              <p style={{ color: 'var(--color-success)', fontSize: '0.85rem', marginTop: '0.5rem' }}>{requestNote}</p>
+              <p style={{ color: 'var(--color-success, #0f766e)', fontSize: '0.85rem', marginTop: '0.5rem', lineHeight: 1.45 }}>{requestNote}</p>
             )}
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem', flexWrap: 'wrap' }}>
               <button type="button" className="btn btn-primary" disabled={busy || !factorId} onClick={() => void submitCode()}>
@@ -155,20 +194,31 @@ export default function PrivilegedMfaGate({ onSatisfied, onCancel }: PrivilegedM
               </button>
               <button type="button" className="btn btn-secondary" onClick={onCancel}>Sign out</button>
             </div>
+
             {phase === 'verify' && (
-              <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: '1rem 0 0', lineHeight: 1.45 }}>
-                If the authenticator app was deleted, an admin can reset it from People.
-                {' '}
+              <div
+                style={{
+                  marginTop: '1.35rem',
+                  padding: '0.9rem 1rem',
+                  borderRadius: 10,
+                  border: '1px solid color-mix(in srgb, var(--accent-primary) 28%, transparent)',
+                  background: 'color-mix(in srgb, var(--accent-primary) 8%, transparent)',
+                }}
+              >
+                <p style={{ margin: 0, fontWeight: 600, fontSize: '0.92rem' }}>Lost or deleted your authenticator?</p>
+                <p style={{ margin: '0.4rem 0 0.75rem', fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  Employees, managers, HR, and admins can request a reset. Your company admin will clear the old app so you can set up a new one after you sign in again.
+                </p>
                 <button
                   type="button"
                   className="btn btn-secondary"
-                  style={{ marginTop: '0.65rem' }}
-                  disabled={busy}
+                  style={{ width: '100%' }}
+                  disabled={requestBusy || busy || Boolean(requestNote)}
                   onClick={() => void askAdminReset()}
                 >
-                  I deleted my authenticator
+                  {requestBusy ? 'Sending request…' : requestNote ? 'Reset requested' : 'Request admin to reset authenticator'}
                 </button>
-              </p>
+              </div>
             )}
           </>
         )}
