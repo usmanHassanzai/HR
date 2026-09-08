@@ -31,7 +31,7 @@ export default function EmployeeKpiBoardSummary({ kpis, employeeName }: Employee
             {employeeName ? `${employeeName}'s KPI score` : 'KPI score report'}
           </span>
           <p className="employee-kpi-board-summary__desc" style={{ margin: '0.35rem 0 0' }}>
-            This month&apos;s KPI Score is Scores awarded ÷ Weights assigned × 100. Completing on time awards the assigned Score. Completing after the due date awards half. Open tasks award 0.
+            This month&apos;s KPI Score is Scores awarded ÷ Weights assigned × 100. Each task&apos;s card shows whether a late penalty applies. Open tasks award 0.
           </p>
         </div>
         <div className="employee-kpi-board-summary__scores">

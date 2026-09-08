@@ -869,7 +869,7 @@ RETURNS TABLE (
     hint TEXT
 )
 LANGUAGE plpgsql
-STABLE
+VOLATILE
 SECURITY DEFINER
 SET search_path = public
 AS $$
@@ -972,7 +972,7 @@ RETURNS TABLE (
     created_at TIMESTAMPTZ
 )
 LANGUAGE plpgsql
-STABLE
+VOLATILE
 SECURITY DEFINER
 SET search_path = public
 AS $$

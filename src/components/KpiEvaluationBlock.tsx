@@ -5,7 +5,8 @@ import {
   EMPLOYEE_PROGRESS_OPTIONS,
   kpiCategoryMeta,
 } from '../utils/kpiCategories';
-import { formatKpiScore, kpiScoreContribution, isKpiLateCompletion } from '../utils/kpiScoreHelpers';
+import { formatKpiScore, kpiScoreContribution, isKpiLatePenaltyApplied } from '../utils/kpiScoreHelpers';
+import { formatLatePenaltyLabel, kpiScoringRule } from '../utils/kpiScoringRules';
 import { PauseCircle } from 'lucide-react';
 import KpiOptionPicker from './KpiOptionPicker';
 
@@ -23,10 +24,13 @@ export default function KpiEvaluationBlock({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const meta = kpiCategoryMeta(kpi.kpi_category);
+  const scoring = kpiScoringRule(kpi);
+  const penaltyLabel = formatLatePenaltyLabel(scoring);
   const awarded = kpiScoreContribution(kpi);
   const complete = kpi.completion_status === 'completed';
   const paused = isKpiPaused(kpi);
   const pauseText = kpiPauseLabel(kpi);
+  const latePenalized = isKpiLatePenaltyApplied(kpi);
 
   const setProgress = async (id: string) => {
     if (paused) {
@@ -58,13 +62,14 @@ export default function KpiEvaluationBlock({
     ? (pauseText || 'Paused — due date will extend on resume')
     : !complete
       ? (pauseText ? `${pauseText} · Points when marked Complete` : 'Points when marked Complete')
-      : isKpiLateCompletion(kpi)
-        ? `Awarded ${formatKpiScore(awarded)} pts (half — after due date)`
+      : latePenalized
+        ? `Awarded ${formatKpiScore(awarded)} pts (late penalty applied)`
         : `Awarded ${formatKpiScore(awarded)} pts (on time)`;
 
   return (
     <div className={`kpi-eval${compact ? ' kpi-eval--compact' : ''}`}>
       {!compact && <p className="kpi-eval__cat">{meta.label}</p>}
+      {penaltyLabel && <p className="kpi-eval__rule">{penaltyLabel}</p>}
       {paused && (
         <div className="kpi-paused-banner" role="status">
           <PauseCircle size={14} />

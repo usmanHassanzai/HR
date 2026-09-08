@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Loader2, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { formatKpiAssignmentChange, formatKpiEditTimestamp, Kpi } from '../utils/kpiHelpers';
+import { formatKpiAssignmentChange, formatKpiEditTimestamp, Kpi, displayRoleLabel, type UserRole } from '../utils/kpiHelpers';
 import KpiViewedBadge from './KpiViewedBadge';
 import {
   calculateOverallKpiScore,
@@ -9,19 +9,33 @@ import {
   kpiAssignedScore,
 } from '../utils/kpiScoreHelpers';
 import { formatKpiWeight, KPI_WEIGHT_CAP, sumEmployeeKpiWeights } from '../utils/kpiWeightHelpers';
+import { emailKpiAssignmentUpdated } from '../utils/kpiEmail';
 
 interface EditAssignedKpiModalProps {
   kpi: Kpi;
   siblingKpis: Kpi[];
   employeeName: string;
+  employeeEmail?: string | null;
   onClose: () => void;
   onSaved: () => void;
+}
+
+function statusLabel(status: string): string {
+  if (status === 'on_track') return 'Going well';
+  if (status === 'at_risk') return 'Needs attention';
+  if (status === 'off_track') return 'Behind';
+  return status;
+}
+
+function completionLabel(value: string): string {
+  return value === 'completed' ? 'Complete' : 'Not finished';
 }
 
 export default function EditAssignedKpiModal({
   kpi,
   siblingKpis,
   employeeName,
+  employeeEmail,
   onClose,
   onSaved,
 }: EditAssignedKpiModalProps) {
@@ -86,6 +100,28 @@ export default function EditAssignedKpiModal({
   const weightNum = Number(weight);
   const scoreNum = Number(score);
 
+  const buildChangeLines = (): string[] => {
+    const lines: string[] = [];
+    const prevScore = kpiAssignedScore(kpi);
+    if (Math.abs(weightNum - Number(kpi.weight || 0)) > 0.001) {
+      lines.push(`Weight: ${formatKpiWeight(kpi.weight)} → ${formatKpiWeight(weightNum)}`);
+    }
+    if (Math.abs(scoreNum - prevScore) > 0.001) {
+      lines.push(`Score: ${formatKpiScore(prevScore)} → ${formatKpiScore(scoreNum)}`);
+    }
+    if ((endDate || '') !== (kpi.end_date || '')) {
+      lines.push(`Due date: ${kpi.end_date || '—'} → ${endDate || '—'}`);
+    }
+    if (status !== kpi.status) {
+      lines.push(`Status: ${statusLabel(kpi.status)} → ${statusLabel(status)}`);
+    }
+    const prevCompletion = kpi.completion_status === 'completed' ? 'completed' : 'pending';
+    if (completion !== prevCompletion) {
+      lines.push(`Completion: ${completionLabel(prevCompletion)} → ${completionLabel(completion)}`);
+    }
+    return lines;
+  };
+
   const save = async () => {
     if (!Number.isFinite(weightNum) || weightNum < 1 || weightNum > 100) {
       setError('Weightage must be between 1% and 100%.');
@@ -100,6 +136,7 @@ export default function EditAssignedKpiModal({
       return;
     }
 
+    const changeLines = buildChangeLines();
     const weightChanged = Math.abs(weightNum - Number(kpi.weight || 0)) > 0.001;
     if (weightChanged && !window.confirm(`Save weightage change from ${formatKpiWeight(kpi.weight)} to ${formatKpiWeight(weightNum)}? The employee’s overall KPI score will update immediately.`)) {
       return;
@@ -108,7 +145,7 @@ export default function EditAssignedKpiModal({
     setBusy(true);
     setError('');
     try {
-      const { error: rpcError } = await supabase.rpc('edit_assigned_kpi', {
+      const { data, error: rpcError } = await supabase.rpc('edit_assigned_kpi', {
         p_kpi_id: kpi.id,
         p_weight: weightNum,
         p_score_pct: scoreNum,
@@ -117,6 +154,42 @@ export default function EditAssignedKpiModal({
         p_completion_status: completion,
       });
       if (rpcError) throw rpcError;
+
+      const updated = (data as { updated?: boolean } | null)?.updated !== false;
+      if (!updated) {
+        setError('No changes to save — update a field first.');
+        return;
+      }
+
+      if (changeLines.length > 0) {
+        try {
+          const { data: authData } = await supabase.auth.getUser();
+          const editorId = authData.user?.id;
+          const [empRes, editorRes] = await Promise.all([
+            employeeEmail
+              ? Promise.resolve({ data: { email: employeeEmail } })
+              : supabase.from('users').select('email').eq('id', kpi.user_id).maybeSingle(),
+            editorId
+              ? supabase.from('users').select('full_name, role').eq('id', editorId).maybeSingle()
+              : Promise.resolve({ data: null }),
+          ]);
+          const to = empRes.data?.email || '';
+          const editorRole = displayRoleLabel((editorRes.data?.role as UserRole) || 'manager');
+          if (to) {
+            await emailKpiAssignmentUpdated({
+              employeeEmail: to,
+              employeeName,
+              kpiName: kpi.name,
+              editorName: editorRes.data?.full_name || 'A supervisor',
+              editorRole,
+              changeLines,
+            });
+          }
+        } catch (mailErr) {
+          console.warn('KPI update email failed after save:', mailErr);
+        }
+      }
+
       onSaved();
     } catch (e) {
       const err = e as { message?: string; details?: string; hint?: string };
@@ -201,7 +274,7 @@ export default function EditAssignedKpiModal({
               </select>
             </label>
           </div>
-          <p className="studio-muted" style={{ marginTop: '0.35rem' }}>Score can be higher than weight. Points are awarded when they mark Complete: full score by the due date, half after.</p>
+          <p className="studio-muted" style={{ marginTop: '0.35rem' }}>Score can be higher than weight. Points follow the task&apos;s scoring rule (shown on the card) when they mark Complete.</p>
 
           <div className="kpi-edit-score">
             <span>Updated overall score</span>

@@ -44,6 +44,7 @@ type AddUserDraft = {
   role: UserRole;
   managerId: string;
   departmentId: string;
+  jobTitle: string;
 };
 
 const EMPTY_DRAFT: AddUserDraft = {
@@ -53,6 +54,7 @@ const EMPTY_DRAFT: AddUserDraft = {
   role: 'employee',
   managerId: '',
   departmentId: '',
+  jobTitle: '',
 };
 
 function readDraft(): AddUserDraft {
@@ -155,33 +157,47 @@ export default function AdminUsersPage({
   const [role, setRole] = useState<UserRole>(() => readDraft().role);
   const [managerId, setManagerId] = useState(() => readDraft().managerId);
   const [departmentId, setDepartmentId] = useState(() => readDraft().departmentId);
+  const [jobTitle, setJobTitle] = useState(() => readDraft().jobTitle);
   const [sendLoginEmail, setSendLoginEmail] = useState(true);
   const [formLoading, setFormLoading] = useState(false);
   const [formMsg, setFormMsg] = useState({ type: '', text: '' });
   const [emailingUserId, setEmailingUserId] = useState<string | null>(null);
   const [resettingMfaId, setResettingMfaId] = useState<string | null>(null);
+  const [quickEdit, setQuickEdit] = useState<{ userId: string; field: 'role' | 'department' | 'reports' } | null>(null);
+  const [quickSaving, setQuickSaving] = useState(false);
+  const [quickError, setQuickError] = useState('');
+  const [pendingRole, setPendingRole] = useState<UserRole | null>(null);
 
   useEffect(() => {
-    writeDraft({ email, password, fullName, role, managerId, departmentId });
-  }, [email, password, fullName, role, managerId, departmentId]);
+    writeDraft({ email, password, fullName, role, managerId, departmentId, jobTitle });
+  }, [email, password, fullName, role, managerId, departmentId, jobTitle]);
 
   useEffect(() => {
-    if (!menuId) return;
-    const close = () => setMenuId(null);
+    if (!menuId && !quickEdit) return;
+    const close = () => {
+      setMenuId(null);
+      setQuickEdit(null);
+      setQuickError('');
+      setPendingRole(null);
+    };
     window.addEventListener('click', close);
     return () => window.removeEventListener('click', close);
-  }, [menuId]);
+  }, [menuId, quickEdit]);
 
   useEffect(() => {
-    if (!addOpen && !menuId) return;
+    if (!addOpen && !menuId && !quickEdit) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
-      if (menuId) setMenuId(null);
+      if (quickEdit) {
+        setQuickEdit(null);
+        setQuickError('');
+        setPendingRole(null);
+      } else if (menuId) setMenuId(null);
       else setAddOpen(false);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [addOpen, menuId]);
+  }, [addOpen, menuId, quickEdit]);
 
   useEffect(() => {
     if (!addOpen) return;
@@ -256,7 +272,7 @@ export default function AdminUsersPage({
       return;
     }
     if (roleNeedsDepartment(role) && !departmentId) {
-      setFormMsg({ type: 'error', text: 'Select a department for managers and employees.' });
+      setFormMsg({ type: 'error', text: 'Select a department. Employees and managers cannot be created without one.' });
       return;
     }
 
@@ -274,6 +290,7 @@ export default function AdminUsersPage({
             company_id: profile.company_id ?? undefined,
             department_id: roleNeedsDepartment(role) ? departmentId : undefined,
             manager_id: roleNeedsDepartment(role) && managerId ? managerId : undefined,
+            job_title: roleNeedsDepartment(role) && jobTitle.trim() ? jobTitle.trim() : undefined,
           },
         },
       });
@@ -285,9 +302,10 @@ export default function AdminUsersPage({
       }
 
       if (signupData.user) {
-        const updates: { manager_id?: string; department_id?: string } = {};
+        const updates: { manager_id?: string; department_id?: string; job_title?: string | null } = {};
         if (managerId && roleNeedsDepartment(role)) updates.manager_id = managerId;
         if (roleNeedsDepartment(role) && departmentId) updates.department_id = departmentId;
+        if (roleNeedsDepartment(role)) updates.job_title = jobTitle.trim() || null;
         if (Object.keys(updates).length > 0) {
           const { error: updateError } = await supabase.from('users').update(updates).eq('id', signupData.user.id);
           if (updateError) {
@@ -324,6 +342,7 @@ export default function AdminUsersPage({
         setRole('employee');
         setManagerId('');
         setDepartmentId('');
+        setJobTitle('');
         clearDraft();
         onRefresh();
       }
@@ -417,9 +436,22 @@ export default function AdminUsersPage({
       >
         <Eye size={14} /> Profile & Hub
       </button>
+      {!demo && (
+        <button
+          type="button"
+          className="people-actions__btn"
+          title={`Edit role, department, and reports-to for ${u.full_name}`}
+          onClick={() => {
+            setMenuId(null);
+            onEditUser(u);
+          }}
+        >
+          <Pencil size={14} /> Edit
+        </button>
+      )}
       <button
         type="button"
-        className="people-actions__btn"
+        className="people-actions__btn people-actions__btn--hide-sm"
         title={`Assign a new task to ${u.full_name}`}
         onClick={() => (onAssignTask ? onAssignTask(u) : onViewTasks(u))}
       >
@@ -444,6 +476,17 @@ export default function AdminUsersPage({
             <button type="button" onClick={() => setSelectedUserForHub(u)}>
               <Eye size={14} /> Open full profile page
             </button>
+            {!demo && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuId(null);
+                  onEditUser(u);
+                }}
+              >
+                <Pencil size={14} /> Edit role, department & reports to
+              </button>
+            )}
             <button type="button" onClick={() => onViewTasks(u)}>
               <Target size={14} /> View assigned KPIs & tasks
             </button>
@@ -473,11 +516,6 @@ export default function AdminUsersPage({
             {onViewDepartment && u.department_id && (
               <button type="button" onClick={() => onViewDepartment(u.department_id)}>
                 <Building2 size={14} /> Department details
-              </button>
-            )}
-            {!demo && (
-              <button type="button" onClick={() => onEditUser(u)}>
-                <Pencil size={14} /> Edit profile
               </button>
             )}
             <button type="button" onClick={() => onResetPassword({ id: u.id, name: u.full_name })}>
@@ -516,6 +554,223 @@ export default function AdminUsersPage({
       </div>
     </div>
   );
+
+  const openQuickEdit = (
+    u: Profile,
+    field: 'role' | 'department' | 'reports',
+    e: React.MouseEvent,
+  ) => {
+    e.stopPropagation();
+    if (demo) return;
+    setMenuId(null);
+    setQuickError('');
+    setPendingRole(null);
+    if (field === 'department' && !roleNeedsDepartment(u.role)) {
+      setQuickEdit({ userId: u.id, field });
+      setQuickError('Department applies to employees and managers only.');
+      return;
+    }
+    if (field === 'reports' && !roleNeedsDepartment(u.role)) {
+      setQuickEdit({ userId: u.id, field });
+      setQuickError('Reports to applies to employees and managers only.');
+      return;
+    }
+    setQuickEdit((prev) =>
+      prev?.userId === u.id && prev.field === field ? null : { userId: u.id, field },
+    );
+  };
+
+  const reportToOptions = useMemo(
+    () =>
+      users
+        .filter((m) => m.role === 'admin' || m.role === 'manager')
+        .sort((a, b) => {
+          if (a.role === b.role) return a.full_name.localeCompare(b.full_name);
+          return a.role === 'admin' ? -1 : 1;
+        }),
+    [users],
+  );
+
+  const saveAccountFields = async (
+    u: Profile,
+    next: { role: UserRole; departmentId: string | null; managerId: string | null },
+  ) => {
+    setQuickSaving(true);
+    setQuickError('');
+    try {
+      const needsDept = roleNeedsDepartment(next.role);
+      if (needsDept && !next.departmentId) {
+        setQuickError('Select a department.');
+        setQuickEdit({ userId: u.id, field: 'department' });
+        setQuickSaving(false);
+        return false;
+      }
+      const { error } = await supabase.rpc('admin_update_user_account', {
+        p_user_id: u.id,
+        p_full_name: u.full_name,
+        p_role: next.role,
+        p_department_id: needsDept ? next.departmentId : null,
+        p_manager_id: needsDept ? next.managerId : null,
+      });
+      if (error) throw error;
+      setQuickEdit(null);
+      setPendingRole(null);
+      onRefresh({ silent: true });
+      return true;
+    } catch (err: unknown) {
+      setQuickError(err instanceof Error ? err.message : 'Could not save.');
+      return false;
+    } finally {
+      setQuickSaving(false);
+    }
+  };
+
+  const applyQuickRole = async (u: Profile, nextRole: UserRole) => {
+    if (u.id === profile.id && nextRole !== 'admin') {
+      setQuickError('You cannot remove your own admin role.');
+      return;
+    }
+    if (nextRole === u.role) {
+      setQuickEdit(null);
+      return;
+    }
+    if (roleNeedsDepartment(nextRole) && !u.department_id) {
+      setPendingRole(nextRole);
+      setQuickError('Pick a department for this role.');
+      setQuickEdit({ userId: u.id, field: 'department' });
+      return;
+    }
+    await saveAccountFields(u, {
+      role: nextRole,
+      departmentId: roleNeedsDepartment(nextRole) ? u.department_id ?? null : null,
+      managerId: roleNeedsDepartment(nextRole) ? u.manager_id ?? null : null,
+    });
+  };
+
+  const applyQuickDepartment = async (u: Profile, nextDeptId: string) => {
+    const nextRole = pendingRole ?? u.role;
+    if (!roleNeedsDepartment(nextRole)) {
+      setQuickError('Department applies to employees and managers only.');
+      return;
+    }
+    const keepManager =
+      !!u.manager_id &&
+      reportToOptions.some((m) => {
+        if (m.id !== u.manager_id) return false;
+        if (m.role === 'admin') return true;
+        return m.department_id === nextDeptId;
+      });
+    await saveAccountFields(u, {
+      role: nextRole,
+      departmentId: nextDeptId,
+      managerId: keepManager ? u.manager_id ?? null : null,
+    });
+  };
+
+  const applyQuickReportsTo = async (u: Profile, nextManagerId: string | null) => {
+    if (!roleNeedsDepartment(u.role)) {
+      setQuickError('Reports to applies to employees and managers only.');
+      return;
+    }
+    await saveAccountFields(u, {
+      role: u.role,
+      departmentId: u.department_id ?? null,
+      managerId: nextManagerId,
+    });
+  };
+
+  const quickMenu = (u: Profile) => {
+    if (!quickEdit || quickEdit.userId !== u.id) return null;
+    const field = quickEdit.field;
+    return (
+      <div
+        className="people-quick-menu"
+        role="listbox"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {quickError && <p className="people-quick-menu__error">{quickError}</p>}
+        {quickSaving && (
+          <p className="people-quick-menu__status">
+            <Loader2 size={14} className="spin-icon" /> Saving…
+          </p>
+        )}
+        {field === 'role' && (
+          <>
+            {([
+              ['employee', 'Employee'],
+              ['manager', 'Manager'],
+              ['admin', 'Admin'],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                role="option"
+                aria-selected={u.role === value}
+                className={u.role === value ? 'is-active' : undefined}
+                disabled={quickSaving || (u.id === profile.id && value !== 'admin')}
+                onClick={() => void applyQuickRole(u, value)}
+              >
+                {label}
+              </button>
+            ))}
+          </>
+        )}
+        {field === 'department' && (
+          <>
+            {departments.length === 0 ? (
+              <p className="people-quick-menu__empty">No departments yet.</p>
+            ) : (
+              departments.map((d) => (
+                <button
+                  key={d.id}
+                  type="button"
+                  role="option"
+                  aria-selected={u.department_id === d.id}
+                  className={u.department_id === d.id && !pendingRole ? 'is-active' : undefined}
+                  disabled={quickSaving || (!roleNeedsDepartment(pendingRole ?? u.role))}
+                  onClick={() => void applyQuickDepartment(u, d.id)}
+                >
+                  {d.name}
+                </button>
+              ))
+            )}
+          </>
+        )}
+        {field === 'reports' && (
+          <>
+            <button
+              type="button"
+              role="option"
+              aria-selected={!u.manager_id}
+              className={!u.manager_id ? 'is-active' : undefined}
+              disabled={quickSaving}
+              onClick={() => void applyQuickReportsTo(u, null)}
+            >
+              Unassigned
+            </button>
+            {reportToOptions
+              .filter((m) => m.id !== u.id)
+              .map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  role="option"
+                  aria-selected={u.manager_id === m.id}
+                  className={u.manager_id === m.id ? 'is-active' : undefined}
+                  disabled={quickSaving}
+                  onClick={() => void applyQuickReportsTo(u, m.id)}
+                >
+                  {supervisorOptionLabel(m)}
+                </button>
+              ))}
+            {reportToOptions.filter((m) => m.id !== u.id).length === 0 && (
+              <p className="people-quick-menu__empty">No managers or admins yet.</p>
+            )}
+          </>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="people-page">
@@ -635,19 +890,76 @@ export default function AdminUsersPage({
                               {u.id === profile.id && <span className="people-you">You</span>}
                             </strong>
                             <span>{u.email}</span>
+                            {u.job_title?.trim() ? (
+                              <span className="people-job-title">{u.job_title.trim()}</span>
+                            ) : null}
                           </div>
                         </button>
                       </td>
-                      <td><span className={roleBadgeClass(u.role)}>{displayRoleLabel(u.role)}</span></td>
                       <td>
-                        <span className="people-muted">
-                          {roleNeedsDepartment(u.role) ? deptName(u.department_id) : '—'}
-                        </span>
+                        {!demo ? (
+                          <div className="people-quick">
+                            <button
+                              type="button"
+                              className="people-cell-edit"
+                              aria-expanded={quickEdit?.userId === u.id && quickEdit.field === 'role'}
+                              onClick={(e) => openQuickEdit(u, 'role', e)}
+                              title={`Change role for ${u.full_name}`}
+                            >
+                              <span className={roleBadgeClass(u.role)}>{displayRoleLabel(u.role)}</span>
+                              <Pencil size={12} aria-hidden />
+                            </button>
+                            {quickEdit?.userId === u.id && quickEdit.field === 'role' && quickMenu(u)}
+                          </div>
+                        ) : (
+                          <span className={roleBadgeClass(u.role)}>{displayRoleLabel(u.role)}</span>
+                        )}
                       </td>
                       <td>
-                        <span className="people-muted">
-                          {roleNeedsDepartment(u.role) ? reportsTo(u) : '—'}
-                        </span>
+                        {roleNeedsDepartment(u.role) ? (
+                          !demo ? (
+                            <div className="people-quick">
+                              <button
+                                type="button"
+                                className="people-cell-edit"
+                                aria-expanded={quickEdit?.userId === u.id && quickEdit.field === 'department'}
+                                onClick={(e) => openQuickEdit(u, 'department', e)}
+                                title={`Change department for ${u.full_name}`}
+                              >
+                                <span className="people-muted">{deptName(u.department_id)}</span>
+                                <Pencil size={12} aria-hidden />
+                              </button>
+                              {quickEdit?.userId === u.id && quickEdit.field === 'department' && quickMenu(u)}
+                            </div>
+                          ) : (
+                            <span className="people-muted">{deptName(u.department_id)}</span>
+                          )
+                        ) : (
+                          <span className="people-muted">—</span>
+                        )}
+                      </td>
+                      <td>
+                        {roleNeedsDepartment(u.role) ? (
+                          !demo ? (
+                            <div className="people-quick">
+                              <button
+                                type="button"
+                                className="people-cell-edit"
+                                aria-expanded={quickEdit?.userId === u.id && quickEdit.field === 'reports'}
+                                onClick={(e) => openQuickEdit(u, 'reports', e)}
+                                title={`Change reports-to for ${u.full_name}`}
+                              >
+                                <span className="people-muted">{reportsTo(u)}</span>
+                                <Pencil size={12} aria-hidden />
+                              </button>
+                              {quickEdit?.userId === u.id && quickEdit.field === 'reports' && quickMenu(u)}
+                            </div>
+                          ) : (
+                            <span className="people-muted">{reportsTo(u)}</span>
+                          )
+                        ) : (
+                          <span className="people-muted">—</span>
+                        )}
                       </td>
                       <td>{rowActions(u)}</td>
                     </tr>
@@ -679,14 +991,69 @@ export default function AdminUsersPage({
                         {u.id === profile.id && <span className="people-you">You</span>}
                       </strong>
                       <span>{u.email}</span>
+                      {u.job_title?.trim() ? (
+                        <span className="people-job-title">{u.job_title.trim()}</span>
+                      ) : null}
                       <div className="people-card__meta">
-                        <span className={roleBadgeClass(u.role)}>{displayRoleLabel(u.role)}</span>
-                        {roleNeedsDepartment(u.role) && (
-                          <span className="people-muted">{deptName(u.department_id)}</span>
+                        {!demo ? (
+                          <>
+                            <div className="people-quick">
+                              <button
+                                type="button"
+                                className="people-cell-edit"
+                                onClick={(e) => openQuickEdit(u, 'role', e)}
+                                title="Change role"
+                              >
+                                <span className={roleBadgeClass(u.role)}>{displayRoleLabel(u.role)}</span>
+                                <Pencil size={12} aria-hidden />
+                              </button>
+                              {quickEdit?.userId === u.id && quickEdit.field === 'role' && quickMenu(u)}
+                            </div>
+                            {roleNeedsDepartment(u.role) ? (
+                              <div className="people-quick">
+                                <button
+                                  type="button"
+                                  className="people-cell-edit"
+                                  onClick={(e) => openQuickEdit(u, 'department', e)}
+                                  title="Change department"
+                                >
+                                  <span className="people-muted">{deptName(u.department_id)}</span>
+                                  <Pencil size={12} aria-hidden />
+                                </button>
+                                {quickEdit?.userId === u.id && quickEdit.field === 'department' && quickMenu(u)}
+                              </div>
+                            ) : (
+                              <span className="people-muted">—</span>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <span className={roleBadgeClass(u.role)}>{displayRoleLabel(u.role)}</span>
+                            <span className="people-muted">
+                              {roleNeedsDepartment(u.role) ? deptName(u.department_id) : '—'}
+                            </span>
+                          </>
                         )}
                       </div>
-                      {roleNeedsDepartment(u.role) && (
-                        <p className="people-muted" style={{ margin: '0.35rem 0 0' }}>Reports to {reportsTo(u)}</p>
+                      {roleNeedsDepartment(u.role) ? (
+                        !demo ? (
+                          <div className="people-quick people-quick--block">
+                            <button
+                              type="button"
+                              className="people-cell-edit people-cell-edit--block"
+                              onClick={(e) => openQuickEdit(u, 'reports', e)}
+                              title="Change reports to"
+                            >
+                              <span className="people-muted">Reports to {reportsTo(u)}</span>
+                              <Pencil size={12} aria-hidden />
+                            </button>
+                            {quickEdit?.userId === u.id && quickEdit.field === 'reports' && quickMenu(u)}
+                          </div>
+                        ) : (
+                          <p className="people-muted" style={{ margin: '0.35rem 0 0' }}>Reports to {reportsTo(u)}</p>
+                        )
+                      ) : (
+                        <p className="people-muted" style={{ margin: '0.35rem 0 0' }}>—</p>
                       )}
                     </div>
                   </button>
@@ -760,6 +1127,21 @@ export default function AdminUsersPage({
                     <option value="admin">Admin — full company settings</option>
                   </select>
                 </div>
+                {roleNeedsDepartment(role) && (
+                  <div className="form-group">
+                    <label htmlFor="add-job-title">
+                      {role === 'manager' ? 'Manager type / job title' : 'Employee type / job title'}
+                    </label>
+                    <input
+                      id="add-job-title"
+                      className="form-input"
+                      value={jobTitle}
+                      onChange={(e) => setJobTitle(e.target.value)}
+                      placeholder={role === 'manager' ? 'e.g. Sales Manager, Engineering Lead' : 'e.g. Software Engineer, Accountant'}
+                    />
+                    <span className="people-drawer__field-hint">What kind of {role === 'manager' ? 'manager' : 'employee'} this person is.</span>
+                  </div>
+                )}
                 {roleNeedsDepartment(role) && (
                   <div className="form-group">
                     <label htmlFor="add-dept">Department</label>

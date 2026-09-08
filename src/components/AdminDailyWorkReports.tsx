@@ -244,7 +244,7 @@ export default function AdminDailyWorkReports({ initialSearch = '', initialDeptI
           <span className="dash-eyebrow">Saved daily in database</span>
           <h2>Daily work reports</h2>
           <p>
-            Pick a date on the calendar — like booking a flight — then choose a department to review
+            Select a date on the calendar, then filter by department to review
             managers and employees for that day.
           </p>
         </div>
@@ -285,7 +285,7 @@ export default function AdminDailyWorkReports({ initialSearch = '', initialDeptI
       </div>
 
       <div className="dwr-admin__layout">
-        <aside className="dwr-cal-rail glass-panel">
+        <aside className="dwr-cal-rail">
           <ReportDateCalendar
             selectedDate={reportDate}
             maxDate={today}

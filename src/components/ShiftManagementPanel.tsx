@@ -40,7 +40,7 @@ export default function ShiftManagementPanel({
   const [endTime, setEndTime] = useState('18:00');
   const [overnight, setOvernight] = useState(false);
   const [days, setDays] = useState<number[]>(DEFAULT_DAYS);
-  const [applyToAll, setApplyToAll] = useState(!isOrgWide);
+  const [applyToAll, setApplyToAll] = useState(true);
   const [editId, setEditId] = useState<string | null>(null);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [assignShiftId, setAssignShiftId] = useState('');
@@ -102,7 +102,7 @@ export default function ShiftManagementPanel({
     setEndTime('18:00');
     setDays(DEFAULT_DAYS);
     setOvernight(false);
-    setApplyToAll(!isOrgWide);
+    setApplyToAll(true);
   };
 
   const saveShift = async (e: React.FormEvent) => {
@@ -121,7 +121,7 @@ export default function ShiftManagementPanel({
       p_days_of_week: days,
       p_grace_minutes: 60,
       p_crosses_midnight: overnight,
-      p_apply_to_all: isOrgWide ? false : applyToAll,
+      p_apply_to_all: applyToAll,
     };
     if (editId) payload.p_shift_id = editId;
 
@@ -144,7 +144,21 @@ export default function ShiftManagementPanel({
       }
     }
 
-    if (isOrgWide && selectedUserIds.length > 0) {
+    if (isOrgWide && applyToAll && assignablePeople.length > 0) {
+      const { data: assigned, error: assignErr } = await supabase.rpc('admin_assign_shift', {
+        p_shift_id: shiftId,
+        p_user_ids: assignablePeople.map((p) => p.id),
+      });
+      if (assignErr) {
+        setMsg(`Shift saved but assign failed: ${assignErr.message}`);
+        await load();
+        onUpdate?.();
+        return;
+      }
+      setMsg(`Shift saved and assigned to ${assigned ?? assignablePeople.length} people.`);
+      setSelectedUserIds([]);
+      setAssignShiftId(shiftId);
+    } else if (isOrgWide && selectedUserIds.length > 0) {
       const { data: assigned, error: assignErr } = await supabase.rpc('admin_assign_shift', {
         p_shift_id: shiftId,
         p_user_ids: selectedUserIds,
@@ -226,7 +240,7 @@ export default function ShiftManagementPanel({
     setEndTime(s.end_time.slice(0, 5));
     setDays(s.days_of_week);
     setOvernight(s.crosses_midnight ?? isOvernightShift(s.start_time, s.end_time));
-    setApplyToAll(isOrgWide ? false : (s.apply_to_all ?? true));
+    setApplyToAll(s.apply_to_all ?? true);
     setAssignShiftId(s.id);
   };
 
@@ -283,18 +297,20 @@ export default function ShiftManagementPanel({
               <span>Overnight shift — end time is on the <strong>next day</strong> (e.g. 8 PM → 8 AM)</span>
             </label>
           </div>
-          {!isOrgWide && (
-            <div className="form-group attendance-form-span-full">
-              <label className="geo-toggle-row" style={{ margin: 0 }}>
-                <input
-                  type="checkbox"
-                  checked={applyToAll}
-                  onChange={(e) => setApplyToAll(e.target.checked)}
-                />
-                <span>Apply to all team employees ({employeeCount}) when saved</span>
-              </label>
-            </div>
-          )}
+          <div className="form-group attendance-form-span-full">
+            <label className="geo-toggle-row" style={{ margin: 0 }}>
+              <input
+                type="checkbox"
+                checked={applyToAll}
+                onChange={(e) => setApplyToAll(e.target.checked)}
+              />
+              <span>
+                {isOrgWide
+                  ? `Apply to everyone in the organization (${assignablePeople.length}) when saved`
+                  : `Apply to all team employees (${employeeCount}) when saved`}
+              </span>
+            </label>
+          </div>
           <div className="form-group attendance-form-span-full">
             <label>Work days</label>
             <div className="shift-day-picker">
@@ -442,15 +458,30 @@ export default function ShiftManagementPanel({
                 </tr>
               </thead>
               <tbody>
-                {assignments.map((a) => (
-                  <tr key={a.user_id}>
-                    <td>{a.full_name}</td>
-                    {isOrgWide && <td style={{ textTransform: 'capitalize' }}>{a.employee_role || '—'}</td>}
-                    <td>{a.shift_name || '—'}</td>
-                    <td>{a.start_time && a.end_time ? formatShiftTimeRange(a.start_time, a.end_time) : '—'}</td>
-                    <td>{a.effective_from || '—'}</td>
-                  </tr>
-                ))}
+                {assignments.map((a) => {
+                  const hours =
+                    a.start_time && a.end_time
+                      ? formatShiftTimeRange(String(a.start_time).slice(0, 5), String(a.end_time).slice(0, 5))
+                      : '—';
+                  const since = a.effective_from
+                    ? new Date(`${a.effective_from}T12:00:00`).toLocaleDateString(undefined, {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                      })
+                    : a.shift_id
+                      ? 'Active'
+                      : 'Company default';
+                  return (
+                    <tr key={a.user_id}>
+                      <td>{a.full_name}</td>
+                      {isOrgWide && <td style={{ textTransform: 'capitalize' }}>{a.employee_role || '—'}</td>}
+                      <td>{a.shift_name || '—'}</td>
+                      <td>{hours}</td>
+                      <td>{since}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -1,5 +1,11 @@
 import type { Kpi } from './kpiHelpers';
-import { kpiOverlapsCurrentMonth } from './kpiCategories';
+import {
+  karachiYearMonth,
+  kpiOverlapsCurrentMonth,
+  kpiOverlapsMonth,
+  kpiOverlapsYear,
+} from './kpiCategories';
+import { kpiScoringRule } from './kpiScoringRules';
 
 /** Round to two decimal places (49.50, 12.75, 90.75). */
 export function roundKpiScore(value: number): number {
@@ -31,18 +37,40 @@ function todayKarachiYmd(): string {
   return karachiYmd(new Date().toISOString());
 }
 
+function addDaysYmd(ymd: string, days: number): string {
+  const [y, m, d] = ymd.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + days));
+  return dt.toISOString().slice(0, 10);
+}
+
 /** True when the KPI end date is before today (Asia/Karachi). */
 export function isKpiPastDeadline(kpi: Pick<Kpi, 'end_date' | 'completion_status'>): boolean {
   if (!kpi.end_date || kpi.completion_status === 'completed') return false;
   return todayKarachiYmd() > karachiYmd(kpi.end_date);
 }
 
-/** Completed after the assigned end date — earns half points. */
-export function isKpiLateCompletion(kpi: Pick<Kpi, 'completion_status' | 'end_date' | 'completed_at' | 'updated_at'>): boolean {
+/** Completed after due date (+ optional grace) — may earn a reduced score when penalty is enabled. */
+export function isKpiLateCompletion(
+  kpi: Pick<
+    Kpi,
+    | 'completion_status'
+    | 'end_date'
+    | 'completed_at'
+    | 'updated_at'
+    | 'late_penalty_enabled'
+    | 'late_penalty_grace_days'
+  >,
+): boolean {
   if (kpi.completion_status !== 'completed' || !kpi.end_date) return false;
   const done = kpi.completed_at || kpi.updated_at;
   if (!done) return false;
-  return karachiYmd(done) > karachiYmd(kpi.end_date);
+  const grace = Math.max(0, Math.floor(Number(kpi.late_penalty_grace_days ?? 0)));
+  return karachiYmd(done) > addDaysYmd(karachiYmd(kpi.end_date), grace);
+}
+
+/** True when a late completion actually reduces awarded points. */
+export function isKpiLatePenaltyApplied(kpi: Kpi): boolean {
+  return Boolean(kpiScoringRule(kpi).penaltyEnabled) && isKpiLateCompletion(kpi);
 }
 
 /** Assigned Score (points if completed on time). May exceed Weight. Defaults to Weight. */
@@ -73,11 +101,16 @@ export function calculateWeightedKpiScore(employeeScore: number, weight: number)
   return roundKpiScore((Number(employeeScore) / 100) * Number(weight || 0));
 }
 
-/** Points awarded from Score + due date: full on time, half if late, 0 if still open. */
+/** Points awarded from Score + optional late scoring rule. Open → 0. */
 export function kpiScoreContribution(kpi: Kpi): number {
   if (kpi.completion_status !== 'completed') return 0;
   const score = kpiAssignedScore(kpi);
-  return isKpiLateCompletion(kpi) ? roundKpiScore(score * 0.5) : score;
+  const rule = kpiScoringRule(kpi);
+  if (!rule.penaltyEnabled || !isKpiLateCompletion(kpi)) return score;
+  if (rule.penaltyType === 'percentage_cut') {
+    return roundKpiScore(score * (rule.penaltyValue / 100));
+  }
+  return score;
 }
 
 /**
@@ -95,8 +128,98 @@ export function thisMonthKpis(kpis: Kpi[]): Kpi[] {
   return kpis.filter((k) => kpiOverlapsCurrentMonth(k));
 }
 
+export function previousMonthKpis(kpis: Kpi[], now = new Date()): Kpi[] {
+  const { year, monthIndex } = karachiYearMonth(now);
+  const prev = new Date(year, monthIndex - 1, 1);
+  return kpis.filter((k) => kpiOverlapsMonth(k, prev.getFullYear(), prev.getMonth()));
+}
+
+export function monthLabel(year: number, monthIndex: number): string {
+  return new Date(year, monthIndex, 1).toLocaleDateString(undefined, {
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+export function thisAndPreviousMonthLabels(now = new Date()): { thisMonth: string; previousMonth: string } {
+  const { year, monthIndex } = karachiYearMonth(now);
+  const prev = new Date(year, monthIndex - 1, 1);
+  return {
+    thisMonth: monthLabel(year, monthIndex),
+    previousMonth: monthLabel(prev.getFullYear(), prev.getMonth()),
+  };
+}
+
 export function thisMonthKpiScore(kpis: Kpi[]): number {
   return calculateOverallKpiScore(thisMonthKpis(kpis));
+}
+
+export function previousMonthKpiScore(kpis: Kpi[]): number {
+  return calculateOverallKpiScore(previousMonthKpis(kpis));
+}
+
+export type KpiPeriodMode = 'overall' | 'month' | 'year';
+
+export function kpisForPeriod(
+  kpis: Kpi[],
+  mode: KpiPeriodMode,
+  year: number,
+  monthIndex = 0,
+): Kpi[] {
+  if (mode === 'overall') return kpis;
+  if (mode === 'year') return kpis.filter((k) => kpiOverlapsYear(k, year));
+  return kpis.filter((k) => kpiOverlapsMonth(k, year, monthIndex));
+}
+
+export function periodLabel(mode: KpiPeriodMode, year: number, monthIndex = 0): string {
+  if (mode === 'overall') return 'Overall';
+  if (mode === 'year') return String(year);
+  return monthLabel(year, monthIndex);
+}
+
+/** Years available from KPI dates plus the current Karachi year. */
+export function availableKpiYears(kpis: Kpi[], now = new Date()): number[] {
+  const { year: current } = karachiYearMonth(now);
+  const years = new Set<number>([current, current - 1]);
+  for (const kpi of kpis) {
+    for (const raw of [kpi.start_date, kpi.end_date, kpi.created_at]) {
+      if (!raw) continue;
+      const y = Number(String(raw).slice(0, 4));
+      if (Number.isFinite(y) && y >= 2000 && y <= current + 1) years.add(y);
+    }
+  }
+  return Array.from(years).sort((a, b) => b - a);
+}
+
+export const MONTH_OPTIONS = [
+  { value: 0, label: 'January' },
+  { value: 1, label: 'February' },
+  { value: 2, label: 'March' },
+  { value: 3, label: 'April' },
+  { value: 4, label: 'May' },
+  { value: 5, label: 'June' },
+  { value: 6, label: 'July' },
+  { value: 7, label: 'August' },
+  { value: 8, label: 'September' },
+  { value: 9, label: 'October' },
+  { value: 10, label: 'November' },
+  { value: 11, label: 'December' },
+] as const;
+
+/** Points awarded (completed scores) and weight totals for a KPI set. */
+export function employeeKpiMonthBreakdown(kpis: Kpi[]) {
+  const summary = employeeKpiScoreSummary(kpis);
+  const pointsAwarded = employeePerformancePoints(kpis);
+  const openWeight = roundKpiScore(
+    kpis
+      .filter((k) => k.completion_status !== 'completed')
+      .reduce((s, k) => s + Number(k.weight || 0), 0),
+  );
+  return {
+    ...summary,
+    pointsAwarded,
+    openWeight,
+  };
 }
 
 export const employeeWeightedKpiScore = calculateOverallKpiScore;

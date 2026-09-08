@@ -32,3 +32,24 @@ export async function emailKpiOverdue(employeeEmail: string, employeeName: strin
     `Hi ${employeeName},\n\nYour KPI "${department}" was due ${endDate} and is not yet complete.\n\nMiss count: ${redoCount}/3. After 3 missed deadlines you will lose reward points.\n\nPlease complete it in Scorr as soon as possible.`
   );
 }
+
+export async function emailKpiAssignmentUpdated(opts: {
+  employeeEmail: string;
+  employeeName: string;
+  kpiName: string;
+  editorName: string;
+  editorRole: string;
+  changeLines: string[];
+}) {
+  const { employeeEmail, employeeName, kpiName, editorName, editorRole, changeLines } = opts;
+  if (!employeeEmail || !changeLines.length) return;
+  const who = editorName.trim()
+    ? `${editorName.trim()} (${editorRole})`
+    : editorRole;
+  const changes = changeLines.map((line) => `• ${line}`).join('\n');
+  await sendKpiEmail(
+    employeeEmail,
+    `KPI updated: ${kpiName}`,
+    `Hi ${employeeName},\n\nYour assigned task "${kpiName}" was updated by ${who}.\n\nWhat changed:\n${changes}\n\nOpen Scorr to review the updated task.`,
+  );
+}

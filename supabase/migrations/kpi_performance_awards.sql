@@ -338,7 +338,7 @@ $$;
 CREATE OR REPLACE FUNCTION public.get_kpi_award_config()
 RETURNS SETOF public.kpi_award_config
 LANGUAGE plpgsql
-STABLE
+VOLATILE
 SECURITY DEFINER
 SET search_path = public
 AS $$
@@ -448,7 +448,7 @@ RETURNS TABLE (
     hint TEXT
 )
 LANGUAGE plpgsql
-STABLE
+VOLATILE
 SECURITY DEFINER
 SET search_path = public
 AS $$
@@ -554,7 +554,7 @@ RETURNS TABLE (
     created_at TIMESTAMPTZ
 )
 LANGUAGE plpgsql
-STABLE
+VOLATILE
 SECURITY DEFINER
 SET search_path = public
 AS $$

@@ -7,10 +7,9 @@ import { supabase } from '../lib/supabase';
  * @returns Parsed JSON response from the function.
  */
 export async function callEdgeFunction<T>(functionName: string, payload: any): Promise<T> {
+  // Pass an object — supabase-js serializes it. Double-stringify breaks edge handlers that expect JSON objects.
   const { data, error } = await supabase.functions.invoke(functionName, {
-    body: JSON.stringify(payload),
-    // Ensure the response is parsed as JSON
-    headers: { 'Content-Type': 'application/json' },
+    body: payload,
   });
   if (error) {
     console.error(`Error invoking edge function ${functionName}:`, error);

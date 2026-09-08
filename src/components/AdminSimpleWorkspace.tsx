@@ -257,6 +257,7 @@ export default function AdminSimpleWorkspace({
             kpi={editing}
             siblingKpis={kpis}
             employeeName={selected.full_name}
+            employeeEmail={selected.email}
             onClose={() => setEditing(null)}
             onSaved={() => {
               setEditing(null);

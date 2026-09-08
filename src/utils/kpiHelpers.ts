@@ -29,6 +29,8 @@ export interface Profile {
   is_demo?: boolean;
   company_id?: string | null;
   department_id?: string | null;
+  /** What type of employee/manager (e.g. Software Engineer, Sales Manager). */
+  job_title?: string | null;
   is_platform_owner?: boolean;
   demo_expires_at?: string | null;
   /** office = GPS; remote = supervisor marks; hybrid = GPS in office + remote days */
@@ -51,6 +53,10 @@ export interface Kpi {
   employee_progress?: 'started' | 'completed' | null;
   manager_rating?: string | null;
   assigned_score?: number | null;
+  late_penalty_enabled?: boolean | null;
+  late_penalty_type?: string | null;
+  late_penalty_value?: number | null;
+  late_penalty_grace_days?: number | null;
   result_status?: 'achieved' | 'not_achieved' | null;
   department?: string | null;
   department_id?: string | null;

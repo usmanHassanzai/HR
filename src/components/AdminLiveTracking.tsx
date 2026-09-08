@@ -419,11 +419,13 @@ export default function AdminLiveTracking({ mode = 'admin', profile }: AdminLive
           </div>
         </div>
 
-        <div className="admin-tracking-filter-chips">
+        <div className="admin-tracking-filter-chips" role="tablist" aria-label="Filter by location status">
           {statusChips.map((chip) => (
             <button
               key={chip.id}
               type="button"
+              role="tab"
+              aria-selected={statusFilter === chip.id}
               className={`admin-tracking-filter-chip ${statusFilter === chip.id ? 'admin-tracking-filter-chip--active' : ''}`}
               onClick={() => setStatusFilter(chip.id)}
             >

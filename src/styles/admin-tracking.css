@@ -333,23 +333,50 @@
 .admin-tracking-filter-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
-  margin-bottom: 0.85rem;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  margin: 0 0 1rem;
+  padding: 0.55rem;
+  border-radius: 14px;
+  border: 1px solid var(--dash-card-border, var(--border-color));
+  background: color-mix(in srgb, var(--surface-muted) 72%, var(--dash-card-bg, var(--bg-elevated)));
+  box-sizing: border-box;
 }
 
 .admin-tracking-filter-chip {
-  padding: 0.3rem 0.65rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.15rem;
+  padding: 0.4rem 1rem;
   border-radius: 999px;
   border: 1px solid var(--border-color);
-  background: var(--bg-elevated);
-  font-size: 0.75rem;
-  font-weight: 600;
+  background: var(--dash-card-bg, var(--bg-elevated));
+  font-size: 0.8rem;
+  font-weight: 650;
   color: var(--text-secondary);
   cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  white-space: nowrap;
+}
+
+.admin-tracking-filter-chip:hover {
+  color: var(--text-primary);
+  border-color: color-mix(in srgb, var(--accent-primary) 30%, var(--border-color));
+  background: color-mix(in srgb, var(--accent-primary) 6%, var(--dash-card-bg, var(--bg-elevated)));
 }
 
 .admin-tracking-filter-chip--active {
-  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
-  border-color: color-mix(in srgb, var(--accent-primary) 25%, var(--border-color));
+  background: color-mix(in srgb, var(--accent-primary) 14%, var(--dash-card-bg, var(--bg-elevated)));
+  border-color: color-mix(in srgb, var(--accent-primary) 40%, var(--border-color));
   color: var(--accent-primary);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--accent-primary) 18%, transparent);
+  font-weight: 700;
+}
+
+.admin-tracking-filter-chip--active:hover {
+  color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 16%, var(--dash-card-bg, var(--bg-elevated)));
 }

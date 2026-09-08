@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Pencil, Trash2, Pause, Play, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { Kpi, kpiProgressBadge, kpiWorkStage, isKpiPaused, kpiPauseLabel } from '../utils/kpiHelpers';
+import { Kpi, kpiHealthLabel, kpiProgressBadge, kpiWorkStage, isKpiPaused, kpiPauseLabel } from '../utils/kpiHelpers';
 import { kpiCategoryMeta } from '../utils/kpiCategories';
 import { formatKpiWeight } from '../utils/kpiWeightHelpers';
-import { formatKpiTaskPoints, kpiAssignedScore, isKpiLateCompletion } from '../utils/kpiScoreHelpers';
+import { formatKpiTaskPoints, kpiAssignedScore, isKpiLatePenaltyApplied } from '../utils/kpiScoreHelpers';
+import { formatLatePenaltyLabel, kpiScoringRule } from '../utils/kpiScoringRules';
 import KpiAssignmentEditNote from './KpiAssignmentEditNote';
 import KpiViewedBadge from './KpiViewedBadge';
 
@@ -32,17 +33,23 @@ export default function AssignedKpiCard({
   const [busy, setBusy] = useState(false);
   const [pauseErr, setPauseErr] = useState('');
   const category = kpiCategoryMeta(kpi.kpi_category);
+  const scoring = kpiScoringRule(kpi);
+  const penaltyLabel = formatLatePenaltyLabel(scoring);
   const points = formatKpiTaskPoints(kpi);
   const description = kpi.description?.trim() || '';
   const notes = kpi.assignment_notes?.trim() || '';
   const stage = kpiWorkStage(kpi);
-  const status = kpiProgressBadge(kpi).label;
+  const progressLabel = kpiProgressBadge(kpi).label;
+  const healthLabel = kpiHealthLabel(kpi.status);
   const paused = isKpiPaused(kpi);
   const pauseInfo = kpiPauseLabel(kpi);
   const isCompleted = kpi.completion_status === 'completed';
+  const latePenalized = isKpiLatePenaltyApplied(kpi);
 
   const progress = isCompleted
-    ? (isKpiLateCompletion(kpi) ? 'Completed after the due date — half points' : 'Completed on time — full score')
+    ? (latePenalized
+      ? `Completed after the due date — late penalty applied (${scoring.penaltyValue}% of score)`
+      : 'Completed on time — full score')
     : paused
       ? (pauseInfo || 'Paused — due date will move forward when resumed')
       : stage === 'in_progress'
@@ -76,7 +83,10 @@ export default function AssignedKpiCard({
     <article className={`assigned-kpi-card${paused ? ' assigned-kpi-card--paused' : ''}`}>
       <header className="assigned-kpi-card__head">
         <div>
-          <span className="studio-tag">{category.label}</span>
+          <div className="assigned-kpi-card__tags">
+            <span className="studio-tag">{category.label}</span>
+            {penaltyLabel ? <span className="studio-tag studio-tag--warn">{penaltyLabel}</span> : null}
+          </div>
           <h3>{kpi.name}</h3>
         </div>
         <div className="studio-kpi__actions">
@@ -125,8 +135,12 @@ export default function AssignedKpiCard({
           <dd>{fmtDate(kpi.end_date)}</dd>
         </div>
         <div>
-          <dt>Status</dt>
-          <dd>{status}</dd>
+          <dt>Progress</dt>
+          <dd>{progressLabel}</dd>
+        </div>
+        <div>
+          <dt>Health</dt>
+          <dd>{healthLabel}</dd>
         </div>
         <div>
           <dt>Score</dt>

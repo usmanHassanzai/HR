@@ -10,6 +10,13 @@ import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
 import EmployeeKpiWeightMeter from './EmployeeKpiWeightMeter';
 import AssignedKpiCard from './AssignedKpiCard';
 import { KPI_CATEGORIES, kpiCategoryMeta, type KpiCategoryId } from '../utils/kpiCategories';
+import {
+  DEFAULT_KPI_SCORING_RULE,
+  formatLatePenaltyLabel,
+  kpiScoringRule,
+  scoringRuleToDbParams,
+  type KpiScoringRule,
+} from '../utils/kpiScoringRules';
 import EditAssignedKpiModal from './EditAssignedKpiModal';
 import '../styles/assign-tasks.css';
 import '../styles/manager-kpi-tasks.css';
@@ -24,6 +31,10 @@ type KpiTemplate = {
   kpi_category: string;
   weight: number;
   active: boolean;
+  late_penalty_enabled?: boolean | null;
+  late_penalty_type?: string | null;
+  late_penalty_value?: number | null;
+  late_penalty_grace_days?: number | null;
 };
 
 function karachiToday(): string {
@@ -117,10 +128,10 @@ function StudioSteps({
 }
 
 const CATEGORY_HELP: Record<KpiCategoryId, string> = {
-  monthly_goal: 'They open the task in Scorr to start it (In progress), then mark Complete. Points follow Score, Weight, and whether they finish by the due date.',
-  quality: 'They open the task in Scorr to start it, then mark Complete. Points follow Score, Weight, and the due date.',
-  punctuality_behaviour: 'They open the task in Scorr to start it, then mark Complete. Points follow Score, Weight, and the due date.',
-  urgent_tasks: 'They open the task in Scorr to start it, then mark Complete. On time awards the full Score; after the due date awards half.',
+  monthly_goal: 'Grouping only — shows under Monthly Goal on dashboards. Does not change how points are calculated.',
+  quality: 'Grouping only — shows under Quality on dashboards. Scoring is set separately below.',
+  punctuality_behaviour: 'Grouping only — shows under Punctuality & Behaviour. Scoring is set separately below.',
+  urgent_tasks: 'Grouping only — shows under Urgent Tasks. Optional pause-other-tasks when assigning is separate from scoring.',
 };
 
 interface ManagerKpiConfigProps {
@@ -157,7 +168,12 @@ export default function ManagerKpiConfig({
   const [formLoading, setFormLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [editingAssignment, setEditingAssignment] = useState<{ kpi: Kpi; siblings: Kpi[]; employeeName: string } | null>(null);
+  const [editingAssignment, setEditingAssignment] = useState<{
+    kpi: Kpi;
+    siblings: Kpi[];
+    employeeName: string;
+    employeeEmail?: string;
+  } | null>(null);
   const [editingTemplate, setEditingTemplate] = useState<KpiTemplate | null>(null);
   const [libOpen, setLibOpen] = useState(false);
   const [libQuery, setLibQuery] = useState('');
@@ -174,6 +190,9 @@ export default function ManagerKpiConfig({
   const [assignScore, setAssignScore] = useState('');
   const [boardSearch, setBoardSearch] = useState('');
   const [pauseOngoingOnUrgent, setPauseOngoingOnUrgent] = useState(true);
+  const [libPenaltyEnabled, setLibPenaltyEnabled] = useState(DEFAULT_KPI_SCORING_RULE.penaltyEnabled);
+  const [libPenaltyValue, setLibPenaltyValue] = useState(String(DEFAULT_KPI_SCORING_RULE.penaltyValue));
+  const [libGraceDays, setLibGraceDays] = useState(String(DEFAULT_KPI_SCORING_RULE.gracePeriodDays));
 
   const assignPerson = reports.find((r) => r.id === assignUserId) || null;
   const boardPerson = reports.find((r) => r.id === boardUserId) || null;
@@ -372,6 +391,9 @@ export default function ManagerKpiConfig({
     setLibDescription('');
     setLibWeight('10');
     setLibCategory('monthly_goal');
+    setLibPenaltyEnabled(DEFAULT_KPI_SCORING_RULE.penaltyEnabled);
+    setLibPenaltyValue(String(DEFAULT_KPI_SCORING_RULE.penaltyValue));
+    setLibGraceDays(String(DEFAULT_KPI_SCORING_RULE.gracePeriodDays));
     setEditingTemplate(null);
   };
 
@@ -382,11 +404,15 @@ export default function ManagerKpiConfig({
   };
 
   const openEditTemplate = (tpl: KpiTemplate) => {
+    const rule = kpiScoringRule(tpl);
     setEditingTemplate(tpl);
     setLibName(tpl.name);
     setLibDescription(tpl.description || '');
     setLibWeight(String(tpl.weight));
     setLibCategory((tpl.kpi_category as KpiCategoryId) || 'monthly_goal');
+    setLibPenaltyEnabled(rule.penaltyEnabled);
+    setLibPenaltyValue(String(rule.penaltyValue));
+    setLibGraceDays(String(rule.gracePeriodDays));
     setError('');
     setLibOpen(true);
   };
@@ -396,6 +422,8 @@ export default function ManagerKpiConfig({
     setError('');
     setSuccess('');
     const weight = Number(libWeight);
+    const penaltyValue = Number(libPenaltyValue);
+    const graceDays = Number(libGraceDays);
     if (!libName.trim()) {
       setError('KPI name is required.');
       return;
@@ -404,6 +432,23 @@ export default function ManagerKpiConfig({
       setError('Weight must be between 1% and 100%.');
       return;
     }
+    if (libPenaltyEnabled) {
+      if (!Number.isFinite(penaltyValue) || penaltyValue < 0 || penaltyValue > 100) {
+        setError('Late award % must be between 0 and 100 (50 = half score).');
+        return;
+      }
+      if (!Number.isFinite(graceDays) || graceDays < 0) {
+        setError('Grace period must be zero or more days.');
+        return;
+      }
+    }
+    const scoring: KpiScoringRule = {
+      penaltyEnabled: libPenaltyEnabled,
+      penaltyType: 'percentage_cut',
+      penaltyValue: libPenaltyEnabled ? penaltyValue : 50,
+      gracePeriodDays: libPenaltyEnabled ? Math.floor(graceDays) : 0,
+    };
+    const scoringParams = scoringRuleToDbParams(scoring);
     setFormLoading(true);
     try {
       if (editingTemplate) {
@@ -414,6 +459,7 @@ export default function ManagerKpiConfig({
           p_category: libCategory,
           p_weight: weight,
           p_active: true,
+          ...scoringParams,
         });
         if (err) throw err;
         setSuccess('KPI updated.');
@@ -423,6 +469,7 @@ export default function ManagerKpiConfig({
           p_description: libDescription.trim() || null,
           p_category: libCategory,
           p_weight: weight,
+          ...scoringParams,
         });
         if (err) throw err;
         setSuccess('KPI saved to the library. Assign it from Assign Task.');
@@ -446,6 +493,7 @@ export default function ManagerKpiConfig({
       p_category: tpl.kpi_category,
       p_weight: tpl.weight,
       p_active: false,
+      ...scoringRuleToDbParams(kpiScoringRule(tpl)),
     });
     if (err) setError(err.message);
     else {
@@ -594,7 +642,10 @@ export default function ManagerKpiConfig({
             <div>
               <p className="studio-kicker">Library</p>
               <h2>Company KPIs</h2>
-              <p>Create the KPI once. It stays here with its weight until you assign it to someone.</p>
+              <p>
+                Create the KPI once. Category is only for dashboard grouping.
+                Set scoring rules (like late penalties) explicitly — they are no longer implied by the category name.
+              </p>
             </div>
             <button type="button" className="btn btn-primary" onClick={openCreate}>
               <Plus size={16} /> New KPI
@@ -615,7 +666,7 @@ export default function ManagerKpiConfig({
               <h3>{templates.length === 0 ? 'Start with your first KPI' : 'No matches'}</h3>
               <p>
                 {templates.length === 0
-                  ? 'Name it, set the category and weight, then assign it from Assign Task.'
+                  ? 'Name it, pick a category for grouping, set scoring rules and weight, then assign it from Assign Task.'
                   : 'Try a different search.'}
               </p>
               {templates.length === 0 && (
@@ -634,6 +685,9 @@ export default function ManagerKpiConfig({
                   <div className="studio-kpi__body">
                     <h3>{tpl.name}</h3>
                     <span className="studio-tag">{kpiCategoryMeta(tpl.kpi_category).label}</span>
+                    {formatLatePenaltyLabel(kpiScoringRule(tpl)) ? (
+                      <span className="studio-tag studio-tag--warn">{formatLatePenaltyLabel(kpiScoringRule(tpl))}</span>
+                    ) : null}
                     {tpl.description && <p>{tpl.description}</p>}
                     <div className="studio-bar" aria-hidden>
                       <i style={{ width: `${Math.min(100, Number(tpl.weight))}%` }} />
@@ -956,7 +1010,12 @@ export default function ManagerKpiConfig({
                           <AssignedKpiCard
                             kpi={kpi}
                             employeeName={boardPerson.full_name}
-                            onEdit={() => setEditingAssignment({ kpi, siblings: boardKpis, employeeName: boardPerson.full_name })}
+                            onEdit={() => setEditingAssignment({
+                              kpi,
+                              siblings: boardKpis,
+                              employeeName: boardPerson.full_name,
+                              employeeEmail: boardPerson.email,
+                            })}
                             onRemove={() => void handleDeleteAssigned(kpi.id)}
                             onUpdated={() => void refreshOpenKpis()}
                           />
@@ -999,6 +1058,58 @@ export default function ManagerKpiConfig({
                 </div>
                 <p>{CATEGORY_HELP[libCategory]}</p>
               </fieldset>
+              <fieldset className="studio-scoring">
+                <legend>Scoring rules</legend>
+                <p className="studio-muted" style={{ marginTop: 0 }}>
+                  Category only groups the KPI on dashboards. Set late scoring here so every score is auditable.
+                </p>
+                <label className="geo-toggle-row" style={{ margin: '0.5rem 0' }}>
+                  <input
+                    type="checkbox"
+                    checked={libPenaltyEnabled}
+                    onChange={(e) => setLibPenaltyEnabled(e.target.checked)}
+                  />
+                  <span>Apply a late penalty after the due date</span>
+                </label>
+                {libPenaltyEnabled && (
+                  <div className="studio-scoring__fields">
+                    <label>
+                      Award this % of Score when late
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={1}
+                        value={libPenaltyValue}
+                        onChange={(e) => setLibPenaltyValue(e.target.value)}
+                      />
+                      <span className="studio-muted">50 = half score. 0 = no points if late.</span>
+                    </label>
+                    <label>
+                      Grace period (days)
+                      <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={libGraceDays}
+                        onChange={(e) => setLibGraceDays(e.target.value)}
+                      />
+                      <span className="studio-muted">Penalty starts this many days after the due date.</span>
+                    </label>
+                    <p className="studio-tag" style={{ display: 'inline-flex' }}>
+                      {formatLatePenaltyLabel({
+                        penaltyEnabled: true,
+                        penaltyType: 'percentage_cut',
+                        penaltyValue: Number(libPenaltyValue) || 0,
+                        gracePeriodDays: Number(libGraceDays) || 0,
+                      })}
+                    </p>
+                  </div>
+                )}
+                {!libPenaltyEnabled && (
+                  <p className="studio-muted">No late penalty — completing after the due date still awards full Score.</p>
+                )}
+              </fieldset>
               <label>
                 Weight %
                 <input type="number" min={1} max={100} step={1} value={libWeight} onChange={(e) => setLibWeight(e.target.value)} required />
@@ -1024,6 +1135,7 @@ export default function ManagerKpiConfig({
           kpi={editingAssignment.kpi}
           siblingKpis={editingAssignment.siblings}
           employeeName={editingAssignment.employeeName}
+          employeeEmail={editingAssignment.employeeEmail}
           onClose={() => setEditingAssignment(null)}
           onSaved={() => {
             setEditingAssignment(null);

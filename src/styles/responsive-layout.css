@@ -39,6 +39,7 @@ body {
   --admin-sidebar-w: 236px;
   min-height: 100dvh;
   background: var(--bg-app, var(--bg-primary));
+  overflow-x: hidden;
 }
 
 .dashboard-container--admin > .demo-mode-banner {

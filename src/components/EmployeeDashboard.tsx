@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { isKpiViewedByAssignee, kpiProgressBadge, Profile, Kpi } from '../utils/kpiHelpers';
 import { hydrateKpiLastEdits } from '../utils/kpiAssignmentEdits';
 import { markAssignedKpisViewed } from '../utils/kpiViewed';
-import { RefreshCw, BarChart2, Trophy, KeyRound, CalendarCheck, Settings, Target } from 'lucide-react';
+import { RefreshCw, BarChart2, Trophy, KeyRound, CalendarCheck, Settings, Target, Search } from 'lucide-react';
 import ExportButton from './ExportButton';
 import ChangePasswordModal from './ChangePasswordModal';
 import { emailKpiOverdue } from '../utils/kpiEmail';
@@ -15,14 +15,21 @@ import '../styles/admin-dashboard.css';
 import '../styles/manager-personal.css';
 import { formatKpiWeight } from '../utils/kpiWeightHelpers';
 import {
-  employeeKpiScoreSummary,
+  availableKpiYears,
+  employeeKpiMonthBreakdown,
   formatKpiScore,
-  performanceRatingColor,
-  thisMonthKpis,
   formatKpiTaskPoints,
+  isKpiLatePenaltyApplied,
   kpiAssignedScore,
+  kpiScoreContribution,
+  kpisForPeriod,
+  MONTH_OPTIONS,
+  performanceRatingColor,
+  periodLabel,
+  type KpiPeriodMode,
 } from '../utils/kpiScoreHelpers';
-import { kpiCategoryMeta } from '../utils/kpiCategories';
+import { karachiYearMonth, kpiCategoryMeta } from '../utils/kpiCategories';
+import { formatLatePenaltyLabel, kpiScoringRule } from '../utils/kpiScoringRules';
 import KpiEvaluationBlock from './KpiEvaluationBlock';
 import '../styles/employee-mobile.css';
 import '../styles/employee-kpis.css';
@@ -47,6 +54,11 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
   const [activeTab, setActiveTab] = useState<'kpis' | 'attendance' | 'rewards' | 'settings'>('kpis');
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
+  const initialYm = useMemo(() => karachiYearMonth(), []);
+  const [periodMode, setPeriodMode] = useState<KpiPeriodMode>('month');
+  const [filterYear, setFilterYear] = useState(initialYm.year);
+  const [filterMonth, setFilterMonth] = useState(initialYm.monthIndex);
+  const [kpiSearch, setKpiSearch] = useState('');
 
   const fetchKpis = async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
@@ -125,9 +137,31 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
     return () => { cancelled = true; };
   }, [isReadOnly, activeTab, kpis]);
 
-  const monthKpis = useMemo(() => thisMonthKpis(kpis), [kpis]);
-  const summary = employeeKpiScoreSummary(monthKpis);
-  const ratingColor = performanceRatingColor(summary.performanceRating);
+  const years = useMemo(() => availableKpiYears(kpis), [kpis]);
+
+  useEffect(() => {
+    if (!years.length) return;
+    if (!years.includes(filterYear)) setFilterYear(years[0]);
+  }, [years, filterYear]);
+
+  const overallSummary = useMemo(() => employeeKpiMonthBreakdown(kpis), [kpis]);
+  const periodKpis = useMemo(
+    () => kpisForPeriod(kpis, periodMode, filterYear, filterMonth),
+    [kpis, periodMode, filterYear, filterMonth],
+  );
+  const periodSummary = useMemo(() => employeeKpiMonthBreakdown(periodKpis), [periodKpis]);
+  const periodRatingColor = performanceRatingColor(periodSummary.performanceRating);
+  const overallRatingColor = performanceRatingColor(overallSummary.performanceRating);
+  const selectedLabel = periodLabel(periodMode, filterYear, filterMonth);
+
+  const visibleKpis = useMemo(() => {
+    const q = kpiSearch.trim().toLowerCase();
+    if (!q) return periodKpis;
+    return periodKpis.filter((k) => {
+      const hay = `${k.name} ${k.description || ''} ${kpiCategoryMeta(k.kpi_category).label}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [periodKpis, kpiSearch]);
 
   const patchKpi = (id: string, patch: Partial<Kpi>) => {
     setKpis((prev) => prev.map((k) => (k.id === id ? { ...k, ...patch } : k)));
@@ -162,30 +196,180 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
   const kpiBoard = (
       <div className="emp-kpi-board">
       <section className="emp-kpi-summary">
-        <div className="emp-kpi-summary__hero">
-          <div className="emp-kpi-summary__hero-copy">
-            <span>This month</span>
-            <strong>{formatKpiScore(summary.overallScore)}%</strong>
+        <div className="emp-kpi-summary__head">
+          <div>
+            <span className="emp-kpi-summary__eyebrow">Performance overview</span>
+            <h2 className="emp-kpi-summary__title">KPI scoreboard</h2>
+            <p className="emp-kpi-summary__formula">
+              Score = points awarded ÷ total weight × 100. Each task shows its own scoring rule (for example a late penalty) on the card.
+            </p>
           </div>
-          <span className="emp-kpi-summary__band" style={{ color: ratingColor }}>
-            {summary.performanceRating}
-          </span>
+          <div className="emp-kpi-toolbar">
+            <ExportButton kpis={visibleKpis} userName={activeUser.full_name} />
+            <button type="button" className="btn btn-secondary" onClick={() => void fetchKpis()} title="Reload" aria-label="Reload KPIs">
+              <RefreshCw size={16} />
+            </button>
+          </div>
         </div>
+
+        <div className="emp-kpi-filter" role="search" aria-label="Filter KPIs by period">
+          <div className="emp-kpi-filter__modes" role="tablist" aria-label="Period type">
+            <button
+              type="button"
+              role="tab"
+              className={`emp-kpi-filter__mode${periodMode === 'overall' ? ' emp-kpi-filter__mode--active' : ''}`}
+              aria-selected={periodMode === 'overall'}
+              onClick={() => setPeriodMode('overall')}
+            >
+              Overall
+            </button>
+            <button
+              type="button"
+              role="tab"
+              className={`emp-kpi-filter__mode${periodMode === 'month' ? ' emp-kpi-filter__mode--active' : ''}`}
+              aria-selected={periodMode === 'month'}
+              onClick={() => setPeriodMode('month')}
+            >
+              Month
+            </button>
+            <button
+              type="button"
+              role="tab"
+              className={`emp-kpi-filter__mode${periodMode === 'year' ? ' emp-kpi-filter__mode--active' : ''}`}
+              aria-selected={periodMode === 'year'}
+              onClick={() => setPeriodMode('year')}
+            >
+              Year
+            </button>
+          </div>
+
+          {periodMode !== 'overall' && (
+            <div className="emp-kpi-filter__selects">
+              {periodMode === 'month' && (
+                <label className="emp-kpi-filter__field">
+                  <span>Month</span>
+                  <select
+                    value={filterMonth}
+                    onChange={(e) => setFilterMonth(Number(e.target.value))}
+                    aria-label="Select month"
+                  >
+                    {MONTH_OPTIONS.map((m) => (
+                      <option key={m.value} value={m.value}>{m.label}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <label className="emp-kpi-filter__field">
+                <span>Year</span>
+                <select
+                  value={filterYear}
+                  onChange={(e) => setFilterYear(Number(e.target.value))}
+                  aria-label="Select year"
+                >
+                  {years.map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          )}
+
+          <label className="emp-kpi-filter__search">
+            <span>Search</span>
+            <div className="emp-kpi-filter__search-box">
+              <Search size={15} aria-hidden="true" />
+              <input
+                type="search"
+                value={kpiSearch}
+                onChange={(e) => setKpiSearch(e.target.value)}
+                placeholder="Search KPI name or description…"
+                aria-label="Search KPIs"
+              />
+            </div>
+          </label>
+        </div>
+
+        <div className="emp-kpi-months">
+          <article className="emp-kpi-month emp-kpi-month--current">
+            <header>
+              <span>Selected period</span>
+              <strong>{selectedLabel}</strong>
+            </header>
+            <div className="emp-kpi-month__score">
+              <span className="emp-kpi-month__pct" style={{ color: periodKpis.length ? periodRatingColor : undefined }}>
+                {periodKpis.length ? `${formatKpiScore(periodSummary.overallScore)}%` : '—'}
+              </span>
+              <span className="emp-kpi-month__rating" style={{ color: periodKpis.length ? periodRatingColor : undefined }}>
+                {periodKpis.length ? periodSummary.performanceRating : 'No tasks'}
+              </span>
+            </div>
+            <dl className="emp-kpi-month__stats">
+              <div>
+                <dt>Weight assigned</dt>
+                <dd>{periodKpis.length ? formatKpiWeight(periodSummary.totalWeight) : '—'}</dd>
+              </div>
+              <div>
+                <dt>Points awarded</dt>
+                <dd>{periodKpis.length ? formatKpiScore(periodSummary.pointsAwarded) : '—'}</dd>
+              </div>
+              <div>
+                <dt>Completed</dt>
+                <dd>{periodKpis.length ? `${periodSummary.completed}/${periodSummary.kpiCount}` : '—'}</dd>
+              </div>
+              <div>
+                <dt>Open weight</dt>
+                <dd>{periodKpis.length ? formatKpiWeight(periodSummary.openWeight) : '—'}</dd>
+              </div>
+            </dl>
+          </article>
+
+          <article className="emp-kpi-month">
+            <header>
+              <span>Overall</span>
+              <strong>All assigned KPIs</strong>
+            </header>
+            <div className="emp-kpi-month__score">
+              <span className="emp-kpi-month__pct" style={{ color: kpis.length ? overallRatingColor : undefined }}>
+                {kpis.length ? `${formatKpiScore(overallSummary.overallScore)}%` : '—'}
+              </span>
+              <span className="emp-kpi-month__rating" style={{ color: kpis.length ? overallRatingColor : undefined }}>
+                {kpis.length ? overallSummary.performanceRating : 'No tasks'}
+              </span>
+            </div>
+            <dl className="emp-kpi-month__stats">
+              <div>
+                <dt>Weight assigned</dt>
+                <dd>{kpis.length ? formatKpiWeight(overallSummary.totalWeight) : '—'}</dd>
+              </div>
+              <div>
+                <dt>Points awarded</dt>
+                <dd>{kpis.length ? formatKpiScore(overallSummary.pointsAwarded) : '—'}</dd>
+              </div>
+              <div>
+                <dt>Completed</dt>
+                <dd>{kpis.length ? `${overallSummary.completed}/${overallSummary.kpiCount}` : '—'}</dd>
+              </div>
+              <div>
+                <dt>Open weight</dt>
+                <dd>{kpis.length ? formatKpiWeight(overallSummary.openWeight) : '—'}</dd>
+              </div>
+            </dl>
+          </article>
+        </div>
+
         <div className="emp-kpi-summary__meta">
           <div className="emp-kpi-summary__chip">
-            <span>Done</span>
-            <strong>{summary.completed} / {monthKpis.length || 0}</strong>
+            <span>Period tasks</span>
+            <strong>{periodKpis.length}</strong>
           </div>
           <div className="emp-kpi-summary__chip">
-            <span>Tasks</span>
-            <strong>{kpis.length}</strong>
+            <span>Showing</span>
+            <strong>{visibleKpis.length}</strong>
           </div>
-        </div>
-        <div className="emp-kpi-toolbar">
-          <ExportButton kpis={kpis} userName={activeUser.full_name} />
-          <button type="button" className="btn btn-secondary" onClick={() => void fetchKpis()} title="Reload" aria-label="Reload KPIs">
-            <RefreshCw size={16} />
-          </button>
+          <div className="emp-kpi-summary__chip">
+            <span>Pending in period</span>
+            <strong>{periodSummary.pending}</strong>
+          </div>
         </div>
       </section>
 
@@ -199,16 +383,37 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
           <h3>No KPIs assigned yet</h3>
           <p>When your manager assigns a task, it will show up here with weight, score, and dates.</p>
         </div>
+      ) : visibleKpis.length === 0 ? (
+        <div className="emp-kpi-empty glass-panel">
+          <Target size={32} strokeWidth={1.5} />
+          <h3>No KPIs in this period</h3>
+          <p>Try another month or year, switch to Overall, or clear the search.</p>
+        </div>
       ) : (
         <div className="emp-kpi-list">
-          {kpis.map((kpi) => {
+          <div className="emp-kpi-list__head">
+            <h3>{periodMode === 'overall' ? 'All assigned tasks' : `Tasks · ${selectedLabel}`}</h3>
+            <p>Weight is capacity. Score is the points you can earn. Awarded points count toward the selected period KPI %.</p>
+          </div>
+          {visibleKpis.map((kpi) => {
             const badge = kpiProgressBadge(kpi);
             const points = formatKpiTaskPoints(kpi);
+            const assigned = kpiAssignedScore(kpi);
+            const awarded = kpiScoreContribution(kpi);
             const paused = Boolean(kpi.paused_at) && kpi.completion_status !== 'completed';
+            const complete = kpi.completion_status === 'completed';
+            const latePenalized = isKpiLatePenaltyApplied(kpi);
+            const penaltyLabel = formatLatePenaltyLabel(kpiScoringRule(kpi));
             return (
               <article key={kpi.id} className={`emp-kpi-item kpi-card--${badge.light}${paused ? ' emp-kpi-item--paused' : ''}`}>
                 <div className="emp-kpi-item__top">
-                  <span className="emp-kpi-item__cat">{kpiCategoryMeta(kpi.kpi_category).label}</span>
+                  <div className="emp-kpi-item__tags">
+                    <span className="emp-kpi-item__cat">{kpiCategoryMeta(kpi.kpi_category).label}</span>
+                    {penaltyLabel ? <span className="emp-kpi-item__rule">{penaltyLabel}</span> : null}
+                    {periodMode !== 'overall' && (
+                      <span className="emp-kpi-item__scope">{selectedLabel}</span>
+                    )}
+                  </div>
                   <span className={`kpi-traffic kpi-traffic--${badge.light}`}>{badge.label}</span>
                 </div>
                 <h3>{kpi.name}</h3>
@@ -219,13 +424,37 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
                   </div>
                   <div>
                     <dt>Score</dt>
-                    <dd>{formatKpiScore(kpiAssignedScore(kpi))}</dd>
+                    <dd>{formatKpiScore(assigned)}</dd>
+                  </div>
+                  <div>
+                    <dt>Awarded</dt>
+                    <dd>{complete ? formatKpiScore(awarded) : '—'}</dd>
                   </div>
                   <div>
                     <dt>Dates</dt>
                     <dd>{dateRange(kpi.start_date, kpi.end_date)}</dd>
                   </div>
                 </dl>
+                <div className="emp-kpi-detail">
+                  <div className="emp-kpi-detail__row">
+                    <span>Timing</span>
+                    <strong>
+                      {!complete
+                        ? 'Open — mark Complete to earn points'
+                        : latePenalized
+                          ? 'Completed after due date (late penalty applied)'
+                          : 'Completed on time (full score)'}
+                    </strong>
+                  </div>
+                  <div className="emp-kpi-detail__row">
+                    <span>Contribution</span>
+                    <strong>
+                      {complete
+                        ? `${formatKpiScore(awarded)} pts of ${formatKpiWeight(kpi.weight)} weight`
+                        : `0 pts until Complete (weight ${formatKpiWeight(kpi.weight)} still counts)`}
+                    </strong>
+                  </div>
+                </div>
                 <KpiAssignmentDetails kpi={kpi} compact />
                 <p className="kpi-score-line">
                   {points == null ? 'Points after you mark Complete' : `${points} pts awarded`}

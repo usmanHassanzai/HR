@@ -33,6 +33,7 @@ export default function AdminEditUserModal({
   const [role, setRole] = useState<UserRole>(user.role);
   const [departmentId, setDepartmentId] = useState(user.department_id ?? '');
   const [managerId, setManagerId] = useState(user.manager_id ?? '');
+  const [jobTitle, setJobTitle] = useState(user.job_title ?? '');
   const [workMode, setWorkMode] = useState<WorkMode>(normalizeWorkMode(user.work_mode));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -70,7 +71,7 @@ export default function AdminEditUserModal({
       return;
     }
     if (roleNeedsDepartment(role) && !departmentId) {
-      setError('Select a department for managers and employees.');
+      setError('Select a department. Employees and managers cannot be saved without one.');
       return;
     }
     if (isSelf && role !== 'admin') {
@@ -86,6 +87,7 @@ export default function AdminEditUserModal({
         p_role: role,
         p_department_id: roleNeedsDepartment(role) ? departmentId || null : null,
         p_manager_id: roleNeedsDepartment(role) ? managerId || null : null,
+        p_job_title: roleNeedsDepartment(role) ? jobTitle.trim() || null : null,
       });
       if (updateError) throw updateError;
 
@@ -141,9 +143,9 @@ export default function AdminEditUserModal({
             <Pencil size={16} color="white" />
           </div>
           <div>
-            <h3 style={{ margin: 0, fontSize: '1.05rem' }}>Edit user account</h3>
+            <h3 style={{ margin: 0, fontSize: '1.05rem' }}>Edit role, department & reports to</h3>
             <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-              Update profile for <strong>{user.email}</strong>
+              Update access and team placement for <strong>{user.email}</strong>
             </p>
           </div>
         </div>
@@ -196,7 +198,7 @@ export default function AdminEditUserModal({
             </div>
 
             <div className="form-group" style={{ margin: 0 }}>
-              <label>System role *</label>
+              <label>Role *</label>
               <select
                 className="input-field"
                 value={role}
@@ -224,7 +226,19 @@ export default function AdminEditUserModal({
 
             {roleNeedsDepartment(role) && (
               <div className="form-group" style={{ margin: 0 }}>
-                <label>{role === 'manager' ? 'Department *' : 'Department *'}</label>
+                <label>{role === 'manager' ? 'Manager type / job title' : 'Employee type / job title'}</label>
+                <input
+                  className="input-field"
+                  value={jobTitle}
+                  onChange={(e) => setJobTitle(e.target.value)}
+                  placeholder={role === 'manager' ? 'e.g. Sales Manager, Engineering Lead' : 'e.g. Software Engineer, Accountant'}
+                />
+              </div>
+            )}
+
+            {roleNeedsDepartment(role) && (
+              <div className="form-group" style={{ margin: 0 }}>
+                <label>Department *</label>
                 <select
                   className="input-field"
                   value={departmentId}
@@ -267,9 +281,9 @@ export default function AdminEditUserModal({
 
             {(role === 'employee' || role === 'manager') && (
               <div className="form-group" style={{ margin: 0 }}>
-                <label>Assign manager / admin</label>
+                <label>Reports to</label>
                 <select className="input-field" value={managerId} onChange={(e) => setManagerId(e.target.value)}>
-                  <option value="">— None —</option>
+                  <option value="">— Unassigned —</option>
                   {staleSupervisor && (
                     <option value={staleSupervisor.id}>
                       {supervisorLabel(staleSupervisor, departments)} (other department)

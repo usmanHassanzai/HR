@@ -36,12 +36,17 @@ export default function CompanySetupWizard({ profile, company, onFinished }: Com
   const [endTime, setEndTime] = useState('18:00');
   const [shiftSaved, setShiftSaved] = useState(false);
   const [kpiCats, setKpiCats] = useState<string[]>(['monthly_goal']);
-  const [deptId, setDeptId] = useState<string | null>(null);
+  const [deptId, setDeptId] = useState<string>('');
+  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
     void supabase.rpc('get_departments').then(({ data }) => {
-      const rows = (data || []) as { id: string }[];
-      setDeptId(rows[0]?.id ?? null);
+      const rows = ((data || []) as { id: string; name?: string }[]).map((d) => ({
+        id: d.id,
+        name: d.name || 'Department',
+      }));
+      setDepartments(rows);
+      setDeptId((prev) => prev || rows[0]?.id || '');
     });
   }, []);
 
@@ -64,6 +69,10 @@ export default function CompanySetupWizard({ profile, company, onFinished }: Com
       setStep(2);
       return;
     }
+    if (!deptId) {
+      setError('Select a department before adding employees. Every employee must belong to a department.');
+      return;
+    }
     setBusy(true);
     setError('');
     try {
@@ -77,7 +86,7 @@ export default function CompanySetupWizard({ profile, company, onFinished }: Com
               full_name: p.name.trim(),
               role: 'employee',
               company_id: profile.company_id ?? undefined,
-              department_id: deptId || undefined,
+              department_id: deptId,
             },
           },
         });
@@ -177,7 +186,27 @@ export default function CompanySetupWizard({ profile, company, onFinished }: Com
         {step === 1 && (
           <section>
             <h3 className="company-setup__h"><Users size={16} /> Add employees</h3>
-            <p className="company-register__intro">Name, email, and a temporary password. They can change it after sign-in.</p>
+            <p className="company-register__intro">Name, email, and a temporary password. They can change it after sign-in. Every employee must be assigned to a department.</p>
+            <div className="form-group" style={{ marginBottom: '1rem' }}>
+              <label htmlFor="setup-dept">Department</label>
+              <select
+                id="setup-dept"
+                className="input-field"
+                value={deptId}
+                onChange={(e) => setDeptId(e.target.value)}
+                required
+              >
+                <option value="">Select department</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+              {departments.length === 0 && (
+                <p className="company-register__intro" style={{ marginTop: '0.5rem' }}>
+                  No department yet — finish company registration so a General department is created, or add one under Departments first.
+                </p>
+              )}
+            </div>
             {people.map((p, i) => (
               <div key={i} className="company-setup__person">
                 <input className="input-field" placeholder="Full name" value={p.name} onChange={(e) => {
@@ -207,7 +236,7 @@ export default function CompanySetupWizard({ profile, company, onFinished }: Com
             </button>
             <div className="company-register__actions">
               <button type="button" className="btn btn-secondary" onClick={() => setStep(2)}>Skip</button>
-              <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void savePeople()}>
+              <button type="button" className="btn btn-primary" disabled={busy || (!!people.some((p) => p.name.trim() || p.email.trim()) && !deptId)} onClick={() => void savePeople()}>
                 {busy ? <Loader2 size={16} className="animate-spin" /> : null}
                 Save and continue
               </button>

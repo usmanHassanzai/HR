@@ -1344,6 +1344,53 @@
   color: var(--text-secondary);
 }
 
+.studio-tag--warn {
+  background: color-mix(in srgb, var(--color-warning, #d97706) 16%, var(--surface-muted));
+  color: color-mix(in srgb, var(--color-warning, #b45309) 70%, var(--text-primary));
+}
+
+.studio-scoring {
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-muted) 55%, transparent);
+}
+
+.studio-scoring legend {
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0 0.25rem;
+}
+
+.studio-scoring__fields {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.35rem;
+}
+
+.studio-scoring__fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.assigned-kpi-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.35rem;
+}
+
+.kpi-eval__rule {
+  margin: 0 0 0.45rem;
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: color-mix(in srgb, var(--color-warning, #b45309) 75%, var(--text-primary));
+}
+
 .studio-bar {
   margin-top: 0.55rem;
   height: 0.32rem;

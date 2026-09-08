@@ -404,6 +404,8 @@
   .dashboard-container--admin > .app-header {
     margin-left: var(--admin-sidebar-w);
     width: calc(100% - var(--admin-sidebar-w));
+    max-width: calc(100% - var(--admin-sidebar-w));
+    box-sizing: border-box;
     box-shadow: none !important;
     border-bottom: 1px solid var(--dash-card-border) !important;
     background: color-mix(in srgb, var(--dash-card-bg) 92%, transparent) !important;

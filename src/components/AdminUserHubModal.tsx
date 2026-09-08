@@ -308,6 +308,11 @@ export default function AdminUserHubModal({
               </div>
               <p className="user-hub-hero__email">{user.email}</p>
               <div className="user-hub-hero__tags">
+                {user.job_title?.trim() ? (
+                  <span className="user-hub-tag">
+                    <User size={13} /> {user.job_title.trim()}
+                  </span>
+                ) : null}
                 <span className="user-hub-tag">
                   <Building2 size={13} /> {dept ? dept.name : 'No Department'}
                 </span>

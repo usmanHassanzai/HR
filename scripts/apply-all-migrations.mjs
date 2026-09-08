@@ -135,6 +135,12 @@ const MIGRATIONS = [
   'kpi_score_may_exceed_weight.sql',
   'kpi_points_from_completion_time.sql',
   'kpi_task_pause.sql',
+  'fix_kpi_award_readonly_insert.sql',
+  'require_employee_department.sql',
+  'fix_org_shift_status_display.sql',
+  'kpi_scoring_rules_decouple.sql',
+  'user_job_title.sql',
+  'fix_edit_assigned_kpi_save.sql',
   // Must be last: earlier drop_stale_functions_mid.sql removes this RPC
   'platform_delete_company.sql',
 ];
