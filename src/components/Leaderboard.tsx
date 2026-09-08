@@ -178,7 +178,7 @@ export default function Leaderboard({ managerId, onSelectEmployee }: Leaderboard
                       fontFamily: 'var(--font-display)', 
                       color: performanceRatingColor(employeeKpiScoreSummary(rank.kpis).performanceRating)
                     }}>
-                      {formatKpiScore(rank.healthScore)}%
+                      {formatKpiScore(rank.healthScore)}
                     </strong>
                     <span style={{ fontSize: '0.7rem', color: performanceRatingColor(employeeKpiScoreSummary(rank.kpis).performanceRating) }}>
                       {employeeKpiScoreSummary(rank.kpis).performanceRating}

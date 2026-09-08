@@ -278,7 +278,7 @@ export default function EditAssignedKpiModal({
 
           <div className="kpi-edit-score">
             <span>Updated overall score</span>
-            <strong>{formatKpiScore(liveOverall)}%</strong>
+            <strong>{formatKpiScore(liveOverall)}</strong>
             {completion === 'pending' && (
               <p>Pending weight {formatKpiWeight(pendingWeight)} of {KPI_WEIGHT_CAP}%</p>
             )}

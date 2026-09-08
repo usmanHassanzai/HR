@@ -493,7 +493,7 @@ export default function Analytics({
             <div className="analytics-user-hero__score-box" style={{ borderColor: perfColor }}>
               <span className="analytics-user-hero__score-label">Overall KPI Score</span>
               <div className="analytics-user-hero__score-num" style={{ color: perfColor }}>
-                {formatKpiScore(overallScore)}%
+                {formatKpiScore(overallScore)}
               </div>
               <span className="analytics-user-hero__score-rating" style={{ color: perfColor }}>
                 {perfRating}

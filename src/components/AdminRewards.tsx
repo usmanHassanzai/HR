@@ -340,7 +340,7 @@ function PersonPointsDetailModal({
                         onClick={() => setSelectedMonth(m.month)}
                       >
                         <td><strong>{new Date(m.month).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</strong></td>
-                        <td style={{ color: tierColorForScore(m.kpi_score), fontWeight: 700 }}>{Math.round(m.kpi_score)}%</td>
+                        <td style={{ color: tierColorForScore(m.kpi_score), fontWeight: 700 }}>{Math.round(m.kpi_score)}</td>
                         <td style={{ color: 'var(--color-success)', fontWeight: 700 }}>+{m.points_earned.toLocaleString()}</td>
                         <td>
                           <button
@@ -836,7 +836,7 @@ export default function AdminRewards() {
                         <div className="person-points-card__stats">
                           <div className="person-points-card__stat">
                             <span>{monthLabel} KPI</span>
-                            <strong style={{ color: tierColorForScore(score) }}>{Math.round(score)}%</strong>
+                            <strong style={{ color: tierColorForScore(score) }}>{Math.round(score)}</strong>
                           </div>
                           <div className="person-points-card__stat">
                             <span>Month bonus</span>

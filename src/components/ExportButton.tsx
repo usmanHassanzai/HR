@@ -30,7 +30,7 @@ export default function ExportButton({ kpis, userName }: ExportButtonProps) {
       doc.text(`Employee: ${userName}`, 14, 30);
       doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 37);
       doc.text(
-        `Overall KPI Score: ${formatKpiScore(summary.overallScore)}%   Performance: ${summary.performanceRating}`,
+        `Overall KPI Score: ${formatKpiScore(summary.overallScore)}   Performance: ${summary.performanceRating}`,
         14,
         44,
       );
@@ -51,7 +51,7 @@ export default function ExportButton({ kpis, userName }: ExportButtonProps) {
       });
       y += 10;
       doc.setFont('helvetica', 'bold');
-      doc.text(`Overall KPI Score ${formatKpiScore(summary.overallScore)}%`, 14, y);
+      doc.text(`Overall KPI Score ${formatKpiScore(summary.overallScore)}`, 14, y);
 
       doc.save(`KPI_Report_${Date.now()}.pdf`);
     } catch (e) {

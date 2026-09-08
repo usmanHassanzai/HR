@@ -16,7 +16,7 @@ import '../styles/manager-personal.css';
 import { formatKpiWeight, KPI_WEIGHT_CAP } from '../utils/kpiWeightHelpers';
 import {
   availableKpiYears,
-  employeeKpiMonthBreakdown,
+  employeeKpiBoardBreakdown,
   formatKpiScore,
   formatKpiTaskPoints,
   isKpiLatePenaltyApplied,
@@ -26,6 +26,7 @@ import {
   MONTH_OPTIONS,
   performanceRatingColor,
   periodLabel,
+  type KpiBoardBreakdown,
   type KpiPeriodMode,
 } from '../utils/kpiScoreHelpers';
 import { karachiYearMonth, kpiCategoryMeta } from '../utils/kpiCategories';
@@ -84,7 +85,19 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
           .limit(24),
       ]);
       setRewardsSummary(summary);
-      setRedemptions((redemRes.data || []) as typeof redemptions);
+      type RedemptionRow = (typeof redemptions)[number];
+      const mapped: RedemptionRow[] = (redemRes.data || []).map((row) => {
+        const catalog = row.rewards_catalog as { name?: string } | { name?: string }[] | null | undefined;
+        const name = Array.isArray(catalog) ? catalog[0]?.name : catalog?.name;
+        return {
+          id: String(row.id),
+          points_used: Number(row.points_used) || 0,
+          status: String(row.status || ''),
+          redeemed_at: String(row.redeemed_at || ''),
+          rewards_catalog: name ? { name } : null,
+        };
+      });
+      setRedemptions(mapped);
     } catch (err) {
       console.error(err);
     }
@@ -175,12 +188,13 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
     if (!years.includes(filterYear)) setFilterYear(years[0]);
   }, [years, filterYear]);
 
-  const overallSummary = useMemo(() => employeeKpiMonthBreakdown(kpis), [kpis]);
+  const overallKpis = kpis; // all-time — never reuse the period filter
+  const overallSummary = useMemo(() => employeeKpiBoardBreakdown(overallKpis), [overallKpis]);
   const periodKpis = useMemo(
     () => kpisForPeriod(kpis, periodMode, filterYear, filterMonth),
     [kpis, periodMode, filterYear, filterMonth],
   );
-  const periodSummary = useMemo(() => employeeKpiMonthBreakdown(periodKpis), [periodKpis]);
+  const periodSummary = useMemo(() => employeeKpiBoardBreakdown(periodKpis), [periodKpis]);
   const periodRatingColor = performanceRatingColor(periodSummary.performanceRating);
   const overallRatingColor = performanceRatingColor(overallSummary.performanceRating);
   const selectedLabel = periodLabel(periodMode, filterYear, filterMonth);
@@ -241,23 +255,121 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
     return `${a} – ${b}`;
   };
 
-  const monthlyWeightLabel = periodMode === 'month'
-    ? 'Monthly KPI weightage'
-    : periodMode === 'year'
-      ? 'Year KPI weightage'
-      : 'Period weightage';
-  const periodWeightText = periodKpis.length
-    ? `${formatKpiWeight(periodSummary.totalWeight)} of ${KPI_WEIGHT_CAP}%`
-    : '—';
-  const overallWeightText = kpis.length
-    ? `${formatKpiWeight(overallSummary.totalWeight)} of ${KPI_WEIGHT_CAP}%`
-    : '—';
   const notRedeemedText = rewardsSummary
     ? rewardsSummary.balance.toLocaleString()
     : '—';
   const redeemedText = rewardsSummary
     ? rewardsSummary.usedPoints.toLocaleString()
     : '—';
+
+  const renderBoardCard = (opts: {
+    eyebrow: string;
+    title: string;
+    scopeNote: string;
+    breakdown: KpiBoardBreakdown;
+    ratingColor: string;
+    empty: boolean;
+    showRewards?: boolean;
+  }) => {
+    const b = opts.breakdown;
+    const has = !opts.empty && b.kpiCount > 0;
+    return (
+      <article className={`emp-kpi-month${opts.showRewards ? '' : ' emp-kpi-month--current'}`}>
+        <header>
+          <span>{opts.eyebrow}</span>
+          <strong>{opts.title}</strong>
+        </header>
+        <p className="emp-kpi-month__scope">{opts.scopeNote}</p>
+
+        <section className="emp-kpi-block emp-kpi-block--weight" aria-label="Weightage">
+          <div className="emp-kpi-block__head">
+            <h4 className="emp-kpi-block__title">Weightage</h4>
+            <span className="emp-kpi-block__badge">0–{KPI_WEIGHT_CAP}%</span>
+          </div>
+          <dl className="emp-kpi-month__stats">
+            <div>
+              <dt>Total weight</dt>
+              <dd>{has ? formatKpiWeight(b.totalWeight) : '—'}</dd>
+            </div>
+            <div>
+              <dt>Weight assigned</dt>
+              <dd>{has ? formatKpiWeight(b.weightAssigned) : '—'}</dd>
+            </div>
+            <div>
+              <dt>Weight achieved</dt>
+              <dd>{has ? formatKpiWeight(b.weightAchieved) : '—'}</dd>
+            </div>
+            <div>
+              <dt>Weight unassigned</dt>
+              <dd>{has ? formatKpiWeight(b.weightUnassigned) : '—'}</dd>
+            </div>
+            <div>
+              <dt>Weight pending</dt>
+              <dd>{has ? formatKpiWeight(b.weightPending) : '—'}</dd>
+            </div>
+            <div>
+              <dt>Completed</dt>
+              <dd>{has ? `${b.completed}/${b.kpiCount}` : '—'}</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section className="emp-kpi-block emp-kpi-block--score" aria-label="Score">
+          <div className="emp-kpi-block__head">
+            <h4 className="emp-kpi-block__title">Score</h4>
+            <span className="emp-kpi-block__badge">Points index</span>
+          </div>
+          <div className="emp-kpi-month__score">
+            <div className="emp-kpi-month__score-main">
+              <span className="emp-kpi-month__score-label">Score</span>
+              <span className="emp-kpi-month__pct" style={{ color: has ? opts.ratingColor : undefined }}>
+                {has ? formatKpiScore(b.score) : '—'}
+              </span>
+            </div>
+            {has ? (
+              <span className="emp-kpi-month__rating" style={{ color: opts.ratingColor }}>
+                {b.performanceRating}
+              </span>
+            ) : (
+              <span className="emp-kpi-month__rating emp-kpi-month__rating--muted">No tasks</span>
+            )}
+          </div>
+          <dl className="emp-kpi-month__stats">
+            <div>
+              <dt>Points awarded</dt>
+              <dd>{has ? formatKpiScore(b.pointsAwarded) : '—'}</dd>
+            </div>
+            {opts.showRewards ? (
+              <>
+                <div>
+                  <dt>Points not redeemed</dt>
+                  <dd>{notRedeemedText}</dd>
+                </div>
+                <div>
+                  <dt>Points redeemed</dt>
+                  <dd>{redeemedText}</dd>
+                </div>
+              </>
+            ) : (
+              <div>
+                <dt>Tasks in scope</dt>
+                <dd>{has ? String(b.kpiCount) : '—'}</dd>
+              </div>
+            )}
+          </dl>
+          {opts.showRewards && rewardsSummary && (
+            <p className="emp-kpi-month__note">
+              Reward points stay available until you redeem them
+              {rewardsSummary.totalEarned > 0
+                ? ` · ${rewardsSummary.totalEarned.toLocaleString()} earned lifetime`
+                : ''}
+              .
+            </p>
+          )}
+        </section>
+      </article>
+    );
+  };
 
   const navGroups = useMemo<AdminNavGroup[]>(() => [{
     label: 'Menu',
@@ -280,7 +392,8 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
             <span className="emp-kpi-summary__eyebrow">Performance overview</span>
             <h2 className="emp-kpi-summary__title">KPI scoreboard</h2>
             <p className="emp-kpi-summary__formula">
-              Score = points awarded ÷ total weight × 100. Each task shows its own scoring rule (for example a late penalty) on the card.
+              Use Overall, Month, or Year above to switch views. Each view shows its own weightage and score — they are not shown together.
+              Weightage stays within 0–{KPI_WEIGHT_CAP}%. Score is a points index (no % sign).
             </p>
           </div>
           <div className="emp-kpi-toolbar">
@@ -368,86 +481,35 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
           </label>
         </div>
 
-        <div className="emp-kpi-months">
-          <article className="emp-kpi-month emp-kpi-month--current">
-            <header>
-              <span>Selected period</span>
-              <strong>{selectedLabel}</strong>
-            </header>
-            <div className="emp-kpi-month__score">
-              <span className="emp-kpi-month__pct" style={{ color: periodKpis.length ? periodRatingColor : undefined }}>
-                {periodKpis.length ? `${formatKpiScore(periodSummary.overallScore)}%` : '—'}
-              </span>
-              <span className="emp-kpi-month__rating" style={{ color: periodKpis.length ? periodRatingColor : undefined }}>
-                {periodKpis.length ? periodSummary.performanceRating : 'No tasks'}
-              </span>
-            </div>
-            <dl className="emp-kpi-month__stats">
-              <div>
-                <dt>{monthlyWeightLabel}</dt>
-                <dd>{periodWeightText}</dd>
-              </div>
-              <div>
-                <dt>Points awarded</dt>
-                <dd>{periodKpis.length ? formatKpiScore(periodSummary.pointsAwarded) : '—'}</dd>
-              </div>
-              <div>
-                <dt>Completed</dt>
-                <dd>{periodKpis.length ? `${periodSummary.completed}/${periodSummary.kpiCount}` : '—'}</dd>
-              </div>
-              <div>
-                <dt>Open weightage</dt>
-                <dd>{periodKpis.length ? formatKpiWeight(periodSummary.openWeight) : '—'}</dd>
-              </div>
-            </dl>
-          </article>
-
-          <article className="emp-kpi-month">
-            <header>
-              <span>Overall</span>
-              <strong>All assigned KPIs</strong>
-            </header>
-            <div className="emp-kpi-month__score">
-              <span className="emp-kpi-month__pct" style={{ color: kpis.length ? overallRatingColor : undefined }}>
-                {kpis.length ? `${formatKpiScore(overallSummary.overallScore)}%` : '—'}
-              </span>
-              <span className="emp-kpi-month__rating" style={{ color: kpis.length ? overallRatingColor : undefined }}>
-                {kpis.length ? overallSummary.performanceRating : 'No tasks'}
-              </span>
-            </div>
-            <dl className="emp-kpi-month__stats">
-              <div>
-                <dt>Overall KPI weightage</dt>
-                <dd>{overallWeightText}</dd>
-              </div>
-              <div>
-                <dt>Points awarded</dt>
-                <dd>{kpis.length ? formatKpiScore(overallSummary.pointsAwarded) : '—'}</dd>
-              </div>
-              <div>
-                <dt>Points not redeemed</dt>
-                <dd>{notRedeemedText}</dd>
-              </div>
-              <div>
-                <dt>Points redeemed</dt>
-                <dd>{redeemedText}</dd>
-              </div>
-            </dl>
-            {rewardsSummary && (
-              <p className="emp-kpi-month__note">
-                Reward points stay available until you redeem them
-                {rewardsSummary.totalEarned > 0
-                  ? ` · ${rewardsSummary.totalEarned.toLocaleString()} earned lifetime`
-                  : ''}
-                .
-              </p>
-            )}
-          </article>
+        <div className="emp-kpi-months emp-kpi-months--single">
+          {periodMode === 'overall' ? (
+            renderBoardCard({
+              eyebrow: 'Overall',
+              title: 'All assigned KPIs',
+              scopeNote: `All-time · ${overallKpis.length} task${overallKpis.length === 1 ? '' : 's'} across every month.`,
+              breakdown: overallSummary,
+              ratingColor: overallRatingColor,
+              empty: overallKpis.length === 0,
+              showRewards: true,
+            })
+          ) : (
+            renderBoardCard({
+              eyebrow: periodMode === 'year' ? 'Selected year' : 'Selected month',
+              title: selectedLabel,
+              scopeNote: periodMode === 'year'
+                ? `Only KPIs that overlap ${filterYear}. Switch to Overall to see all-time results.`
+                : `Only KPIs that overlap ${selectedLabel}. Switch to Overall to see all-time results.`,
+              breakdown: periodSummary,
+              ratingColor: periodRatingColor,
+              empty: periodKpis.length === 0,
+              showRewards: true,
+            })
+          )}
         </div>
 
         <div className="emp-kpi-summary__meta">
           <div className="emp-kpi-summary__chip">
-            <span>Period tasks</span>
+            <span>{periodMode === 'overall' ? 'All tasks' : 'Period tasks'}</span>
             <strong>{periodKpis.length}</strong>
           </div>
           <div className="emp-kpi-summary__chip">
@@ -483,7 +545,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
             <div>
               <h3>{periodMode === 'overall' ? 'All assigned tasks' : `Tasks · ${selectedLabel}`}</h3>
               <p>
-                Each card shows that task&apos;s KPI weightage. Monthly weightage is the sum for the selected period (cap {KPI_WEIGHT_CAP}%).
+                Each card shows that task&apos;s KPI weightage (0–{KPI_WEIGHT_CAP}%). Selected period and Overall cards use separate KPI sets.
                 Completed tasks move to History with month, year, and date.
               </p>
             </div>

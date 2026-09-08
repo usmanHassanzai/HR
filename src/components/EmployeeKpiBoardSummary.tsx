@@ -1,15 +1,16 @@
 import { formatKpiAssignmentChange, Kpi } from '../utils/kpiHelpers';
 import {
-  calculateOverallKpiScore,
-  employeeKpiScoreSummary,
+  employeeKpiBoardBreakdown,
   formatKpiScore,
   kpiManagerScorePct,
   kpiScoreRows,
   performanceRatingColor,
 } from '../utils/kpiScoreHelpers';
-import { formatKpiWeight } from '../utils/kpiWeightHelpers';
+import { formatKpiWeight, KPI_WEIGHT_CAP } from '../utils/kpiWeightHelpers';
 import { kpiCategoryMeta } from '../utils/kpiCategories';
+import KpiScoreboardSummary from './KpiScoreboardSummary';
 import '../styles/departments.css';
+import '../styles/employee-kpis.css';
 
 interface EmployeeKpiBoardSummaryProps {
   kpis: Kpi[];
@@ -20,41 +21,23 @@ export default function EmployeeKpiBoardSummary({ kpis, employeeName }: Employee
   if (kpis.length === 0) return null;
 
   const rows = kpiScoreRows(kpis);
-  const overall = calculateOverallKpiScore(kpis);
-  const summary = employeeKpiScoreSummary(kpis);
+  const summary = employeeKpiBoardBreakdown(kpis);
 
   return (
     <div className="glass-panel employee-kpi-board-summary">
-      <div className="employee-kpi-board-summary__head">
-        <div>
-          <span className="dash-eyebrow">
-            {employeeName ? `${employeeName}'s KPI score` : 'KPI score report'}
-          </span>
-          <p className="employee-kpi-board-summary__desc" style={{ margin: '0.35rem 0 0' }}>
-            This month&apos;s KPI Score is Scores awarded ÷ Weights assigned × 100. Each task&apos;s card shows whether a late penalty applies. Open tasks award 0.
-          </p>
-        </div>
-        <div className="employee-kpi-board-summary__scores">
-          <div className="employee-kpi-board-summary__total-pts">
-            <span>This Month&apos;s KPI Score</span>
-            <strong>{formatKpiScore(overall)}%</strong>
-          </div>
-          <strong
-            className="employee-kpi-board-summary__total--ok"
-            style={{ color: performanceRatingColor(summary.performanceRating) }}
-          >
-            {summary.performanceRating}
-          </strong>
-        </div>
-      </div>
+      <KpiScoreboardSummary
+        kpis={kpis}
+        compact
+        title={employeeName ? `${employeeName}'s KPI scoreboard` : 'KPI scoreboard'}
+      />
 
-      <div className="kpi-score-table-wrap">
+      <div className="kpi-score-table-wrap" style={{ marginTop: '1rem' }}>
         <table className="kpi-score-table">
           <thead>
             <tr>
               <th>KPI</th>
-              <th>Weight</th>
-              <th>Performance Points</th>
+              <th>Weightage</th>
+              <th>Score pts</th>
             </tr>
           </thead>
           <tbody>
@@ -69,16 +52,22 @@ export default function EmployeeKpiBoardSummary({ kpis, employeeName }: Employee
                     <p className="kpi-assignment-edit-note">{formatKpiAssignmentChange(row.kpi)}</p>
                   )}
                 </td>
-                <td data-label="Weight">{formatKpiWeight(row.weight)}</td>
-                <td data-label="Performance Points">{kpiManagerScorePct(row.kpi) == null ? '—' : formatKpiScore(row.weightedScore)}</td>
+                <td data-label="Weightage">{formatKpiWeight(row.weight)}</td>
+                <td data-label="Score pts">
+                  {kpiManagerScorePct(row.kpi) == null ? '—' : formatKpiScore(row.weightedScore)}
+                </td>
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr>
-              <td>This Month&apos;s KPI Score</td>
-              <td>{formatKpiWeight(summary.totalWeight)}</td>
-              <td><strong>{formatKpiScore(overall)}%</strong></td>
+              <td>Total</td>
+              <td>{formatKpiWeight(Math.min(KPI_WEIGHT_CAP, summary.weightAssigned))}</td>
+              <td>
+                <strong style={{ color: performanceRatingColor(summary.performanceRating) }}>
+                  Score {formatKpiScore(summary.score)} · {summary.performanceRating}
+                </strong>
+              </td>
             </tr>
           </tfoot>
         </table>

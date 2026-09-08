@@ -27,7 +27,7 @@ function formatBoardDate(value?: string | null): string | null {
 export default function TeamPointsBoard({
   refreshKey = 0,
   title = 'Team points',
-          description = 'Reward Balance is monthly band points (90%→1000, 80%→500, 70%→250, below 70%→0). KPI Score is separate from Reward Points.',
+          description = 'Reward Balance is monthly band points (score 90+ → 1000, 80–89 → 500, 70–79 → 250, below 70 → 0). KPI Score is a points index (no % sign), separate from Reward Points.',
 }: TeamPointsBoardProps) {
   const [rows, setRows] = useState<TeamPointsBoardRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,7 +100,7 @@ export default function TeamPointsBoard({
             </div>
             <div>
               <strong>
-                {selfRow.this_month_score != null ? `${Math.round(selfRow.this_month_score)}%` : '—'}
+                {selfRow.this_month_score != null ? `${Math.round(selfRow.this_month_score)}` : '—'}
               </strong>
               <span>KPI Score</span>
             </div>

@@ -5,37 +5,55 @@ import { hydrateKpiLastEdits } from '../utils/kpiAssignmentEdits';
 import { markAssignedKpisViewed } from '../utils/kpiViewed';
 import { formatKpiWeight } from '../utils/kpiWeightHelpers';
 import {
-  employeeKpiScoreSummary,
   formatKpiScore,
-  performanceRatingColor,
   formatKpiTaskPoints,
-  thisMonthKpis,
+  isKpiLatePenaltyApplied,
+  kpiAssignedScore,
+  kpiScoreContribution,
 } from '../utils/kpiScoreHelpers';
 import { emailKpiOverdue } from '../utils/kpiEmail';
 import KpiAssignmentDetails from './KpiAssignmentDetails';
 import KpiViewedBadge from './KpiViewedBadge';
 import KpiEvaluationBlock from './KpiEvaluationBlock';
+import KpiScoreboardSummary from './KpiScoreboardSummary';
 import { kpiCategoryMeta } from '../utils/kpiCategories';
+import { formatLatePenaltyLabel, kpiScoringRule } from '../utils/kpiScoringRules';
+import { fetchRewardsSummary, type RewardsSummary } from '../utils/rewardsHelpers';
 import { Loader2, Target } from 'lucide-react';
 import '../styles/manager-personal.css';
+import '../styles/employee-kpis.css';
 
 interface ManagerPersonalPanelProps {
   profile: Profile;
 }
 
 function fmtDate(d?: string | null): string {
-  return d ? new Date(`${d}T00:00:00`).toLocaleDateString() : '—';
+  if (!d) return '—';
+  return new Date(`${d}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+function dateRange(start?: string | null, end?: string | null): string {
+  const a = fmtDate(start);
+  const b = fmtDate(end);
+  if (a === '—' && b === '—') return '—';
+  if (a === b) return a;
+  return `${a} – ${b}`;
 }
 
 export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelProps) {
   const [kpis, setKpis] = useState<Kpi[]>([]);
   const [loading, setLoading] = useState(true);
+  const [rewardsSummary, setRewardsSummary] = useState<RewardsSummary | null>(null);
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
     try {
-      const kpiRes = await supabase.from('kpis').select('*').eq('user_id', profile.id).order('created_at', { ascending: true });
+      const [kpiRes, rewards] = await Promise.all([
+        supabase.from('kpis').select('*').eq('user_id', profile.id).order('created_at', { ascending: true }),
+        fetchRewardsSummary(profile.id).catch(() => null),
+      ]);
       if (!kpiRes.error) setKpis(await hydrateKpiLastEdits((kpiRes.data as Kpi[]) || []));
+      setRewardsSummary(rewards);
     } finally {
       setLoading(false);
     }
@@ -86,10 +104,6 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
     };
   }, [load, profile.full_name, profile.id]);
 
-  const monthKpis = thisMonthKpis(kpis);
-  const summary = employeeKpiScoreSummary(monthKpis);
-  const ratingColor = performanceRatingColor(summary.performanceRating);
-
   if (loading && kpis.length === 0) {
     return (
       <div className="mgr-personal-loading">
@@ -101,20 +115,11 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
 
   return (
     <div className="mgr-personal-page">
-      <div className="mgr-personal-stats">
-        <div className="mgr-personal-stat mgr-personal-stat--accent">
-          <span className="mgr-personal-stat__label">This month</span>
-          <strong>{formatKpiScore(summary.overallScore)}%</strong>
-        </div>
-        <div className="mgr-personal-stat">
-          <span className="mgr-personal-stat__label">Band</span>
-          <strong style={{ color: ratingColor }}>{summary.performanceRating}</strong>
-        </div>
-        <div className="mgr-personal-stat">
-          <span className="mgr-personal-stat__label">Done</span>
-          <strong>{summary.completed} / {monthKpis.length || 0}</strong>
-        </div>
-      </div>
+      <KpiScoreboardSummary
+        kpis={kpis}
+        rewardsSummary={rewardsSummary}
+        title="My KPI scoreboard"
+      />
 
       {kpis.length === 0 ? (
         <div className="mgr-personal-empty">
@@ -123,25 +128,56 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
           <p>When an admin assigns you a KPI, it will show here.</p>
         </div>
       ) : (
-        <div className="mgr-personal-kpi-grid">
+        <div className="mgr-personal-kpi-grid emp-kpi-list">
+          <div className="emp-kpi-list__head" style={{ marginBottom: '0.75rem' }}>
+            <div>
+              <h3>Your assigned tasks</h3>
+              <p>Each card shows KPI weightage (0–100%) and score points. Score can rise above weight.</p>
+            </div>
+          </div>
           {kpis.map((kpi) => {
             const badge = kpiProgressBadge(kpi);
             const points = formatKpiTaskPoints(kpi);
+            const assigned = kpiAssignedScore(kpi);
+            const awarded = kpiScoreContribution(kpi);
+            const complete = kpi.completion_status === 'completed';
+            const latePenalized = isKpiLatePenaltyApplied(kpi);
+            const penaltyLabel = formatLatePenaltyLabel(kpiScoringRule(kpi));
             return (
-              <article key={kpi.id} className={`mgr-personal-kpi-card mgr-personal-kpi-card--${badge.light}`}>
-                <div className="mgr-personal-kpi-card__head">
-                  <span className="mgr-personal-kpi-card__dept">{kpiCategoryMeta(kpi.kpi_category).label}</span>
+              <article key={kpi.id} className={`emp-kpi-item kpi-card--${badge.light}`}>
+                <div className="emp-kpi-item__top">
+                  <div className="emp-kpi-item__tags">
+                    <span className="emp-kpi-item__cat">{kpiCategoryMeta(kpi.kpi_category).label}</span>
+                    {penaltyLabel ? <span className="emp-kpi-item__rule">{penaltyLabel}</span> : null}
+                  </div>
                   <span className={`kpi-traffic kpi-traffic--${badge.light}`}>{badge.label}</span>
                 </div>
-                <h4>{kpi.name}</h4>
-                <span className="dept-weight-badge">{formatKpiWeight(kpi.weight)}</span>
+                <h3>{kpi.name}</h3>
                 <KpiViewedBadge kpi={kpi} />
-                <KpiAssignmentDetails kpi={kpi} />
-                <p className="mgr-personal-kpi-card__score">
-                  {points == null ? 'Not complete yet' : `${points} performance pts`}
-                  {' · '}
-                  {fmtDate(kpi.start_date)} → {fmtDate(kpi.end_date)}
+                <dl className="emp-kpi-facts">
+                  <div>
+                    <dt>KPI weightage</dt>
+                    <dd>{formatKpiWeight(kpi.weight)}</dd>
+                  </div>
+                  <div>
+                    <dt>Score</dt>
+                    <dd>{formatKpiScore(assigned)}</dd>
+                  </div>
+                  <div>
+                    <dt>Awarded</dt>
+                    <dd>{complete ? formatKpiScore(awarded) : '—'}</dd>
+                  </div>
+                  <div>
+                    <dt>Dates</dt>
+                    <dd>{dateRange(kpi.start_date, kpi.end_date)}</dd>
+                  </div>
+                </dl>
+                <p className="kpi-score-line">
+                  {points == null
+                    ? 'Points after you mark Complete'
+                    : `${points} pts awarded${latePenalized ? ' (late penalty)' : ''}`}
                 </p>
+                <KpiAssignmentDetails kpi={kpi} />
                 <KpiEvaluationBlock
                   kpi={kpi}
                   mode="employee"

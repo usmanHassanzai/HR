@@ -406,9 +406,10 @@ export default function AdminOrgKpiPointsBoard({
             <Trophy size={22} />
           </div>
           <div>
-            <h2 className="admin-kpi-points__title">Each person&apos;s scores</h2>
+            <h2 className="admin-kpi-points__title">KPI &amp; Rewards</h2>
             <p className="admin-kpi-points__subtitle">
-              KPI score, performance points, and reward points are listed per person — not as a team or department total. Reward points come from monthly score bands (90%→1000, 80%→500, 70%→250, below 70%→0).
+              Per-person KPI score (points index, no % sign), performance points, and reward balance.
+              Monthly reward bands use the same score thresholds: 90+ → 1,000 · 80–89 → 500 · 70–79 → 250 · below 70 → 0.
             </p>
           </div>
         </div>
@@ -495,95 +496,100 @@ function PeopleTable({
           <tr>
             <th>Person</th>
             <th>Role</th>
-            <th>KPI score</th>
+            <th>Score</th>
             <th>Performance pts</th>
             <th>KPI tasks</th>
-            <th>This month</th>
+            <th>Period</th>
+            <th>Month score</th>
             <th>Reward earned</th>
             <th>Reward balance</th>
             <th>History</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((r) => (
-            <tr
-              key={r.user_id}
-              className="admin-kpi-points__row--clickable"
-              onClick={() => onSelectRow(r)}
-              title={`Click to view ${r.full_name}'s completed tasks for this month`}
-            >
-              <td>
-                <button
-                  type="button"
-                  className="admin-kpi-points__member-btn"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSelectRow(r);
-                  }}
-                >
-                  <div className="admin-kpi-points__person">
-                    <strong>{r.full_name}</strong>
-                    <span>{r.email}</span>
-                  </div>
-                </button>
-              </td>
-              <td>
-                <span className={`admin-kpi-points__role admin-kpi-points__role--${r.role}`}>
-                  {roleLabel(r.role)}
-                </span>
-              </td>
-              <td>
-                <strong className={`admin-kpi-points__health ${healthClass(r.health_score)}`}>
-                  {Number(r.health_score).toFixed(2)}%
-                </strong>
-              </td>
-              <td>
-                <strong className="admin-kpi-points__kpi-pts">{r.kpi_points.toLocaleString()}</strong>
-              </td>
-              <td>
-                {r.completed_kpis}/{r.total_kpis}
-                {r.pending_kpis > 0 && (
-                  <span className="admin-kpi-points__pending"> · {r.pending_kpis} open</span>
-                )}
-              </td>
-              <td>
-                <div className="admin-kpi-points__month">
-                  <span className="admin-kpi-points__month-dates">
-                    {(() => {
-                      const start = formatKpiDate(r.kpi_period_start);
-                      const end = formatKpiDate(r.kpi_period_end);
-                      if (start && end && start !== end) return `${start} – ${end}`;
-                      if (start || end) return start || end;
-                      return currentMonthLabel();
-                    })()}
+          {rows.map((r) => {
+            const start = formatKpiDate(r.kpi_period_start);
+            const end = formatKpiDate(r.kpi_period_end);
+            const periodLabel = start && end && start !== end
+              ? `${start} – ${end}`
+              : (start || end || currentMonthLabel());
+            return (
+              <tr
+                key={r.user_id}
+                className="admin-kpi-points__row--clickable"
+                onClick={() => onSelectRow(r)}
+                title={`Click to view ${r.full_name}'s completed tasks for this month`}
+              >
+                <td>
+                  <button
+                    type="button"
+                    className="admin-kpi-points__member-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelectRow(r);
+                    }}
+                  >
+                    <div className="admin-kpi-points__person">
+                      <strong>{r.full_name}</strong>
+                      <span>{r.email}</span>
+                    </div>
+                  </button>
+                </td>
+                <td>
+                  <span className={`admin-kpi-points__role admin-kpi-points__role--${r.role}`}>
+                    {roleLabel(r.role)}
                   </span>
-                  <span className="admin-kpi-points__month-pts">
-                    +{Number(r.this_month_points ?? 0).toLocaleString()} reward pts
-                    {r.this_month_score != null && (
-                      <span> · {Number(r.this_month_score).toFixed(2)}%</span>
+                </td>
+                <td>
+                  <strong className={`admin-kpi-points__health ${healthClass(r.health_score)}`}>
+                    {Number(r.health_score).toFixed(2)}
+                  </strong>
+                </td>
+                <td>
+                  <strong className="admin-kpi-points__kpi-pts">{r.kpi_points.toLocaleString()}</strong>
+                </td>
+                <td>
+                  <span className="admin-kpi-points__tasks">{r.completed_kpis}/{r.total_kpis}</span>
+                  {r.pending_kpis > 0 && (
+                    <span className="admin-kpi-points__pending"> · {r.pending_kpis} open</span>
+                  )}
+                </td>
+                <td>
+                  <span className="admin-kpi-points__month-dates">{periodLabel}</span>
+                </td>
+                <td>
+                  <div className="admin-kpi-points__month-score">
+                    {r.this_month_score != null ? (
+                      <strong className={`admin-kpi-points__health ${healthClass(Number(r.this_month_score))}`}>
+                        {Number(r.this_month_score).toFixed(2)}
+                      </strong>
+                    ) : (
+                      <span className="admin-kpi-points__muted">—</span>
                     )}
-                  </span>
-                </div>
-              </td>
-              <td>{r.total_earned.toLocaleString()}</td>
-              <td>
-                <strong>{r.balance.toLocaleString()}</strong>
-              </td>
-              <td>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSelectRow(r);
-                  }}
-                  style={{ padding: '0.28rem 0.6rem', fontSize: '0.76rem', gap: '0.3rem' }}
-                >
-                  <Eye size={13} /> Tasks
-                </button>
-              </td>
-            </tr>
-          ))}
+                    <span className="admin-kpi-points__month-reward">
+                      +{Number(r.this_month_points ?? 0).toLocaleString()} reward pts
+                    </span>
+                  </div>
+                </td>
+                <td>{r.total_earned.toLocaleString()}</td>
+                <td>
+                  <strong>{r.balance.toLocaleString()}</strong>
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm admin-kpi-points__history-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelectRow(r);
+                    }}
+                  >
+                    <Eye size={13} /> Tasks
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

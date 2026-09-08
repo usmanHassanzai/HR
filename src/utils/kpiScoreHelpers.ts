@@ -6,6 +6,7 @@ import {
   kpiOverlapsYear,
 } from './kpiCategories';
 import { kpiScoringRule } from './kpiScoringRules';
+import { KPI_WEIGHT_CAP } from './kpiWeightHelpers';
 
 /** Round to two decimal places (49.50, 12.75, 90.75). */
 export function roundKpiScore(value: number): number {
@@ -221,6 +222,55 @@ export function employeeKpiMonthBreakdown(kpis: Kpi[]) {
     openWeight,
   };
 }
+
+/** Cap weightage display values at the 100% pool (never show > 100% for weight fields). */
+function clampWeightPct(value: number): number {
+  return roundKpiScore(Math.min(KPI_WEIGHT_CAP, Math.max(0, Number(value) || 0)));
+}
+
+/**
+ * Scoreboard breakdown for a KPI set (month filter or all-time).
+ * Weightage block is capped at 100%. Score uses raw assigned weight and may exceed 100%.
+ */
+export function employeeKpiBoardBreakdown(kpis: Kpi[]) {
+  const weightAssignedRaw = roundKpiScore(
+    kpis.reduce((s, k) => s + Number(k.weight || 0), 0),
+  );
+  const weightAchievedRaw = roundKpiScore(
+    kpis
+      .filter((k) => k.completion_status === 'completed')
+      .reduce((s, k) => s + Number(k.weight || 0), 0),
+  );
+  const weightPendingRaw = roundKpiScore(
+    kpis
+      .filter((k) => k.completion_status !== 'completed')
+      .reduce((s, k) => s + Number(k.weight || 0), 0),
+  );
+  const pointsAwarded = employeePerformancePoints(kpis);
+  const score = weightAssignedRaw > 0
+    ? roundKpiScore((pointsAwarded / weightAssignedRaw) * 100)
+    : 0;
+  const completed = kpis.filter((k) => k.completion_status === 'completed').length;
+
+  return {
+    kpiCount: kpis.length,
+    completed,
+    pending: kpis.length - completed,
+    // Block A — Weightage (≤ 100%)
+    totalWeight: KPI_WEIGHT_CAP,
+    weightAssigned: clampWeightPct(weightAssignedRaw),
+    weightAchieved: clampWeightPct(weightAchievedRaw),
+    weightPending: clampWeightPct(weightPendingRaw),
+    weightUnassigned: clampWeightPct(KPI_WEIGHT_CAP - weightAssignedRaw),
+    weightAssignedRaw,
+    // Block B — Score (may exceed 100%)
+    score,
+    pointsAwarded,
+    performanceRating: performanceRatingForScore(score),
+  };
+}
+
+export type KpiBoardBreakdown = ReturnType<typeof employeeKpiBoardBreakdown>;
 
 export const employeeWeightedKpiScore = calculateOverallKpiScore;
 export const employeeTotalKpiPoints = calculateOverallKpiScore;
