@@ -16,23 +16,20 @@ import '../styles/manager-personal.css';
 import { formatKpiWeight, KPI_WEIGHT_CAP } from '../utils/kpiWeightHelpers';
 import {
   availableKpiYears,
-  employeeKpiBoardBreakdown,
   formatKpiScore,
   formatKpiTaskPoints,
   isKpiLatePenaltyApplied,
   kpiAssignedScore,
   kpiScoreContribution,
   kpisForPeriod,
-  MONTH_OPTIONS,
-  performanceRatingColor,
   periodLabel,
-  type KpiBoardBreakdown,
   type KpiPeriodMode,
 } from '../utils/kpiScoreHelpers';
 import { karachiYearMonth, kpiCategoryMeta } from '../utils/kpiCategories';
 import { formatLatePenaltyLabel, kpiScoringRule } from '../utils/kpiScoringRules';
 import { fetchRewardsSummary, type RewardsSummary } from '../utils/rewardsHelpers';
 import KpiEvaluationBlock from './KpiEvaluationBlock';
+import KpiScoreboardSummary from './KpiScoreboardSummary';
 import '../styles/employee-mobile.css';
 import '../styles/employee-kpis.css';
 
@@ -188,15 +185,10 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
     if (!years.includes(filterYear)) setFilterYear(years[0]);
   }, [years, filterYear]);
 
-  const overallKpis = kpis; // all-time — never reuse the period filter
-  const overallSummary = useMemo(() => employeeKpiBoardBreakdown(overallKpis), [overallKpis]);
   const periodKpis = useMemo(
     () => kpisForPeriod(kpis, periodMode, filterYear, filterMonth),
     [kpis, periodMode, filterYear, filterMonth],
   );
-  const periodSummary = useMemo(() => employeeKpiBoardBreakdown(periodKpis), [periodKpis]);
-  const periodRatingColor = performanceRatingColor(periodSummary.performanceRating);
-  const overallRatingColor = performanceRatingColor(overallSummary.performanceRating);
   const selectedLabel = periodLabel(periodMode, filterYear, filterMonth);
 
   const visibleKpis = useMemo(() => {
@@ -255,122 +247,6 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
     return `${a} – ${b}`;
   };
 
-  const notRedeemedText = rewardsSummary
-    ? rewardsSummary.balance.toLocaleString()
-    : '—';
-  const redeemedText = rewardsSummary
-    ? rewardsSummary.usedPoints.toLocaleString()
-    : '—';
-
-  const renderBoardCard = (opts: {
-    eyebrow: string;
-    title: string;
-    scopeNote: string;
-    breakdown: KpiBoardBreakdown;
-    ratingColor: string;
-    empty: boolean;
-    showRewards?: boolean;
-  }) => {
-    const b = opts.breakdown;
-    const has = !opts.empty && b.kpiCount > 0;
-    return (
-      <article className={`emp-kpi-month${opts.showRewards ? '' : ' emp-kpi-month--current'}`}>
-        <header>
-          <span>{opts.eyebrow}</span>
-          <strong>{opts.title}</strong>
-        </header>
-        <p className="emp-kpi-month__scope">{opts.scopeNote}</p>
-
-        <section className="emp-kpi-block emp-kpi-block--weight" aria-label="Weightage">
-          <div className="emp-kpi-block__head">
-            <h4 className="emp-kpi-block__title">Weightage</h4>
-            <span className="emp-kpi-block__badge">0–{KPI_WEIGHT_CAP}%</span>
-          </div>
-          <dl className="emp-kpi-month__stats">
-            <div>
-              <dt>Total weight</dt>
-              <dd>{has ? formatKpiWeight(b.totalWeight) : '—'}</dd>
-            </div>
-            <div>
-              <dt>Weight assigned</dt>
-              <dd>{has ? formatKpiWeight(b.weightAssigned) : '—'}</dd>
-            </div>
-            <div>
-              <dt>Weight achieved</dt>
-              <dd>{has ? formatKpiWeight(b.weightAchieved) : '—'}</dd>
-            </div>
-            <div>
-              <dt>Weight unassigned</dt>
-              <dd>{has ? formatKpiWeight(b.weightUnassigned) : '—'}</dd>
-            </div>
-            <div>
-              <dt>Weight pending</dt>
-              <dd>{has ? formatKpiWeight(b.weightPending) : '—'}</dd>
-            </div>
-            <div>
-              <dt>Completed</dt>
-              <dd>{has ? `${b.completed}/${b.kpiCount}` : '—'}</dd>
-            </div>
-          </dl>
-        </section>
-
-        <section className="emp-kpi-block emp-kpi-block--score" aria-label="Score">
-          <div className="emp-kpi-block__head">
-            <h4 className="emp-kpi-block__title">Score</h4>
-            <span className="emp-kpi-block__badge">Points index</span>
-          </div>
-          <div className="emp-kpi-month__score">
-            <div className="emp-kpi-month__score-main">
-              <span className="emp-kpi-month__score-label">Score</span>
-              <span className="emp-kpi-month__pct" style={{ color: has ? opts.ratingColor : undefined }}>
-                {has ? formatKpiScore(b.score) : '—'}
-              </span>
-            </div>
-            {has ? (
-              <span className="emp-kpi-month__rating" style={{ color: opts.ratingColor }}>
-                {b.performanceRating}
-              </span>
-            ) : (
-              <span className="emp-kpi-month__rating emp-kpi-month__rating--muted">No tasks</span>
-            )}
-          </div>
-          <dl className="emp-kpi-month__stats">
-            <div>
-              <dt>Points awarded</dt>
-              <dd>{has ? formatKpiScore(b.pointsAwarded) : '—'}</dd>
-            </div>
-            {opts.showRewards ? (
-              <>
-                <div>
-                  <dt>Points not redeemed</dt>
-                  <dd>{notRedeemedText}</dd>
-                </div>
-                <div>
-                  <dt>Points redeemed</dt>
-                  <dd>{redeemedText}</dd>
-                </div>
-              </>
-            ) : (
-              <div>
-                <dt>Tasks in scope</dt>
-                <dd>{has ? String(b.kpiCount) : '—'}</dd>
-              </div>
-            )}
-          </dl>
-          {opts.showRewards && rewardsSummary && (
-            <p className="emp-kpi-month__note">
-              Reward points stay available until you redeem them
-              {rewardsSummary.totalEarned > 0
-                ? ` · ${rewardsSummary.totalEarned.toLocaleString()} earned lifetime`
-                : ''}
-              .
-            </p>
-          )}
-        </section>
-      </article>
-    );
-  };
-
   const navGroups = useMemo<AdminNavGroup[]>(() => [{
     label: 'Menu',
     items: [
@@ -386,86 +262,25 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
 
   const kpiBoard = (
       <div className="emp-kpi-board">
-      <section className="emp-kpi-summary">
-        <div className="emp-kpi-summary__head">
-          <div>
-            <span className="emp-kpi-summary__eyebrow">Performance overview</span>
-            <h2 className="emp-kpi-summary__title">KPI scoreboard</h2>
-            <p className="emp-kpi-summary__formula">
-              Use Overall, Month, or Year above to switch views. Each view shows its own weightage and score — they are not shown together.
-              Weightage stays within 0–{KPI_WEIGHT_CAP}%. Score is a points index (no % sign).
-            </p>
-          </div>
-          <div className="emp-kpi-toolbar">
+      <KpiScoreboardSummary
+        kpis={kpis}
+        rewardsSummary={rewardsSummary}
+        title="KPI scoreboard"
+        period={{ mode: periodMode, month: filterMonth, year: filterYear }}
+        onPeriodChange={(next) => {
+          setPeriodMode(next.mode);
+          setFilterMonth(next.month);
+          setFilterYear(next.year);
+        }}
+        toolbar={(
+          <>
             <ExportButton kpis={visibleKpis} userName={activeUser.full_name} />
             <button type="button" className="btn btn-secondary" onClick={() => void fetchKpis()} title="Reload" aria-label="Reload KPIs">
               <RefreshCw size={16} />
             </button>
-          </div>
-        </div>
-
-        <div className="emp-kpi-filter" role="search" aria-label="Filter KPIs by period">
-          <div className="emp-kpi-filter__modes" role="tablist" aria-label="Period type">
-            <button
-              type="button"
-              role="tab"
-              className={`emp-kpi-filter__mode${periodMode === 'overall' ? ' emp-kpi-filter__mode--active' : ''}`}
-              aria-selected={periodMode === 'overall'}
-              onClick={() => setPeriodMode('overall')}
-            >
-              Overall
-            </button>
-            <button
-              type="button"
-              role="tab"
-              className={`emp-kpi-filter__mode${periodMode === 'month' ? ' emp-kpi-filter__mode--active' : ''}`}
-              aria-selected={periodMode === 'month'}
-              onClick={() => setPeriodMode('month')}
-            >
-              Month
-            </button>
-            <button
-              type="button"
-              role="tab"
-              className={`emp-kpi-filter__mode${periodMode === 'year' ? ' emp-kpi-filter__mode--active' : ''}`}
-              aria-selected={periodMode === 'year'}
-              onClick={() => setPeriodMode('year')}
-            >
-              Year
-            </button>
-          </div>
-
-          {periodMode !== 'overall' && (
-            <div className="emp-kpi-filter__selects">
-              {periodMode === 'month' && (
-                <label className="emp-kpi-filter__field">
-                  <span>Month</span>
-                  <select
-                    value={filterMonth}
-                    onChange={(e) => setFilterMonth(Number(e.target.value))}
-                    aria-label="Select month"
-                  >
-                    {MONTH_OPTIONS.map((m) => (
-                      <option key={m.value} value={m.value}>{m.label}</option>
-                    ))}
-                  </select>
-                </label>
-              )}
-              <label className="emp-kpi-filter__field">
-                <span>Year</span>
-                <select
-                  value={filterYear}
-                  onChange={(e) => setFilterYear(Number(e.target.value))}
-                  aria-label="Select year"
-                >
-                  {years.map((y) => (
-                    <option key={y} value={y}>{y}</option>
-                  ))}
-                </select>
-              </label>
-            </div>
-          )}
-
+          </>
+        )}
+        filterExtra={(
           <label className="emp-kpi-filter__search">
             <span>Search</span>
             <div className="emp-kpi-filter__search-box">
@@ -479,49 +294,24 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
               />
             </div>
           </label>
-        </div>
-
-        <div className="emp-kpi-months emp-kpi-months--single">
-          {periodMode === 'overall' ? (
-            renderBoardCard({
-              eyebrow: 'Overall',
-              title: 'All assigned KPIs',
-              scopeNote: `All-time · ${overallKpis.length} task${overallKpis.length === 1 ? '' : 's'} across every month.`,
-              breakdown: overallSummary,
-              ratingColor: overallRatingColor,
-              empty: overallKpis.length === 0,
-              showRewards: true,
-            })
-          ) : (
-            renderBoardCard({
-              eyebrow: periodMode === 'year' ? 'Selected year' : 'Selected month',
-              title: selectedLabel,
-              scopeNote: periodMode === 'year'
-                ? `Only KPIs that overlap ${filterYear}. Switch to Overall to see all-time results.`
-                : `Only KPIs that overlap ${selectedLabel}. Switch to Overall to see all-time results.`,
-              breakdown: periodSummary,
-              ratingColor: periodRatingColor,
-              empty: periodKpis.length === 0,
-              showRewards: true,
-            })
-          )}
-        </div>
-
-        <div className="emp-kpi-summary__meta">
-          <div className="emp-kpi-summary__chip">
-            <span>{periodMode === 'overall' ? 'All tasks' : 'Period tasks'}</span>
-            <strong>{periodKpis.length}</strong>
+        )}
+        footer={(
+          <div className="emp-kpi-summary__meta">
+            <div className="emp-kpi-summary__chip">
+              <span>{periodMode === 'overall' ? 'All tasks' : 'Period tasks'}</span>
+              <strong>{periodKpis.length}</strong>
+            </div>
+            <div className="emp-kpi-summary__chip">
+              <span>Open</span>
+              <strong>{openKpis.length}</strong>
+            </div>
+            <div className="emp-kpi-summary__chip">
+              <span>In history</span>
+              <strong>{historyKpis.length}</strong>
+            </div>
           </div>
-          <div className="emp-kpi-summary__chip">
-            <span>Open</span>
-            <strong>{openKpis.length}</strong>
-          </div>
-          <div className="emp-kpi-summary__chip">
-            <span>In history</span>
-            <strong>{historyKpis.length}</strong>
-          </div>
-        </div>
-      </section>
+        )}
+      />
 
       {loading && kpis.length === 0 ? (
         <div className="dash-loading">

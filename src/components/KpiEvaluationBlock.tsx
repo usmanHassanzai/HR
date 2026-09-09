@@ -7,8 +7,18 @@ import {
 } from '../utils/kpiCategories';
 import { formatKpiScore, kpiScoreContribution, isKpiLatePenaltyApplied } from '../utils/kpiScoreHelpers';
 import { formatLatePenaltyLabel, kpiScoringRule } from '../utils/kpiScoringRules';
+import { emailKpiCompleted } from '../utils/kpiEmail';
 import { PauseCircle } from 'lucide-react';
 import KpiOptionPicker from './KpiOptionPicker';
+
+type CompletionNotifyRow = {
+  recipient_email?: string | null;
+  recipient_name?: string | null;
+  recipient_kind?: string | null;
+  kpi_name?: string | null;
+  employee_name?: string | null;
+  due_date?: string | null;
+};
 
 export default function KpiEvaluationBlock({
   kpi,
@@ -40,7 +50,7 @@ export default function KpiEvaluationBlock({
     setBusy(true);
     setError('');
     try {
-      const { error: rpcErr } = await supabase.rpc('set_employee_kpi_progress', {
+      const { data, error: rpcErr } = await supabase.rpc('set_employee_kpi_progress', {
         p_kpi_id: kpi.id,
         p_progress: id,
       });
@@ -50,6 +60,24 @@ export default function KpiEvaluationBlock({
         completion_status: id === 'completed' ? 'completed' : 'pending',
         completed_at: id === 'completed' ? new Date().toISOString() : null,
       });
+
+      if (id === 'completed') {
+        const rows = (Array.isArray(data) ? data : data ? [data] : []) as CompletionNotifyRow[];
+        await Promise.all(
+          rows
+            .filter((r) => r.recipient_email)
+            .map((r) =>
+              emailKpiCompleted({
+                toEmail: String(r.recipient_email),
+                toName: String(r.recipient_name || ''),
+                employeeName: String(r.employee_name || 'Teammate'),
+                kpiName: String(r.kpi_name || kpi.name),
+                dueDate: r.due_date || kpi.end_date || undefined,
+                recipientKind: r.recipient_kind === 'assigner' ? 'assigner' : 'manager',
+              }),
+            ),
+        );
+      }
     } catch (e) {
       const msg = e && typeof e === 'object' && 'message' in e ? String((e as { message: string }).message) : '';
       setError(msg || (e instanceof Error ? e.message : 'Could not save status.'));

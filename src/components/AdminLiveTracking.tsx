@@ -44,6 +44,7 @@ export interface TeamTrackingRow {
   attendance_source: string | null;
 }
 import { Department } from '../utils/departmentHelpers';
+import { reconcileEndedShiftAttendance } from '../utils/reconcileAttendance';
 
 interface AdminLiveTrackingProps {
   mode?: 'admin' | 'manager';
@@ -111,6 +112,7 @@ export default function AdminLiveTracking({ mode = 'admin', profile }: AdminLive
     if (!silent) setLoading(true);
     else setRefreshing(true);
 
+    await reconcileEndedShiftAttendance();
     const trackRes = await supabase.rpc('get_team_location_tracking');
 
     if (isManagerView) {

@@ -12,6 +12,7 @@ import {
 } from '../utils/shiftHelpers';
 import { APPROVAL_LABEL, approvalBadgeClass, ApprovalStatus } from '../utils/attendanceHelpers';
 import { downloadAttendanceCsv, downloadTeamAttendanceCsv } from '../utils/exportAttendance';
+import { reconcileEndedShiftAttendance } from '../utils/reconcileAttendance';
 
 interface AttendanceHistoryPanelProps {
   profile: Profile;
@@ -48,6 +49,7 @@ export default function AttendanceHistoryPanel({
 
   const load = useCallback(async () => {
     setLoading(true);
+    await reconcileEndedShiftAttendance();
     const activeScope = mode === 'employee' ? 'self' : scope;
     const monthParam = view === 'daily' ? month : null;
 

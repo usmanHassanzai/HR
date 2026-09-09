@@ -16,6 +16,7 @@ import { TeamAttendanceHistoryRow, formatWorkDuration, describeAttendanceHistory
 import { APPROVAL_LABEL, approvalBadgeClass, ApprovalStatus, ATTENDANCE_STATUS_LABEL, attendanceStatusBadgeClass } from '../utils/attendanceHelpers';
 import { downloadAttendanceCsv, downloadTeamAttendanceCsv } from '../utils/exportAttendance';
 import { AttendanceBrowseView, attendanceYearOptions, historyMonthParam } from '../utils/attendancePeriod';
+import { reconcileEndedShiftAttendance } from '../utils/reconcileAttendance';
 import AttendanceMonthWiseList from './AttendanceMonthWiseList';
 import '../styles/admin-attendance.css';
 
@@ -105,6 +106,7 @@ export default function AdminAttendanceDirectory({ departments, initialUserId }:
 
   const load = useCallback(async () => {
     setLoading(true);
+    await reconcileEndedShiftAttendance();
     const { data: users, error: usersErr } = await supabase.rpc('get_all_users_admin');
     if (usersErr) {
       setEmployees([]);

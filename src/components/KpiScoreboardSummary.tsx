@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { Kpi } from '../utils/kpiHelpers';
 import { formatKpiWeight, KPI_WEIGHT_CAP } from '../utils/kpiWeightHelpers';
 import {
@@ -15,16 +15,28 @@ import { karachiYearMonth } from '../utils/kpiCategories';
 import type { RewardsSummary } from '../utils/rewardsHelpers';
 import '../styles/employee-kpis.css';
 
+export interface KpiScoreboardPeriodState {
+  mode: KpiPeriodMode;
+  month: number;
+  year: number;
+}
+
 interface KpiScoreboardSummaryProps {
   kpis: Kpi[];
   rewardsSummary?: RewardsSummary | null;
   /** Compact: hide long formula copy (manager embeds). */
   compact?: boolean;
   title?: string;
+  /** Controlled period (keeps parent task lists in sync). */
+  period?: KpiScoreboardPeriodState;
+  onPeriodChange?: (next: KpiScoreboardPeriodState) => void;
+  toolbar?: ReactNode;
+  filterExtra?: ReactNode;
+  footer?: ReactNode;
 }
 
 /**
- * Shared Overall / Month / Year KPI scoreboard for employees and managers.
+ * Shared Overall / Month / Year KPI scoreboard.
  * Weightage ≤ 100%; Score is a points index (no % sign).
  */
 export default function KpiScoreboardSummary({
@@ -32,18 +44,40 @@ export default function KpiScoreboardSummary({
   rewardsSummary = null,
   compact = false,
   title = 'KPI scoreboard',
+  period,
+  onPeriodChange,
+  toolbar,
+  filterExtra,
+  footer,
 }: KpiScoreboardSummaryProps) {
   const now = karachiYearMonth();
-  const [periodMode, setPeriodMode] = useState<KpiPeriodMode>('month');
-  const [filterMonth, setFilterMonth] = useState(now.monthIndex);
-  const [filterYear, setFilterYear] = useState(now.year);
+  const [internalMode, setInternalMode] = useState<KpiPeriodMode>('month');
+  const [internalMonth, setInternalMonth] = useState(now.monthIndex);
+  const [internalYear, setInternalYear] = useState(now.year);
+
+  const controlled = period != null;
+  const periodMode = controlled ? period.mode : internalMode;
+  const filterMonth = controlled ? period.month : internalMonth;
+  const filterYear = controlled ? period.year : internalYear;
+
+  const setPeriod = (next: KpiScoreboardPeriodState) => {
+    if (onPeriodChange) onPeriodChange(next);
+    if (!controlled) {
+      setInternalMode(next.mode);
+      setInternalMonth(next.month);
+      setInternalYear(next.year);
+    }
+  };
 
   const years = useMemo(() => availableKpiYears(kpis), [kpis]);
 
   useEffect(() => {
     if (!years.length) return;
-    if (!years.includes(filterYear)) setFilterYear(years[0]);
-  }, [years, filterYear]);
+    if (!years.includes(filterYear)) {
+      setPeriod({ mode: periodMode, month: filterMonth, year: years[0] });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only sync when year list changes
+  }, [years]);
 
   const overallKpis = kpis;
   const overallSummary = useMemo(() => employeeKpiBoardBreakdown(overallKpis), [overallKpis]);
@@ -70,12 +104,20 @@ export default function KpiScoreboardSummary({
             <span className="emp-kpi-summary__eyebrow">Performance overview</span>
             <h2 className="emp-kpi-summary__title">{title}</h2>
             <p className="emp-kpi-summary__formula">
-              Use Overall, Month, or Year to switch views. Weightage stays within 0–{KPI_WEIGHT_CAP}%.
-              Score is a points index (no % sign).
+              Use Overall, Month, or Year to switch views. Each view shows its own weightage and score — they are not shown together.
+              Weightage stays within 0–{KPI_WEIGHT_CAP}%. Score is a points index (no % sign).
             </p>
           </div>
+          {toolbar ? <div className="emp-kpi-toolbar">{toolbar}</div> : null}
         </div>
       )}
+
+      {compact && (title || toolbar) ? (
+        <div className="emp-kpi-summary__head emp-kpi-summary__head--compact">
+          {title ? <h3 className="emp-kpi-summary__title emp-kpi-summary__title--compact">{title}</h3> : <span />}
+          {toolbar ? <div className="emp-kpi-toolbar">{toolbar}</div> : null}
+        </div>
+      ) : null}
 
       <div className="emp-kpi-filter" role="search" aria-label="Filter KPIs by period">
         <div className="emp-kpi-filter__modes" role="tablist" aria-label="Period type">
@@ -90,7 +132,7 @@ export default function KpiScoreboardSummary({
               role="tab"
               className={`emp-kpi-filter__mode${periodMode === mode ? ' emp-kpi-filter__mode--active' : ''}`}
               aria-selected={periodMode === mode}
-              onClick={() => setPeriodMode(mode)}
+              onClick={() => setPeriod({ mode, month: filterMonth, year: filterYear })}
             >
               {label}
             </button>
@@ -104,7 +146,7 @@ export default function KpiScoreboardSummary({
                 <span>Month</span>
                 <select
                   value={filterMonth}
-                  onChange={(e) => setFilterMonth(Number(e.target.value))}
+                  onChange={(e) => setPeriod({ mode: periodMode, month: Number(e.target.value), year: filterYear })}
                   aria-label="Select month"
                 >
                   {MONTH_OPTIONS.map((m) => (
@@ -117,7 +159,7 @@ export default function KpiScoreboardSummary({
               <span>Year</span>
               <select
                 value={filterYear}
-                onChange={(e) => setFilterYear(Number(e.target.value))}
+                onChange={(e) => setPeriod({ mode: periodMode, month: filterMonth, year: Number(e.target.value) })}
                 aria-label="Select year"
               >
                 {(years.length ? years : [filterYear]).map((y) => (
@@ -127,6 +169,8 @@ export default function KpiScoreboardSummary({
             </label>
           </div>
         )}
+
+        {filterExtra}
       </div>
 
       <div className="emp-kpi-months emp-kpi-months--single">
@@ -226,6 +270,8 @@ export default function KpiScoreboardSummary({
           </section>
         </article>
       </div>
+
+      {footer}
     </section>
   );
 }

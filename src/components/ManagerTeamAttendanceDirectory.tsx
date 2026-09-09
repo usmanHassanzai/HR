@@ -18,6 +18,7 @@ import {
 } from '../utils/shiftHelpers';
 import { APPROVAL_LABEL, approvalBadgeClass, ApprovalStatus, ATTENDANCE_STATUS_LABEL, attendanceStatusBadgeClass } from '../utils/attendanceHelpers';
 import { downloadAttendanceCsv, downloadTeamAttendanceCsv } from '../utils/exportAttendance';
+import { reconcileEndedShiftAttendance } from '../utils/reconcileAttendance';
 import {
   AttendanceBrowseView,
   attendanceYearOptions,
@@ -113,6 +114,7 @@ export default function ManagerTeamAttendanceDirectory({
 
   const load = useCallback(async () => {
     setLoading(true);
+    await reconcileEndedShiftAttendance();
     const [{ data, error }, { data: mine, error: mineErr }] = await Promise.all([
       supabase.rpc('get_team_attendance_history', {
         p_year: year,

@@ -16,9 +16,13 @@ import { supabase } from '../lib/supabase';
 import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
 import { Kpi } from '../utils/kpiHelpers';
 import { tierColorForScore } from '../utils/rewardsTiers';
-import { kpiCategoryMeta } from '../utils/kpiCategories';
-import { isKpiLateCompletion, kpiAssignedScore, kpiScoreContribution } from '../utils/kpiScoreHelpers';
+import { kpiCategoryMeta, karachiYearMonth } from '../utils/kpiCategories';
+import { isKpiLateCompletion, kpiAssignedScore, kpiScoreContribution, kpisForPeriod, type KpiPeriodMode } from '../utils/kpiScoreHelpers';
+import KpiTaskBrief from './KpiTaskBrief';
+import KpiScoreboardSummary, { type KpiScoreboardPeriodState } from './KpiScoreboardSummary';
+import { fetchRewardsSummary, type RewardsSummary } from '../utils/rewardsHelpers';
 import '../styles/admin-kpi-points.css';
+import '../styles/employee-kpis.css';
 
 export interface OrgKpiPointsRow {
   user_id: string;
@@ -80,7 +84,7 @@ function normalizeRows(data: unknown): OrgKpiPointsRow[] {
       used_points: used,
       balance: earned - used,
       this_month_points: r.this_month_points == null ? 0 : Number(r.this_month_points),
-      this_month_score: r.this_month_score == null ? Number(r.health_score) || 0 : Number(r.this_month_score),
+      this_month_score: r.this_month_score == null ? null : Number(r.this_month_score),
       kpi_period_start: r.kpi_period_start || null,
       kpi_period_end: r.kpi_period_end || null,
     };
@@ -104,6 +108,10 @@ interface OrgUserMonthModalProps {
   role: string;
   healthScore: number;
   thisMonthPoints: number | null;
+  thisMonthScore: number | null;
+  rewardBalance: number;
+  rewardEarned: number;
+  rewardUsed: number;
   onClose: () => void;
 }
 
@@ -113,19 +121,22 @@ function OrgUserMonthModal({
   role,
   healthScore,
   thisMonthPoints,
+  thisMonthScore,
+  rewardBalance,
+  rewardEarned,
+  rewardUsed,
   onClose,
 }: OrgUserMonthModalProps) {
-  const [kpis, setKpis] = useState<Kpi[]>([]);
+  const initialYm = useMemo(() => karachiYearMonth(), []);
+  const [allKpis, setAllKpis] = useState<Kpi[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const now = new Date();
-  const monthDisplay = now.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
-  const y = now.getFullYear();
-  const m = now.getMonth() + 1;
-  const monthStart = `${y}-${String(m).padStart(2, '0')}-01`;
-  const lastDay = new Date(y, m, 0).getDate();
-  const monthEnd = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  const [period, setPeriod] = useState<KpiScoreboardPeriodState>({
+    mode: 'month',
+    month: initialYm.monthIndex,
+    year: initialYm.year,
+  });
+  const [rewardsSummary, setRewardsSummary] = useState<RewardsSummary | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -133,30 +144,25 @@ function OrgUserMonthModal({
       setLoading(true);
       setError(null);
       try {
-        const { data, error: kpiErr } = await supabase
-          .from('kpis')
-          .select('*')
-          .eq('user_id', userId)
-          .order('end_date', { ascending: false });
-
-        if (kpiErr) throw kpiErr;
-
+        const [kpiRes, rewards] = await Promise.all([
+          supabase.from('kpis').select('*').eq('user_id', userId).order('end_date', { ascending: false }),
+          fetchRewardsSummary(userId).catch(() => null),
+        ]);
+        if (kpiRes.error) throw kpiRes.error;
         if (isMounted) {
-          const allUserKpis = (data || []) as Kpi[];
-          const monthKpis = allUserKpis.filter((k) => {
-            const completedDate = (k.completed_at || k.updated_at || '').slice(0, 10);
-            const endDate = (k.end_date || '').slice(0, 10);
-            const startDate = (k.start_date || k.created_at || '').slice(0, 10);
-
-            if (k.completion_status === 'completed' && completedDate >= monthStart && completedDate <= monthEnd) {
-              return true;
-            }
-            if (endDate >= monthStart && endDate <= monthEnd) {
-              return true;
-            }
-            return startDate <= monthEnd && (endDate ? endDate >= monthStart : true);
-          });
-          setKpis(monthKpis);
+          setAllKpis((kpiRes.data || []) as Kpi[]);
+          setRewardsSummary(
+            rewards || {
+              balance: rewardBalance,
+              totalEarned: rewardEarned,
+              usedPoints: rewardUsed,
+              thisMonthPoints,
+              thisMonthScore,
+              pointsToNextReward: 0,
+              progressPct: 0,
+              canRedeem: rewardBalance >= 1000,
+            },
+          );
         }
       } catch (err) {
         if (isMounted) {
@@ -173,14 +179,27 @@ function OrgUserMonthModal({
     return () => {
       isMounted = false;
     };
-  }, [userId, monthStart, monthEnd]);
+  }, [userId, rewardBalance, rewardEarned, rewardUsed, thisMonthPoints, thisMonthScore]);
 
-  const completedKpis = kpis.filter((k) => k.completion_status === 'completed');
-  const openKpis = kpis.filter((k) => k.completion_status !== 'completed');
+  const scopedKpis = useMemo(
+    () => kpisForPeriod(allKpis, period.mode as KpiPeriodMode, period.year, period.month),
+    [allKpis, period],
+  );
+  const completedKpis = scopedKpis.filter((k) => k.completion_status === 'completed');
+  const openKpis = scopedKpis.filter((k) => k.completion_status !== 'completed');
+  const monthDisplay = new Date(period.year, period.month, 1).toLocaleDateString(undefined, {
+    month: 'long',
+    year: 'numeric',
+  });
+  const scopeLabel = period.mode === 'overall'
+    ? 'all assigned KPIs'
+    : period.mode === 'year'
+      ? String(period.year)
+      : monthDisplay;
 
   return (
     <div className="user-hub-overlay" onClick={onClose}>
-      <div className="user-hub-dialog org-user-month-modal" style={{ maxWidth: '840px' }} onClick={(e) => e.stopPropagation()}>
+      <div className="user-hub-dialog org-user-month-modal" style={{ maxWidth: '920px' }} onClick={(e) => e.stopPropagation()}>
         <div className="user-hub-topbar">
           <button type="button" className="user-hub-back" onClick={onClose}>
             <ArrowLeft size={18} />
@@ -204,117 +223,131 @@ function OrgUserMonthModal({
                 </span>
               </div>
               <p className="user-hub-hero__email">
-                Current Month (<strong>{monthDisplay}</strong>) · KPI Score: <strong style={{ color: tierColorForScore(healthScore) }}>{Number(healthScore).toFixed(2)}%</strong> · Bonus: <strong style={{ color: 'var(--color-success)' }}>+{Number(thisMonthPoints ?? 0).toLocaleString()} pts</strong>
+                Overall score: <strong style={{ color: tierColorForScore(healthScore) }}>{Number(healthScore).toFixed(2)}</strong>
+                {thisMonthScore != null && (
+                  <>
+                    {' '}· Month score: <strong style={{ color: tierColorForScore(thisMonthScore) }}>{Number(thisMonthScore).toFixed(2)}</strong>
+                  </>
+                )}
+                {' '}· Month bonus: <strong style={{ color: 'var(--color-success)' }}>+{Number(thisMonthPoints ?? 0).toLocaleString()} pts</strong>
               </p>
             </div>
           </div>
         </header>
 
         <div className="user-hub-body">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-            <h4 className="user-hub-section-title" style={{ margin: 0 }}>
-              Completed &amp; Assigned Tasks for {monthDisplay} ({kpis.length} total)
-            </h4>
-            <div style={{ display: 'flex', gap: '0.6rem', fontSize: '0.8rem' }}>
-              <span style={{ color: 'var(--color-success)', fontWeight: 700 }}>
-                ✓ {completedKpis.length} Completed
-              </span>
-              {openKpis.length > 0 && (
-                <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>
-                  · {openKpis.length} In Progress / Open
-                </span>
-              )}
-            </div>
-          </div>
-
           {loading ? (
             <div className="admin-rewards-loading" style={{ padding: '2rem 1rem' }}>
               <Loader2 size={24} className="spin-icon" />
-              <span>Loading tasks for {monthDisplay}…</span>
+              <span>Loading scoreboard…</span>
             </div>
           ) : error ? (
             <div className="admin-rewards-alert admin-rewards-alert--error">
               <AlertCircle size={16} />
               <span>{error}</span>
             </div>
-          ) : kpis.length === 0 ? (
-            <div className="admin-rewards-empty" style={{ padding: '2rem 1rem' }}>
-              <CheckCircle2 size={36} strokeWidth={1.25} />
-              <h4>No tasks found for this month</h4>
-              <p>No KPI tasks were logged or completed for {fullName} in {monthDisplay}.</p>
-            </div>
           ) : (
-            <div className="admin-rewards-table-wrap">
-              <table className="admin-rewards-table" style={{ width: '100%' }}>
-                <thead>
-                  <tr>
-                    <th>Task / KPI Name</th>
-                    <th>Category</th>
-                    <th>Weight</th>
-                    <th>Score</th>
-                    <th>Points Awarded</th>
-                    <th>Status &amp; Completion</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {kpis.map((kpi) => {
-                    const isDone = kpi.completion_status === 'completed';
-                    const isLate = isKpiLateCompletion(kpi);
-                    const awarded = kpiScoreContribution(kpi);
-                    const cat = kpiCategoryMeta(kpi.kpi_category);
-                    const completedDateStr = kpi.completed_at || (isDone ? kpi.updated_at : null);
+            <>
+              <KpiScoreboardSummary
+                kpis={allKpis}
+                rewardsSummary={rewardsSummary}
+                compact
+                title={`${fullName}'s KPI scoreboard`}
+                period={period}
+                onPeriodChange={setPeriod}
+              />
 
-                    return (
-                      <tr key={kpi.id}>
-                        <td>
-                          <strong>{kpi.name}</strong>
-                          {kpi.description && (
-                            <p style={{ margin: '0.2rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)', maxWidth: '280px' }}>
-                              {kpi.description}
-                            </p>
-                          )}
-                        </td>
-                        <td>
-                          <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
-                            {cat.label}
-                          </span>
-                        </td>
-                        <td style={{ fontWeight: 600 }}>{kpi.weight || 0}%</td>
-                        <td style={{ fontWeight: 600 }}>{kpiAssignedScore(kpi)} pts</td>
-                        <td>
-                          <strong style={{ color: isDone ? (isLate ? '#d97706' : 'var(--color-success)') : 'var(--text-muted)' }}>
-                            {isDone ? `${awarded} pts` : '0 pts (open)'}
-                          </strong>
-                          {isDone && isLate && (
-                            <span style={{ display: 'block', fontSize: '0.68rem', color: '#d97706' }}>
-                              (50% late deduction)
-                            </span>
-                          )}
-                        </td>
-                        <td>
-                          {isDone ? (
-                            <div>
-                              <span className="badge badge-on-track" style={{ fontSize: '0.68rem', fontWeight: 700 }}>
-                                <Check size={11} style={{ display: 'inline', verticalAlign: '-1px', marginRight: '2px' }} /> Completed
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginTop: '1.25rem' }}>
+                <h4 className="user-hub-section-title" style={{ margin: 0 }}>
+                  Tasks in scope · {scopeLabel} ({scopedKpis.length})
+                </h4>
+                <div style={{ display: 'flex', gap: '0.6rem', fontSize: '0.8rem' }}>
+                  <span style={{ color: 'var(--color-success)', fontWeight: 700 }}>
+                    ✓ {completedKpis.length} Completed
+                  </span>
+                  {openKpis.length > 0 && (
+                    <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>
+                      · {openKpis.length} In Progress / Open
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {scopedKpis.length === 0 ? (
+                <div className="admin-rewards-empty" style={{ padding: '2rem 1rem' }}>
+                  <CheckCircle2 size={36} strokeWidth={1.25} />
+                  <h4>No tasks in this period</h4>
+                  <p>Switch Overall / Month / Year above to change the scope for {fullName}.</p>
+                </div>
+              ) : (
+                <div className="admin-rewards-table-wrap">
+                  <table className="admin-rewards-table" style={{ width: '100%' }}>
+                    <thead>
+                      <tr>
+                        <th>Task / KPI Name</th>
+                        <th>Category</th>
+                        <th>Weight</th>
+                        <th>Score</th>
+                        <th>Points Awarded</th>
+                        <th>Status &amp; Completion</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {scopedKpis.map((kpi) => {
+                        const isDone = kpi.completion_status === 'completed';
+                        const isLate = isKpiLateCompletion(kpi);
+                        const awarded = kpiScoreContribution(kpi);
+                        const cat = kpiCategoryMeta(kpi.kpi_category);
+                        const completedDateStr = kpi.completed_at || (isDone ? kpi.updated_at : null);
+
+                        return (
+                          <tr key={kpi.id}>
+                            <td>
+                              <KpiTaskBrief kpi={kpi} />
+                            </td>
+                            <td>
+                              <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
+                                {cat.label}
                               </span>
-                              {completedDateStr && (
-                                <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
-                                  {new Date(completedDateStr).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+                            </td>
+                            <td style={{ fontWeight: 600 }}>{kpi.weight || 0}%</td>
+                            <td style={{ fontWeight: 600 }}>{kpiAssignedScore(kpi)} pts</td>
+                            <td>
+                              <strong style={{ color: isDone ? (isLate ? '#d97706' : 'var(--color-success)') : 'var(--text-muted)' }}>
+                                {isDone ? `${awarded} pts` : '0 pts (open)'}
+                              </strong>
+                              {isDone && isLate && (
+                                <span style={{ display: 'block', fontSize: '0.68rem', color: '#d97706' }}>
+                                  (50% late deduction)
                                 </span>
                               )}
-                            </div>
-                          ) : (
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                              In progress
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                            </td>
+                            <td>
+                              {isDone ? (
+                                <div>
+                                  <span className="badge badge-on-track" style={{ fontSize: '0.68rem', fontWeight: 700 }}>
+                                    <Check size={11} style={{ display: 'inline', verticalAlign: '-1px', marginRight: '2px' }} /> Completed
+                                  </span>
+                                  {completedDateStr && (
+                                    <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
+                                      {new Date(completedDateStr).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                  In progress
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -475,6 +508,10 @@ export default function AdminOrgKpiPointsBoard({
           role={selectedRow.role}
           healthScore={selectedRow.health_score}
           thisMonthPoints={selectedRow.this_month_points}
+          thisMonthScore={selectedRow.this_month_score}
+          rewardBalance={selectedRow.balance}
+          rewardEarned={selectedRow.total_earned}
+          rewardUsed={selectedRow.used_points}
           onClose={() => setSelectedRow(null)}
         />
       )}
@@ -496,11 +533,11 @@ function PeopleTable({
           <tr>
             <th>Person</th>
             <th>Role</th>
-            <th>Score</th>
+            <th title="All-time score (points awarded ÷ weight assigned × 100)">Score</th>
             <th>Performance pts</th>
             <th>KPI tasks</th>
             <th>Period</th>
-            <th>Month score</th>
+            <th title="Score for KPIs overlapping the current month only">Month score</th>
             <th>Reward earned</th>
             <th>Reward balance</th>
             <th>History</th>

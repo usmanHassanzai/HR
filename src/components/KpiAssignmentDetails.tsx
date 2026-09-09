@@ -1,5 +1,6 @@
 import { formatKpiAssignmentChange, Kpi } from '../utils/kpiHelpers';
 import KpiAssignmentEditNote from './KpiAssignmentEditNote';
+import KpiTaskBrief from './KpiTaskBrief';
 
 interface KpiAssignmentDetailsProps {
   kpi?: Kpi;
@@ -24,6 +25,16 @@ export default function KpiAssignmentDetails({
   const hasEdit = Boolean(showLastEdit && kpi && formatKpiAssignmentChange(kpi));
   if (!library && !notes && !hasEdit) return null;
 
+  const briefKpi = kpi || {
+    name: 'KPI task',
+    description: library,
+    kpi_category: 'general',
+    weight: 0,
+    start_date: null,
+    end_date: null,
+    assigned_score: null,
+  };
+
   return (
     <div className={`kpi-assignment-details${compact ? ' kpi-assignment-details--compact' : ''}`}>
       {hasEdit && kpi && (
@@ -37,7 +48,7 @@ export default function KpiAssignmentDetails({
         )
       )}
       {library && library !== notes && (
-        <p className="kpi-desc">{library}</p>
+        <KpiTaskBrief kpi={briefKpi} compact={false} hideName />
       )}
       {notes && (
         <div className="kpi-assign-note">

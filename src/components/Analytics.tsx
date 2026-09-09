@@ -11,16 +11,17 @@ import {
 import { Department } from '../utils/departmentHelpers';
 import {
   calculateOverallKpiScore,
-  employeePerformancePoints,
   formatKpiScore,
   isKpiLateCompletion,
   kpiAssignedScore,
   kpiScoreContribution,
   performanceRatingColor,
   performanceRatingForScore,
-  roundKpiScore,
 } from '../utils/kpiScoreHelpers';
 import { formatKpiWeight } from '../utils/kpiWeightHelpers';
+import KpiTaskBrief from './KpiTaskBrief';
+import KpiScoreboardSummary from './KpiScoreboardSummary';
+import { fetchRewardsSummary, type RewardsSummary } from '../utils/rewardsHelpers';
 import {
   AttendanceRecord,
   ATTENDANCE_STATUS_LABEL,
@@ -184,6 +185,7 @@ export default function Analytics({
   const [selectedUserId, setSelectedUserId] = useState<string>(userId || initialUserId || '');
 
   const [kpis, setKpis] = useState<Kpi[]>([]);
+  const [rewardsSummary, setRewardsSummary] = useState<RewardsSummary | null>(null);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [dailyReports, setDailyReports] = useState<DailyWorkReport[]>([]);
 
@@ -269,16 +271,18 @@ export default function Analytics({
     setError('');
 
     try {
-      const [kpiRes, attRes, repRes] = await Promise.all([
+      const [kpiRes, attRes, repRes, rewards] = await Promise.all([
         supabase.from('kpis').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
         supabase.from('attendance_records').select('*').eq('user_id', uid).order('attendance_date', { ascending: false }).limit(60),
         supabase.from('daily_work_reports').select('*').eq('user_id', uid).order('report_date', { ascending: false }).limit(30),
+        fetchRewardsSummary(uid).catch(() => null),
       ]);
 
       if (kpiRes.error) throw kpiRes.error;
 
       const userKpis = (kpiRes.data || []) as Kpi[];
       setKpis(userKpis);
+      setRewardsSummary(rewards);
       setAttendance((attRes.data || []) as AttendanceRecord[]);
       setDailyReports((repRes.data || []) as DailyWorkReport[]);
     } catch (err: unknown) {
@@ -299,15 +303,6 @@ export default function Analytics({
   const overallScore = useMemo(() => calculateOverallKpiScore(kpis), [kpis]);
   const perfRating = useMemo(() => performanceRatingForScore(overallScore), [overallScore]);
   const perfColor = useMemo(() => performanceRatingColor(perfRating), [perfRating]);
-  const perfPoints = useMemo(() => employeePerformancePoints(kpis), [kpis]);
-
-  const totalAssignedWeight = useMemo(() => {
-    return roundKpiScore(kpis.reduce((sum, k) => sum + Number(k.weight || 0), 0));
-  }, [kpis]);
-
-  const totalAssignedScore = useMemo(() => {
-    return roundKpiScore(kpis.reduce((sum, k) => sum + kpiAssignedScore(k), 0));
-  }, [kpis]);
 
   const completedKpis = useMemo(() => kpis.filter((k) => k.completion_status === 'completed'), [kpis]);
   const onTimeKpis = useMemo(() => completedKpis.filter((k) => !isKpiLateCompletion(k)), [completedKpis]);
@@ -501,6 +496,15 @@ export default function Analytics({
             </div>
           </section>
 
+          {kpis.length > 0 && (
+            <KpiScoreboardSummary
+              kpis={kpis}
+              rewardsSummary={rewardsSummary}
+              compact
+              title={`${selectedUser.full_name}'s KPI scoreboard`}
+            />
+          )}
+
           {/* ── Key Performance & Activity Summary Grid ── */}
           <div className="admin-analytics-grid">
             <section className="glass-panel admin-analytics-card">
@@ -513,21 +517,6 @@ export default function Analytics({
               </div>
               <p className="admin-analytics-card__hint">
                 {onTimeKpis.length} on time · {lateKpis.length} late completion {pausedKpis.length > 0 ? `· ${pausedKpis.length} paused` : ''}
-              </p>
-            </section>
-
-            <section className="glass-panel admin-analytics-card">
-              <p className="admin-analytics-card__eyebrow">Score vs Weight</p>
-              <div className="admin-analytics-card__value-row">
-                <span className="admin-analytics-card__value">{formatKpiScore(perfPoints)} pts</span>
-                {totalAssignedScore > totalAssignedWeight && (
-                  <span className="admin-analytics-pill admin-analytics-pill--accent" title="Score exceeds assigned weight">
-                    +{formatKpiScore(totalAssignedScore - totalAssignedWeight)} bonus
-                  </span>
-                )}
-              </div>
-              <p className="admin-analytics-card__hint">
-                Target weight: {formatKpiWeight(totalAssignedWeight)} · Assigned score: {formatKpiScore(totalAssignedScore)}
               </p>
             </section>
 
@@ -713,8 +702,7 @@ export default function Analytics({
                           return (
                             <tr key={k.id}>
                               <td>
-                                <strong className="analytics-kpi-name">{k.name}</strong>
-                                {k.description && <p className="analytics-kpi-desc">{k.description}</p>}
+                                <KpiTaskBrief kpi={k} />
                               </td>
                               <td>
                                 <span className="analytics-tag">{k.kpi_category ? k.kpi_category.replace(/_/g, ' ') : 'General'}</span>

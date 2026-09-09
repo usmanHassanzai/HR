@@ -146,11 +146,21 @@ export function resolveWorkMinutes(row: {
   clock_out_at?: string | null;
   work_minutes?: number | null;
 }): number | null {
-  if (row.work_minutes != null && row.work_minutes > 0) return row.work_minutes;
-  if (row.clock_in_at && row.clock_out_at) {
-    const mins = Math.round((Date.parse(row.clock_out_at) - Date.parse(row.clock_in_at)) / 60000);
-    return mins > 0 ? mins : null;
+  const fromStamps =
+    row.clock_in_at && row.clock_out_at
+      ? Math.round((Date.parse(row.clock_out_at) - Date.parse(row.clock_in_at)) / 60000)
+      : null;
+  const stored = row.work_minutes != null && row.work_minutes > 0 ? row.work_minutes : null;
+
+  // Open visit: prefer live elapsed from clock-in; fall back to stored.
+  if (row.clock_in_at && !row.clock_out_at) {
+    const live = Math.round((Date.now() - Date.parse(row.clock_in_at)) / 60000);
+    return live > 0 ? live : stored;
   }
+
+  // Closed: use stored visit totals when present (multi check-in/out), else clock span.
+  if (stored != null) return stored;
+  if (fromStamps != null && fromStamps > 0) return fromStamps;
   return null;
 }
 

@@ -9,6 +9,7 @@ import { formatKpiWeight, KPI_WEIGHT_CAP, remainingKpiWeightBudget, sumEmployeeK
 import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
 import EmployeeKpiWeightMeter from './EmployeeKpiWeightMeter';
 import AssignedKpiCard from './AssignedKpiCard';
+import EmployeeKpiBoardSummary from './EmployeeKpiBoardSummary';
 import { KPI_CATEGORIES, kpiCategoryMeta, type KpiCategoryId } from '../utils/kpiCategories';
 import {
   DEFAULT_KPI_SCORING_RULE,
@@ -18,6 +19,7 @@ import {
   type KpiScoringRule,
 } from '../utils/kpiScoringRules';
 import EditAssignedKpiModal from './EditAssignedKpiModal';
+import KpiTaskBrief from './KpiTaskBrief';
 import '../styles/assign-tasks.css';
 import '../styles/manager-kpi-tasks.css';
 import '../styles/admin-dashboard.css';
@@ -688,7 +690,21 @@ export default function ManagerKpiConfig({
                     {formatLatePenaltyLabel(kpiScoringRule(tpl)) ? (
                       <span className="studio-tag studio-tag--warn">{formatLatePenaltyLabel(kpiScoringRule(tpl))}</span>
                     ) : null}
-                    {tpl.description && <p>{tpl.description}</p>}
+                    {tpl.description?.trim() ? (
+                      <KpiTaskBrief
+                        kpi={{
+                          name: tpl.name,
+                          description: tpl.description,
+                          kpi_category: tpl.kpi_category,
+                          weight: Number(tpl.weight || 0),
+                          start_date: null,
+                          end_date: null,
+                          assigned_score: null,
+                        }}
+                        hideName
+                        compact={false}
+                      />
+                    ) : null}
                     <div className="studio-bar" aria-hidden>
                       <i style={{ width: `${Math.min(100, Number(tpl.weight))}%` }} />
                     </div>
@@ -999,6 +1015,9 @@ export default function ManagerKpiConfig({
                     </div>
                   </header>
                   <EmployeeKpiWeightMeter kpis={boardKpis} compact />
+                  {boardKpis.length > 0 && (
+                    <EmployeeKpiBoardSummary kpis={boardKpis} employeeName={boardPerson.full_name} />
+                  )}
                   {boardKpis.length === 0 ? (
                     <div className="studio-empty studio-empty--compact">
                       <p>This person no longer has assigned KPIs.</p>

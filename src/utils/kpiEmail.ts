@@ -17,11 +17,25 @@ export async function emailKpiAssigned(employeeEmail: string, employeeName: stri
   );
 }
 
-export async function emailKpiCompleted(managerEmail: string, managerName: string, employeeName: string, department: string) {
+export async function emailKpiCompleted(opts: {
+  toEmail: string;
+  toName: string;
+  employeeName: string;
+  kpiName: string;
+  dueDate?: string;
+  recipientKind?: 'manager' | 'assigner';
+}) {
+  const { toEmail, toName, employeeName, kpiName, dueDate, recipientKind } = opts;
+  if (!toEmail) return;
+  const why =
+    recipientKind === 'assigner'
+      ? 'You assigned this KPI task.'
+      : 'They report to you.';
+  const dueLine = dueDate ? `\nDue date: ${dueDate}` : '';
   await sendKpiEmail(
-    managerEmail,
-    `KPI completed by ${employeeName}`,
-    `Hi ${managerName},\n\n${employeeName} marked their KPI as complete.\n\nDepartment: ${department}\n\nReview it in your Scorr manager dashboard.`
+    toEmail,
+    `KPI completed: ${kpiName}`,
+    `Hi ${toName || 'there'},\n\n${employeeName} marked the KPI task "${kpiName}" as complete.\n\n${why}${dueLine}\n\nOpen Scorr to review their work and score.`
   );
 }
 

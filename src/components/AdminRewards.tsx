@@ -30,7 +30,11 @@ import { kpiCategoryMeta } from '../utils/kpiCategories';
 import { isKpiLateCompletion, kpiAssignedScore, kpiScoreContribution } from '../utils/kpiScoreHelpers';
 import AdminOrgKpiPointsBoard, { type OrgKpiPointsRow } from './AdminOrgKpiPointsBoard';
 import AdminKpiAwardsPanel from './AdminKpiAwardsPanel';
+import KpiTaskBrief from './KpiTaskBrief';
+import KpiScoreboardSummary from './KpiScoreboardSummary';
+import { fetchRewardsSummary, type RewardsSummary } from '../utils/rewardsHelpers';
 import '../styles/admin-rewards.css';
+import '../styles/employee-kpis.css';
 
 interface CatalogItem {
   id: string;
@@ -166,10 +170,7 @@ function TaskHistoryTable({ kpis, monthLabel }: { kpis: Kpi[]; monthLabel: strin
               return (
                 <tr key={kpi.id}>
                   <td>
-                    <strong>{kpi.name}</strong>
-                    {kpi.description && (
-                      <p className="person-points-detail__task-desc">{kpi.description}</p>
-                    )}
+                    <KpiTaskBrief kpi={kpi} />
                   </td>
                   <td>{cat.label}</td>
                   <td>{kpi.weight || 0}%</td>
@@ -220,6 +221,7 @@ function PersonPointsDetailModal({
   const [allKpis, setAllKpis] = useState<Kpi[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [rewardsSummary, setRewardsSummary] = useState<RewardsSummary | null>(null);
 
   const { start: monthStart, end: monthEnd, label: monthDisplay } = monthBounds(selectedMonth);
   const monthKpis = useMemo(
@@ -237,13 +239,26 @@ function PersonPointsDetailModal({
       setLoading(true);
       setError(null);
       try {
-        const { data, error: kpiErr } = await supabase
-          .from('kpis')
-          .select('*')
-          .eq('user_id', person.employee_id)
-          .order('end_date', { ascending: false });
-        if (kpiErr) throw kpiErr;
-        if (isMounted) setAllKpis((data || []) as Kpi[]);
+        const [kpiRes, rewards] = await Promise.all([
+          supabase.from('kpis').select('*').eq('user_id', person.employee_id).order('end_date', { ascending: false }),
+          fetchRewardsSummary(person.employee_id).catch(() => null),
+        ]);
+        if (kpiRes.error) throw kpiRes.error;
+        if (isMounted) {
+          setAllKpis((kpiRes.data || []) as Kpi[]);
+          setRewardsSummary(
+            rewards || {
+              balance: person.balance,
+              totalEarned: person.total_earned,
+              usedPoints: person.used_points,
+              thisMonthPoints: person.this_month_points,
+              thisMonthScore: person.this_month_score,
+              pointsToNextReward: 0,
+              progressPct: 0,
+              canRedeem: person.balance >= 1000,
+            },
+          );
+        }
       } catch (err) {
         if (isMounted) {
           setError(err instanceof Error ? err.message : 'Failed to load task history');
@@ -292,6 +307,17 @@ function PersonPointsDetailModal({
         </header>
 
         <div className="user-hub-body">
+          {allKpis.length > 0 && (
+            <div style={{ marginBottom: '1.25rem' }}>
+              <KpiScoreboardSummary
+                kpis={allKpis}
+                rewardsSummary={rewardsSummary}
+                compact
+                title={`${person.full_name}'s KPI scoreboard`}
+              />
+            </div>
+          )}
+
           <div className="person-points-detail__metrics">
             <div className="person-points-detail__metric">
               <span>KPI score</span>
@@ -471,7 +497,7 @@ export default function AdminRewards() {
         total_kpis: Number(r.total_kpis) || 0,
         pending_kpis: Number(r.pending_kpis) || 0,
         this_month_points: r.this_month_points == null ? 0 : Number(r.this_month_points),
-        this_month_score: r.this_month_score == null ? Number(r.health_score) || 0 : Number(r.this_month_score),
+        this_month_score: r.this_month_score == null ? 0 : Number(r.this_month_score),
       }));
       setBoardRows(rows);
       const total = rows.reduce((s, r) => s + (Number(r.kpi_points) || 0), 0);
@@ -603,7 +629,7 @@ export default function AdminRewards() {
         total_kpis: row.total_kpis,
         pending_kpis: row.pending_kpis,
         this_month_points: row.this_month_points ?? 0,
-        this_month_score: row.this_month_score ?? row.health_score,
+        this_month_score: row.this_month_score ?? 0,
         months: [],
       });
     }

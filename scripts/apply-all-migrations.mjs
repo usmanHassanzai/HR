@@ -143,6 +143,9 @@ const MIGRATIONS = [
   'fix_edit_assigned_kpi_save.sql',
   'mfa_reset_requests.sql',
   'mfa_backup_recovery.sql',
+  'admin_org_kpi_overall_vs_month_score.sql',
+  'fix_shift_end_admin_still_working.sql',
+  'kpi_completion_notify_manager_assigner.sql',
   // Must be last: earlier drop_stale_functions_mid.sql removes this RPC
   'platform_delete_company.sql',
 ];

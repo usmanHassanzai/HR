@@ -337,6 +337,16 @@
   width: 100%;
 }
 
+.emp-kpi-summary__head--compact {
+  margin-bottom: 0.75rem;
+}
+
+.emp-kpi-summary__title--compact {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
 .emp-kpi-month {
   padding: 1.15rem 1.2rem;
   border-radius: 16px;
