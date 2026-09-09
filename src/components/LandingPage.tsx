@@ -5,9 +5,9 @@ import ScorrWordmark from './ScorrWordmark';
 import MobileAppDownload from './MobileAppDownload';
 import {
   BarChart3, Trophy, CalendarCheck, Users, FileSpreadsheet, Bell,
-  Sparkles, Shield, Check, ArrowRight, CreditCard,
+  Shield, Check, ArrowRight, CreditCard,
   TrendingUp, Target, Award, Clock, Building2, Radio,
-  MapPin, Menu, X, Download, Apple,
+  Menu, X, Download, Apple, KeyRound, Lock, Smartphone,
 } from 'lucide-react';
 import '../styles/landing.css';
 
@@ -16,15 +16,83 @@ interface LandingPageProps {
 }
 
 const FEATURES = [
-  { icon: Target, title: 'KPI & Task Management', desc: 'Managers assign tasks with deadlines. Employees track progress and mark complete before due dates.', color: '#2dd4a8' },
-  { icon: Trophy, title: 'Rewards & Points', desc: 'Monthly KPI scores convert to points. Redeem catalog rewards — tiers from 250 to 1,000 points.', color: '#fbbf24' },
-  { icon: CalendarCheck, title: 'Attendance & Leave', desc: 'Daily check-in, leave requests, manager approvals, CSV export, and balance tracking.', color: '#38bdf8' },
-  { icon: Radio, title: 'Live GPS Tracking', desc: 'Office geofencing, live location visibility for managers, and attendance tied to approved sites.', color: '#a78bfa' },
-  { icon: Users, title: 'Team Leaderboard', desc: 'Managers view team rankings, health scores, and drill into individual performance.', color: '#34d399' },
-  { icon: FileSpreadsheet, title: 'Reports & Export', desc: 'Monthly and quarterly reports in PDF, Excel, and CSV with KPI snapshots and AI insights.', color: '#2dd4a8' },
-  { icon: Bell, title: 'Smart Notifications', desc: 'In-app alerts and email for KPI overdue, completions, leave requests, and reward redemptions.', color: '#f87171' },
-  { icon: Sparkles, title: 'AI Insights', desc: 'Automated narratives, suggested targets, and performance stories powered by your KPI data.', color: '#38bdf8' },
-  { icon: Shield, title: 'Role-Based Access', desc: 'Secure admin, manager, and employee dashboards with Supabase auth and row-level security.', color: '#94a3b8' },
+  {
+    icon: Target,
+    title: 'KPI Weightage & Score',
+    desc: 'Weightage stays within 0–100%. Score is a points index that can rise above 100 when people over-deliver. Overall, Month, and Year views stay independent.',
+    color: '#2dd4a8',
+  },
+  {
+    icon: Trophy,
+    title: 'Rewards & Points',
+    desc: 'Monthly score bands convert to reward points (90+ → 1,000 · 80–89 → 500 · 70–79 → 250). Redeem catalog gifts; balances stay until used.',
+    color: '#fbbf24',
+  },
+  {
+    icon: CalendarCheck,
+    title: 'Shifts & Attendance',
+    desc: 'Day and overnight shifts, GPS check-in/out, multi-visit days, and automatic clock-out when the shift ends — with admin history that stays accurate.',
+    color: '#38bdf8',
+  },
+  {
+    icon: Radio,
+    title: 'Live GPS Tracking',
+    desc: 'Geofenced office sites, live location for managers, and attendance tied to approved work locations.',
+    color: '#34d399',
+  },
+  {
+    icon: Bell,
+    title: 'Completion Emails',
+    desc: 'When someone marks a KPI complete, email and in-app alerts go to their reporting manager and the person who assigned the task.',
+    color: '#f87171',
+  },
+  {
+    icon: KeyRound,
+    title: 'Authenticator & Backup Codes',
+    desc: 'Privileged roles enroll an authenticator app, save one-time backup codes, and can recover with login-email OTP if the device is lost.',
+    color: '#0d9488',
+  },
+  {
+    icon: Users,
+    title: 'People & Scoreboards',
+    desc: 'Admin and manager boards show each person’s overall score, month score, performance points, and reward balance — same math as the employee scoreboard.',
+    color: '#38bdf8',
+  },
+  {
+    icon: FileSpreadsheet,
+    title: 'Reports & Export',
+    desc: 'Export attendance and KPI snapshots for the month or year. Leadership gets clear period vs overall performance.',
+    color: '#2dd4a8',
+  },
+  {
+    icon: Shield,
+    title: 'Company Isolation',
+    desc: 'Each company is isolated with role-based dashboards (admin, HR, manager, employee) and secure cloud authentication.',
+    color: '#94a3b8',
+  },
+];
+
+const SECURITY_POINTS = [
+  {
+    icon: Smartphone,
+    title: 'Authenticator app (TOTP)',
+    desc: 'Admins, managers, HR, and employees enroll a time-based authenticator after sign-in. Every privileged session requires a fresh 6-digit code.',
+  },
+  {
+    icon: KeyRound,
+    title: 'Backup recovery codes',
+    desc: 'One-time backup codes are generated after setup. Store them offline — each code works once if the phone is unavailable.',
+  },
+  {
+    icon: Lock,
+    title: 'Email OTP recovery',
+    desc: 'No authenticator or codes left? Verify with a code sent to the login email, then re-enroll MFA and save new backup codes.',
+  },
+  {
+    icon: Shield,
+    title: 'Account security settings',
+    desc: 'Inside Scorr, Account Security lets people regenerate backup codes, set a recovery email, and review recent recovery activity.',
+  },
 ];
 
 const PLANS = [
@@ -33,21 +101,42 @@ const PLANS = [
     price: '0',
     period: '3-day free trial, then $12/user/mo',
     featured: false,
-    features: ['3-day full platform trial', 'Up to 25 employees', 'KPI task assignment', 'Basic rewards catalog', 'Mobile-friendly PWA'],
+    features: [
+      '3-day full platform trial',
+      'Up to 25 employees',
+      'KPI weightage & scoreboards',
+      'Authenticator MFA & backup codes',
+      'Basic rewards catalog',
+      'Mobile-friendly PWA',
+    ],
   },
   {
     name: 'Professional',
     price: '18',
     period: 'per active user / month',
     featured: true,
-    features: ['Everything after trial', 'Unlimited employees', 'Attendance, leave & GPS', 'Analytics & PDF/Excel reports', 'AI insights & narratives', 'Priority email support'],
+    features: [
+      'Everything after trial',
+      'Unlimited employees',
+      'Shifts, leave & GPS attendance',
+      'Completion emails to managers',
+      'Analytics & exports',
+      'Priority email support',
+    ],
   },
   {
     name: 'Enterprise',
     price: 'Custom',
     period: 'volume pricing available',
     featured: false,
-    features: ['Everything in Professional', 'SSO & HRIS integration', 'White-label branding', 'Dedicated account manager', 'Custom SLA & onboarding', 'Annual billing discounts'],
+    features: [
+      'Everything in Professional',
+      'SSO & HRIS integration',
+      'White-label branding',
+      'Dedicated account manager',
+      'Custom SLA & onboarding',
+      'Annual billing discounts',
+    ],
   },
 ];
 
@@ -56,20 +145,20 @@ const FEE_STEPS = [
   { icon: Users, title: 'Pay per active seat', desc: 'You are billed only for active users (employees, managers, admins) each month. Remove seats anytime.' },
   { icon: CreditCard, title: 'Simple monthly billing', desc: 'Invoices are generated on the 1st of each month. Pay by card or bank transfer. Receipts sent automatically.' },
   { icon: TrendingUp, title: 'Scale as you grow', desc: 'Upgrade from Starter to Professional instantly. Add users without contracts — pricing adjusts on your next cycle.' },
-  { icon: Award, title: 'No hidden fees', desc: 'Points, reports, attendance, and exports are included. Enterprise adds custom integrations — quoted upfront.' },
+  { icon: Award, title: 'Security included', desc: 'Authenticator MFA, backup codes, email recovery, and company data isolation ship with every plan — no add-on fee.' },
 ];
 
 const MARQUEE_ITEMS = [
-  'KPI Tracking', 'Rewards Points', 'Daily Attendance', 'Leave Management',
-  'Live GPS Tracking', 'Team Leaderboard', 'PDF Reports', 'AI Insights',
-  'Company Registration', 'Android APK Download', 'iPhone App Install', 'Manager Approvals',
+  'KPI Weightage', 'Score Index', 'Rewards Points', 'Night Shifts',
+  'GPS Check-in', 'Auto Clock-out', 'Completion Emails', 'Authenticator MFA',
+  'Backup Codes', 'Email OTP Recovery', 'Team Scoreboards', 'Attendance Export',
 ];
 
 const TRUST_ITEMS = [
   '3-day free trial',
-  'Per-seat pricing',
+  'Authenticator MFA',
+  'Backup recovery codes',
   'Company data isolation',
-  'Admin approval workflow',
   'Android APK download',
   'iPhone Home Screen app',
   'Demo sandbox available',
@@ -148,9 +237,9 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
   const navLinks = [
     { id: 'services', label: 'Services' },
     { id: 'how-it-works', label: 'How It Works' },
+    { id: 'security', label: 'Security' },
     { id: 'pricing', label: 'Pricing' },
     { id: 'download-app', label: 'Mobile App' },
-    { id: 'fees', label: 'Billing' },
     { id: 'login', label: 'Sign In' },
   ];
 
@@ -159,7 +248,7 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
       <nav className={`landing-nav ${navScrolled ? 'landing-nav--scrolled' : ''}`}>
         <ScorrWordmark className="landing-nav__logo" variant="header" />
         <div className="landing-nav__links">
-          {navLinks.slice(0, 5).map((link) => (
+          {navLinks.filter((l) => l.id !== 'login').map((link) => (
             <a key={link.id} href={`#${link.id}`} onClick={(e) => { e.preventDefault(); scrollTo(link.id); }}>{link.label}</a>
           ))}
         </div>
@@ -214,13 +303,14 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
         <div className="landing-hero__inner">
           <div>
             <div className="landing-hero__badge">
-              <Sparkles size={14} /> 3-Day Free Trial · Company Registration Open
+              <Shield size={14} /> Authenticator MFA · Backup codes · 3-day free trial
             </div>
             <h1 className="landing-hero__title">
-              HR performance, rewards & attendance — <span>one platform</span>
+              Performance, attendance &amp; secure access — <span>one platform</span>
             </h1>
             <p className="landing-hero__desc">
-              Scorr helps admins, managers, and employees stay aligned on KPIs, attendance, leave, live GPS tracking, and rewards — with clear dashboards and professional reporting.
+              Scorr aligns KPIs (weightage vs score), GPS attendance, overnight shifts, and rewards —
+              protected with authenticator apps, backup codes, and email recovery for every privileged login.
             </p>
             <div className="landing-hero__actions">
               <button type="button" className="btn btn-primary" onClick={openRegister}>
@@ -265,25 +355,25 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
               <div className="landing-float-card__icon" style={{ background: 'rgba(45,212,168,0.15)', color: '#2dd4a8' }}>
                 <BarChart3 size={18} />
               </div>
-              <div className="landing-float-card__title">Health Score</div>
-              <div className="landing-float-card__val" style={{ color: '#2dd4a8' }}>92%</div>
-              <div className="landing-progress"><div className="landing-progress__bar" style={{ width: '92%' }} /></div>
+              <div className="landing-float-card__title">Weightage</div>
+              <div className="landing-float-card__val" style={{ color: '#2dd4a8' }}>80%</div>
+              <div className="landing-progress"><div className="landing-progress__bar" style={{ width: '80%' }} /></div>
             </div>
             <div className="landing-float-card landing-float-card--2">
               <div className="landing-float-card__icon" style={{ background: 'rgba(251,191,36,0.15)', color: '#fbbf24' }}>
                 <Trophy size={18} />
               </div>
-              <div className="landing-float-card__title">Points Earned</div>
-              <div className="landing-float-card__val" style={{ color: '#fbbf24' }}>1,000</div>
+              <div className="landing-float-card__title">Score index</div>
+              <div className="landing-float-card__val" style={{ color: '#fbbf24' }}>218.75</div>
               <div className="landing-progress"><div className="landing-progress__bar" style={{ width: '100%' }} /></div>
             </div>
             <div className="landing-float-card landing-float-card--3">
-              <div className="landing-float-card__icon" style={{ background: 'rgba(56,189,248,0.15)', color: '#38bdf8' }}>
-                <MapPin size={18} />
+              <div className="landing-float-card__icon" style={{ background: 'rgba(13,148,136,0.15)', color: '#0d9488' }}>
+                <KeyRound size={18} />
               </div>
-              <div className="landing-float-card__title">GPS Check-in</div>
-              <div className="landing-float-card__val" style={{ color: '#38bdf8' }}>Live</div>
-              <div className="landing-progress"><div className="landing-progress__bar" style={{ width: '88%' }} /></div>
+              <div className="landing-float-card__title">MFA ready</div>
+              <div className="landing-float-card__val" style={{ color: '#0d9488' }}>Secure</div>
+              <div className="landing-progress"><div className="landing-progress__bar" style={{ width: '100%' }} /></div>
             </div>
           </div>
         </div>
@@ -300,8 +390,11 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
       <section id="services" className="landing-section">
         <div className="landing-section__header landing-reveal">
           <div className="landing-section__eyebrow">What We Offer</div>
-          <h2 className="landing-section__title">Everything your HR team needs</h2>
-          <p>From task assignment to reward redemption — Scorr connects performance, attendance, GPS tracking, and recognition in one professional dashboard.</p>
+          <h2 className="landing-section__title">Built for how teams work now</h2>
+          <p>
+            Clear KPI math, shift-aware attendance, completion emails, and authenticator security —
+            so admins, managers, and employees stay aligned without spreadsheet chaos.
+          </p>
         </div>
         <div className="landing-features">
           {FEATURES.map((f, i) => (
@@ -320,14 +413,14 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
         <div className="landing-section__header landing-reveal">
           <div className="landing-section__eyebrow">Workflow</div>
           <h2 className="landing-section__title">How Scorr works</h2>
-          <p>Register your company, get approved, and launch a structured performance loop for your entire organization.</p>
+          <p>Register your company, secure every login, then run a clean performance and attendance loop.</p>
         </div>
         <div className="landing-steps" style={{ maxWidth: 1200, margin: '0 auto' }}>
           {[
-            { n: 1, title: 'Register your company', desc: 'Two short steps, email verification, then a 3-day free trial — no waiting for approval.' },
-            { n: 2, title: 'Manager assigns tasks', desc: 'Set KPIs with deadlines and departments for each employee.' },
-            { n: 3, title: 'Employee delivers', desc: 'Track progress, check in daily, request leave, and mark tasks complete on time.' },
-            { n: 4, title: 'Score, reward & report', desc: 'Monthly scores convert to points. Leadership exports analytics and manages the full org.' },
+            { n: 1, title: 'Register & verify', desc: 'Create the company, confirm email, and start the 3-day trial with guided setup for people, shifts, and KPIs.' },
+            { n: 2, title: 'Secure the account', desc: 'Enroll an authenticator, save backup codes, and optionally set recovery email — required for privileged roles.' },
+            { n: 3, title: 'Assign & deliver', desc: 'Managers assign weighted KPIs. People check in with GPS, work overnight shifts, and mark tasks complete.' },
+            { n: 4, title: 'Score, notify & reward', desc: 'Scoreboards update Overall / Month / Year. Managers and assigners get completion emails. Points convert to catalog rewards.' },
           ].map((s, i) => (
             <div key={s.n} className={`landing-step landing-reveal landing-reveal--delay-${i + 1}`}>
               <div className="landing-step__num">{s.n}</div>
@@ -338,11 +431,43 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
         </div>
       </section>
 
-      <section id="pricing" className="landing-section">
+      <section id="security" className="landing-section">
+        <div className="landing-section__header landing-reveal">
+          <div className="landing-section__eyebrow">Security &amp; credentials</div>
+          <h2 className="landing-section__title">Sign-in that protects the whole company</h2>
+          <p>
+            Password alone is not enough for privileged work. Scorr requires authenticator MFA,
+            issues backup codes, and offers login-email recovery when a device is lost.
+          </p>
+        </div>
+        <div className="landing-features landing-features--security">
+          {SECURITY_POINTS.map((item, i) => (
+            <div key={item.title} className={`landing-feature landing-reveal landing-reveal--delay-${(i % 3) + 1}`}>
+              <div className="landing-feature__icon" style={{ background: 'rgba(13,148,136,0.12)', color: '#0d9488' }}>
+                <item.icon size={22} />
+              </div>
+              <h3>{item.title}</h3>
+              <p>{item.desc}</p>
+            </div>
+          ))}
+        </div>
+        <div className="landing-security-note landing-reveal">
+          <Lock size={18} />
+          <div>
+            <strong>What you need to sign in</strong>
+            <span>
+              Company login email and password, plus a current authenticator code (or one unused backup code).
+              If both are gone, request an email OTP to your login address, then re-enroll MFA and save new codes.
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section id="pricing" className="landing-section landing-section--alt">
         <div className="landing-section__header landing-reveal">
           <div className="landing-section__eyebrow">Pricing</div>
           <h2 className="landing-section__title">Transparent plans for every team</h2>
-          <p>Every new company starts with a <strong>3-day free trial</strong>. Scale when ready — secure cloud hosting and updates included.</p>
+          <p>Every new company starts with a <strong>3-day free trial</strong>. MFA and company isolation are included — secure cloud hosting and updates on every plan.</p>
         </div>
         <div className="landing-pricing">
           {PLANS.map((plan, i) => (
@@ -387,7 +512,8 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
             <div className="landing-fees__highlight">
               <strong>Rewards points never expire.</strong>
               <p>
-                ≥90% score → 1,000 pts · 80–89% → 500 · 70–79% → 250 · below 70% → 0. Points are included at no extra cost.
+                Monthly score bands: 90+ → 1,000 pts · 80–89 → 500 · 70–79 → 250 · below 70 → 0.
+                Weightage stays 0–100%; score can exceed 100 when people over-deliver.
               </p>
             </div>
           </div>
@@ -416,15 +542,25 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
             </h2>
             <p className="landing-login-copy">
               {authMode === 'register' ? (
-                <>Create your company in two short steps. Verify your email and start a <strong>3-day free trial</strong> immediately — then we’ll walk you through adding people, shifts, and KPIs.</>
+                <>Create your company in two short steps. Verify your email and start a <strong>3-day free trial</strong> — then enroll authenticator MFA, add people, shifts, and KPIs.</>
               ) : (
-                <>Access your company dashboard at <strong className="landing-accent-text">scorr.walfia.ai</strong>. Use your approved company credentials, or try the isolated <strong>3-day demo sandbox</strong> below.</>
+                <>Access your company dashboard at <strong className="landing-accent-text">scorr.walfia.ai</strong>. Use your company credentials plus authenticator (or a backup code). Demo sandbox available below.</>
               )}
             </p>
             <ul className="landing-login-list">
               {(authMode === 'register'
-                ? ['Company name, admin email, phone & password', 'Optional industry and team size', 'Verify email with a 6-digit code', 'Guided setup: people, shifts, KPIs']
-                : ['Employee — KPIs, attendance & rewards', 'Manager — assign tasks, approve leave', 'Admin — users, reports & branding']
+                ? [
+                    'Company name, admin email, phone & password',
+                    'Verify email with a 6-digit code',
+                    'Enroll authenticator & save backup codes',
+                    'Guided setup: people, shifts, KPIs',
+                  ]
+                : [
+                    'Password + authenticator code (or backup code)',
+                    'Email OTP recovery if the device is lost',
+                    'Employee — KPIs, attendance & rewards',
+                    'Manager / Admin — assign tasks, approvals & reports',
+                  ]
               ).map((t) => (
                 <li key={t}><Check size={16} /> {t}</li>
               ))}
@@ -455,9 +591,10 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
         <div className="landing-footer__inner">
           <div className="landing-footer__brand">
             <ScorrWordmark className="landing-footer__logo" variant="header" />
-            <p>Performance, attendance, and rewards for modern HR teams.</p>
+            <p>Performance, attendance, rewards, and authenticator-secured access for modern HR teams.</p>
           </div>
           <div className="landing-footer__links">
+            <button type="button" onClick={() => scrollTo('security')}>Security</button>
             <button type="button" onClick={() => scrollTo('pricing')}>Pricing</button>
             <button type="button" onClick={openRegister}>Register Company</button>
             <button type="button" onClick={openLogin}>Sign In</button>

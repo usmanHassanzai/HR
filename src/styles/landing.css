@@ -550,6 +550,47 @@
   line-height: 1.55;
 }
 
+.landing-features--security {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 720px) {
+  .landing-features--security {
+    grid-template-columns: 1fr;
+  }
+}
+
+.landing-security-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  max-width: 920px;
+  margin: 2rem auto 0;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+}
+
+.landing-security-note svg {
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+  color: #0d9488;
+}
+
+.landing-security-note strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.landing-security-note span {
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
 /* How it works */
 .landing-steps {
   display: grid;
