@@ -1045,38 +1045,45 @@ export default function AdminUsersPage({
             </div>
 
             <div className="admin-users-mobile-list people-cards">
-              {filtered.map((u) => (
+              {filtered.map((u) => {
+                const isQuickEditing = quickEdit?.userId === u.id;
+                return (
                 <article
                   key={u.id}
-                  className="people-card people-card--interactive"
+                  className={`people-card people-card--interactive${isQuickEditing ? ' people-card--editing' : ''}`}
                   onClick={() => setSelectedUserForHub(u)}
                   title={`Click to view ${u.full_name}'s full profile & related modules`}
                 >
-                  <button
-                    type="button"
-                    className="people-card__top-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedUserForHub(u);
-                    }}
-                  >
-                    <div className={avatarClass(u.role)} aria-hidden>{initials(u.full_name)}</div>
-                    <div className="people-card__identity">
-                      <strong className="people-card__name">
-                        {u.full_name}
-                        {u.id === profile.id && <span className="people-you">You</span>}
-                      </strong>
-                      <span className="people-card__email">{u.email}</span>
-                      {u.job_title?.trim() ? (
-                        <span className="people-job-title">{u.job_title.trim()}</span>
-                      ) : null}
+                  <div className="people-card__top">
+                    <button
+                      type="button"
+                      className="people-card__top-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedUserForHub(u);
+                      }}
+                    >
+                      <div className={avatarClass(u.role)} aria-hidden>{initials(u.full_name)}</div>
+                      <div className="people-card__identity">
+                        <strong className="people-card__name">
+                          {u.full_name}
+                          {u.id === profile.id && <span className="people-you">You</span>}
+                        </strong>
+                        <span className="people-card__email">{u.email}</span>
+                        {u.job_title?.trim() ? (
+                          <span className="people-job-title">{u.job_title.trim()}</span>
+                        ) : null}
+                      </div>
+                    </button>
+                    <div className="people-card__fields" onClick={(e) => e.stopPropagation()}>
                       <div className="people-card__meta">
                         {!demo ? (
                           <>
-                            <div className="people-quick">
+                            <div className={`people-quick${quickEdit?.userId === u.id && quickEdit.field === 'role' ? ' people-quick--open' : ''}`}>
                               <button
                                 type="button"
                                 className="people-cell-edit"
+                                aria-expanded={quickEdit?.userId === u.id && quickEdit.field === 'role'}
                                 onClick={(e) => openQuickEdit(u, 'role', e)}
                                 title="Change role"
                               >
@@ -1086,10 +1093,11 @@ export default function AdminUsersPage({
                               {quickEdit?.userId === u.id && quickEdit.field === 'role' && quickMenu(u)}
                             </div>
                             {roleNeedsDepartment(u.role) ? (
-                              <div className="people-quick">
+                              <div className={`people-quick${quickEdit?.userId === u.id && quickEdit.field === 'department' ? ' people-quick--open' : ''}`}>
                                 <button
                                   type="button"
                                   className="people-cell-edit"
+                                  aria-expanded={quickEdit?.userId === u.id && quickEdit.field === 'department'}
                                   onClick={(e) => openQuickEdit(u, 'department', e)}
                                   title="Change department"
                                 >
@@ -1113,10 +1121,11 @@ export default function AdminUsersPage({
                       </div>
                       {roleNeedsDepartment(u.role) ? (
                         !demo ? (
-                          <div className="people-quick people-quick--block">
+                          <div className={`people-quick people-quick--block${quickEdit?.userId === u.id && quickEdit.field === 'reports' ? ' people-quick--open' : ''}`}>
                             <button
                               type="button"
                               className="people-cell-edit people-cell-edit--block"
+                              aria-expanded={quickEdit?.userId === u.id && quickEdit.field === 'reports'}
                               onClick={(e) => openQuickEdit(u, 'reports', e)}
                               title="Change reports to"
                             >
@@ -1126,16 +1135,17 @@ export default function AdminUsersPage({
                             {quickEdit?.userId === u.id && quickEdit.field === 'reports' && quickMenu(u)}
                           </div>
                         ) : (
-                          <p className="people-muted" style={{ margin: '0.35rem 0 0' }}>Reports to {reportsTo(u)}</p>
+                          <p className="people-muted people-card__reports-static">Reports to {reportsTo(u)}</p>
                         )
                       ) : (
-                        <p className="people-muted" style={{ margin: '0.35rem 0 0' }}>—</p>
+                        <p className="people-muted people-card__reports-static">—</p>
                       )}
                     </div>
-                  </button>
+                  </div>
                   {rowActions(u)}
                 </article>
-              ))}
+                );
+              })}
             </div>
           </>
         )}

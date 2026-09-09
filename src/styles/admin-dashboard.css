@@ -2871,13 +2871,20 @@ body.app-shell .admin-users-mobile-list,
 .people-quick {
   position: relative;
   display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
   max-width: 100%;
+  min-width: 0;
 }
 
 .people-quick--block {
-  display: block;
+  display: flex;
   width: 100%;
-  margin-top: 0.35rem;
+  margin-top: 0;
+}
+
+.people-quick--open {
+  z-index: 6;
 }
 
 .people-quick-menu {
@@ -3035,16 +3042,37 @@ body.app-shell .admin-users-mobile-list,
   border-radius: 14px;
   background: color-mix(in srgb, var(--surface-muted) 40%, var(--dash-card-bg));
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
   box-sizing: border-box;
+}
+
+.people-card--editing {
+  z-index: 5;
+  border-color: color-mix(in srgb, var(--accent-primary) 40%, var(--border-color));
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.1);
 }
 
 .people-card__top {
   display: flex;
-  gap: 0.75rem;
+  flex-direction: column;
+  gap: 0.65rem;
   margin-bottom: 0.85rem;
   min-width: 0;
   max-width: 100%;
+}
+
+.people-card__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  width: 100%;
+  min-width: 0;
+  padding-left: calc(2.55rem + 0.85rem);
+  box-sizing: border-box;
+}
+
+.people-card__reports-static {
+  margin: 0;
 }
 
 .people-card__identity {
@@ -3384,19 +3412,92 @@ body.app-shell .admin-users-mobile-list,
     width: 100%;
     max-width: 100%;
     min-width: 0;
-    overflow-x: hidden;
+    overflow: visible;
     box-sizing: border-box;
   }
 
   .people-card {
     width: 100%;
     max-width: 100%;
+    overflow: visible;
   }
 
   .people-card__identity,
   .people-card__name,
   .people-card__email {
     max-width: 100%;
+  }
+
+  .people-card__fields {
+    padding-left: 0;
+  }
+
+  .people-card__meta {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.4rem;
+  }
+
+  .people-card .people-quick {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .people-card .people-cell-edit {
+    width: 100%;
+    min-height: 2.4rem;
+    padding: 0.45rem 0.65rem;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--dash-card-bg, #fff);
+    justify-content: space-between;
+    gap: 0.5rem;
+    box-sizing: border-box;
+  }
+
+  .people-card .people-cell-edit--block {
+    margin-top: 0;
+  }
+
+  .people-card .people-cell-edit span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
+    line-height: 1.35;
+  }
+
+  .people-card .people-cell-edit svg {
+    opacity: 0.7;
+  }
+
+  .people-card .people-quick--open > .people-cell-edit {
+    border-color: color-mix(in srgb, var(--accent-primary) 45%, var(--border-color));
+    background: color-mix(in srgb, var(--accent-primary) 8%, var(--dash-card-bg, #fff));
+  }
+
+  /* Expand in-flow so the list is never clipped by card overflow */
+  .people-card .people-quick-menu {
+    position: static;
+    z-index: auto;
+    top: auto;
+    left: auto;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    max-height: 14rem;
+    margin-top: 0.35rem;
+    padding: 0.4rem;
+    border-radius: 12px;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.12);
+  }
+
+  .people-card .people-quick-menu button {
+    font-size: 0.9rem;
+    padding: 0.7rem 0.75rem;
+    border-radius: 8px;
   }
 }
 
