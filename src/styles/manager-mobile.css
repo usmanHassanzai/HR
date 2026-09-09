@@ -45,24 +45,6 @@
     line-height: 1.45;
   }
 
-  .mgr-dash .emp-kpi-summary {
-    border-radius: 16px;
-    padding: 1rem 0.95rem;
-  }
-
-  .mgr-dash .emp-kpi-filter__modes {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    width: 100%;
-    gap: 0.35rem;
-  }
-
-  .mgr-dash .emp-kpi-filter__mode {
-    min-height: 42px;
-    justify-content: center;
-    border-radius: 12px;
-  }
-
   .mgr-attendance-header,
   .mgr-rewards-header,
   .mgr-kpi-header,

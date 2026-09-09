@@ -175,7 +175,7 @@ export default function KpiScoreboardSummary({
 
       <div className="emp-kpi-months emp-kpi-months--single">
         <article className="emp-kpi-month emp-kpi-month--current">
-          <header>
+          <header className="emp-kpi-month__header">
             <span>
               {periodMode === 'overall' ? 'Overall' : periodMode === 'year' ? 'Selected year' : 'Selected month'}
             </span>
@@ -196,29 +196,29 @@ export default function KpiScoreboardSummary({
               <h4 className="emp-kpi-block__title">Weightage</h4>
               <span className="emp-kpi-block__badge">0–{KPI_WEIGHT_CAP}%</span>
             </div>
-            <dl className="emp-kpi-month__stats">
+            <dl className="emp-kpi-month__stats emp-kpi-month__stats--weight">
               <div>
-                <dt>Total weight</dt>
+                <dt>Total</dt>
                 <dd>{has ? formatKpiWeight(active.totalWeight) : '—'}</dd>
               </div>
               <div>
-                <dt>Weight assigned</dt>
+                <dt>Assigned</dt>
                 <dd>{has ? formatKpiWeight(active.weightAssigned) : '—'}</dd>
               </div>
               <div>
-                <dt>Weight achieved</dt>
+                <dt>Achieved</dt>
                 <dd>{has ? formatKpiWeight(active.weightAchieved) : '—'}</dd>
               </div>
               <div>
-                <dt>Weight unassigned</dt>
+                <dt>Unassigned</dt>
                 <dd>{has ? formatKpiWeight(active.weightUnassigned) : '—'}</dd>
               </div>
               <div>
-                <dt>Weight pending</dt>
+                <dt>Pending</dt>
                 <dd>{has ? formatKpiWeight(active.weightPending) : '—'}</dd>
               </div>
               <div>
-                <dt>Completed</dt>
+                <dt>Done</dt>
                 <dd>{has ? `${active.completed}/${active.kpiCount}` : '—'}</dd>
               </div>
             </dl>
@@ -244,21 +244,21 @@ export default function KpiScoreboardSummary({
                 <span className="emp-kpi-month__rating emp-kpi-month__rating--muted">No tasks</span>
               )}
             </div>
-            <dl className="emp-kpi-month__stats">
+            <dl className="emp-kpi-month__stats emp-kpi-month__stats--score">
               <div>
-                <dt>Points awarded</dt>
+                <dt>Awarded</dt>
                 <dd>{has ? formatKpiScore(active.pointsAwarded) : '—'}</dd>
               </div>
               <div>
-                <dt>Points not redeemed</dt>
+                <dt>Not redeemed</dt>
                 <dd>{notRedeemedText}</dd>
               </div>
               <div>
-                <dt>Points redeemed</dt>
+                <dt>Redeemed</dt>
                 <dd>{redeemedText}</dd>
               </div>
               <div>
-                <dt>Tasks in scope</dt>
+                <dt>Tasks</dt>
                 <dd>{has ? String(active.kpiCount) : '—'}</dd>
               </div>
             </dl>
