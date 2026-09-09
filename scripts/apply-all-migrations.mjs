@@ -136,6 +136,7 @@ const MIGRATIONS = [
   'kpi_points_from_completion_time.sql',
   'kpi_task_pause.sql',
   'fix_kpi_award_readonly_insert.sql',
+  'fix_kpi_award_consecutive_months_overload.sql',
   'require_employee_department.sql',
   'fix_org_shift_status_display.sql',
   'kpi_scoring_rules_decouple.sql',
