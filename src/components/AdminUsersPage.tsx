@@ -29,7 +29,6 @@ import {
   Trophy,
   UserPlus,
   Users,
-  X,
 } from 'lucide-react';
 import '../styles/admin-dashboard.css';
 
@@ -1169,8 +1168,8 @@ export default function AdminUsersPage({
                 <h3 id="add-person-title">Add person</h3>
                 <p>They can sign in as soon as you save. Optional: email their password automatically.</p>
               </div>
-              <button type="button" className="people-drawer__close" onClick={() => setAddOpen(false)} aria-label="Close">
-                <X size={18} />
+              <button type="button" className="scorr-dialog-close" onClick={() => setAddOpen(false)} aria-label="Close" title="Close">
+                ×
               </button>
             </header>
 

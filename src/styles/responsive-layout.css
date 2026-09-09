@@ -176,17 +176,14 @@ body {
     gap: 1.15rem;
   }
 
-  /* Nested section tabs — horizontal scroll instead of cramped wrap */
+  /* Nested section tabs — keep every option visible on phones */
   .tab-bar--inline-mobile {
-    display: flex;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    gap: 0.35rem;
-    padding-bottom: 0.15rem;
-    margin-bottom: 0.35rem;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.4rem;
+    overflow: visible;
+    padding-bottom: 0;
+    margin-bottom: 0.5rem;
   }
 
   .tab-bar--inline-mobile::-webkit-scrollbar {
@@ -194,16 +191,18 @@ body {
   }
 
   .tab-bar--inline-mobile .tab-btn {
-    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
+    flex: none;
     white-space: nowrap;
-    min-width: max-content;
-    font-size: 0.76rem;
-    padding: 0.48rem 0.75rem;
+    font-size: 0.78rem;
+    padding: 0.52rem 0.65rem;
+    justify-content: center;
   }
 
   .tab-bar--inline-mobile .tab-btn--utility {
     margin-left: 0;
-    flex: 0 0 auto;
+    grid-column: 1 / -1;
   }
 
   /* Professional page headers — stack on small screens */

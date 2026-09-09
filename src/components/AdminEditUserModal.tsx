@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Pencil, Loader2, CheckCircle, X, AlertCircle } from 'lucide-react';
+import { Pencil, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Profile, UserRole, WorkMode, roleNeedsDepartment } from '../utils/kpiHelpers';
 import { Department } from '../utils/departmentHelpers';
@@ -110,44 +110,28 @@ export default function AdminEditUserModal({
 
   return (
     <div className="modal-overlay" style={{ backdropFilter: 'blur(4px)' }}>
-      <div className="glass-panel modal-panel" style={{ maxWidth: 460 }}>
-        <button
-          type="button"
-          onClick={onClose}
-          style={{
-            position: 'absolute',
-            top: '1rem',
-            right: '1rem',
-            background: 'none',
-            border: 'none',
-            color: 'var(--text-muted)',
-            cursor: 'pointer',
-          }}
-          aria-label="Close"
-        >
-          <X size={18} />
-        </button>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.25rem' }}>
-          <div
-            style={{
-              background: 'var(--accent-gradient)',
-              width: 36,
-              height: 36,
-              borderRadius: 'var(--border-radius-sm)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
+      <div className="glass-panel modal-panel admin-edit-user-modal" style={{ maxWidth: 460 }}>
+        <div className="admin-edit-user-modal__head">
+          <div className="admin-edit-user-modal__title-row">
+            <div className="admin-edit-user-modal__icon" aria-hidden>
+              <Pencil size={16} color="white" />
+            </div>
+            <div className="admin-edit-user-modal__titles">
+              <h3>Edit role, department & reports to</h3>
+              <p>
+                Update access and team placement for <strong>{user.email}</strong>
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="scorr-dialog-close"
+            onClick={onClose}
+            aria-label="Close"
+            title="Close"
           >
-            <Pencil size={16} color="white" />
-          </div>
-          <div>
-            <h3 style={{ margin: 0, fontSize: '1.05rem' }}>Edit role, department & reports to</h3>
-            <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-              Update access and team placement for <strong>{user.email}</strong>
-            </p>
-          </div>
+            ×
+          </button>
         </div>
 
         {success ? (

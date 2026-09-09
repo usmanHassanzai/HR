@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Building2, CheckCircle2, ChevronLeft, ClipboardList, Loader2, Pencil, Plus, Search, Send, Trash2, X } from 'lucide-react';
+import { AlertCircle, Building2, CheckCircle2, ChevronLeft, ClipboardList, Loader2, Pencil, Plus, Search, Send, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Profile, Kpi, displayRoleLabel } from '../utils/kpiHelpers';
 import { Department } from '../utils/departmentHelpers';
@@ -1057,8 +1057,8 @@ export default function ManagerKpiConfig({
                 <h3 id="kpi-drawer-title">{editingTemplate ? 'Edit KPI' : 'New KPI'}</h3>
                 <p>This is saved to the library. Assign it later from Assign Task.</p>
               </div>
-              <button type="button" className="studio-icon-btn" onClick={() => setLibOpen(false)} aria-label="Close">
-                <X size={18} />
+              <button type="button" className="scorr-dialog-close" onClick={() => setLibOpen(false)} aria-label="Close" title="Close">
+                ×
               </button>
             </header>
             <form onSubmit={handleSaveTemplate} className="studio-drawer__form">

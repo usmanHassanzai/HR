@@ -83,10 +83,91 @@ body.native-app .native-scroll-root .dash-panel {
 }
 
 body.app-shell .native-scroll-root .team-points-table-wrap,
-body.native-app .native-scroll-root .team-points-table-wrap {
+body.native-app .native-scroll-root .team-points-table-wrap,
+body.app-shell .native-scroll-root .admin-kpi-points__scroll,
+body.native-app .native-scroll-root .admin-kpi-points__scroll,
+body.app-shell .native-scroll-root .people-table-wrap,
+body.native-app .native-scroll-root .people-table-wrap,
+body.app-shell .native-scroll-root .attendance-records-scroll,
+body.native-app .native-scroll-root .attendance-records-scroll,
+body.app-shell .native-scroll-root .shift-status-scroll,
+body.native-app .native-scroll-root .shift-status-scroll {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+  overscroll-behavior-x: contain;
   max-width: 100%;
+}
+
+/* Attendance history: cards on phone/APK instead of cramped sideways tables */
+html.native-app .attendance-records-scroll,
+body.native-app .attendance-records-scroll,
+#root.native-app-root .attendance-records-scroll,
+html.app-shell .attendance-records-scroll,
+body.app-shell .attendance-records-scroll {
+  display: none !important;
+}
+
+html.native-app .attendance-record-cards,
+body.native-app .attendance-record-cards,
+#root.native-app-root .attendance-record-cards,
+html.app-shell .attendance-record-cards,
+body.app-shell .attendance-record-cards {
+  display: flex !important;
+}
+
+html.native-app .shift-status-scroll,
+body.native-app .shift-status-scroll,
+#root.native-app-root .shift-status-scroll,
+html.app-shell .shift-status-scroll,
+body.app-shell .shift-status-scroll {
+  display: none !important;
+}
+
+html.native-app .shift-status-cards,
+body.native-app .shift-status-cards,
+#root.native-app-root .shift-status-cards,
+html.app-shell .shift-status-cards,
+body.app-shell .shift-status-cards {
+  display: flex !important;
+}
+
+/* Attendance section tabs: always show History (and other tabs) on phones */
+html.native-app .attendance-section-tabs.tab-bar,
+body.native-app .attendance-section-tabs.tab-bar,
+#root.native-app-root .attendance-section-tabs.tab-bar,
+html.app-shell .attendance-section-tabs.tab-bar,
+body.app-shell .attendance-section-tabs.tab-bar {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  overflow: visible !important;
+}
+
+html.native-app .attendance-section-tabs .tab-btn,
+body.native-app .attendance-section-tabs .tab-btn,
+#root.native-app-root .attendance-section-tabs .tab-btn,
+html.app-shell .attendance-section-tabs .tab-btn,
+body.app-shell .attendance-section-tabs .tab-btn {
+  width: 100% !important;
+  min-width: 0 !important;
+  flex: none !important;
+}
+
+/* Wide APK WebViews: use KPI people cards instead of sideways table */
+html.native-app .admin-kpi-points__scroll,
+body.native-app .admin-kpi-points__scroll,
+#root.native-app-root .admin-kpi-points__scroll,
+html.app-shell .admin-kpi-points__scroll,
+body.app-shell .admin-kpi-points__scroll {
+  display: none;
+}
+
+html.native-app .admin-kpi-points__mobile-cards,
+body.native-app .admin-kpi-points__mobile-cards,
+#root.native-app-root .admin-kpi-points__mobile-cards,
+html.app-shell .admin-kpi-points__mobile-cards,
+body.app-shell .admin-kpi-points__mobile-cards {
+  display: flex;
 }
 
 body.app-shell input,

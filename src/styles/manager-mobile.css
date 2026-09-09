@@ -125,11 +125,11 @@
   .mgr-attendance-tabs,
   .mgr-kpi-tabs,
   .mgr-personal-tabs {
-    gap: 0.4rem;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    padding-bottom: 0.15rem;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.45rem;
+    overflow: visible;
+    padding-bottom: 0;
   }
 
   .mgr-attendance-tabs::-webkit-scrollbar,
@@ -141,12 +141,15 @@
   .mgr-attendance-tabs .tab-btn,
   .mgr-kpi-tabs .tab-btn,
   .mgr-personal-tabs .tab-btn {
-    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
+    flex: none;
     white-space: nowrap;
     min-height: 44px;
     border-radius: 999px;
-    padding: 0.5rem 0.95rem;
-    font-size: 0.84rem;
+    padding: 0.5rem 0.7rem;
+    font-size: 0.82rem;
+    justify-content: center;
   }
 
   .mgr-kpi-form input,

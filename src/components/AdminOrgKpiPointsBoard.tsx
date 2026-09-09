@@ -7,7 +7,6 @@ import {
   Users,
   Eye,
   Check,
-  X,
   ArrowLeft,
   AlertCircle,
   CheckCircle2,
@@ -209,8 +208,8 @@ function OrgUserMonthModal({
             <ArrowLeft size={18} />
             Back
           </button>
-          <button type="button" className="user-hub-close" onClick={onClose} aria-label="Close dialog">
-            <X size={20} />
+          <button type="button" className="scorr-dialog-close" onClick={onClose} aria-label="Close dialog" title="Close">
+            ×
           </button>
         </div>
 
@@ -531,119 +530,199 @@ function PeopleTable({
   onSelectRow: (row: OrgKpiPointsRow) => void;
 }) {
   return (
-    <div className="admin-kpi-points__scroll">
-      <table className="admin-kpi-points__table admin-kpi-points__table--clickable">
-        <thead>
-          <tr>
-            <th>Person</th>
-            <th>Role</th>
-            <th title="Weight assigned across all KPIs (0–100%)">Weightage</th>
-            <th title="All-time score (points awarded ÷ weight assigned × 100)">Score</th>
-            <th>Performance pts</th>
-            <th>KPI tasks</th>
-            <th>Period</th>
-            <th title="Score for KPIs overlapping the current month only">Month score</th>
-            <th>Reward earned</th>
-            <th>Reward balance</th>
-            <th>History</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => {
-            const start = formatKpiDate(r.kpi_period_start);
-            const end = formatKpiDate(r.kpi_period_end);
-            const periodLabel = start && end && start !== end
-              ? `${start} – ${end}`
-              : (start || end || currentMonthLabel());
-            const weightAssigned = Number(r.weight_assigned) || 0;
-            const weightAchieved = Number(r.weight_achieved) || 0;
-            return (
-              <tr
-                key={r.user_id}
-                className="admin-kpi-points__row--clickable"
-                onClick={() => onSelectRow(r)}
-                title={`Click to view ${r.full_name}'s completed tasks for this month`}
-              >
-                <td>
-                  <button
-                    type="button"
-                    className="admin-kpi-points__member-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSelectRow(r);
-                    }}
-                  >
-                    <div className="admin-kpi-points__person">
-                      <strong>{r.full_name}</strong>
-                      <span>{r.email}</span>
+    <>
+      <div className="admin-kpi-points__scroll">
+        <table className="admin-kpi-points__table admin-kpi-points__table--clickable">
+          <thead>
+            <tr>
+              <th>Person</th>
+              <th>Role</th>
+              <th title="Weight assigned across all KPIs (0–100%)">Weightage</th>
+              <th title="All-time score (points awarded ÷ weight assigned × 100)">Score</th>
+              <th>Performance pts</th>
+              <th>KPI tasks</th>
+              <th>Period</th>
+              <th title="Score for KPIs overlapping the current month only">Month score</th>
+              <th>Reward earned</th>
+              <th>Reward balance</th>
+              <th>History</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const start = formatKpiDate(r.kpi_period_start);
+              const end = formatKpiDate(r.kpi_period_end);
+              const periodLabel = start && end && start !== end
+                ? `${start} – ${end}`
+                : (start || end || currentMonthLabel());
+              const weightAssigned = Number(r.weight_assigned) || 0;
+              const weightAchieved = Number(r.weight_achieved) || 0;
+              return (
+                <tr
+                  key={r.user_id}
+                  className="admin-kpi-points__row--clickable"
+                  onClick={() => onSelectRow(r)}
+                  title={`Click to view ${r.full_name}'s completed tasks for this month`}
+                >
+                  <td>
+                    <button
+                      type="button"
+                      className="admin-kpi-points__member-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectRow(r);
+                      }}
+                    >
+                      <div className="admin-kpi-points__person">
+                        <strong>{r.full_name}</strong>
+                        <span>{r.email}</span>
+                      </div>
+                    </button>
+                  </td>
+                  <td>
+                    <span className={`admin-kpi-points__role admin-kpi-points__role--${r.role}`}>
+                      {roleLabel(r.role)}
+                    </span>
+                  </td>
+                  <td>
+                    <div className="admin-kpi-points__month-score">
+                      <strong>{weightAssigned.toFixed(weightAssigned % 1 === 0 ? 0 : 2)}%</strong>
+                      <span className="admin-kpi-points__month-reward">
+                        {weightAchieved.toFixed(weightAchieved % 1 === 0 ? 0 : 2)}% achieved
+                      </span>
                     </div>
-                  </button>
-                </td>
-                <td>
-                  <span className={`admin-kpi-points__role admin-kpi-points__role--${r.role}`}>
-                    {roleLabel(r.role)}
-                  </span>
-                </td>
-                <td>
-                  <div className="admin-kpi-points__month-score">
-                    <strong>{weightAssigned.toFixed(weightAssigned % 1 === 0 ? 0 : 2)}%</strong>
-                    <span className="admin-kpi-points__month-reward">
-                      {weightAchieved.toFixed(weightAchieved % 1 === 0 ? 0 : 2)}% achieved
-                    </span>
-                  </div>
-                </td>
-                <td>
-                  <strong className={`admin-kpi-points__health ${healthClass(r.health_score)}`}>
-                    {Number(r.health_score).toFixed(2)}
-                  </strong>
-                </td>
-                <td>
-                  <strong className="admin-kpi-points__kpi-pts">{r.kpi_points.toLocaleString()}</strong>
-                </td>
-                <td>
-                  <span className="admin-kpi-points__tasks">{r.completed_kpis}/{r.total_kpis}</span>
-                  {r.pending_kpis > 0 && (
-                    <span className="admin-kpi-points__pending"> · {r.pending_kpis} open</span>
-                  )}
-                </td>
-                <td>
-                  <span className="admin-kpi-points__month-dates">{periodLabel}</span>
-                </td>
-                <td>
-                  <div className="admin-kpi-points__month-score">
-                    {r.this_month_score != null ? (
-                      <strong className={`admin-kpi-points__health ${healthClass(Number(r.this_month_score))}`}>
-                        {Number(r.this_month_score).toFixed(2)}
-                      </strong>
-                    ) : (
-                      <span className="admin-kpi-points__muted">—</span>
+                  </td>
+                  <td>
+                    <strong className={`admin-kpi-points__health ${healthClass(r.health_score)}`}>
+                      {Number(r.health_score).toFixed(2)}
+                    </strong>
+                  </td>
+                  <td>
+                    <strong className="admin-kpi-points__kpi-pts">{r.kpi_points.toLocaleString()}</strong>
+                  </td>
+                  <td>
+                    <span className="admin-kpi-points__tasks">{r.completed_kpis}/{r.total_kpis}</span>
+                    {r.pending_kpis > 0 && (
+                      <span className="admin-kpi-points__pending"> · {r.pending_kpis} open</span>
                     )}
-                    <span className="admin-kpi-points__month-reward">
-                      +{Number(r.this_month_points ?? 0).toLocaleString()} reward pts
-                    </span>
-                  </div>
-                </td>
-                <td>{r.total_earned.toLocaleString()}</td>
-                <td>
-                  <strong>{r.balance.toLocaleString()}</strong>
-                </td>
-                <td>
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm admin-kpi-points__history-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSelectRow(r);
-                    }}
-                  >
-                    <Eye size={13} /> Tasks
-                  </button>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+                  </td>
+                  <td>
+                    <span className="admin-kpi-points__month-dates">{periodLabel}</span>
+                  </td>
+                  <td>
+                    <div className="admin-kpi-points__month-score">
+                      {r.this_month_score != null ? (
+                        <strong className={`admin-kpi-points__health ${healthClass(Number(r.this_month_score))}`}>
+                          {Number(r.this_month_score).toFixed(2)}
+                        </strong>
+                      ) : (
+                        <span className="admin-kpi-points__muted">—</span>
+                      )}
+                      <span className="admin-kpi-points__month-reward">
+                        +{Number(r.this_month_points ?? 0).toLocaleString()} reward pts
+                      </span>
+                    </div>
+                  </td>
+                  <td>{r.total_earned.toLocaleString()}</td>
+                  <td>
+                    <strong>{r.balance.toLocaleString()}</strong>
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm admin-kpi-points__history-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectRow(r);
+                      }}
+                    >
+                      <Eye size={13} /> Tasks
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="admin-kpi-points__mobile-cards" aria-label="People list">
+        {rows.map((r) => {
+          const start = formatKpiDate(r.kpi_period_start);
+          const end = formatKpiDate(r.kpi_period_end);
+          const periodLabel = start && end && start !== end
+            ? `${start} – ${end}`
+            : (start || end || currentMonthLabel());
+          const weightAssigned = Number(r.weight_assigned) || 0;
+          const weightAchieved = Number(r.weight_achieved) || 0;
+          return (
+            <article
+              key={`card-${r.user_id}`}
+              className="admin-kpi-points__mobile-card"
+              onClick={() => onSelectRow(r)}
+            >
+              <header className="admin-kpi-points__mobile-card-head">
+                <div className="admin-kpi-points__person">
+                  <strong>{r.full_name}</strong>
+                  <span>{r.email}</span>
+                </div>
+                <span className={`admin-kpi-points__role admin-kpi-points__role--${r.role}`}>
+                  {roleLabel(r.role)}
+                </span>
+              </header>
+              <dl className="admin-kpi-points__mobile-card-grid">
+                <div>
+                  <dt>Weightage</dt>
+                  <dd>
+                    {weightAssigned.toFixed(weightAssigned % 1 === 0 ? 0 : 2)}%
+                    <span> · {weightAchieved.toFixed(weightAchieved % 1 === 0 ? 0 : 2)}% achieved</span>
+                  </dd>
+                </div>
+                <div>
+                  <dt>Score</dt>
+                  <dd className={healthClass(r.health_score)}>{Number(r.health_score).toFixed(2)}</dd>
+                </div>
+                <div>
+                  <dt>Performance pts</dt>
+                  <dd>{r.kpi_points.toLocaleString()}</dd>
+                </div>
+                <div>
+                  <dt>KPI tasks</dt>
+                  <dd>
+                    {r.completed_kpis}/{r.total_kpis}
+                    {r.pending_kpis > 0 ? ` · ${r.pending_kpis} open` : ''}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Month score</dt>
+                  <dd>
+                    {r.this_month_score != null ? Number(r.this_month_score).toFixed(2) : '—'}
+                    <span> · +{Number(r.this_month_points ?? 0).toLocaleString()} pts</span>
+                  </dd>
+                </div>
+                <div>
+                  <dt>Reward balance</dt>
+                  <dd>{r.balance.toLocaleString()}</dd>
+                </div>
+                <div className="admin-kpi-points__mobile-card-period">
+                  <dt>Period</dt>
+                  <dd>{periodLabel}</dd>
+                </div>
+              </dl>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm admin-kpi-points__history-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectRow(r);
+                }}
+              >
+                <Eye size={13} /> View tasks
+              </button>
+            </article>
+          );
+        })}
+      </div>
+    </>
   );
 }

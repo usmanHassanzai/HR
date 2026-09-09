@@ -1021,6 +1021,107 @@
   vertical-align: top;
 }
 
+.attendance-records-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+  overscroll-behavior-x: contain;
+  max-width: 100%;
+}
+
+.attendance-record-cards {
+  display: none;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.attendance-record-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 0.9rem 0.95rem;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface-muted) 50%, var(--bg-card, #fff));
+}
+
+.attendance-record-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.attendance-record-card__title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.attendance-record-card__name {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.attendance-record-card__date {
+  font-size: 0.92rem;
+  color: var(--text-primary);
+}
+
+.attendance-record-card__dept {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.attendance-record-card__badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.attendance-record-card__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem 0.75rem;
+  margin: 0;
+}
+
+.attendance-record-card__grid dt {
+  margin: 0;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.attendance-record-card__grid dd {
+  margin: 0.18rem 0 0;
+  font-size: 0.84rem;
+  font-weight: 650;
+  color: var(--text-primary);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 720px) {
+  .attendance-records-scroll {
+    display: none;
+  }
+
+  .attendance-record-cards {
+    display: flex;
+  }
+
+  .attendance-record-card__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .attendance-history-sub {
   display: block;
   font-size: 0.75rem;
@@ -1057,6 +1158,10 @@
 
 .attendance-month-block table {
   margin: 0;
+}
+
+.attendance-month-block .attendance-record-cards {
+  padding: 0.75rem;
 }
 
 .attendance-month-report-badge {
@@ -1105,41 +1210,127 @@
 @media (max-width: 900px) {
   .attendance-section-tabs.tab-bar,
   .attendance-section-tabs.tab-bar--inline-mobile {
-    display: flex;
-    flex-wrap: nowrap !important;
-    overflow-x: auto;
-    overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior-x: contain;
-    scrollbar-width: none;
-    gap: 0.4rem;
-    padding: 0.35rem;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.45rem;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow: visible;
+    padding: 0.4rem;
     margin-bottom: 0.75rem;
-  }
-
-  .attendance-section-tabs.tab-bar::-webkit-scrollbar {
-    display: none;
+    box-sizing: border-box;
   }
 
   .attendance-section-tabs.tab-bar .tab-btn,
-  .attendance-section-tabs.admin-attendance-tabs .tab-btn {
-    flex: 0 0 auto !important;
-    flex-shrink: 0 !important;
-    min-width: max-content !important;
-    width: auto;
-    max-width: none;
+  .attendance-section-tabs.admin-attendance-tabs .tab-btn,
+  .attendance-section-tabs.mgr-attendance-tabs .tab-btn,
+  .attendance-section-tabs.emp-attendance-tabs .tab-btn {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    flex: none !important;
     white-space: nowrap;
     justify-content: center;
     border-radius: 999px;
-    padding: 0.52rem 0.9rem;
+    padding: 0.55rem 0.7rem;
     font-size: 0.8rem;
-    min-height: 42px;
+    min-height: 44px;
     position: relative;
     z-index: 1;
   }
 
   .attendance-section-tabs .tab-btn span {
-    overflow: visible;
-    text-overflow: unset;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+}
+
+.shift-status-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+  overscroll-behavior-x: contain;
+  max-width: 100%;
+}
+
+.shift-status-cards {
+  display: none;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 0.75rem;
+}
+
+.shift-status-card {
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-muted) 50%, var(--bg-card, #fff));
+}
+
+.shift-status-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.55rem;
+  margin-bottom: 0.65rem;
+}
+
+.shift-status-card__head strong {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.shift-status-card__role {
+  flex-shrink: 0;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border-color);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: capitalize;
+  color: var(--text-secondary);
+}
+
+.shift-status-card__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 0.75rem;
+  margin: 0;
+}
+
+.shift-status-card__grid dt {
+  margin: 0;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.shift-status-card__grid dd {
+  margin: 0.15rem 0 0;
+  font-size: 0.86rem;
+  font-weight: 650;
+  color: var(--text-primary);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.shift-status-card__since {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 720px) {
+  .shift-status-scroll {
+    display: none;
+  }
+
+  .shift-status-cards {
+    display: flex;
   }
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2, X } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { formatKpiAssignmentChange, formatKpiEditTimestamp, Kpi, displayRoleLabel, type UserRole } from '../utils/kpiHelpers';
 import KpiViewedBadge from './KpiViewedBadge';
@@ -217,8 +217,8 @@ export default function EditAssignedKpiModal({
             <h2 id="kpi-edit-title">{kpi.name}</h2>
             <p className="kpi-edit-dialog__person">{employeeName}</p>
           </div>
-          <button type="button" className="kpi-edit-dialog__close" onClick={onClose} aria-label="Close">
-            <X size={18} />
+          <button type="button" className="scorr-dialog-close" onClick={onClose} aria-label="Close" title="Close">
+            ×
           </button>
         </header>
 

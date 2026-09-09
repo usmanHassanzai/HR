@@ -19,7 +19,6 @@ import {
   Users,
   Eye,
   Check,
-  X,
   Search,
   Target,
   ChevronRight,
@@ -281,8 +280,8 @@ function PersonPointsDetailModal({
             <ArrowLeft size={18} />
             Back
           </button>
-          <button type="button" className="user-hub-close" onClick={onClose} aria-label="Close">
-            <X size={20} />
+          <button type="button" className="scorr-dialog-close" onClick={onClose} aria-label="Close" title="Close">
+            ×
           </button>
         </div>
 

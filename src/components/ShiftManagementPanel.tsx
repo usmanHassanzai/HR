@@ -446,7 +446,7 @@ export default function ShiftManagementPanel({
           <h3 className="attendance-card__title">
             <Users size={18} /> {isOrgWide ? 'Organization shift status' : 'Team shift status'}
           </h3>
-          <div className="team-points-table-wrap">
+          <div className="team-points-table-wrap shift-status-scroll">
             <table className="attendance-history-table">
               <thead>
                 <tr>
@@ -484,6 +484,48 @@ export default function ShiftManagementPanel({
                 })}
               </tbody>
             </table>
+          </div>
+
+          <div className="shift-status-cards" aria-label={isOrgWide ? 'Organization shift status' : 'Team shift status'}>
+            {assignments.map((a) => {
+              const hours =
+                a.start_time && a.end_time
+                  ? formatShiftTimeRange(String(a.start_time).slice(0, 5), String(a.end_time).slice(0, 5))
+                  : '—';
+              const since = a.effective_from
+                ? new Date(`${a.effective_from}T12:00:00`).toLocaleDateString(undefined, {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                  })
+                : a.shift_id
+                  ? 'Active'
+                  : 'Company default';
+              return (
+                <article key={`card-${a.user_id}`} className="shift-status-card">
+                  <header className="shift-status-card__head">
+                    <strong>{a.full_name}</strong>
+                    {isOrgWide ? (
+                      <span className="shift-status-card__role">{a.employee_role || '—'}</span>
+                    ) : null}
+                  </header>
+                  <dl className="shift-status-card__grid">
+                    <div>
+                      <dt>Shift</dt>
+                      <dd>{a.shift_name || '—'}</dd>
+                    </div>
+                    <div>
+                      <dt>Hours</dt>
+                      <dd>{hours}</dd>
+                    </div>
+                    <div className="shift-status-card__since">
+                      <dt>Since</dt>
+                      <dd>{since}</dd>
+                    </div>
+                  </dl>
+                </article>
+              );
+            })}
           </div>
         </div>
       )}

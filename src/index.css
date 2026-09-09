@@ -1470,6 +1470,74 @@ svg.brand-logo {
   position: relative;
 }
 
+/* Shared dialog close — CSS-drawn × so it always shows (fonts/WebViews often hide × glyphs) */
+button.scorr-dialog-close,
+.scorr-dialog-close {
+  box-sizing: border-box;
+  position: relative;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem !important;
+  height: 2.75rem !important;
+  min-width: 2.75rem !important;
+  min-height: 2.75rem !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  border: 1px solid #94a3b8 !important;
+  border-radius: 10px !important;
+  background: #e2e8f0 !important;
+  color: transparent !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+  cursor: pointer;
+  flex-shrink: 0;
+  overflow: visible;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+button.scorr-dialog-close::before,
+button.scorr-dialog-close::after,
+.scorr-dialog-close::before,
+.scorr-dialog-close::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 1.05rem;
+  height: 2.5px;
+  margin: 0;
+  background: #0f172a;
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+button.scorr-dialog-close::before,
+.scorr-dialog-close::before {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+button.scorr-dialog-close::after,
+.scorr-dialog-close::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+button.scorr-dialog-close:hover,
+button.scorr-dialog-close:focus-visible,
+.scorr-dialog-close:hover,
+.scorr-dialog-close:focus-visible {
+  background: #cbd5e1 !important;
+  border-color: #64748b !important;
+  outline: none;
+}
+
+.scorr-dialog-close__mark {
+  display: none;
+}
+
 .notification-dropdown {
   position: fixed;
   z-index: 99999;

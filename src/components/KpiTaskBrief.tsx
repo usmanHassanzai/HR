@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from 'react';
-import { Eye, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Eye } from 'lucide-react';
 import type { Kpi } from '../utils/kpiHelpers';
 import { kpiCategoryMeta } from '../utils/kpiCategories';
 import { formatKpiWeight } from '../utils/kpiWeightHelpers';
@@ -39,32 +40,17 @@ export default function KpiTaskBrief({ kpi, compact = true, hideName = false }: 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false);
     };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', onKey);
+    };
   }, [open]);
 
-  return (
-    <div className={`kpi-task-brief${compact ? ' kpi-task-brief--compact' : ''}`}>
-      {!hideName && (
-        <strong className="kpi-task-brief__name" title={kpi.name}>{kpi.name}</strong>
-      )}
-      {hasDescription ? (
-        <button
-          type="button"
-          className="btn btn-secondary btn-sm kpi-task-brief__btn"
-          onClick={(e) => {
-            e.stopPropagation();
-            setOpen(true);
-          }}
-        >
-          <Eye size={13} />
-          View task
-        </button>
-      ) : (
-        !hideName && <span className="kpi-task-brief__none">No description</span>
-      )}
-
-      {open && (
+  const dialog = open
+    ? createPortal(
         <div
           className="kpi-task-brief__overlay"
           role="presentation"
@@ -81,17 +67,18 @@ export default function KpiTaskBrief({ kpi, compact = true, hideName = false }: 
             onClick={(e) => e.stopPropagation()}
           >
             <header className="kpi-task-brief__dialog-head">
-              <div>
+              <div className="kpi-task-brief__dialog-titles">
                 <span className="kpi-task-brief__eyebrow">{category.label}</span>
                 <h2 id={titleId}>{kpi.name}</h2>
               </div>
               <button
                 type="button"
-                className="kpi-task-brief__close"
+                className="scorr-dialog-close"
                 onClick={() => setOpen(false)}
                 aria-label="Close"
+                title="Close"
               >
-                <X size={18} />
+                ×
               </button>
             </header>
 
@@ -115,8 +102,32 @@ export default function KpiTaskBrief({ kpi, compact = true, hideName = false }: 
               <p>{description}</p>
             </section>
           </div>
-        </div>
+        </div>,
+        document.body,
+      )
+    : null;
+
+  return (
+    <div className={`kpi-task-brief${compact ? ' kpi-task-brief--compact' : ''}`}>
+      {!hideName && (
+        <strong className="kpi-task-brief__name" title={kpi.name}>{kpi.name}</strong>
       )}
+      {hasDescription ? (
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm kpi-task-brief__btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpen(true);
+          }}
+        >
+          <Eye size={13} />
+          View task
+        </button>
+      ) : (
+        !hideName && <span className="kpi-task-brief__none">No description</span>
+      )}
+      {dialog}
     </div>
   );
 }

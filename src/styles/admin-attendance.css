@@ -87,6 +87,20 @@
   justify-content: center;
 }
 
+@media (max-width: 720px) {
+  .admin-attendance-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.45rem;
+  }
+
+  .admin-attendance-tabs .tab-btn {
+    flex: none;
+    min-width: 0;
+    width: 100%;
+  }
+}
+
 .admin-attendance-alert {
   display: flex;
   align-items: flex-start;

@@ -19,7 +19,6 @@ import {
   Trash2,
   Trophy,
   User,
-  X,
   ArrowLeft,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -289,8 +288,8 @@ export default function AdminUserHubModal({
             <ArrowLeft size={18} />
             Back to People
           </button>
-          <button type="button" className="user-hub-close" onClick={onClose} aria-label="Close profile hub">
-            <X size={20} />
+          <button type="button" className="scorr-dialog-close" onClick={onClose} aria-label="Close profile hub" title="Close">
+            ×
           </button>
         </div>
 
