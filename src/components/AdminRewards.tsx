@@ -72,6 +72,8 @@ interface PersonPointsSummary {
   department_name: string | null;
   health_score: number;
   kpi_points: number;
+  weight_assigned: number;
+  weight_achieved: number;
   total_earned: number;
   used_points: number;
   balance: number;
@@ -320,6 +322,12 @@ function PersonPointsDetailModal({
 
           <div className="person-points-detail__metrics">
             <div className="person-points-detail__metric">
+              <span>Weightage</span>
+              <strong>
+                {(person.weight_assigned || 0).toFixed((person.weight_assigned || 0) % 1 === 0 ? 0 : 2)}%
+              </strong>
+            </div>
+            <div className="person-points-detail__metric">
               <span>KPI score</span>
               <strong style={{ color: tierColorForScore(displayScore) }}>{Math.round(displayScore)}%</strong>
             </div>
@@ -490,6 +498,8 @@ export default function AdminRewards() {
         ...r,
         health_score: Number(r.health_score) || 0,
         kpi_points: Number(r.kpi_points) || 0,
+        weight_assigned: Number(r.weight_assigned) || 0,
+        weight_achieved: Number(r.weight_achieved) || 0,
         total_earned: Number(r.total_earned) || 0,
         used_points: Number(r.used_points) || 0,
         balance: (Number(r.total_earned) || 0) - (Number(r.used_points) || 0),
@@ -622,6 +632,8 @@ export default function AdminRewards() {
         department_name: row.department_name,
         health_score: row.health_score,
         kpi_points: row.kpi_points,
+        weight_assigned: row.weight_assigned ?? 0,
+        weight_achieved: row.weight_achieved ?? 0,
         total_earned: row.total_earned,
         used_points: row.used_points,
         balance: row.balance,
@@ -861,6 +873,12 @@ export default function AdminRewards() {
 
                         <div className="person-points-card__stats">
                           <div className="person-points-card__stat">
+                            <span>Weightage</span>
+                            <strong>
+                              {(person.weight_assigned || 0).toFixed((person.weight_assigned || 0) % 1 === 0 ? 0 : 2)}%
+                            </strong>
+                          </div>
+                          <div className="person-points-card__stat">
                             <span>{monthLabel} KPI</span>
                             <strong style={{ color: tierColorForScore(score) }}>{Math.round(score)}</strong>
                           </div>
@@ -869,10 +887,6 @@ export default function AdminRewards() {
                             <strong style={{ color: bonus ? 'var(--color-success)' : 'var(--text-muted)' }}>
                               +{bonus.toLocaleString()}
                             </strong>
-                          </div>
-                          <div className="person-points-card__stat">
-                            <span>Performance</span>
-                            <strong>{person.kpi_points.toLocaleString()}</strong>
                           </div>
                           <div className="person-points-card__stat">
                             <span>Balance</span>

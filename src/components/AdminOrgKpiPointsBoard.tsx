@@ -36,6 +36,8 @@ export interface OrgKpiPointsRow {
   completed_kpis: number;
   pending_kpis: number;
   kpi_points: number;
+  weight_assigned: number;
+  weight_achieved: number;
   total_earned: number;
   used_points: number;
   balance: number;
@@ -80,6 +82,8 @@ function normalizeRows(data: unknown): OrgKpiPointsRow[] {
       completed_kpis: Number(r.completed_kpis) || 0,
       pending_kpis: Number(r.pending_kpis) || 0,
       kpi_points: kpiPts,
+      weight_assigned: Number(r.weight_assigned) || 0,
+      weight_achieved: Number(r.weight_achieved) || 0,
       total_earned: earned,
       used_points: used,
       balance: earned - used,
@@ -441,7 +445,7 @@ export default function AdminOrgKpiPointsBoard({
           <div>
             <h2 className="admin-kpi-points__title">KPI &amp; Rewards</h2>
             <p className="admin-kpi-points__subtitle">
-              Per-person KPI score (points index, no % sign), performance points, and reward balance.
+              Per-person weightage (0–100%), KPI score (points index), performance points, and reward balance.
               Monthly reward bands use the same score thresholds: 90+ → 1,000 · 80–89 → 500 · 70–79 → 250 · below 70 → 0.
             </p>
           </div>
@@ -533,6 +537,7 @@ function PeopleTable({
           <tr>
             <th>Person</th>
             <th>Role</th>
+            <th title="Weight assigned across all KPIs (0–100%)">Weightage</th>
             <th title="All-time score (points awarded ÷ weight assigned × 100)">Score</th>
             <th>Performance pts</th>
             <th>KPI tasks</th>
@@ -550,6 +555,8 @@ function PeopleTable({
             const periodLabel = start && end && start !== end
               ? `${start} – ${end}`
               : (start || end || currentMonthLabel());
+            const weightAssigned = Number(r.weight_assigned) || 0;
+            const weightAchieved = Number(r.weight_achieved) || 0;
             return (
               <tr
                 key={r.user_id}
@@ -576,6 +583,14 @@ function PeopleTable({
                   <span className={`admin-kpi-points__role admin-kpi-points__role--${r.role}`}>
                     {roleLabel(r.role)}
                   </span>
+                </td>
+                <td>
+                  <div className="admin-kpi-points__month-score">
+                    <strong>{weightAssigned.toFixed(weightAssigned % 1 === 0 ? 0 : 2)}%</strong>
+                    <span className="admin-kpi-points__month-reward">
+                      {weightAchieved.toFixed(weightAchieved % 1 === 0 ? 0 : 2)}% achieved
+                    </span>
+                  </div>
                 </td>
                 <td>
                   <strong className={`admin-kpi-points__health ${healthClass(r.health_score)}`}>

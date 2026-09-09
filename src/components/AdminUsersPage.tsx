@@ -1061,12 +1061,12 @@ export default function AdminUsersPage({
                     }}
                   >
                     <div className={avatarClass(u.role)} aria-hidden>{initials(u.full_name)}</div>
-                    <div>
-                      <strong>
+                    <div className="people-card__identity">
+                      <strong className="people-card__name">
                         {u.full_name}
                         {u.id === profile.id && <span className="people-you">You</span>}
                       </strong>
-                      <span>{u.email}</span>
+                      <span className="people-card__email">{u.email}</span>
                       {u.job_title?.trim() ? (
                         <span className="people-job-title">{u.job_title.trim()}</span>
                       ) : null}

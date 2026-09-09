@@ -59,9 +59,10 @@ writeBuildInfo(root, {
     version: packageVersion(root),
     updatedAt: now.toISOString(),
     updatedLabel: formatUpdatedLabel(now),
-    pwaUrl: 'https://scorr.walfia.ai',
+    pwaUrl: 'https://scorr.walfia.ai/?app=1',
     ipaAvailable: false,
     ipaFilename: 'scorr.ipa',
+    notes: 'Home Screen app opens Sign In only. Same KPI scoreboard, MFA, and attendance UI as Android.',
   },
 });
 console.log('Updated public/downloads/build-info.json (iOS PWA install)');

@@ -845,6 +845,9 @@
 @media (max-width: 768px) {
   .emp-kpi-summary {
     padding: 1rem 0.95rem;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
   }
 
   .emp-kpi-summary__formula {
@@ -856,6 +859,10 @@
     flex-direction: column;
     align-items: stretch;
     gap: 0.65rem;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
   }
 
   .emp-kpi-filter__modes {
@@ -877,16 +884,29 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0.55rem;
+    min-width: 0;
+  }
+
+  .emp-kpi-filter__field {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .emp-kpi-filter__field select,
   .emp-kpi-filter__search-box input {
     min-height: 44px;
     font-size: 16px;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
   .emp-kpi-block {
     border-radius: 14px;
+    min-width: 0;
+    overflow: hidden;
   }
 
   .emp-kpi-month__stats dt {
@@ -921,6 +941,27 @@
     width: 100%;
     min-height: 44px;
     justify-content: center;
+  }
+
+  .emp-kpi-month {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .emp-kpi-month header strong,
+  .emp-kpi-month__scope,
+  .emp-kpi-month__note,
+  .emp-kpi-month__rating,
+  .emp-kpi-summary__title {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+}
+
+@media (max-width: 480px) {
+  .emp-kpi-filter__selects {
+    grid-template-columns: 1fr;
   }
 }
 

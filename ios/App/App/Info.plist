@@ -2,12 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CAPACITOR_DEBUG</key>
+	<key>CAPACITOR_DEBUG</key>
 	<string>$(CAPACITOR_DEBUG)</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>Scorr</string>
+	<string>Scorr</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -35,8 +35,6 @@
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
@@ -45,14 +43,16 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>UIStatusBarStyle</key>
+	<string>UIStatusBarStyleLightContent</string>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Scorr uses your location for automatic GPS attendance when you arrive at or leave the office.</string>
+	<string>Scorr uses your location for GPS attendance check-in and check-out at your assigned office site.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Scorr needs always-on location for automatic attendance clock-in and clock-out even when the app is in the background.</string>
+	<string>Scorr uses background location so attendance stays accurate during your shift — including overnight shifts and auto clock-out when the shift ends.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
-	<string>Scorr needs always-on location for automatic attendance clock-in and clock-out even when the app is in the background.</string>
+	<string>Scorr uses background location so attendance stays accurate during your shift — including overnight shifts and auto clock-out when the shift ends.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>

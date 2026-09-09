@@ -2693,6 +2693,16 @@ body.app-shell .admin-users-mobile-list,
   max-width: 100%;
 }
 
+@media (max-width: 899px) {
+  .people-table .admin-users-table__member-meta strong,
+  .people-table .admin-users-table__member-meta span {
+    white-space: normal;
+    text-overflow: unset;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+}
+
 .people-table td:nth-child(3),
 .people-table td:nth-child(4) {
   min-width: 0;
@@ -3024,23 +3034,66 @@ body.app-shell .admin-users-mobile-list,
   border: 1px solid var(--border-color);
   border-radius: 14px;
   background: color-mix(in srgb, var(--surface-muted) 40%, var(--dash-card-bg));
+  min-width: 0;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .people-card__top {
   display: flex;
   gap: 0.75rem;
   margin-bottom: 0.85rem;
+  min-width: 0;
+  max-width: 100%;
 }
 
-.people-card__top strong {
+.people-card__identity {
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.12rem;
+}
+
+.people-card__name {
   display: block;
   font-size: 0.98rem;
+  font-weight: 650;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
-.people-card__top > div > span {
+.people-card__email {
+  display: block;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
+}
+
+.people-card__top strong,
+.people-card__top-btn strong {
+  display: block;
+  font-size: 0.98rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.people-card__top > div > span,
+.people-card__top-btn > div > span {
   display: block;
   font-size: 0.8rem;
   color: var(--text-muted);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
 }
 
 .people-card__meta {
@@ -3174,6 +3227,13 @@ body.app-shell .admin-users-mobile-list,
   color: var(--text-secondary);
 }
 
+.people-card__identity .people-job-title,
+.people-card__top-btn > div > span.people-job-title,
+.admin-users-table__member-meta > span.people-job-title {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
 .people-drawer__form .form-group {
   margin: 0;
 }
@@ -3248,7 +3308,23 @@ body.app-shell .admin-users-mobile-list,
 .admin-users-table__member-meta {
   display: flex;
   flex-direction: column;
+  gap: 0.12rem;
   min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.admin-users-table__member-meta strong {
+  display: block;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.admin-users-table__member-meta > span {
+  display: block;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
 }
 
 .admin-users-table__member-btn:hover strong,
@@ -3282,11 +3358,46 @@ body.app-shell .admin-users-mobile-list,
   font: inherit;
   color: inherit;
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
+.people-card__top-btn .admin-user-card__avatar {
+  flex: 0 0 auto;
+}
+
+.people-card__top-btn .people-card__identity {
+  flex: 1;
+  min-width: 0;
+}
+
+.people-card__top-btn:hover .people-card__name,
 .people-card__top-btn:hover strong {
   color: var(--accent-primary);
   text-decoration: underline;
+}
+
+@media (max-width: 899px) {
+  .admin-users-mobile-list.people-cards,
+  .people-cards {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+    box-sizing: border-box;
+  }
+
+  .people-card {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .people-card__identity,
+  .people-card__name,
+  .people-card__email {
+    max-width: 100%;
+  }
 }
 
 @media (max-width: 1024px) {

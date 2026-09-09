@@ -252,7 +252,7 @@ export default function MobileAppDownload() {
           <h3>iPhone &amp; iPad app</h3>
           <p>
             Install from <strong>Safari</strong> → <strong>Add to Home Screen</strong>. The iOS app opens to
-            <strong> Sign In / Register Company</strong> only — not the full marketing website — same as Android.
+            <strong> Sign In / Register Company</strong> only — same login, MFA, KPI scoreboard, and attendance as Android.
           </p>
 
           {iosInfo && iosReady && (
