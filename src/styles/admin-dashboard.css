@@ -1207,8 +1207,9 @@ button.ws-dept-list__toggle {
   }
 
   .admin-shell__page-eyebrow {
-    font-size: 0.62rem;
-    margin-bottom: 0.1rem;
+    font-size: 0.7rem;
+    margin-bottom: 0.15rem;
+    letter-spacing: 0.04em;
   }
 
   .admin-shell__page-head > div {
@@ -1220,7 +1221,7 @@ button.ws-dept-list__toggle {
   }
 
   .admin-shell__page-title {
-    font-size: 1.05rem;
+    font-size: 1.15rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1230,17 +1231,17 @@ button.ws-dept-list__toggle {
   .admin-shell__mobile-stats {
     padding-left: max(0.75rem, env(safe-area-inset-left));
     padding-right: max(0.75rem, env(safe-area-inset-right));
-    gap: 0.35rem;
+    gap: 0.4rem;
   }
 
   .admin-shell__mobile-stats strong {
-    font-size: 0.88rem;
+    font-size: 0.92rem;
   }
 
   .admin-shell__panel {
-    padding: 0.85rem 0.75rem calc(1.75rem + env(safe-area-inset-bottom, 0px));
-    padding-left: max(0.75rem, env(safe-area-inset-left));
-    padding-right: max(0.75rem, env(safe-area-inset-right));
+    padding: 0.9rem 0.8rem calc(1.5rem + env(safe-area-inset-bottom, 0px));
+    padding-left: max(0.8rem, env(safe-area-inset-left));
+    padding-right: max(0.8rem, env(safe-area-inset-right));
   }
 
   .admin-shell__sidebar {

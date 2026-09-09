@@ -47,9 +47,11 @@ export async function initNativeApp(): Promise<void> {
   try {
   if (isAndroidApp()) {
     await StatusBar.setBackgroundColor({ color: '#0b1120' });
+    await StatusBar.setOverlaysWebView({ overlay: false });
   }
   if (isIosApp()) {
     await StatusBar.setStyle({ style: Style.Dark });
+    await StatusBar.setOverlaysWebView({ overlay: false });
   }
   } catch {
     // Status bar plugin may be unavailable in some WebView builds.

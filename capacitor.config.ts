@@ -23,21 +23,27 @@ const config: CapacitorConfig = {
   plugins: {
     SplashScreen: {
       launchAutoHide: true,
+      launchShowDuration: 0,
       backgroundColor: '#0b1120',
       showSpinner: false,
+      splashFullScreen: true,
+      splashImmersive: true,
     },
     StatusBar: {
       style: 'DARK',
       backgroundColor: '#0b1120',
+      overlaysWebView: false,
     },
   },
   ios: {
-    contentInset: 'always',
+    // Let CSS env(safe-area-inset-*) own insets (viewport-fit=cover) — avoids double padding
+    contentInset: 'never',
     scrollEnabled: true,
     backgroundColor: '#0b1120',
   },
   android: {
     allowMixedContent: false,
+    backgroundColor: '#0b1120',
   },
 };
 

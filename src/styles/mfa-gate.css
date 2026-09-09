@@ -1,0 +1,272 @@
+/* Authenticator / MFA gate — phone-first professional layout */
+
+.mfa-gate {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: min(100%, 100dvh);
+  padding: max(1rem, env(safe-area-inset-top))
+    max(1rem, env(safe-area-inset-right))
+    max(1.5rem, env(safe-area-inset-bottom))
+    max(1rem, env(safe-area-inset-left));
+  box-sizing: border-box;
+}
+
+.mfa-gate__panel {
+  width: 100%;
+  max-width: 440px;
+  padding: 1.5rem 1.25rem !important;
+  border-radius: 18px;
+  margin: 0 auto;
+}
+
+.mfa-gate__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.mfa-gate__head-icon {
+  flex-shrink: 0;
+  color: var(--accent-primary);
+  margin-top: 0.15rem;
+}
+
+.mfa-gate__title {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  line-height: 1.25;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.mfa-gate__subtitle {
+  margin: 0.35rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.mfa-gate__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.75rem 0.5rem;
+  text-align: center;
+}
+
+.mfa-gate__loading p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.mfa-gate__enroll {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.mfa-gate__enroll-copy {
+  color: var(--text-secondary);
+  text-align: left;
+  margin: 0 0 0.95rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.mfa-gate__qr {
+  width: min(200px, 58vw);
+  height: auto;
+  aspect-ratio: 1;
+  background: #fff;
+  border-radius: 12px;
+  padding: 0.5rem;
+  box-sizing: border-box;
+  display: block;
+  margin: 0 auto;
+  box-shadow: 0 8px 24px color-mix(in srgb, #0b1120 18%, transparent);
+}
+
+.mfa-gate__secret {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin: 0.85rem 0 0;
+  line-height: 1.45;
+  text-align: left;
+  word-break: break-word;
+}
+
+.mfa-gate__secret code {
+  font-size: 0.8rem;
+  word-break: break-all;
+}
+
+.mfa-gate__hint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-align: left;
+  margin: 0.35rem 0 0;
+  line-height: 1.4;
+}
+
+.mfa-gate__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.mfa-gate__copy {
+  color: var(--text-secondary);
+  margin: 0 0 0.85rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.mfa-gate__field-gap {
+  margin-top: 0.75rem;
+}
+
+.mfa-gate__error {
+  color: var(--color-danger);
+  font-size: 0.88rem;
+  margin: 0.65rem 0 0;
+  line-height: 1.4;
+}
+
+.mfa-gate__note {
+  color: var(--color-success, #0f766e);
+  font-size: 0.88rem;
+  margin: 0.65rem 0 0;
+  line-height: 1.45;
+}
+
+.mfa-gate__actions {
+  display: flex;
+  gap: 0.55rem;
+  margin-top: 1.15rem;
+  flex-wrap: wrap;
+}
+
+.mfa-gate__actions .btn {
+  min-height: 46px;
+  flex: 1 1 auto;
+  justify-content: center;
+}
+
+.mfa-gate__codes-box {
+  margin-top: 1rem;
+  padding: 0.95rem 1rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--color-warning) 40%, transparent);
+  background: color-mix(in srgb, var(--color-warning) 10%, transparent);
+}
+
+.mfa-gate__codes-box p {
+  margin: 0 0 0.65rem;
+  font-weight: 600;
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.mfa-gate__codes-box .btn {
+  margin-top: 0.75rem;
+  width: 100%;
+  min-height: 46px;
+  justify-content: center;
+}
+
+.mfa-gate__recovery {
+  margin-top: 1.25rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.mfa-gate__link {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0.35rem 0.15rem;
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: var(--accent-primary);
+  font-size: 0.9rem;
+  line-height: 1.35;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.mfa-gate__link:hover {
+  color: var(--accent-secondary, var(--accent-primary));
+}
+
+.mfa-gate__admin-box {
+  margin-top: 0.55rem;
+  padding: 0.95rem 1rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 28%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+}
+
+.mfa-gate__admin-box > p:first-child {
+  margin: 0;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.mfa-gate__admin-box > p:nth-child(2) {
+  margin: 0.4rem 0 0.85rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.mfa-gate__admin-box .btn {
+  width: 100%;
+  min-height: 46px;
+  justify-content: center;
+}
+
+.mfa-gate .form-input,
+.mfa-gate .password-field input {
+  font-size: 16px;
+  min-height: 48px;
+}
+
+.mfa-gate #mfa-code,
+.mfa-gate #mfa-email-otp {
+  letter-spacing: 0.28em;
+  font-size: 1.25rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.mfa-gate #mfa-backup {
+  letter-spacing: 0.12em;
+  font-size: 1.05rem;
+  font-weight: 600;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+@media (max-width: 480px) {
+  .mfa-gate__panel {
+    padding: 1.25rem 1rem !important;
+    border-radius: 16px;
+  }
+
+  .mfa-gate__title {
+    font-size: 1.2rem;
+  }
+
+  .mfa-gate__actions {
+    flex-direction: column;
+  }
+
+  .mfa-gate__actions .btn {
+    width: 100%;
+  }
+}

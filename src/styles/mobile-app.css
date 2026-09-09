@@ -1,7 +1,5 @@
 /*
- * Native APK / PWA shell — scroll container only.
- * Visual design must match mobile web (@media max-width 768px).
- * Do not restyle headers, cards, or type here.
+ * Native APK / PWA shell — scroll container + phone polish shared with web.
  */
 
 html.app-shell,
@@ -19,6 +17,7 @@ body.native-app {
   margin: 0;
   background-attachment: scroll !important;
   touch-action: auto;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body.app-shell #root,
@@ -44,7 +43,6 @@ body.native-app #root,
   scroll-behavior: auto;
 }
 
-/* Match mobile-web page padding / flow (employee-mobile / manager-mobile) */
 body.app-shell .native-scroll-root .dashboard-container,
 body.native-app .native-scroll-root .dashboard-container {
   display: block;
@@ -91,7 +89,6 @@ body.native-app .native-scroll-root .team-points-table-wrap {
   max-width: 100%;
 }
 
-/* Prevent iOS zoom on focus — same as mobile web */
 body.app-shell input,
 body.app-shell textarea,
 body.app-shell select,
@@ -103,16 +100,45 @@ body.native-app select {
 
 .app-login-screen {
   min-height: min(100%, 100dvh);
-  padding: max(0.75rem, env(safe-area-inset-top))
+  padding: max(0.85rem, env(safe-area-inset-top))
     max(1rem, env(safe-area-inset-right))
     max(1.5rem, env(safe-area-inset-bottom))
     max(1rem, env(safe-area-inset-left));
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  box-sizing: border-box;
 }
 
 .app-login-screen .login-card--app {
   width: 100%;
   max-width: 420px;
-  margin: 0 auto 1.5rem;
+  margin: 0.5rem auto 1.5rem;
+  border-radius: 18px;
+  padding: 1.5rem 1.2rem !important;
+}
+
+.app-login-screen .login-forgot-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0.25rem 0;
+}
+
+.app-login-screen .btn {
+  min-height: 48px;
+  justify-content: center;
+}
+
+.app-login-screen .form-input,
+.app-login-screen .password-field input {
+  min-height: 48px;
+  font-size: 16px;
+}
+
+body.app-shell .mfa-gate,
+body.native-app .mfa-gate {
+  min-height: 100%;
 }
 
 /* Admin Users: APK WebView is often ≥900px, so force stacked cards instead of the desktop table */

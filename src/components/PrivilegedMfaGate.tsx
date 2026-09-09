@@ -12,6 +12,7 @@ import {
 } from '../utils/mfaRecovery';
 import BackupCodesRevealModal from './BackupCodesRevealModal';
 import PasswordField from './PasswordField';
+import '../styles/mfa-gate.css';
 
 interface PrivilegedMfaGateProps {
   onSatisfied: () => void;
@@ -361,7 +362,7 @@ export default function PrivilegedMfaGate({ onSatisfied, onCancel, fullName }: P
   };
 
   return (
-    <div className="dashboard-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
+    <div className="mfa-gate">
       {freshCodes && (
         <BackupCodesRevealModal
           codes={freshCodes}
@@ -372,30 +373,35 @@ export default function PrivilegedMfaGate({ onSatisfied, onCancel, fullName }: P
           }}
         />
       )}
-      <div className="glass-panel" style={{ maxWidth: 460, padding: '2rem', width: '100%' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.75rem' }}>
-          <ShieldCheck size={28} style={{ color: 'var(--accent-primary)' }} />
-          <h2 style={{ fontFamily: 'var(--font-display)', margin: 0 }}>Authenticator required</h2>
+      <div className="glass-panel mfa-gate__panel">
+        <div className="mfa-gate__head">
+          <ShieldCheck size={28} className="mfa-gate__head-icon" aria-hidden />
+          <div>
+            <h2 className="mfa-gate__title">Authenticator required</h2>
+            <p className="mfa-gate__subtitle">
+              Secure your Scorr account with an authenticator app, backup codes, or email recovery.
+            </p>
+          </div>
         </div>
 
         {phase === 'loading' && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', padding: '1.5rem' }}>
+          <div className="mfa-gate__loading">
             <Loader2 className="animate-spin" size={28} />
-            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Preparing authenticator…</p>
+            <p>Preparing authenticator…</p>
             <button type="button" className="btn btn-secondary" onClick={onCancel}>Sign out</button>
           </div>
         )}
 
         {phase === 'enroll' && qr && mode === 'totp' && (
-          <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
-            <p style={{ color: 'var(--text-secondary)', textAlign: 'left', marginBottom: '0.85rem' }}>
+          <div className="mfa-gate__enroll">
+            <p className="mfa-gate__enroll-copy">
               Install an authenticator app, scan this QR, then enter the 6-digit code. After setup you will receive backup codes — save them.
             </p>
-            <img src={qr} alt="Authenticator QR code" style={{ width: 180, height: 180, background: '#fff', borderRadius: 8 }} />
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.75rem' }}>
-              Manual key: <code style={{ wordBreak: 'break-all' }}>{secret}</code>
+            <img src={qr} alt="Authenticator QR code" className="mfa-gate__qr" />
+            <p className="mfa-gate__secret">
+              Manual key: <code>{secret}</code>
             </p>
-            <label className="form-label" htmlFor="mfa-enroll-pw" style={{ textAlign: 'left', display: 'block', marginTop: '0.85rem' }}>
+            <label className="form-label mfa-gate__field-gap" htmlFor="mfa-enroll-pw" style={{ textAlign: 'left', display: 'block' }}>
               Account password <span style={{ color: 'var(--color-danger)' }}>*</span>
             </label>
             <PasswordField
@@ -406,20 +412,20 @@ export default function PrivilegedMfaGate({ onSatisfied, onCancel, fullName }: P
               onChange={(e) => setPassword(e.target.value)}
               required
             />
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'left', margin: '0.35rem 0 0' }}>
+            <p className="mfa-gate__hint">
               Required so we can create your one-time backup codes after verification.
             </p>
           </div>
         )}
 
         {phase === 'verify' && mode === 'totp' && (
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+          <p className="mfa-gate__copy">
             Open your authenticator app and type the current 6-digit code.
           </p>
         )}
 
         {phase !== 'loading' && (
-          <>
+          <div className="mfa-gate__body">
             {mode === 'totp' && (
               <>
                 <label className="form-label" htmlFor="mfa-code">6-digit code</label>
@@ -436,7 +442,7 @@ export default function PrivilegedMfaGate({ onSatisfied, onCancel, fullName }: P
             )}
             {mode === 'backup' && (
               <>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', marginBottom: '0.75rem' }}>
+                <p className="mfa-gate__copy">
                   Enter one unused backup code (for example ABCD-EFGH). It will be burned after use.
                 </p>
                 <label className="form-label" htmlFor="mfa-backup">Backup code</label>
@@ -452,7 +458,7 @@ export default function PrivilegedMfaGate({ onSatisfied, onCancel, fullName }: P
             )}
             {mode === 'email' && (
               <>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', marginBottom: '0.75rem' }}>
+                <p className="mfa-gate__copy">
                   {emailOtpSent
                     ? `Enter the 6-digit code we sent to ${loginEmailMasked || 'your login email'}. After verification you will set up a new authenticator.`
                     : `We will send a verification code to ${loginEmailMasked || 'your login email'}. Enter your account password to continue.`}
@@ -467,7 +473,7 @@ export default function PrivilegedMfaGate({ onSatisfied, onCancel, fullName }: P
                 />
                 {emailOtpSent && (
                   <>
-                    <label className="form-label" htmlFor="mfa-email-otp" style={{ marginTop: '0.75rem' }}>
+                    <label className="form-label mfa-gate__field-gap" htmlFor="mfa-email-otp">
                       Email verification code
                     </label>
                     <input
@@ -485,14 +491,10 @@ export default function PrivilegedMfaGate({ onSatisfied, onCancel, fullName }: P
               </>
             )}
 
-            {error && (
-              <p style={{ color: 'var(--color-danger)', fontSize: '0.85rem', marginTop: '0.5rem' }}>{error}</p>
-            )}
-            {requestNote && (
-              <p style={{ color: 'var(--color-success, #0f766e)', fontSize: '0.85rem', marginTop: '0.5rem', lineHeight: 1.45 }}>{requestNote}</p>
-            )}
+            {error && <p className="mfa-gate__error">{error}</p>}
+            {requestNote && <p className="mfa-gate__note">{requestNote}</p>}
 
-            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem', flexWrap: 'wrap' }}>
+            <div className="mfa-gate__actions">
               <button
                 type="button"
                 className="btn btn-primary"
@@ -511,18 +513,8 @@ export default function PrivilegedMfaGate({ onSatisfied, onCancel, fullName }: P
             </div>
 
             {codesIssuePending && (
-              <div
-                style={{
-                  marginTop: '1rem',
-                  padding: '0.9rem 1rem',
-                  borderRadius: 10,
-                  border: '1px solid color-mix(in srgb, var(--color-warning) 40%, transparent)',
-                  background: 'color-mix(in srgb, var(--color-warning) 10%, transparent)',
-                }}
-              >
-                <p style={{ margin: '0 0 0.65rem', fontWeight: 600, fontSize: '0.9rem' }}>
-                  Authenticator verified — save your backup codes before continuing
-                </p>
+              <div className="mfa-gate__codes-box">
+                <p>Authenticator verified — save your backup codes before continuing</p>
                 <label className="form-label" htmlFor="mfa-codes-pw">Account password</label>
                 <PasswordField
                   id="mfa-codes-pw"
@@ -534,7 +526,6 @@ export default function PrivilegedMfaGate({ onSatisfied, onCancel, fullName }: P
                 <button
                   type="button"
                   className="btn btn-primary"
-                  style={{ marginTop: '0.75rem', width: '100%' }}
                   disabled={busy}
                   onClick={() => void retryIssueCodes()}
                 >
@@ -543,8 +534,7 @@ export default function PrivilegedMfaGate({ onSatisfied, onCancel, fullName }: P
               </div>
             )}
 
-            {/* Email / backup recovery for every MFA role (admin, manager, employee, hr). */}
-            <div style={{ marginTop: '1.25rem', display: 'grid', gap: '0.55rem' }}>
+            <div className="mfa-gate__recovery">
               {mode !== 'totp' && (
                 <button
                   type="button"
@@ -557,8 +547,7 @@ export default function PrivilegedMfaGate({ onSatisfied, onCancel, fullName }: P
               {mode !== 'backup' && (
                 <button
                   type="button"
-                  className="login-forgot-link"
-                  style={{ textAlign: 'left', background: 'none', border: 0, padding: 0, cursor: 'pointer' }}
+                  className="mfa-gate__link"
                   onClick={() => { setMode('backup'); setError(''); setCode(''); setRequestNote(''); setEmailOtpSent(false); }}
                 >
                   Lost your authenticator? Use a backup code.
@@ -567,8 +556,7 @@ export default function PrivilegedMfaGate({ onSatisfied, onCancel, fullName }: P
               {mode !== 'email' && (
                 <button
                   type="button"
-                  className="login-forgot-link"
-                  style={{ textAlign: 'left', background: 'none', border: 0, padding: 0, cursor: 'pointer' }}
+                  className="mfa-gate__link"
                   onClick={() => { setMode('email'); setError(''); setCode(''); setRequestNote(''); setEmailOtpSent(false); }}
                 >
                   No authenticator or backup codes? Verify with your email.
@@ -577,31 +565,21 @@ export default function PrivilegedMfaGate({ onSatisfied, onCancel, fullName }: P
               {mode === 'email' && emailOtpSent && (
                 <button
                   type="button"
-                  className="login-forgot-link"
-                  style={{ textAlign: 'left', background: 'none', border: 0, padding: 0, cursor: 'pointer' }}
+                  className="mfa-gate__link"
                   onClick={() => { setEmailOtpSent(false); setCode(''); setRequestNote(''); setError(''); }}
                 >
                   Resend a new verification code
                 </button>
               )}
 
-              <div
-                style={{
-                  marginTop: '0.5rem',
-                  padding: '0.9rem 1rem',
-                  borderRadius: 10,
-                  border: '1px solid color-mix(in srgb, var(--accent-primary) 28%, transparent)',
-                  background: 'color-mix(in srgb, var(--accent-primary) 8%, transparent)',
-                }}
-              >
-                <p style={{ margin: 0, fontWeight: 600, fontSize: '0.92rem' }}>Still locked out?</p>
-                <p style={{ margin: '0.4rem 0 0.75rem', fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+              <div className="mfa-gate__admin-box">
+                <p>Still locked out?</p>
+                <p>
                   If you cannot access your login email either, request an admin reset from People.
                 </p>
                 <button
                   type="button"
                   className="btn btn-secondary"
-                  style={{ width: '100%' }}
                   disabled={requestBusy || busy || Boolean(requestNote && /reset requested|request sent/i.test(requestNote))}
                   onClick={() => void askAdminReset()}
                 >
@@ -609,7 +587,7 @@ export default function PrivilegedMfaGate({ onSatisfied, onCancel, fullName }: P
                 </button>
               </div>
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>

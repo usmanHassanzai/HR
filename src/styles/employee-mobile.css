@@ -1,16 +1,17 @@
 /* Employee dashboard — mobile only professional layout */
 
 @media (max-width: 768px) {
+  /* Admin-shell already owns safe-area; avoid leftover bottom-nav dead space */
   .dashboard-container:has(.emp-dash) {
     padding-left: max(0.75rem, env(safe-area-inset-left));
     padding-right: max(0.75rem, env(safe-area-inset-right));
-    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
   }
 
   .emp-dash {
     display: flex;
     flex-direction: column;
-    gap: 0.85rem;
+    gap: 0.9rem;
     min-width: 0;
   }
 
@@ -24,16 +25,15 @@
     align-items: stretch;
     gap: 0.75rem;
     padding: 0.95rem 1rem;
-    border-radius: 14px;
+    border-radius: 16px;
   }
 
   .emp-dash .mobile-banner-row .btn {
     width: 100%;
     justify-content: center;
-    min-height: 44px;
+    min-height: 46px;
   }
 
-  /* Health + metrics hero */
   .emp-dash .dash-hero-grid {
     display: grid;
     grid-template-columns: 1fr;
@@ -41,8 +41,8 @@
   }
 
   .emp-dash .dash-health-card {
-    padding: 1.1rem 1rem;
-    border-radius: 14px;
+    padding: 1.15rem 1rem;
+    border-radius: 16px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -60,22 +60,91 @@
   }
 
   .emp-dash .dash-metrics-panel {
-    padding: 0.85rem 0.9rem;
-    border-radius: 14px;
+    padding: 0.9rem 0.95rem;
+    border-radius: 16px;
   }
 
   .emp-dash .dash-metric-row {
-    padding: 0.55rem 0;
-    font-size: 0.85rem;
+    padding: 0.6rem 0;
+    font-size: 0.88rem;
   }
 
   .emp-dash .emp-points-stack {
     display: flex;
     flex-direction: column;
-    gap: 0.85rem;
+    gap: 0.9rem;
   }
 
-  /* KPI section */
+  .emp-dash .emp-kpi-summary {
+    border-radius: 16px;
+    padding: 1rem 0.95rem;
+  }
+
+  .emp-dash .emp-kpi-summary__title {
+    font-size: 1.2rem;
+    line-height: 1.25;
+  }
+
+  .emp-dash .emp-kpi-summary__formula {
+    font-size: 0.82rem;
+    line-height: 1.45;
+  }
+
+  .emp-dash .emp-kpi-filter {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.65rem;
+  }
+
+  .emp-dash .emp-kpi-filter__modes {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+    gap: 0.35rem;
+  }
+
+  .emp-dash .emp-kpi-filter__mode {
+    min-height: 42px;
+    justify-content: center;
+    font-size: 0.85rem;
+    border-radius: 12px;
+  }
+
+  .emp-dash .emp-kpi-filter__selects {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.55rem;
+    width: 100%;
+  }
+
+  .emp-dash .emp-kpi-filter__field select,
+  .emp-dash .emp-kpi-filter__search-box input {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .emp-dash .emp-kpi-block {
+    border-radius: 14px;
+    padding: 0.85rem 0.8rem;
+  }
+
+  .emp-dash .emp-kpi-block__title {
+    font-size: 0.95rem;
+  }
+
+  .emp-dash .emp-kpi-month__stats dt {
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+  }
+
+  .emp-dash .emp-kpi-month__stats dd {
+    font-size: 0.98rem;
+  }
+
+  .emp-dash .emp-kpi-month__pct {
+    font-size: 1.85rem;
+  }
+
   .emp-dash .dash-section-head {
     flex-wrap: wrap;
     gap: 0.65rem;
@@ -91,34 +160,63 @@
   .emp-dash .dash-section-head .btn {
     flex: 1;
     justify-content: center;
-    min-height: 42px;
+    min-height: 44px;
   }
 
   .emp-dash .dashboard-grid {
     display: grid !important;
     grid-template-columns: 1fr !important;
-    gap: 0.75rem !important;
+    gap: 0.8rem !important;
     margin-top: 0 !important;
   }
 
-  .emp-dash .kpi-card {
-    border-radius: 14px;
+  .emp-dash .kpi-card,
+  .emp-dash .emp-kpi-item {
+    border-radius: 16px;
     padding: 1rem 0.95rem;
   }
 
-  .emp-dash .kpi-card h4 {
-    font-size: 1rem;
+  .emp-dash .kpi-card h4,
+  .emp-dash .emp-kpi-item h3 {
+    font-size: 1.02rem;
     line-height: 1.3;
   }
 
   .emp-dash .kpi-score-line {
-    font-size: 0.85rem;
+    font-size: 0.88rem;
   }
 
-  .emp-dash .kpi-card .btn {
+  .emp-dash .kpi-card .btn,
+  .emp-dash .emp-kpi-item .btn {
     width: 100%;
     justify-content: center;
-    min-height: 44px;
+    min-height: 46px;
+  }
+
+  .emp-dash .emp-kpi-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .emp-dash .emp-kpi-facts dt {
+    font-size: 0.7rem;
+  }
+
+  .emp-dash .emp-kpi-facts dd {
+    font-size: 0.92rem;
+  }
+
+  .emp-dash .emp-kpi-list__modes {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.35rem;
+  }
+
+  .emp-dash .emp-kpi-list__mode {
+    min-height: 42px;
+    justify-content: center;
+    border-radius: 12px;
   }
 
   .emp-dash .responsive-grid-wide {
@@ -129,11 +227,11 @@
 
   .emp-dash .dash-info-panel {
     padding: 1rem 0.95rem;
-    border-radius: 14px;
+    border-radius: 16px;
   }
 
   .emp-dash .employee-kpi-board-summary {
-    border-radius: 14px;
+    border-radius: 16px;
     padding: 1rem 0.95rem;
   }
 
@@ -144,7 +242,7 @@
 
   .emp-dash .team-points-table-wrap,
   .emp-dash .team-points-board {
-    border-radius: 14px;
+    border-radius: 16px;
   }
 
   .emp-dash .team-points-table-wrap {
@@ -152,47 +250,48 @@
     -webkit-overflow-scrolling: touch;
   }
 
-  /* Attendance */
   .emp-attendance-header {
-    border-radius: 14px !important;
-    padding: 1rem 0.95rem !important;
+    border-radius: 16px !important;
+    padding: 1.05rem 1rem !important;
     gap: 0.85rem;
   }
 
   .emp-attendance-header__icon {
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: 11px;
+    width: 2.65rem;
+    height: 2.65rem;
+    border-radius: 12px;
   }
 
   .emp-attendance-header__title {
-    font-size: 1.15rem !important;
+    font-size: 1.18rem !important;
     letter-spacing: -0.02em;
   }
 
   .emp-attendance-header__subtitle {
-    font-size: 0.8rem !important;
+    font-size: 0.84rem !important;
     line-height: 1.45;
   }
 
   .emp-attendance-stats {
     display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.5rem !important;
+    gap: 0.55rem !important;
   }
 
   .emp-attendance-stat {
     min-width: 0;
-    padding: 0.7rem 0.75rem;
-    border-radius: 12px;
+    padding: 0.8rem 0.8rem;
+    border-radius: 14px;
   }
 
   .emp-attendance-stat strong {
-    font-size: 0.98rem;
+    font-size: 1.02rem;
   }
 
   .emp-attendance-stat__label {
-    font-size: 0.62rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
   }
 
   .emp-attendance-tabs {
@@ -200,6 +299,7 @@
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
+    padding-bottom: 0.1rem;
   }
 
   .emp-attendance-tabs::-webkit-scrollbar {
@@ -209,15 +309,15 @@
   .emp-attendance-tabs .tab-btn {
     flex: 0 0 auto;
     white-space: nowrap;
-    min-height: 42px;
+    min-height: 44px;
     border-radius: 999px;
-    padding: 0.45rem 0.85rem;
-    font-size: 0.8rem;
+    padding: 0.5rem 0.95rem;
+    font-size: 0.84rem;
   }
 
   .emp-attendance-card {
-    border-radius: 14px;
-    padding: 1rem 0.95rem;
+    border-radius: 16px;
+    padding: 1.05rem 1rem;
   }
 
   .emp-attendance-filters {
@@ -239,7 +339,7 @@
   .attendance-form-grid input,
   .attendance-form-grid select {
     font-size: 16px;
-    min-height: 44px;
+    min-height: 46px;
     max-width: 100%;
     box-sizing: border-box;
   }
@@ -252,11 +352,11 @@
   .emp-attendance-filters__actions .btn {
     flex: 1;
     justify-content: center;
-    min-height: 44px;
+    min-height: 46px;
   }
 
   .emp-attendance-month-block {
-    border-radius: 12px;
+    border-radius: 14px;
   }
 
   .emp-attendance-summary-grid {
@@ -269,57 +369,62 @@
     -webkit-overflow-scrolling: touch;
   }
 
-  /* Rewards */
   .emp-rewards-header {
-    border-radius: 14px !important;
-    padding: 1rem 0.95rem !important;
+    border-radius: 16px !important;
+    padding: 1.05rem 1rem !important;
     gap: 0.85rem;
   }
 
   .emp-rewards-header__icon {
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: 11px;
+    width: 2.65rem;
+    height: 2.65rem;
+    border-radius: 12px;
   }
 
   .emp-rewards-header__title {
-    font-size: 1.15rem !important;
+    font-size: 1.18rem !important;
   }
 
   .emp-rewards-header__subtitle {
-    font-size: 0.8rem !important;
+    font-size: 0.84rem !important;
     line-height: 1.45;
   }
 
   .emp-rewards-stats {
     display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.5rem !important;
+    gap: 0.55rem !important;
   }
 
   .emp-rewards-stat {
     min-width: 0;
-    padding: 0.7rem 0.75rem;
-    border-radius: 12px;
+    padding: 0.8rem 0.8rem;
+    border-radius: 14px;
   }
 
   .emp-rewards-stat strong {
-    font-size: 0.98rem;
+    font-size: 1.02rem;
+  }
+
+  .emp-rewards-stat__label {
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
   }
 
   .emp-rewards-layout {
     grid-template-columns: 1fr !important;
-    gap: 0.85rem;
+    gap: 0.9rem;
   }
 
   .emp-rewards-card {
-    border-radius: 14px;
-    padding: 1rem 0.95rem;
+    border-radius: 16px;
+    padding: 1.05rem 1rem;
   }
 
   .emp-rewards-catalog-item,
   .emp-rewards-redemption {
-    border-radius: 12px;
+    border-radius: 14px;
     flex-wrap: wrap;
   }
 
@@ -330,60 +435,75 @@
   .emp-rewards-catalog-item__foot .btn {
     width: 100%;
     justify-content: center;
-    min-height: 42px;
+    min-height: 46px;
   }
 
   .emp-rewards-balance-card {
-    border-radius: 14px;
+    border-radius: 16px;
   }
 
-  /* Daily report */
   .emp-dash .dwr-panel,
   .emp-dash .dwr-hero,
   .emp-dash .dwr-compose,
   .emp-dash .dwr-history {
-    border-radius: 14px;
+    border-radius: 16px;
   }
 
   .emp-dash .dwr-textarea {
     font-size: 16px;
-    min-height: 140px;
+    min-height: 150px;
   }
 
   .emp-dash .dwr-compose__footer .btn {
     width: 100%;
     justify-content: center;
-    min-height: 44px;
+    min-height: 46px;
   }
 
-  /* Shared glass panels */
   .emp-dash .glass-panel {
-    border-radius: 14px;
+    border-radius: 16px;
   }
 
   .emp-dash .attendance-hero {
-    border-radius: 14px;
-    padding: 1.1rem 1rem;
+    border-radius: 16px;
+    padding: 1.15rem 1rem;
   }
 
   .emp-dash .attendance-hero__btn {
     width: 100%;
+  }
+
+  .emp-dash details.glass-panel,
+  .emp-dash .settings-security,
+  .emp-dash .account-security {
+    border-radius: 16px;
+  }
+
+  .emp-dash details > summary {
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    font-size: 0.98rem;
   }
 }
 
 @media (max-width: 480px) {
   .emp-attendance-stats,
   .emp-rewards-stats {
-    gap: 0.4rem !important;
+    gap: 0.45rem !important;
   }
 
   .emp-attendance-stat strong,
   .emp-rewards-stat strong {
-    font-size: 0.92rem;
+    font-size: 0.95rem;
   }
 
   .emp-dash .dash-health-ring {
     width: 5rem;
     height: 5rem;
+  }
+
+  .emp-dash .emp-kpi-filter__selects {
+    grid-template-columns: 1fr;
   }
 }
