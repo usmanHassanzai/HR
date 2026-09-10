@@ -150,6 +150,7 @@ const MIGRATIONS = [
   'admin_org_kpi_board_weightage.sql',
   'fix_shift_end_admin_still_working.sql',
   'kpi_completion_notify_manager_assigner.sql',
+  'get_assignable_people_with_kpis.sql',
   // Must be last: earlier drop_stale_functions_mid.sql removes this RPC
   'platform_delete_company.sql',
 ];

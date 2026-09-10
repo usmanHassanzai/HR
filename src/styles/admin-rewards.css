@@ -262,6 +262,100 @@
   gap: 0.75rem;
 }
 
+.admin-rewards-catalog-form__icon-block {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.85rem 1rem;
+}
+
+.admin-rewards-catalog-form__preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.25rem;
+  height: 4.25rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--dash-card-bg, #fff);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.admin-rewards-catalog-form__icon-controls {
+  flex: 1;
+  min-width: 12rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.admin-rewards-catalog-form__upload {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: fit-content;
+  cursor: pointer;
+}
+
+.admin-rewards-catalog-form__hint {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.admin-rewards-catalog-form__emoji-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.admin-rewards-catalog-form__emoji {
+  width: 2.15rem;
+  height: 2.15rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--dash-card-bg, #fff);
+  font-size: 1.15rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.admin-rewards-catalog-form__emoji.is-on,
+.admin-rewards-catalog-form__emoji:hover {
+  border-color: color-mix(in srgb, var(--accent-primary) 45%, var(--border-color));
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+}
+
+.reward-catalog-icon-img {
+  object-fit: contain;
+  border-radius: 8px;
+  display: block;
+}
+
+.reward-catalog-icon-emoji {
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reward-card-icon {
+  display: flex;
+  align-items: center;
+  min-height: 2.25rem;
+}
+
+.redemption-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
 .admin-rewards-loading {
   display: flex;
   flex-direction: column;

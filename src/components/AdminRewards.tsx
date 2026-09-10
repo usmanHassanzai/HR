@@ -22,13 +22,16 @@ import {
   Target,
   ChevronRight,
   ArrowLeft,
+  Upload,
 } from 'lucide-react';
 import { tierColorForScore } from '../utils/rewardsTiers';
 import AdminOrgKpiPointsBoard, { type OrgKpiPointsRow } from './AdminOrgKpiPointsBoard';
 import AdminKpiAwardsPanel from './AdminKpiAwardsPanel';
 import KpiScopedTasksList from './KpiScopedTasksList';
 import KpiScoreboardSummary from './KpiScoreboardSummary';
+import RewardCatalogIcon from './RewardCatalogIcon';
 import { fetchRewardsSummary, type RewardsSummary } from '../utils/rewardsHelpers';
+import { fileToRewardIconDataUrl, REWARD_EMOJI_PRESETS } from '../utils/rewardIconHelpers';
 import '../styles/admin-rewards.css';
 import '../styles/employee-kpis.css';
 
@@ -385,6 +388,7 @@ export default function AdminRewards() {
   const [activeTab, setActiveTab] = useState<'board' | 'monthly' | 'redemptions' | 'catalog' | 'awards'>('board');
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: '', description: '', icon: '🎁', point_cost: 1000 });
+  const [iconUploading, setIconUploading] = useState(false);
   const [boardRows, setBoardRows] = useState<OrgKpiPointsRow[]>([]);
   const [selectedPerson, setSelectedPerson] = useState<PersonPointsSummary | null>(null);
   const [selectedPersonMonth, setSelectedPersonMonth] = useState<string | undefined>();
@@ -494,6 +498,19 @@ export default function AdminRewards() {
     } else {
       setEditId('new');
       setForm({ name: '', description: '', icon: '🎁', point_cost: 1000 });
+    }
+  };
+
+  const handleIconUpload = async (file: File | null) => {
+    if (!file) return;
+    setIconUploading(true);
+    try {
+      const dataUrl = await fileToRewardIconDataUrl(file);
+      setForm((prev) => ({ ...prev, icon: dataUrl }));
+    } catch (err) {
+      showMsg(`Error: ${err instanceof Error ? err.message : 'Could not upload image.'}`);
+    } finally {
+      setIconUploading(false);
     }
   };
 
@@ -882,7 +899,9 @@ export default function AdminRewards() {
             <div className="admin-rewards-redemption-list">
               {pending.map((r) => (
                 <div key={r.id} className={`redemption-row redemption-row--${r.status}`}>
-                  <span className="redemption-icon">{r.rewards_catalog?.icon ?? '🎁'}</span>
+                  <span className="redemption-icon">
+                    <RewardCatalogIcon icon={r.rewards_catalog?.icon ?? '🎁'} size={22} />
+                  </span>
                   <div className="redemption-info">
                     <strong>{r.users?.full_name}</strong>
                     <span>
@@ -926,7 +945,12 @@ export default function AdminRewards() {
                       .map((r) => (
                         <tr key={r.id}>
                           <td><strong>{r.users?.full_name}</strong></td>
-                          <td>{r.rewards_catalog?.icon} {r.rewards_catalog?.name}</td>
+                          <td>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                              <RewardCatalogIcon icon={r.rewards_catalog?.icon} size={18} />
+                              {r.rewards_catalog?.name}
+                            </span>
+                          </td>
                           <td>-{r.points_used.toLocaleString()}</td>
                           <td>{new Date(r.redeemed_at).toLocaleDateString()}</td>
                         </tr>
@@ -956,11 +980,45 @@ export default function AdminRewards() {
               <p className="assign-task-form__section-title" style={{ margin: 0 }}>
                 {editId === 'new' ? 'New reward' : 'Edit reward'}
               </p>
-              <div className="admin-rewards-catalog-form__row">
-                <div className="form-group" style={{ flex: '0 0 64px', margin: 0 }}>
-                  <label>Icon</label>
-                  <input value={form.icon} onChange={(e) => setForm({ ...form, icon: e.target.value })} style={{ fontSize: '1.2rem', textAlign: 'center' }} />
+              <div className="admin-rewards-catalog-form__icon-block">
+                <div className="admin-rewards-catalog-form__preview" aria-hidden>
+                  <RewardCatalogIcon icon={form.icon} size={40} />
                 </div>
+                <div className="admin-rewards-catalog-form__icon-controls">
+                  <label className="admin-rewards-catalog-form__upload btn btn-secondary btn-sm">
+                    {iconUploading ? <Loader2 size={14} className="spin-icon" /> : <Upload size={14} />}
+                    {iconUploading ? 'Uploading…' : 'Upload image'}
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/gif"
+                      hidden
+                      disabled={iconUploading}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        e.target.value = '';
+                        void handleIconUpload(file);
+                      }}
+                    />
+                  </label>
+                  <p className="admin-rewards-catalog-form__hint">
+                    PNG, JPG, or WebP. Or pick an emoji below.
+                  </p>
+                  <div className="admin-rewards-catalog-form__emoji-row" role="group" aria-label="Emoji icons">
+                    {REWARD_EMOJI_PRESETS.map((emoji) => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        className={`admin-rewards-catalog-form__emoji${form.icon === emoji ? ' is-on' : ''}`}
+                        onClick={() => setForm({ ...form, icon: emoji })}
+                        title={`Use ${emoji}`}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="admin-rewards-catalog-form__row">
                 <div className="form-group" style={{ flex: 1, margin: 0, minWidth: 160 }}>
                   <label>Name</label>
                   <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Team dinner" />
@@ -975,7 +1033,9 @@ export default function AdminRewards() {
                 <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="What the employee receives" />
               </div>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button type="button" className="btn btn-primary btn-sm" onClick={() => void saveItem()}>Save to database</button>
+                <button type="button" className="btn btn-primary btn-sm" onClick={() => void saveItem()} disabled={iconUploading}>
+                  Save to database
+                </button>
                 <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEditId(null)}>Cancel</button>
               </div>
             </div>
@@ -991,7 +1051,9 @@ export default function AdminRewards() {
             <div className="reward-catalog-grid">
               {catalog.map((item) => (
                 <div key={item.id} className={`reward-card ${item.active ? 'reward-card--unlocked' : ''}`} style={{ opacity: item.active ? 1 : 0.55 }}>
-                  <div className="reward-card-icon">{item.icon}</div>
+                  <div className="reward-card-icon">
+                    <RewardCatalogIcon icon={item.icon} size={36} />
+                  </div>
                   <h4>{item.name}</h4>
                   <p>{item.description}</p>
                   <div className="reward-card-footer">

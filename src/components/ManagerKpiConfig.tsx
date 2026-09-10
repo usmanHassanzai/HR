@@ -165,6 +165,8 @@ export default function ManagerKpiConfig({
   const [assignKpis, setAssignKpis] = useState<Kpi[]>([]);
   const [boardKpis, setBoardKpis] = useState<Kpi[]>([]);
   const [peopleWithKpis, setPeopleWithKpis] = useState<Set<string>>(() => new Set());
+  const [boardRosterLoading, setBoardRosterLoading] = useState(true);
+  const [boardKpisLoading, setBoardKpisLoading] = useState(false);
   const [assignKpiId, setAssignKpiId] = useState('');
   const [loading, setLoading] = useState(true);
   const [formLoading, setFormLoading] = useState(false);
@@ -243,7 +245,7 @@ export default function ManagerKpiConfig({
       list = list.filter((u) => u.role === 'employee' && (!managerDepartmentId || u.department_id === managerDepartmentId));
     }
     setReports(list);
-    await loadPeopleWithKpis(list);
+    return list;
   };
 
   const loadDepartments = async () => {
@@ -251,20 +253,55 @@ export default function ManagerKpiConfig({
     setDepartments(((data as Department[]) || []).filter((d) => d.active !== false));
   };
 
+  /** Who already has KPIs — fast RPC, with chunked client fallback. Never clears on failure. */
   const loadPeopleWithKpis = async (people: Profile[]) => {
     const ids = people.map((p) => p.id);
     if (ids.length === 0) {
       setPeopleWithKpis(new Set());
+      setBoardRosterLoading(false);
       return;
     }
-    const { data } = await supabase.from('kpis').select('user_id').in('user_id', ids);
-    setPeopleWithKpis(new Set(((data || []) as { user_id: string }[]).map((row) => row.user_id)));
+    setBoardRosterLoading(true);
+    try {
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('get_assignable_people_with_kpis');
+      if (!rpcErr && Array.isArray(rpcData)) {
+        const allowed = new Set(ids);
+        const found = new Set<string>();
+        for (const row of rpcData as Array<{ user_id?: string } | string>) {
+          const id = typeof row === 'string' ? row : row?.user_id;
+          if (id && allowed.has(id)) found.add(id);
+        }
+        setPeopleWithKpis(found);
+        return;
+      }
+
+      const found = new Set<string>();
+      const chunkSize = 80;
+      const chunks: string[][] = [];
+      for (let i = 0; i < ids.length; i += chunkSize) {
+        chunks.push(ids.slice(i, i + chunkSize));
+      }
+      const results = await Promise.all(
+        chunks.map((chunk) => supabase.from('kpis').select('user_id').in('user_id', chunk)),
+      );
+      for (const res of results) {
+        if (res.error) continue;
+        for (const row of (res.data || []) as { user_id: string }[]) {
+          if (row.user_id) found.add(row.user_id);
+        }
+      }
+      setPeopleWithKpis(found);
+    } finally {
+      setBoardRosterLoading(false);
+    }
   };
 
-  const fetchKpis = async (userId: string): Promise<Kpi[]> => {
+  const fetchKpis = async (userId: string, onRaw?: (list: Kpi[]) => void): Promise<Kpi[]> => {
     if (!userId) return [];
     const { data } = await supabase.from('kpis').select('*').eq('user_id', userId).order('created_at', { ascending: false });
-    return hydrateKpiLastEdits((data as Kpi[]) || []);
+    const raw = (data as Kpi[]) || [];
+    onRaw?.(raw);
+    return hydrateKpiLastEdits(raw);
   };
 
   useEffect(() => {
@@ -294,8 +331,10 @@ export default function ManagerKpiConfig({
   useEffect(() => {
     const boot = async () => {
       setLoading(true);
-      await Promise.all([loadTemplates(), loadPeople(), loadDepartments()]);
+      setBoardRosterLoading(true);
+      const people = await Promise.all([loadTemplates(), loadPeople(), loadDepartments()]).then(([, list]) => list);
       setLoading(false);
+      void loadPeopleWithKpis(people || []);
     };
     void boot();
   }, [assignerId, isAdmin, managerDepartmentId]);
@@ -314,19 +353,38 @@ export default function ManagerKpiConfig({
 
   useEffect(() => {
     let cancelled = false;
+    if (!boardUserId) {
+      setBoardKpis([]);
+      setBoardKpisLoading(false);
+      return;
+    }
+    setBoardKpisLoading(true);
     void (async () => {
-      const list = await fetchKpis(boardUserId);
-      if (!cancelled) setBoardKpis(list);
+      const list = await fetchKpis(boardUserId, (raw) => {
+        if (!cancelled) {
+          setBoardKpis(raw);
+          setBoardKpisLoading(false);
+        }
+      });
+      if (!cancelled) {
+        setBoardKpis(list);
+        setBoardKpisLoading(false);
+      }
     })();
     return () => { cancelled = true; };
   }, [boardUserId]);
 
   useSupabaseRealtime('kpi-library-assign', [{ table: 'kpis' }, { table: 'users' }, { table: 'departments' }], () => {
-    void loadPeople();
-    void loadTemplates();
-    void loadDepartments();
-    if (assignUserId) void fetchKpis(assignUserId).then(setAssignKpis);
-    if (boardUserId) void fetchKpis(boardUserId).then(setBoardKpis);
+    void (async () => {
+      void loadTemplates();
+      void loadDepartments();
+      const people = await loadPeople();
+      void loadPeopleWithKpis(people);
+      if (assignUserId) void fetchKpis(assignUserId).then(setAssignKpis);
+      if (boardUserId) {
+        void fetchKpis(boardUserId, setBoardKpis).then(setBoardKpis);
+      }
+    })();
   });
 
   useEffect(() => {
@@ -934,7 +992,15 @@ export default function ManagerKpiConfig({
             labels={isAdmin ? ['Department', 'Person', 'Progress'] : ['Person', 'Progress']}
           />
           <div className="studio-flow">
-            {isAdmin && boardStep === 1 && (
+            {boardRosterLoading && (
+              <div className="studio-empty studio-empty--panel">
+                <Loader2 size={28} className="spin-icon" />
+                <h3>Loading assigned people…</h3>
+                <p>Finding who already has KPIs.</p>
+              </div>
+            )}
+
+            {!boardRosterLoading && isAdmin && boardStep === 1 && (
               boardGroups.length === 0 ? (
                 <div className="studio-empty studio-empty--panel">
                   <ClipboardList size={36} strokeWidth={1.5} />
@@ -962,7 +1028,7 @@ export default function ManagerKpiConfig({
               )
             )}
 
-            {((isAdmin && boardStep === 2 && boardDept) || (!isAdmin && boardStep === 1)) && (
+            {!boardRosterLoading && ((isAdmin && boardStep === 2 && boardDept) || (!isAdmin && boardStep === 1)) && (
               boardPeople.length === 0 && !isAdmin ? (
                 <div className="studio-empty studio-empty--panel">
                   <ClipboardList size={36} strokeWidth={1.5} />
@@ -1000,7 +1066,7 @@ export default function ManagerKpiConfig({
               )
             )}
 
-            {((isAdmin && boardStep === 3) || (!isAdmin && boardStep === 2)) && boardPerson && (
+            {!boardRosterLoading && ((isAdmin && boardStep === 3) || (!isAdmin && boardStep === 2)) && boardPerson && (
                 <div className="studio-main__scroll">
                   <div className="studio-flow__bar">
                     <button type="button" className="studio-back" onClick={() => { setBoardUserId(''); setBoardSearch(''); }}>
@@ -1014,6 +1080,13 @@ export default function ManagerKpiConfig({
                       <p>{boardPerson.email} · {displayRoleLabel(boardPerson.role)} · {deptNameOf(boardPerson.department_id)} · {boardKpis.length} assigned</p>
                     </div>
                   </header>
+                  {boardKpisLoading && boardKpis.length === 0 ? (
+                    <div className="studio-empty studio-empty--compact">
+                      <Loader2 size={22} className="spin-icon" />
+                      <p>Loading assigned tasks…</p>
+                    </div>
+                  ) : (
+                    <>
                   <EmployeeKpiWeightMeter kpis={boardKpis} compact />
                   {boardKpis.length > 0 && (
                     <EmployeeKpiBoardSummary kpis={boardKpis} employeeName={boardPerson.full_name} />
@@ -1041,6 +1114,8 @@ export default function ManagerKpiConfig({
                         </li>
                       ))}
                     </ul>
+                  )}
+                    </>
                   )}
                 </div>
             )}
