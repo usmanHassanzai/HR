@@ -288,9 +288,6 @@ export default function AdminUserHubModal({
             <ArrowLeft size={18} />
             Back to People
           </button>
-          <button type="button" className="scorr-dialog-close" onClick={onClose} aria-label="Close profile hub" title="Close">
-            ×
-          </button>
         </div>
 
         {/* Header Hero */}

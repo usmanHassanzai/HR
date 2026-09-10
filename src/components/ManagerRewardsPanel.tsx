@@ -250,15 +250,6 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
                 <ArrowLeft size={18} />
                 Back
               </button>
-              <button
-                type="button"
-                className="scorr-dialog-close"
-                onClick={() => setSelected(null)}
-                aria-label="Close"
-                title="Close"
-              >
-                ×
-              </button>
             </div>
             <header className="mgr-rewards-person-dialog__header">
               <h2 id="mgr-rewards-person-title">{selected.full_name}</h2>

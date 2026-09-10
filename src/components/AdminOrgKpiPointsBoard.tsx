@@ -207,9 +207,6 @@ function OrgUserMonthModal({
             <ArrowLeft size={18} />
             Back
           </button>
-          <button type="button" className="scorr-dialog-close" onClick={onClose} aria-label="Close dialog" title="Close">
-            ×
-          </button>
         </div>
 
         <header className="user-hub-hero">

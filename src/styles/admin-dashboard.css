@@ -3806,7 +3806,7 @@ body.app-shell .admin-users-mobile-list,
 .user-hub-topbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 1rem;
   padding: 0.85rem 1.5rem;
   border-bottom: 1px solid var(--border-color);
