@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Login from './Login';
 import ThemeToggle from './ThemeToggle';
 import ScorrWordmark from './ScorrWordmark';
@@ -206,6 +206,13 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
   const [navScrolled, setNavScrolled] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const showDemoShortcuts = useMemo(() => {
+    try {
+      return new URLSearchParams(window.location.search).get('demo') === '1';
+    } catch {
+      return false;
+    }
+  }, []);
   const revealRef = useReveal();
 
   useEffect(() => {
@@ -580,7 +587,7 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
               enableCompanyRegister
               authMode={authMode}
               onAuthModeChange={setAuthMode}
-              showDemoShortcuts={authMode === 'login'}
+              showDemoShortcuts={showDemoShortcuts && authMode === 'login'}
               demoSectionLabel="3-day demo sandbox"
             />
           </div>

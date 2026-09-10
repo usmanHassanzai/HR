@@ -51,4 +51,3 @@ export async function fetchRewardsSummary(userId: string): Promise<RewardsSummar
 
   return computeRewardsSummary(ledgerRes.data || [], redemRes.data || []);
 }
-

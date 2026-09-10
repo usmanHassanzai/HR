@@ -7,6 +7,7 @@ import { RefreshCw, BarChart2, Trophy, KeyRound, CalendarCheck, Settings, Target
 import ExportButton from './ExportButton';
 import ChangePasswordModal from './ChangePasswordModal';
 import { emailKpiOverdue } from '../utils/kpiEmail';
+import { runOverdueKpiCheckOnce } from '../utils/overdueKpiCheck';
 import KpiAssignmentDetails from './KpiAssignmentDetails';
 import TabFallback from './TabFallback';
 import AdminSidebarNav, { findAdminNavIcon, type AdminNavGroup } from './AdminSidebarNav';
@@ -125,9 +126,17 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
   useEffect(() => {
     fetchKpis();
     if (!isReadOnly) {
-      supabase.rpc('check_overdue_kpis').then(({ data }) => {
-        (data || []).forEach((row: any) => {
-          if (row.emp_email) emailKpiOverdue(row.emp_email, row.emp_name, row.department, row.end_date, row.redo_count);
+      runOverdueKpiCheckOnce((rows) => {
+        rows.forEach((row) => {
+          if (row.emp_email) {
+            emailKpiOverdue(
+              row.emp_email,
+              row.emp_name || '',
+              row.department || '',
+              row.end_date || '',
+              row.redo_count || 0,
+            );
+          }
         });
       });
     }

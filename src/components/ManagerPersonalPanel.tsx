@@ -12,6 +12,7 @@ import {
   kpiScoreContribution,
 } from '../utils/kpiScoreHelpers';
 import { emailKpiOverdue } from '../utils/kpiEmail';
+import { runOverdueKpiCheckOnce } from '../utils/overdueKpiCheck';
 import KpiAssignmentDetails from './KpiAssignmentDetails';
 import KpiViewedBadge from './KpiViewedBadge';
 import KpiEvaluationBlock from './KpiEvaluationBlock';
@@ -84,8 +85,8 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
 
   useEffect(() => {
     void load();
-    supabase.rpc('check_overdue_kpis').then(({ data }) => {
-      (data || []).forEach((row: { emp_email?: string; emp_name?: string; department?: string; end_date?: string; redo_count?: number }) => {
+    runOverdueKpiCheckOnce((rows) => {
+      rows.forEach((row) => {
         if (row.emp_email) {
           emailKpiOverdue(row.emp_email, row.emp_name || profile.full_name, row.department || '', row.end_date || '', row.redo_count || 0);
         }
@@ -94,9 +95,13 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
 
     const subscription = supabase
       .channel(`mgr-personal:kpis:${profile.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'kpis' }, () => {
-        void load({ silent: true });
-      })
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'kpis', filter: `user_id=eq.${profile.id}` },
+        () => {
+          void load({ silent: true });
+        },
+      )
       .subscribe();
 
     return () => {

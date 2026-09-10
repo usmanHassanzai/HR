@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { supabase } from '../lib/supabase';
 import { Profile } from '../utils/kpiHelpers';
+import { runOverdueKpiCheckOnce } from '../utils/overdueKpiCheck';
 import Leaderboard from './Leaderboard';
 import EmployeeDashboard from './EmployeeDashboard';
 import { Users, KeyRound, Trophy, Settings, CalendarCheck, ClipboardList, BarChart2 } from 'lucide-react';
@@ -50,7 +51,7 @@ export default function ManagerDashboard({ profile, organizationName }: ManagerD
 
   useEffect(() => {
     const fetchAlerts = async () => {
-      await supabase.rpc('check_overdue_kpis');
+      runOverdueKpiCheckOnce();
       const { count } = await supabase
         .from('notifications')
         .select('*', { count: 'exact', head: true })
@@ -61,14 +62,14 @@ export default function ManagerDashboard({ profile, organizationName }: ManagerD
       setAlertCount(count || 0);
     };
 
-    fetchAlerts();
+    void fetchAlerts();
 
     const subscription = supabase
       .channel(`manager-alerts:${profile.id}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${profile.id}` },
-        fetchAlerts,
+        () => { void fetchAlerts(); },
       )
       .subscribe();
 

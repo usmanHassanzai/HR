@@ -52,3 +52,34 @@ export function awardRuleLabel(key: string): string {
   if (key === 'surprise_gift') return 'Surprise gift';
   return key;
 }
+
+/** Compact progress label for manager/admin gift tables. */
+export function awardGiftLine(row: KpiAwardProgress | undefined, fallback: string): string {
+  if (!row) return fallback;
+  if (row.qualified) return 'Qualified';
+  const current = Number(row.current_months || 0);
+  const needed = Number(row.required_months || 0);
+  if (needed <= 0) return fallback;
+  const unit = needed === 1 ? 'month' : 'months';
+  return `${current}/${needed} ${unit}`;
+}
+
+/** Dinner (and other band gifts): explain this month's score vs the required band. */
+export function awardDinnerHint(row: KpiAwardProgress | undefined, minDefault = 95, maxDefault = 100): string {
+  const min = Number(row?.min_pct ?? minDefault);
+  const max = Number(row?.max_pct ?? maxDefault);
+  if (row?.qualified) {
+    return 'You qualified — waiting for your manager or admin to arrange this gift.';
+  }
+  if (row?.latest_score == null) {
+    return `Hit ${min}–${max} this month to earn dinner for 2.`;
+  }
+  const score = Math.round(Number(row.latest_score));
+  if (score > max) {
+    return `This month: score ${score} (need ${min}–${max}). Above the gift band.`;
+  }
+  if (score < min) {
+    return `This month: score ${score} (need ${min}–${max}).`;
+  }
+  return `This month: score ${score} — in the ${min}–${max} band.`;
+}

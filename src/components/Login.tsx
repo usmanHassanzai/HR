@@ -67,7 +67,7 @@ function AuthModeTabs({
 export default function Login({
   onLoginSuccess,
   embedded = false,
-  showDemoShortcuts = true,
+  showDemoShortcuts = false,
   appMode = false,
   demoSectionLabel,
   title,

@@ -23,6 +23,7 @@ interface RankedEmployee {
 export default function Leaderboard({ managerId, onSelectEmployee }: LeaderboardProps) {
   const [rankings, setRankings] = useState<RankedEmployee[]>([]);
   const [loading, setLoading] = useState(true);
+  const [teamIds, setTeamIds] = useState<string[]>([]);
 
   const fetchTeamData = async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
@@ -41,11 +42,13 @@ export default function Leaderboard({ managerId, onSelectEmployee }: Leaderboard
 
       if (reports.length === 0) {
         setRankings([]);
+        setTeamIds([]);
         setLoading(false);
         return;
       }
 
       const reportIds = reports.map((r) => r.id);
+      setTeamIds(reportIds);
 
       // 2. Fetch all KPIs for these reports
       const { data: kpis, error: kpisError } = await supabase
@@ -83,8 +86,12 @@ export default function Leaderboard({ managerId, onSelectEmployee }: Leaderboard
 
   useEffect(() => {
     void fetchTeamData();
+  }, [managerId]);
 
+  useEffect(() => {
+    if (teamIds.length === 0) return;
     let debounce: number | null = null;
+    const filter = `user_id=in.(${teamIds.join(',')})`;
     const subscription = supabase
       .channel(`public:leaderboard:${managerId}`)
       .on(
@@ -93,6 +100,7 @@ export default function Leaderboard({ managerId, onSelectEmployee }: Leaderboard
           event: '*',
           schema: 'public',
           table: 'kpis',
+          filter,
         },
         () => {
           if (debounce != null) window.clearTimeout(debounce);
@@ -108,7 +116,7 @@ export default function Leaderboard({ managerId, onSelectEmployee }: Leaderboard
       if (debounce != null) window.clearTimeout(debounce);
       supabase.removeChannel(subscription);
     };
-  }, [managerId]);
+  }, [managerId, teamIds.join(',')]);
 
   if (loading && rankings.length === 0) {
     return (

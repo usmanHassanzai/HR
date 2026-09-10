@@ -51,7 +51,7 @@ export default function AdminDailyReportAlert({
       .channel(`admin-daily-report-alerts:${userId}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'notifications' },
+        { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
         (payload) => {
           const row = payload.new as Notification | undefined;
           if (

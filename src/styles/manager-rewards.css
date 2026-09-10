@@ -351,6 +351,103 @@
   border-bottom: none;
 }
 
+.mgr-rewards-table__row--clickable {
+  cursor: pointer;
+}
+
+.mgr-rewards-table__row--clickable:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: -2px;
+}
+
+.mgr-rewards-table__email {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.mgr-rewards-table__chevron-col {
+  width: 1.5rem;
+  padding-left: 0.25rem;
+  padding-right: 0.75rem;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.mgr-rewards-person-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.mgr-rewards-person-dialog {
+  width: min(560px, 100%);
+  max-height: min(92vh, 900px);
+  overflow: auto;
+  background: var(--bg-primary, #fff);
+  border-radius: 1rem 1rem 0 0;
+  padding: 0.85rem 1.1rem 1.5rem;
+  box-shadow: 0 -8px 32px rgba(15, 23, 42, 0.18);
+}
+
+.mgr-rewards-person-dialog__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.mgr-rewards-person-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.35rem 0.15rem;
+  cursor: pointer;
+}
+
+.mgr-rewards-person-back:hover {
+  color: var(--accent-primary);
+}
+
+.mgr-rewards-person-dialog__header {
+  margin: 0 0 1rem;
+}
+
+.mgr-rewards-person-dialog__header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-family: var(--font-display);
+  color: var(--text-primary);
+}
+
+.mgr-rewards-person-dialog__header p {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+@media (min-width: 641px) {
+  .mgr-rewards-person-overlay {
+    align-items: center;
+    padding: 1.5rem;
+  }
+
+  .mgr-rewards-person-dialog {
+    border-radius: 1rem;
+    max-height: min(85vh, 820px);
+  }
+}
+
 .mgr-rewards-table__member {
   display: flex;
   align-items: center;

@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { CalendarClock, Gift } from 'lucide-react';
 import { Profile } from '../utils/kpiHelpers';
-import AttendanceLeavePanel from './AttendanceLeavePanel';
-import MyShiftCard from './MyShiftCard';
-import AdminRewards from './AdminRewards';
+import TabFallback from './TabFallback';
 import '../styles/admin-dashboard.css';
 import '../styles/admin-attendance.css';
-import '../styles/admin-rewards.css';
+
+const AttendanceLeavePanel = lazy(() => import('./AttendanceLeavePanel'));
+const MyShiftCard = lazy(() => import('./MyShiftCard'));
+const AdminRewards = lazy(() => import('./AdminRewards'));
 
 interface HrDashboardProps {
   profile: Profile;
@@ -27,28 +28,30 @@ export default function HrDashboard({ profile, organizationName }: HrDashboardPr
         </button>
       </div>
 
-      {tab === 'shifts' ? (
-        <>
-          <header className="admin-attendance-header glass-panel" style={{ marginBottom: '1rem' }}>
-            <div className="admin-attendance-header__main">
-              <div className="admin-attendance-header__icon">
-                <CalendarClock size={22} />
+      <Suspense fallback={<TabFallback />}>
+        {tab === 'shifts' ? (
+          <>
+            <header className="admin-attendance-header glass-panel" style={{ marginBottom: '1rem' }}>
+              <div className="admin-attendance-header__main">
+                <div className="admin-attendance-header__icon">
+                  <CalendarClock size={22} />
+                </div>
+                <div>
+                  <h2 className="admin-attendance-header__title">HR — company shifts</h2>
+                  <p className="admin-attendance-header__subtitle">
+                    {organizationName ? `${organizationName}: ` : ''}
+                    Assign and edit start/end times and working days for every employee. Changes apply immediately — no admin approval.
+                  </p>
+                </div>
               </div>
-              <div>
-                <h2 className="admin-attendance-header__title">HR — company shifts</h2>
-                <p className="admin-attendance-header__subtitle">
-                  {organizationName ? `${organizationName}: ` : ''}
-                  Assign and edit start/end times and working days for every employee. Changes apply immediately — no admin approval.
-                </p>
-              </div>
-            </div>
-          </header>
-          <MyShiftCard userId={profile.id} />
-          <AttendanceLeavePanel profile={profile} mode="hr" />
-        </>
-      ) : (
-        <AdminRewards />
-      )}
+            </header>
+            <MyShiftCard userId={profile.id} />
+            <AttendanceLeavePanel profile={profile} mode="hr" />
+          </>
+        ) : (
+          <AdminRewards />
+        )}
+      </Suspense>
     </div>
   );
 }

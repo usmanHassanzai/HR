@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase, supabaseSignup } from '../lib/supabase';
 import { Profile, UserRole, displayRoleLabel, roleNeedsDepartment } from '../utils/kpiHelpers';
 import { Department } from '../utils/departmentHelpers';
@@ -224,13 +225,15 @@ export default function AdminUsersPage({
   }, [addOpen, menuId, quickEdit]);
 
   useEffect(() => {
-    if (!addOpen) return;
+    if (!addOpen && !menuId) return;
+    const mobileMenu = Boolean(menuId) && window.matchMedia('(max-width: 899px)').matches;
+    if (!addOpen && !mobileMenu) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = prev;
     };
-  }, [addOpen]);
+  }, [addOpen, menuId]);
 
   const deptName = (id: string | null | undefined) =>
     departments.find((d) => d.id === id)?.name ?? '—';
@@ -460,6 +463,157 @@ export default function AdminUsersPage({
     { id: 'employee', label: 'Employee', count: counts.employee },
   ];
 
+  const closeMoreMenu = () => setMenuId(null);
+
+  const moreMenuButtons = (u: Profile) => (
+    <>
+      <button
+        type="button"
+        role="menuitem"
+        onClick={() => {
+          closeMoreMenu();
+          setSelectedUserForHub(u);
+        }}
+      >
+        <Eye size={16} /> Open full profile page
+      </button>
+      {!demo && (
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            closeMoreMenu();
+            onEditUser(u);
+          }}
+        >
+          <Pencil size={16} /> Edit role, department & reports to
+        </button>
+      )}
+      <button
+        type="button"
+        role="menuitem"
+        onClick={() => {
+          closeMoreMenu();
+          onViewTasks(u);
+        }}
+      >
+        <Target size={16} /> View assigned KPIs & tasks
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        onClick={() => {
+          closeMoreMenu();
+          if (onAssignTask) onAssignTask(u);
+          else onViewTasks(u);
+        }}
+      >
+        <PlusCircle size={16} /> Assign new task
+      </button>
+      {onViewAttendance && (
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            closeMoreMenu();
+            onViewAttendance(u);
+          }}
+        >
+          <CalendarCheck size={16} /> Attendance records
+        </button>
+      )}
+      {onViewDailyReports && (
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            closeMoreMenu();
+            onViewDailyReports(u);
+          }}
+        >
+          <FileText size={16} /> Daily work reports
+        </button>
+      )}
+      {onViewAnalytics && (
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            closeMoreMenu();
+            onViewAnalytics(u);
+          }}
+        >
+          <BarChart3 size={16} /> Detailed performance analytics
+        </button>
+      )}
+      {onViewRewards && (
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            closeMoreMenu();
+            onViewRewards(u);
+          }}
+        >
+          <Trophy size={16} /> Rewards & points
+        </button>
+      )}
+      {onViewDepartment && u.department_id && (
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            closeMoreMenu();
+            onViewDepartment(u.department_id);
+          }}
+        >
+          <Building2 size={16} /> Department details
+        </button>
+      )}
+      <button
+        type="button"
+        role="menuitem"
+        onClick={() => {
+          closeMoreMenu();
+          onResetPassword({ id: u.id, name: u.full_name });
+        }}
+      >
+        <KeyRound size={16} /> Reset password
+      </button>
+      {!demo && (
+        <button
+          type="button"
+          role="menuitem"
+          disabled={resettingMfaId === u.id}
+          onClick={() => void handleResetAuthenticator(u)}
+        >
+          {resettingMfaId === u.id ? <Loader2 size={16} className="spin-icon" /> : <ShieldOff size={16} />}
+          Reset authenticator
+        </button>
+      )}
+      {!demo && (
+        <button
+          type="button"
+          role="menuitem"
+          disabled={emailingUserId === u.id || !u.email}
+          onClick={() => void handleEmailPassword(u)}
+        >
+          {emailingUserId === u.id ? <Loader2 size={16} className="spin-icon" /> : <Mail size={16} />}
+          Email new password
+        </button>
+      )}
+      <button
+        type="button"
+        role="menuitem"
+        className="people-actions__danger"
+        disabled={u.id === profile.id}
+        onClick={() => void handleDeleteUser(u)}
+      >
+        <Trash2 size={16} /> Delete
+      </button>
+    </>
+  );
+
   const rowActions = (u: Profile) => (
     <div className="people-actions" onClick={(e) => e.stopPropagation()}>
       <button
@@ -476,7 +630,7 @@ export default function AdminUsersPage({
           className="people-actions__btn"
           title={`Edit role, department, and reports-to for ${u.full_name}`}
           onClick={() => {
-            setMenuId(null);
+            closeMoreMenu();
             onEditUser(u);
           }}
         >
@@ -506,88 +660,58 @@ export default function AdminUsersPage({
           <MoreHorizontal size={16} />
         </button>
         {menuId === u.id && (
-          <div className="people-actions__menu" role="menu">
-            <button type="button" onClick={() => setSelectedUserForHub(u)}>
-              <Eye size={14} /> Open full profile page
-            </button>
-            {!demo && (
-              <button
-                type="button"
-                onClick={() => {
-                  setMenuId(null);
-                  onEditUser(u);
-                }}
-              >
-                <Pencil size={14} /> Edit role, department & reports to
-              </button>
-            )}
-            <button type="button" onClick={() => onViewTasks(u)}>
-              <Target size={14} /> View assigned KPIs & tasks
-            </button>
-            <button type="button" onClick={() => (onAssignTask ? onAssignTask(u) : onViewTasks(u))}>
-              <PlusCircle size={14} /> Assign new task
-            </button>
-            {onViewAttendance && (
-              <button type="button" onClick={() => onViewAttendance(u)}>
-                <CalendarCheck size={14} /> Attendance records
-              </button>
-            )}
-            {onViewDailyReports && (
-              <button type="button" onClick={() => onViewDailyReports(u)}>
-                <FileText size={14} /> Daily work reports
-              </button>
-            )}
-            {onViewAnalytics && (
-              <button type="button" onClick={() => onViewAnalytics(u)}>
-                <BarChart3 size={14} /> Detailed performance analytics
-              </button>
-            )}
-            {onViewRewards && (
-              <button type="button" onClick={() => onViewRewards(u)}>
-                <Trophy size={14} /> Rewards & points
-              </button>
-            )}
-            {onViewDepartment && u.department_id && (
-              <button type="button" onClick={() => onViewDepartment(u.department_id)}>
-                <Building2 size={14} /> Department details
-              </button>
-            )}
-            <button type="button" onClick={() => onResetPassword({ id: u.id, name: u.full_name })}>
-              <KeyRound size={14} /> Reset password
-            </button>
-            {!demo && (
-              <button
-                type="button"
-                disabled={resettingMfaId === u.id}
-                onClick={() => void handleResetAuthenticator(u)}
-              >
-                {resettingMfaId === u.id ? <Loader2 size={14} className="spin-icon" /> : <ShieldOff size={14} />}
-                Reset authenticator
-              </button>
-            )}
-            {!demo && (
-              <button
-                type="button"
-                disabled={emailingUserId === u.id || !u.email}
-                onClick={() => void handleEmailPassword(u)}
-              >
-                {emailingUserId === u.id ? <Loader2 size={14} className="spin-icon" /> : <Mail size={14} />}
-                Email new password
-              </button>
-            )}
-            <button
-              type="button"
-              className="people-actions__danger"
-              disabled={u.id === profile.id}
-              onClick={() => void handleDeleteUser(u)}
-            >
-              <Trash2 size={14} /> Delete
-            </button>
+          <div className="people-actions__menu people-actions__menu--popover" role="menu">
+            {moreMenuButtons(u)}
           </div>
         )}
       </div>
     </div>
   );
+
+  const menuUser = menuId ? users.find((u) => u.id === menuId) ?? null : null;
+
+  const moreMenuSheet =
+    menuUser &&
+    typeof document !== 'undefined' &&
+    createPortal(
+      <div className="people-actions-sheet" role="presentation">
+        <button
+          type="button"
+          className="people-actions-sheet__backdrop"
+          aria-label="Close menu"
+          onClick={closeMoreMenu}
+        />
+        <div
+          className="people-actions-sheet__panel"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="people-actions-sheet-title"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="people-actions-sheet__grab" aria-hidden />
+          <header className="people-actions-sheet__head">
+            <div>
+              <p className="people-actions-sheet__eyebrow">Actions</p>
+              <h3 id="people-actions-sheet-title">{menuUser.full_name}</h3>
+              {menuUser.email ? <p className="people-actions-sheet__email">{menuUser.email}</p> : null}
+            </div>
+            <button
+              type="button"
+              className="scorr-dialog-close"
+              onClick={closeMoreMenu}
+              aria-label="Close"
+              title="Close"
+            >
+              ×
+            </button>
+          </header>
+          <div className="people-actions-sheet__list" role="menu">
+            {moreMenuButtons(menuUser)}
+          </div>
+        </div>
+      </div>,
+      document.body,
+    );
 
   const openQuickEdit = (
     u: Profile,
@@ -1276,6 +1400,8 @@ export default function AdminUsersPage({
           </aside>
         </>
       )}
+
+      {moreMenuSheet}
 
       {selectedUserForHub && (
         <AdminUserHubModal

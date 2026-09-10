@@ -3358,6 +3358,157 @@ body.app-shell .admin-users-mobile-list,
   z-index: 40;
 }
 
+.people-actions-sheet {
+  display: none;
+}
+
+@media (max-width: 899px) {
+  .people-actions__menu--popover {
+    display: none !important;
+  }
+
+  .people-actions-sheet {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 120200;
+    pointer-events: none;
+  }
+
+  .people-actions-sheet__backdrop {
+    position: absolute;
+    inset: 0;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    pointer-events: auto;
+    background: rgba(15, 23, 42, 0.52);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+
+  .people-actions-sheet__panel {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: auto;
+    max-height: min(88dvh, 40rem);
+    display: flex;
+    flex-direction: column;
+    border-radius: 1.15rem 1.15rem 0 0;
+    background: var(--dash-card-bg, #fff);
+    border: 1px solid var(--dash-card-border, rgba(15, 23, 42, 0.08));
+    border-bottom: 0;
+    box-shadow: 0 -18px 48px rgba(15, 23, 42, 0.22);
+    padding: 0.35rem 0 calc(0.85rem + env(safe-area-inset-bottom, 0px));
+    animation: peopleActionsSheetUp 0.22s ease-out;
+  }
+
+  @keyframes peopleActionsSheetUp {
+    from {
+      opacity: 0.6;
+      transform: translateY(1.25rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .people-actions-sheet__grab {
+    width: 2.4rem;
+    height: 0.28rem;
+    border-radius: 999px;
+    margin: 0.35rem auto 0.55rem;
+    background: color-mix(in srgb, var(--text-muted) 45%, transparent);
+  }
+
+  .people-actions-sheet__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0 1rem 0.85rem;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .people-actions-sheet__eyebrow {
+    margin: 0 0 0.15rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .people-actions-sheet__head h3 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    color: var(--text-primary);
+    line-height: 1.25;
+  }
+
+  .people-actions-sheet__email {
+    margin: 0.2rem 0 0;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    overflow-wrap: anywhere;
+  }
+
+  .people-actions-sheet__list {
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 0.45rem 0.55rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+  }
+
+  .people-actions-sheet__list button {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: var(--text-primary);
+    padding: 0.85rem 0.8rem;
+    border-radius: 12px;
+    font-size: 0.94rem;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    line-height: 1.25;
+  }
+
+  .people-actions-sheet__list button svg {
+    flex-shrink: 0;
+    color: var(--text-muted);
+  }
+
+  .people-actions-sheet__list button:hover,
+  .people-actions-sheet__list button:focus-visible {
+    background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+  }
+
+  .people-actions-sheet__list button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .people-actions-sheet__list .people-actions__danger {
+    color: var(--color-danger, #dc2626);
+    margin-top: 0.25rem;
+  }
+
+  .people-actions-sheet__list .people-actions__danger svg {
+    color: inherit;
+  }
+}
+
 @media (max-width: 720px) {
   .people-chips {
     flex-wrap: nowrap;

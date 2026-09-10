@@ -8,8 +8,11 @@ import {
   CheckCircle,
   AlertCircle,
   Users,
+  ArrowLeft,
+  ChevronRight,
 } from 'lucide-react';
 import type { KpiAwardPipelineRow, KpiAwardProgress } from '../utils/kpiAwardHelpers';
+import { awardGiftLine } from '../utils/kpiAwardHelpers';
 import KpiAwardProgressList from './KpiAwardProgressList';
 import '../styles/manager-rewards.css';
 import '../styles/employee-rewards.css';
@@ -26,16 +29,6 @@ type TeamGiftRow = {
   progress: KpiAwardProgress[];
 };
 
-function giftLine(rows: KpiAwardProgress[], key: string, fallback: string): string {
-  const row = rows.find((r) => r.rule_key === key);
-  if (!row) return fallback;
-  if (row.qualified) return 'Qualified';
-  if (key === 'dinner_voucher') {
-    return row.latest_score != null ? `${Math.round(Number(row.latest_score))}% this month` : '—';
-  }
-  return `${Number(row.current_months || 0)}/${Number(row.required_months || 0)} months`;
-}
-
 function statusLabel(status: string): string {
   if (status === 'approved') return 'Approved';
   if (status === 'issued' || status === 'fulfilled') return 'Delivered';
@@ -49,6 +42,7 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState('');
   const [msgError, setMsgError] = useState(false);
+  const [selected, setSelected] = useState<TeamGiftRow | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -65,7 +59,7 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
       members.map((m) => supabase.rpc('get_kpi_award_progress', { p_user_id: m.id })),
     );
 
-    setTeam([
+    const nextTeam: TeamGiftRow[] = [
       {
         id: managerId,
         full_name: 'You',
@@ -80,7 +74,9 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
         isSelf: false,
         progress: (progressLists[i]?.data || []) as KpiAwardProgress[],
       })),
-    ]);
+    ];
+    setTeam(nextTeam);
+    setSelected((prev) => (prev ? nextTeam.find((t) => t.id === prev.id) ?? null : null));
 
     if (pipeRes.error) {
       setQueue([]);
@@ -191,7 +187,7 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
         <h3>
           <Users size={18} /> Each person
         </h3>
-        <p>Progress toward each company gift.</p>
+        <p>Progress toward each company gift. Tap a person for details.</p>
         {team.length === 0 ? (
           <p className="mgr-rewards-empty" style={{ padding: '1rem' }}>No team members to show yet.</p>
         ) : (
@@ -203,18 +199,35 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
                   <th>2 movie tickets</th>
                   <th>Dinner for 2</th>
                   <th>Surprise gift</th>
+                  <th className="mgr-rewards-table__chevron-col" aria-hidden />
                 </tr>
               </thead>
               <tbody>
                 {team.map((m) => (
-                  <tr key={m.id}>
+                  <tr
+                    key={m.id}
+                    className="mgr-rewards-table__row--clickable"
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`View gift progress for ${m.full_name}`}
+                    onClick={() => setSelected(m)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setSelected(m);
+                      }
+                    }}
+                  >
                     <td>
                       <strong>{m.full_name}</strong>
-                      {m.email ? <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{m.email}</div> : null}
+                      {m.email ? <div className="mgr-rewards-table__email">{m.email}</div> : null}
                     </td>
-                    <td>{giftLine(m.progress, 'movie_tickets', '0/3 months')}</td>
-                    <td>{giftLine(m.progress, 'dinner_voucher', '—')}</td>
-                    <td>{giftLine(m.progress, 'surprise_gift', '0/6 months')}</td>
+                    <td>{awardGiftLine(m.progress.find((r) => r.rule_key === 'movie_tickets'), '0/3 months')}</td>
+                    <td>{awardGiftLine(m.progress.find((r) => r.rule_key === 'dinner_voucher'), '0/1 month')}</td>
+                    <td>{awardGiftLine(m.progress.find((r) => r.rule_key === 'surprise_gift'), '0/6 months')}</td>
+                    <td className="mgr-rewards-table__chevron-col">
+                      <ChevronRight size={16} aria-hidden />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -222,6 +235,43 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
           </div>
         )}
       </section>
+
+      {selected && (
+        <div className="mgr-rewards-person-overlay" onClick={() => setSelected(null)} role="presentation">
+          <div
+            className="mgr-rewards-person-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="mgr-rewards-person-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mgr-rewards-person-dialog__top">
+              <button type="button" className="mgr-rewards-person-back" onClick={() => setSelected(null)}>
+                <ArrowLeft size={18} />
+                Back
+              </button>
+              <button
+                type="button"
+                className="scorr-dialog-close"
+                onClick={() => setSelected(null)}
+                aria-label="Close"
+                title="Close"
+              >
+                ×
+              </button>
+            </div>
+            <header className="mgr-rewards-person-dialog__header">
+              <h2 id="mgr-rewards-person-title">{selected.full_name}</h2>
+              {selected.email ? <p>{selected.email}</p> : null}
+            </header>
+            <KpiAwardProgressList
+              rows={selected.progress}
+              title={selected.isSelf ? 'Your gift progress' : `${selected.full_name}'s gift progress`}
+              intro="Months in band count toward each gift. Dinner needs one month in the score band — scores above the band do not count."
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

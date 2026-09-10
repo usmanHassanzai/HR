@@ -9,10 +9,9 @@ export default function AppLoginScreen({ onLoginSuccess }: AppLoginScreenProps) 
   return (
     <Login
       onLoginSuccess={onLoginSuccess}
-      showDemoShortcuts
+      showDemoShortcuts={false}
       enableCompanyRegister
       appMode
-      demoSectionLabel="3-day demo sandbox"
     />
   );
 }

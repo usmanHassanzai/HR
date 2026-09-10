@@ -76,7 +76,10 @@ export default function NotificationCenter({ userId }: NotificationCenterProps) 
     void fetchNotifications();
     const sub = supabase
       .channel(`notifications:${userId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, (payload) => {
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
+        (payload) => {
         const newRow = payload.new as Notification;
         const oldRow = payload.old as Notification;
         if (payload.eventType === 'INSERT' && newRow.user_id === userId) {

@@ -6,7 +6,6 @@ import {
   Trophy,
   Users,
   Eye,
-  Check,
   ArrowLeft,
   AlertCircle,
   CheckCircle2,
@@ -15,9 +14,9 @@ import { supabase } from '../lib/supabase';
 import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
 import { Kpi } from '../utils/kpiHelpers';
 import { tierColorForScore } from '../utils/rewardsTiers';
-import { kpiCategoryMeta, karachiYearMonth } from '../utils/kpiCategories';
-import { isKpiLateCompletion, kpiAssignedScore, kpiScoreContribution, kpisForPeriod, type KpiPeriodMode } from '../utils/kpiScoreHelpers';
-import KpiTaskBrief from './KpiTaskBrief';
+import { karachiYearMonth } from '../utils/kpiCategories';
+import { kpisForPeriod, type KpiPeriodMode } from '../utils/kpiScoreHelpers';
+import KpiScopedTasksList from './KpiScopedTasksList';
 import KpiScoreboardSummary, { type KpiScoreboardPeriodState } from './KpiScoreboardSummary';
 import { fetchRewardsSummary, type RewardsSummary } from '../utils/rewardsHelpers';
 import '../styles/admin-kpi-points.css';
@@ -225,7 +224,7 @@ function OrgUserMonthModal({
                   {role.toUpperCase()}
                 </span>
               </div>
-              <p className="user-hub-hero__email">
+              <p className="user-hub-hero__email user-hub-hero__email--scores">
                 Overall score: <strong style={{ color: tierColorForScore(healthScore) }}>{Number(healthScore).toFixed(2)}</strong>
                 {thisMonthScore != null && (
                   <>
@@ -234,6 +233,22 @@ function OrgUserMonthModal({
                 )}
                 {' '}· Month bonus: <strong style={{ color: 'var(--color-success)' }}>+{Number(thisMonthPoints ?? 0).toLocaleString()} pts</strong>
               </p>
+              <ul className="user-hub-hero__score-stack" aria-label="Score summary">
+                <li>
+                  <span>Overall score</span>
+                  <strong style={{ color: tierColorForScore(healthScore) }}>{Number(healthScore).toFixed(2)}</strong>
+                </li>
+                {thisMonthScore != null && (
+                  <li>
+                    <span>Month score</span>
+                    <strong style={{ color: tierColorForScore(thisMonthScore) }}>{Number(thisMonthScore).toFixed(2)}</strong>
+                  </li>
+                )}
+                <li>
+                  <span>Month bonus</span>
+                  <strong style={{ color: 'var(--color-success)' }}>+{Number(thisMonthPoints ?? 0).toLocaleString()} pts</strong>
+                </li>
+              </ul>
             </div>
           </div>
         </header>
@@ -260,18 +275,14 @@ function OrgUserMonthModal({
                 onPeriodChange={setPeriod}
               />
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginTop: '1.25rem' }}>
+              <div className="kpi-scope-tasks__head">
                 <h4 className="user-hub-section-title" style={{ margin: 0 }}>
                   Tasks in scope · {scopeLabel} ({scopedKpis.length})
                 </h4>
-                <div style={{ display: 'flex', gap: '0.6rem', fontSize: '0.8rem' }}>
-                  <span style={{ color: 'var(--color-success)', fontWeight: 700 }}>
-                    ✓ {completedKpis.length} Completed
-                  </span>
+                <div className="kpi-scope-tasks__counts">
+                  <span className="is-done">✓ {completedKpis.length} Completed</span>
                   {openKpis.length > 0 && (
-                    <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>
-                      · {openKpis.length} In Progress / Open
-                    </span>
+                    <span className="is-open">· {openKpis.length} In Progress / Open</span>
                   )}
                 </div>
               </div>
@@ -283,72 +294,7 @@ function OrgUserMonthModal({
                   <p>Switch Overall / Month / Year above to change the scope for {fullName}.</p>
                 </div>
               ) : (
-                <div className="admin-rewards-table-wrap">
-                  <table className="admin-rewards-table" style={{ width: '100%' }}>
-                    <thead>
-                      <tr>
-                        <th>Task / KPI Name</th>
-                        <th>Category</th>
-                        <th>Weight</th>
-                        <th>Score</th>
-                        <th>Points Awarded</th>
-                        <th>Status &amp; Completion</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {scopedKpis.map((kpi) => {
-                        const isDone = kpi.completion_status === 'completed';
-                        const isLate = isKpiLateCompletion(kpi);
-                        const awarded = kpiScoreContribution(kpi);
-                        const cat = kpiCategoryMeta(kpi.kpi_category);
-                        const completedDateStr = kpi.completed_at || (isDone ? kpi.updated_at : null);
-
-                        return (
-                          <tr key={kpi.id}>
-                            <td>
-                              <KpiTaskBrief kpi={kpi} />
-                            </td>
-                            <td>
-                              <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
-                                {cat.label}
-                              </span>
-                            </td>
-                            <td style={{ fontWeight: 600 }}>{kpi.weight || 0}%</td>
-                            <td style={{ fontWeight: 600 }}>{kpiAssignedScore(kpi)} pts</td>
-                            <td>
-                              <strong style={{ color: isDone ? (isLate ? '#d97706' : 'var(--color-success)') : 'var(--text-muted)' }}>
-                                {isDone ? `${awarded} pts` : '0 pts (open)'}
-                              </strong>
-                              {isDone && isLate && (
-                                <span style={{ display: 'block', fontSize: '0.68rem', color: '#d97706' }}>
-                                  (50% late deduction)
-                                </span>
-                              )}
-                            </td>
-                            <td>
-                              {isDone ? (
-                                <div>
-                                  <span className="badge badge-on-track" style={{ fontSize: '0.68rem', fontWeight: 700 }}>
-                                    <Check size={11} style={{ display: 'inline', verticalAlign: '-1px', marginRight: '2px' }} /> Completed
-                                  </span>
-                                  {completedDateStr && (
-                                    <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
-                                      {new Date(completedDateStr).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
-                                    </span>
-                                  )}
-                                </div>
-                              ) : (
-                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                  In progress
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                <KpiScopedTasksList kpis={scopedKpis} />
               )}
             </>
           )}
@@ -370,10 +316,22 @@ export default function AdminOrgKpiPointsBoard({
   const [search, setSearch] = useState(initialSearch || '');
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
   const [selectedRow, setSelectedRow] = useState<OrgKpiPointsRow | null>(null);
+  const [companyId, setCompanyId] = useState<string | null>(null);
 
   useEffect(() => {
     if (initialSearch) setSearch(initialSearch);
   }, [initialSearch]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void supabase.auth.getUser().then(async ({ data }) => {
+      const uid = data.user?.id;
+      if (!uid) return;
+      const { data: me } = await supabase.from('users').select('company_id').eq('id', uid).maybeSingle();
+      if (!cancelled) setCompanyId((me as { company_id?: string | null } | null)?.company_id ?? null);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) {
@@ -396,14 +354,17 @@ export default function AdminOrgKpiPointsBoard({
 
   useSupabaseRealtime(
     'admin-org-kpi-points',
-    [
-      { table: 'users' },
-      { table: 'kpis' },
-      { table: 'points_ledger' },
-      { table: 'reward_redemptions' },
-      { table: 'departments' },
-    ],
+    companyId
+      ? [
+          { table: 'users', filter: `company_id=eq.${companyId}` },
+          { table: 'departments', filter: `company_id=eq.${companyId}` },
+          { table: 'kpis' },
+          { table: 'points_ledger' },
+          { table: 'reward_redemptions' },
+        ]
+      : [],
     () => { void load({ silent: true }); },
+    Boolean(companyId),
   );
 
   const scopedRows = useMemo(() => {

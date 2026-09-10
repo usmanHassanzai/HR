@@ -1,0 +1,223 @@
+.kpi-scope-tasks__cat {
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+}
+
+.kpi-scope-tasks__num {
+  font-weight: 600;
+}
+
+.kpi-scope-tasks__awarded {
+  color: var(--color-success);
+}
+
+.kpi-scope-tasks__late {
+  color: #d97706;
+}
+
+.kpi-scope-tasks__late-note {
+  display: block;
+  margin: 0.2rem 0 0;
+  font-size: 0.68rem;
+  color: #d97706;
+  font-weight: 600;
+}
+
+.kpi-scope-tasks__open {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.kpi-scope-tasks__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.kpi-scope-tasks__done-date {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+}
+
+.kpi-scope-tasks__cards {
+  display: none;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.kpi-scope-tasks__card {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border-color, rgba(15, 23, 42, 0.1));
+  border-radius: 14px;
+  background: var(--dash-card-bg, #fff);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+}
+
+.kpi-scope-tasks__card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+  margin-bottom: 0.75rem;
+}
+
+.kpi-scope-tasks__card-title {
+  min-width: 0;
+  flex: 1;
+}
+
+.kpi-scope-tasks__card-cat {
+  display: block;
+  margin-bottom: 0.2rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.kpi-scope-tasks__card-title strong {
+  display: block;
+  font-size: 0.95rem;
+  line-height: 1.35;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.kpi-scope-tasks__status-open {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: var(--text-muted);
+  padding: 0.2rem 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-muted) 12%, transparent);
+}
+
+.kpi-scope-tasks__card-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem 0.75rem;
+  margin: 0;
+}
+
+.kpi-scope-tasks__card-grid > div {
+  min-width: 0;
+  padding: 0.45rem 0.55rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-muted, #f8fafc) 80%, transparent);
+}
+
+.kpi-scope-tasks__card-grid dt {
+  margin: 0 0 0.15rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.kpi-scope-tasks__card-grid dd {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.kpi-scope-tasks__card-actions {
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--border-color, rgba(15, 23, 42, 0.08));
+}
+
+.kpi-scope-tasks__card-actions .kpi-task-brief {
+  width: 100%;
+}
+
+.kpi-scope-tasks__card-actions .kpi-task-brief__btn {
+  width: 100%;
+  justify-content: center;
+}
+
+.kpi-scope-tasks__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.kpi-scope-tasks__counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  font-size: 0.8rem;
+}
+
+.kpi-scope-tasks__counts .is-done {
+  color: var(--color-success);
+  font-weight: 700;
+}
+
+.kpi-scope-tasks__counts .is-open {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.org-user-month-modal .user-hub-hero__score-stack {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .kpi-scope-tasks__table-wrap {
+    display: none;
+  }
+
+  .kpi-scope-tasks__cards {
+    display: flex;
+  }
+
+  .org-user-month-modal .user-hub-hero__email--scores {
+    display: none;
+  }
+
+  .org-user-month-modal .user-hub-hero__score-stack {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.4rem;
+    margin: 0.55rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .org-user-month-modal .user-hub-hero__score-stack li {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+    padding: 0.45rem 0.6rem;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--surface-muted, #f8fafc) 85%, transparent);
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
+
+  .org-user-month-modal .user-hub-hero__score-stack strong {
+    font-size: 0.9rem;
+  }
+
+  .kpi-scope-tasks__head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

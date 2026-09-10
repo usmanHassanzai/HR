@@ -1,26 +1,41 @@
 import { Film, Gift, UtensilsCrossed } from 'lucide-react';
 import type { KpiAwardProgress } from '../utils/kpiAwardHelpers';
+import { awardDinnerHint } from '../utils/kpiAwardHelpers';
 import '../styles/employee-rewards.css';
 
 const RULES: {
   key: KpiAwardProgress['rule_key'];
   title: string;
-  how: string;
+  how: (row?: KpiAwardProgress) => string;
 }[] = [
   {
     key: 'movie_tickets',
     title: '2 movie tickets',
-    how: 'Get 85–90% KPI score for 3 months in a row.',
+    how: (row) => {
+      const min = Number(row?.min_pct ?? 85);
+      const max = Number(row?.max_pct ?? 90);
+      const months = Number(row?.required_months ?? 3);
+      return `Get ${min}–${max} KPI score for ${months} months in a row.`;
+    },
   },
   {
     key: 'dinner_voucher',
     title: 'Dinner voucher for 2',
-    how: 'Get 95–100% KPI score in any 1 month.',
+    how: (row) => {
+      const min = Number(row?.min_pct ?? 95);
+      const max = Number(row?.max_pct ?? 100);
+      return `Get ${min}–${max} KPI score in any 1 month.`;
+    },
   },
   {
     key: 'surprise_gift',
     title: 'Surprise gift from the company',
-    how: 'Get 95–100% KPI score for 6 months in a row.',
+    how: (row) => {
+      const min = Number(row?.min_pct ?? 95);
+      const max = Number(row?.max_pct ?? 100);
+      const months = Number(row?.required_months ?? 6);
+      return `Get ${min}–${max} KPI score for ${months} months in a row.`;
+    },
   },
 ];
 
@@ -59,7 +74,7 @@ export default function KpiAwardProgressList({
                 </span>
                 <div>
                   <strong>{row?.reward_name || rule.title}</strong>
-                  <span>{rule.how}</span>
+                  <span>{rule.how(row)}</span>
                 </div>
               </div>
               <div className="kpi-award-bar" role="progressbar" aria-valuenow={Math.round((current / needed) * 100)} aria-valuemin={0} aria-valuemax={100}>
@@ -69,9 +84,7 @@ export default function KpiAwardProgressList({
                 {ready
                   ? 'You qualified — waiting for your manager or admin to arrange this gift.'
                   : rule.key === 'dinner_voucher'
-                    ? (row?.latest_score != null
-                      ? `This month: ${Number(row.latest_score).toFixed(0)}% (need 95–100%).`
-                      : 'Hit 95–100% this month to earn dinner for 2.')
+                    ? awardDinnerHint(row)
                     : `${current} of ${needed} months`}
               </p>
             </article>

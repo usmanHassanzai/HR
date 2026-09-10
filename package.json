@@ -8,7 +8,7 @@
     "build": "node scripts/generate-app-icons.mjs && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "build:mobile": "npm run build && cap sync",
+    "build:mobile": "npm run build && node scripts/strip-downloads-for-cap.mjs && cap sync",
     "build:android:apk": "node scripts/build-android-apk.mjs",
     "build:android:release": "node scripts/build-android-apk.mjs --release",
     "build:ios:ipa": "node scripts/build-ios-ipa.mjs",

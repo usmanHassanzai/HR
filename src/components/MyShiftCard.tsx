@@ -50,7 +50,6 @@ export default function MyShiftCard({ userId, layout = 'card' }: MyShiftCardProp
     `my-shift:${selfId || 'self'}`,
     [
       { table: 'employee_shift_assignments', filter: selfId ? `user_id=eq.${selfId}` : undefined },
-      { table: 'work_shifts' },
     ],
     () => { void load(); },
     Boolean(selfId),

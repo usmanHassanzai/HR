@@ -18,18 +18,15 @@ import {
   Package,
   Users,
   Eye,
-  Check,
   Search,
   Target,
   ChevronRight,
   ArrowLeft,
 } from 'lucide-react';
 import { tierColorForScore } from '../utils/rewardsTiers';
-import { kpiCategoryMeta } from '../utils/kpiCategories';
-import { isKpiLateCompletion, kpiAssignedScore, kpiScoreContribution } from '../utils/kpiScoreHelpers';
 import AdminOrgKpiPointsBoard, { type OrgKpiPointsRow } from './AdminOrgKpiPointsBoard';
 import AdminKpiAwardsPanel from './AdminKpiAwardsPanel';
-import KpiTaskBrief from './KpiTaskBrief';
+import KpiScopedTasksList from './KpiScopedTasksList';
 import KpiScoreboardSummary from './KpiScoreboardSummary';
 import { fetchRewardsSummary, type RewardsSummary } from '../utils/rewardsHelpers';
 import '../styles/admin-rewards.css';
@@ -148,62 +145,7 @@ function TaskHistoryTable({ kpis, monthLabel }: { kpis: Kpi[]; monthLabel: strin
           </span>
         )}
       </div>
-      <div className="admin-rewards-table-wrap">
-        <table className="admin-rewards-table person-points-detail__tasks">
-          <thead>
-            <tr>
-              <th>Task</th>
-              <th>Category</th>
-              <th>Weight</th>
-              <th>Score</th>
-              <th>Awarded</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {kpis.map((kpi) => {
-              const isDone = kpi.completion_status === 'completed';
-              const isLate = isKpiLateCompletion(kpi);
-              const awarded = kpiScoreContribution(kpi);
-              const cat = kpiCategoryMeta(kpi.kpi_category);
-              const completedDateStr = kpi.completed_at || (isDone ? kpi.updated_at : null);
-
-              return (
-                <tr key={kpi.id}>
-                  <td>
-                    <KpiTaskBrief kpi={kpi} />
-                  </td>
-                  <td>{cat.label}</td>
-                  <td>{kpi.weight || 0}%</td>
-                  <td>{kpiAssignedScore(kpi)} pts</td>
-                  <td>
-                    <strong className={isDone ? (isLate ? 'person-points-detail__late' : 'person-points-detail__awarded') : 'person-points-detail__open'}>
-                      {isDone ? `${awarded} pts` : '0 (open)'}
-                    </strong>
-                    {isDone && isLate && <span className="person-points-detail__late-note">50% late</span>}
-                  </td>
-                  <td>
-                    {isDone ? (
-                      <>
-                        <span className="badge badge-on-track person-points-detail__badge">
-                          <Check size={11} /> Done
-                        </span>
-                        {completedDateStr && (
-                          <span className="person-points-detail__done-date">
-                            {new Date(completedDateStr).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
-                          </span>
-                        )}
-                      </>
-                    ) : (
-                      <span className="person-points-detail__open">In progress</span>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      <KpiScopedTasksList kpis={kpis} />
     </>
   );
 }
