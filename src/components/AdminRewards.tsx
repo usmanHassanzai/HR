@@ -267,7 +267,7 @@ function PersonPointsDetailModal({
             </div>
             <div className="person-points-detail__metric">
               <span>KPI score</span>
-              <strong style={{ color: tierColorForScore(displayScore) }}>{Math.round(displayScore)}%</strong>
+              <strong style={{ color: tierColorForScore(displayScore) }}>{Math.round(displayScore)}</strong>
             </div>
             <div className="person-points-detail__metric">
               <span>Performance pts</span>

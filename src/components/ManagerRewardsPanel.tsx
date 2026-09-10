@@ -144,7 +144,7 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
       <KpiAwardProgressList
         rows={myProgress}
         title="Your rewards"
-        intro="These gifts come from your monthly KPI score — the same rules as everyone else."
+        intro="These gifts come from your monthly weightage — the same rules as everyone else."
       />
 
       <section className="mgr-rewards-card">
@@ -258,7 +258,7 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
             <KpiAwardProgressList
               rows={selected.progress}
               title={selected.isSelf ? 'Your gift progress' : `${selected.full_name}'s gift progress`}
-              intro="Months in band count toward each gift. Dinner needs one month in the score band — scores above the band do not count."
+              intro="Months at the required weightage count toward each gift. Dinner needs one qualifying month; movie tickets and surprise gifts need a streak."
             />
           </div>
         </div>

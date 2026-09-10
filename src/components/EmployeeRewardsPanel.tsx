@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import type { KpiAwardProgress } from '../utils/kpiAwardHelpers';
+import { formatAwardWeightage } from '../utils/kpiAwardHelpers';
 import KpiAwardProgressList from './KpiAwardProgressList';
 import { Gift, Loader2, Trophy, TrendingUp } from 'lucide-react';
 import { tierColorForScore } from '../utils/rewardsTiers';
@@ -39,25 +40,19 @@ export default function EmployeeRewardsPanel({ userId }: EmployeeRewardsPanelPro
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    const thisMonthKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-    const [awardRes, mileRes, ledgerRes] = await Promise.all([
+    const [awardRes, mileRes] = await Promise.all([
       supabase.rpc('get_kpi_award_progress', { p_user_id: userId }),
       supabase
         .from('kpi_award_qualifications')
         .select('id, rule_key, reward_name, status, period_end')
         .eq('employee_id', userId)
         .order('created_at', { ascending: false }),
-      supabase
-        .from('points_ledger')
-        .select('month, kpi_score')
-        .eq('employee_id', userId)
-        .order('month', { ascending: false })
-        .limit(12),
     ]);
-    if (awardRes.data) setAwardProgress(awardRes.data as KpiAwardProgress[]);
+    const progress = (awardRes.data || []) as KpiAwardProgress[];
+    if (awardRes.data) setAwardProgress(progress);
     if (mileRes.data) setMilestones(mileRes.data as MilestoneRow[]);
-    const monthRow = (ledgerRes.data || []).find((r: { month: string }) => String(r.month).startsWith(thisMonthKey));
-    setThisMonthScore(monthRow ? Number(monthRow.kpi_score) : null);
+    const fromProgress = progress.find((r) => r.latest_score != null)?.latest_score;
+    setThisMonthScore(fromProgress != null ? Number(fromProgress) : null);
     setLoading(false);
   }, [userId]);
 
@@ -84,16 +79,16 @@ export default function EmployeeRewardsPanel({ userId }: EmployeeRewardsPanelPro
           <div>
             <h2 className="emp-rewards-header__title">Company rewards</h2>
             <p className="emp-rewards-header__subtitle">
-              Hit the KPI score below and the company gives you the gift. No catalog, no points to spend.
+              Hit the weightage targets below and the company gives you the gift. No catalog, no points to spend.
             </p>
           </div>
         </div>
         <div className="emp-rewards-stats">
           <div className="emp-rewards-stat emp-rewards-stat--accent">
             <TrendingUp size={16} />
-            <span className="emp-rewards-stat__label">This month&apos;s KPI Score</span>
+            <span className="emp-rewards-stat__label">This month&apos;s weightage</span>
             <strong style={{ color: thisMonthScore != null ? tierColorForScore(thisMonthScore) : undefined }}>
-              {thisMonthScore != null ? `${Math.round(thisMonthScore)}%` : '—'}
+              {formatAwardWeightage(thisMonthScore)}
             </strong>
           </div>
         </div>

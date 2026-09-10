@@ -200,18 +200,18 @@ export default function AdminKpiAwardsPanel() {
             <h3>
               <Settings2 size={18} /> Award settings
             </h3>
-            <p>Change percentages, streak length, or gift names for this company only.</p>
+            <p>Change weightage targets, streak length, or gift names for this company only. Targets use completed KPI weightage (0–100%), not score points.</p>
           </div>
         </div>
         <div className="kpi-award-settings">
           <fieldset>
             <legend>Consistent Good Performer (movie tickets)</legend>
             <label>
-              Min %
+              Min weightage %
               <input type="number" min={0} max={100} value={form.movie_min_pct ?? 85} onChange={(e) => setForm({ ...form, movie_min_pct: Number(e.target.value) })} />
             </label>
             <label>
-              Max %
+              Max weightage %
               <input type="number" min={0} max={100} step={0.01} value={form.movie_max_pct ?? 90} onChange={(e) => setForm({ ...form, movie_max_pct: Number(e.target.value) })} />
             </label>
             <label>
@@ -226,11 +226,11 @@ export default function AdminKpiAwardsPanel() {
           <fieldset>
             <legend>Outstanding Month (dinner)</legend>
             <label>
-              Min %
+              Min weightage %
               <input type="number" min={0} max={100} value={form.dinner_min_pct ?? 95} onChange={(e) => setForm({ ...form, dinner_min_pct: Number(e.target.value) })} />
             </label>
             <label>
-              Max %
+              Max weightage %
               <input type="number" min={0} max={100} value={form.dinner_max_pct ?? 100} onChange={(e) => setForm({ ...form, dinner_max_pct: Number(e.target.value) })} />
             </label>
             <label className="kpi-award-settings__wide">
@@ -241,11 +241,11 @@ export default function AdminKpiAwardsPanel() {
           <fieldset>
             <legend>Elite Consistency (surprise gift)</legend>
             <label>
-              Min %
+              Min weightage %
               <input type="number" min={0} max={100} value={form.gift_min_pct ?? 95} onChange={(e) => setForm({ ...form, gift_min_pct: Number(e.target.value) })} />
             </label>
             <label>
-              Max %
+              Max weightage %
               <input type="number" min={0} max={100} step={0.01} value={form.gift_max_pct ?? 100} onChange={(e) => setForm({ ...form, gift_max_pct: Number(e.target.value) })} />
             </label>
             <label>

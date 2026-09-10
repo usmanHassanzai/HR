@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarClock, Loader2, Plus, Trash2, Users } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Profile } from '../utils/kpiHelpers';
@@ -44,6 +44,8 @@ export default function ShiftManagementPanel({
   const [editId, setEditId] = useState<string | null>(null);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [assignShiftId, setAssignShiftId] = useState('');
+  const formCardRef = useRef<HTMLDivElement | null>(null);
+  const assignCardRef = useRef<HTMLDivElement | null>(null);
 
   const assignablePeople = useMemo(
     () =>
@@ -234,14 +236,30 @@ export default function ShiftManagementPanel({
   };
 
   const startEdit = (s: WorkShift) => {
+    const daysRaw = Array.isArray(s.days_of_week) ? s.days_of_week : [];
+    const nextDays = daysRaw.map((d) => Number(d)).filter((d) => d >= 1 && d <= 7);
     setEditId(s.id);
-    setName(s.name);
-    setStartTime(s.start_time.slice(0, 5));
-    setEndTime(s.end_time.slice(0, 5));
-    setDays(s.days_of_week);
-    setOvernight(s.crosses_midnight ?? isOvernightShift(s.start_time, s.end_time));
+    setName(s.name || '');
+    setStartTime(String(s.start_time || '09:00').slice(0, 5));
+    setEndTime(String(s.end_time || '18:00').slice(0, 5));
+    setDays(nextDays.length > 0 ? nextDays : DEFAULT_DAYS);
+    setOvernight(Boolean(s.crosses_midnight ?? isOvernightShift(s.start_time, s.end_time)));
     setApplyToAll(s.apply_to_all ?? true);
     setAssignShiftId(s.id);
+    setMsg(`Editing “${s.name}”. Change the fields above, then Save shift.`);
+    window.requestAnimationFrame(() => {
+      formCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const nameInput = formCardRef.current?.querySelector<HTMLInputElement>('input:not([type="time"]):not([type="checkbox"])');
+      nameInput?.focus({ preventScroll: true });
+    });
+  };
+
+  const startAssign = (s: WorkShift) => {
+    setAssignShiftId(s.id);
+    setMsg(`Assigning “${s.name}”. Select people below, then Assign to selected.`);
+    window.requestAnimationFrame(() => {
+      assignCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   };
 
   if (loading) {
@@ -260,16 +278,26 @@ export default function ShiftManagementPanel({
         </div>
       )}
 
-      <div className="attendance-card">
+      <div
+        ref={formCardRef}
+        className={`attendance-card${editId ? ' attendance-card--editing' : ''}`}
+        id="shift-editor"
+      >
         <h3 className="attendance-card__title">
           <CalendarClock size={18} /> {editId ? 'Edit shift' : 'Create shift'}
         </h3>
-        <p className="attendance-card__subtitle">
-          {isOrgWide
-            ? 'Create any schedule (including overnight), then assign it directly to any person in your organization. No extra approval is required.'
-            : 'Set any shift schedule — including overnight (e.g. 8:00 PM today to 8:00 AM tomorrow). When saved, it can be applied to all employees on your team.'}
-        </p>
-        <form onSubmit={saveShift} className="attendance-form-grid attendance-form-grid--wide">
+        {editId ? (
+          <p className="attendance-card__subtitle attendance-card__subtitle--edit">
+            You are editing <strong>{name || 'this shift'}</strong>. Update times or days, then tap Save shift.
+          </p>
+        ) : (
+          <p className="attendance-card__subtitle">
+            {isOrgWide
+              ? 'Create any schedule (including overnight), then assign it directly to any person in your organization. No extra approval is required.'
+              : 'Set any shift schedule — including overnight (e.g. 8:00 PM today to 8:00 AM tomorrow). When saved, it can be applied to all employees on your team.'}
+          </p>
+        )}
+        <form onSubmit={(e) => void saveShift(e)} className="attendance-form-grid attendance-form-grid--wide">
           <div className="form-group">
             <label>Shift name</label>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Night Shift" required />
@@ -341,7 +369,11 @@ export default function ShiftManagementPanel({
       </div>
 
       {isOrgWide && (
-        <div className="attendance-card">
+        <div
+          ref={assignCardRef}
+          className={`attendance-card${assignShiftId ? ' attendance-card--assigning' : ''}`}
+          id="shift-assigner"
+        >
           <h3 className="attendance-card__title">
             <Users size={18} /> Assign shift to people (one or many)
           </h3>
@@ -402,10 +434,16 @@ export default function ShiftManagementPanel({
       {shifts.length > 0 && (
         <div className="attendance-card">
           <h3 className="attendance-card__title">Saved shifts</h3>
+          <p className="attendance-card__subtitle">
+            Tap Edit to change a shift, or Assign to put it on people.
+          </p>
           <div className="shift-list">
             {shifts.map((s) => (
-              <div key={s.id} className="shift-list__item">
-                <div>
+              <div
+                key={s.id}
+                className={`shift-list__item${editId === s.id ? ' shift-list__item--editing' : ''}${assignShiftId === s.id ? ' shift-list__item--assigning' : ''}`}
+              >
+                <div className="shift-list__info">
                   <strong>{s.name}</strong>
                   <span className="shift-list__meta">
                     {formatShiftTimeRange(s.start_time, s.end_time, s.crosses_midnight)}
@@ -413,26 +451,66 @@ export default function ShiftManagementPanel({
                     {!isOrgWide && s.apply_to_all && ' · All team'}
                     {s.assigned_count != null && s.assigned_count > 0 && ` · ${s.assigned_count} assigned`}
                   </span>
+                  {editId === s.id && (
+                    <span className="shift-list__badge">Editing above</span>
+                  )}
                 </div>
                 <div className="shift-list__actions">
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => startEdit(s)}>Edit</button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm shift-list__action-btn"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      startEdit(s);
+                    }}
+                  >
+                    Edit
+                  </button>
                   {!isOrgWide && (
-                    <button type="button" className="btn btn-secondary btn-sm" disabled={submitting} onClick={() => void reapplyToAll(s.id)} title="Apply to all team">
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm shift-list__action-btn"
+                      disabled={submitting}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        void reapplyToAll(s.id);
+                      }}
+                      title="Apply to all team"
+                    >
                       <Users size={14} />
+                      <span>Apply all</span>
                     </button>
                   )}
                   {isOrgWide && (
                     <button
                       type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => setAssignShiftId(s.id)}
+                      className="btn btn-secondary btn-sm shift-list__action-btn"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        startAssign(s);
+                      }}
                       title="Use for assignment"
                     >
                       Assign
                     </button>
                   )}
-                  <button type="button" className="btn btn-secondary btn-sm" disabled={submitting} onClick={() => void removeShift(s.id)}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm shift-list__action-btn shift-list__action-btn--danger"
+                    disabled={submitting}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      void removeShift(s.id);
+                    }}
+                    aria-label={`Delete ${s.name}`}
+                    title="Delete shift"
+                  >
                     <Trash2 size={14} />
+                    <span>Delete</span>
                   </button>
                 </div>
               </div>

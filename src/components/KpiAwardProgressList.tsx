@@ -1,6 +1,6 @@
 import { Film, Gift, UtensilsCrossed } from 'lucide-react';
 import type { KpiAwardProgress } from '../utils/kpiAwardHelpers';
-import { awardDinnerHint } from '../utils/kpiAwardHelpers';
+import { awardProgressHint, formatAwardWeightageBand } from '../utils/kpiAwardHelpers';
 import '../styles/employee-rewards.css';
 
 const RULES: {
@@ -15,7 +15,7 @@ const RULES: {
       const min = Number(row?.min_pct ?? 85);
       const max = Number(row?.max_pct ?? 90);
       const months = Number(row?.required_months ?? 3);
-      return `Get ${min}–${max} KPI score for ${months} months in a row.`;
+      return `Keep weightage of ${formatAwardWeightageBand(min, max)} for ${months} months in a row.`;
     },
   },
   {
@@ -24,7 +24,7 @@ const RULES: {
     how: (row) => {
       const min = Number(row?.min_pct ?? 95);
       const max = Number(row?.max_pct ?? 100);
-      return `Get ${min}–${max} KPI score in any 1 month.`;
+      return `Reach weightage of ${formatAwardWeightageBand(min, max)} in any 1 month.`;
     },
   },
   {
@@ -34,7 +34,7 @@ const RULES: {
       const min = Number(row?.min_pct ?? 95);
       const max = Number(row?.max_pct ?? 100);
       const months = Number(row?.required_months ?? 6);
-      return `Get ${min}–${max} KPI score for ${months} months in a row.`;
+      return `Keep weightage of ${formatAwardWeightageBand(min, max)} for ${months} months in a row.`;
     },
   },
 ];
@@ -48,7 +48,7 @@ function RuleIcon({ rule }: { rule: string }) {
 export default function KpiAwardProgressList({
   rows,
   title = 'How you earn rewards',
-  intro = 'The company gives these gifts from your monthly KPI score. You do not spend points and you do not redeem from a catalog.',
+  intro = 'These gifts come from your monthly weightage (completed KPI weight out of 100%) — not from score points or a catalog.',
 }: {
   rows: KpiAwardProgress[];
   title?: string;
@@ -66,6 +66,7 @@ export default function KpiAwardProgressList({
           const current = Number(row?.current_months || 0);
           const needed = Number(row?.required_months || (rule.key === 'dinner_voucher' ? 1 : rule.key === 'movie_tickets' ? 3 : 6));
           const ready = Boolean(row?.qualified);
+          const barPct = Math.min(100, needed > 0 ? (current / needed) * 100 : 0);
           return (
             <article key={rule.key} className={`kpi-award-card${ready ? ' kpi-award-card--ready' : ''}`}>
               <div className="kpi-award-card__head">
@@ -77,15 +78,11 @@ export default function KpiAwardProgressList({
                   <span>{rule.how(row)}</span>
                 </div>
               </div>
-              <div className="kpi-award-bar" role="progressbar" aria-valuenow={Math.round((current / needed) * 100)} aria-valuemin={0} aria-valuemax={100}>
-                <span className="kpi-award-bar__fill" style={{ width: `${Math.min(100, (current / needed) * 100)}%` }} />
+              <div className="kpi-award-bar" role="progressbar" aria-valuenow={Math.round(barPct)} aria-valuemin={0} aria-valuemax={100}>
+                <span className="kpi-award-bar__fill" style={{ width: `${barPct}%` }} />
               </div>
               <p className="kpi-award-card__hint">
-                {ready
-                  ? 'You qualified — waiting for your manager or admin to arrange this gift.'
-                  : rule.key === 'dinner_voucher'
-                    ? awardDinnerHint(row)
-                    : `${current} of ${needed} months`}
+                {awardProgressHint(row, `${current} of ${needed} months`)}
               </p>
             </article>
           );
