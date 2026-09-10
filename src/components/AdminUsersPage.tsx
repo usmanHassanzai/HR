@@ -177,7 +177,7 @@ export default function AdminUsersPage({
   const [pendingRole, setPendingRole] = useState<UserRole | null>(null);
 
   const loadMfaResetRequests = async () => {
-    if (demo || profile.role !== 'admin') {
+    if (demo || (profile.role !== 'admin' && profile.role !== 'hr')) {
       setMfaResetRequests([]);
       return;
     }

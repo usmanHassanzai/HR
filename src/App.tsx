@@ -33,7 +33,6 @@ const EmployeeDashboard = lazy(() => import('./components/EmployeeDashboard'));
 const ManagerDashboard = lazy(() => import('./components/ManagerDashboard'));
 const CompanySetupWizard = lazy(() => import('./components/CompanySetupWizard'));
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
-const HrDashboard = lazy(() => import('./components/HrDashboard'));
 
 function RouteFallback() {
   return (
@@ -420,11 +419,8 @@ function App() {
 
           <main className="dashboard-main" style={{ marginTop: profile.role === 'admin' || profile.role === 'manager' || profile.role === 'hr' ? 0 : '1rem' }}>
             <Suspense fallback={<RouteFallback />}>
-              {profile.role === 'admin' && (
+              {(profile.role === 'admin' || profile.role === 'hr') && (
                 <AdminDashboard profile={profile} organizationName={company?.name} />
-              )}
-              {profile.role === 'hr' && (
-                <HrDashboard profile={profile} organizationName={company?.name} />
               )}
               {profile.role === 'manager' && (
                 <ManagerDashboard profile={profile} organizationName={company?.name} />

@@ -146,7 +146,7 @@ serve(async (req) => {
             .from('users')
             .select('id, email, full_name')
             .eq('company_id', target.company_id)
-            .eq('role', 'admin')
+            .in('role', ['admin', 'hr'])
             .eq('is_demo', false)
         : { data: [] as { id: string; email: string | null; full_name: string | null }[] };
 
@@ -195,9 +195,10 @@ serve(async (req) => {
     }
 
     const isOwner = caller.is_platform_owner === true;
-    const isAdmin = caller.role === 'admin' && caller.is_demo !== true;
+    const isAdmin =
+      (caller.role === 'admin' || caller.role === 'hr') && caller.is_demo !== true;
     if (!isOwner && !isAdmin) {
-      return json(req, { error: 'Only a company admin can reset an authenticator.' }, 403);
+      return json(req, { error: 'Only a company admin or HR can reset an authenticator.' }, 403);
     }
 
     const { data: target, error: targetErr } = await admin

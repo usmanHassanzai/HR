@@ -424,7 +424,7 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
         </div>
         <div className="landing-steps" style={{ maxWidth: 1200, margin: '0 auto' }}>
           {[
-            { n: 1, title: 'Register & verify', desc: 'Create the company, confirm email, and start the 3-day trial with guided setup for people, shifts, and KPIs.' },
+            { n: 1, title: 'Register & verify', desc: 'Create the company, confirm email, then wait for approval from info@walfia.ai before using Scorr.' },
             { n: 2, title: 'Secure the account', desc: 'Enroll an authenticator, save backup codes, and optionally set recovery email — required for privileged roles.' },
             { n: 3, title: 'Assign & deliver', desc: 'Managers assign weighted KPIs. People check in with GPS, work overnight shifts, and mark tasks complete.' },
             { n: 4, title: 'Score, notify & reward', desc: 'Scoreboards update Overall / Month / Year. Managers and assigners get completion emails. Points convert to catalog rewards.' },

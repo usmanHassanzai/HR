@@ -37,6 +37,8 @@ interface AdminDashboardProps {
 }
 
 export default function AdminDashboard({ profile, organizationName }: AdminDashboardProps) {
+  const isHr = profile.role === 'hr';
+  const consoleLabel = isHr ? 'HR console' : 'Admin console';
   const { isOwner: platformOwner, checking: platformOwnerChecking } = usePlatformOwnerAccess(profile);
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -251,13 +253,13 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
     return (
       <div className="admin-dashboard-loading">
         <Loader2 className="animate-spin" size={28} />
-        <span>Loading admin console…</span>
+        <span>Loading {isHr ? 'HR' : 'admin'} console…</span>
       </div>
     );
   }
 
   return (
-    <div className="admin-shell">
+    <div className={`admin-shell${isHr ? ' hr-dash' : ''}`}>
 
       <AdminDailyReportAlert
         userId={profile.id}
@@ -292,6 +294,8 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
         onNavOpenChange={setNavOpen}
         platformOwner={platformOwner}
         organizationName={organizationName}
+        brandTitle={organizationName?.trim() || 'Scorr'}
+        brandSubtitle={isHr ? 'HR workspace' : 'Workspace'}
         stats={{ users: users.length, departments: departments.length, managers: managerCount }}
       />
 
@@ -311,7 +315,7 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
               <div className="admin-shell__page-icon">{pageIcon}</div>
             )}
             <div>
-              <p className="admin-shell__page-eyebrow">Admin console</p>
+              <p className="admin-shell__page-eyebrow">{consoleLabel}</p>
               <h1 className="admin-shell__page-title">{pageMeta.label}</h1>
               <p className="admin-shell__page-desc">{pageMeta.description}</p>
             </div>

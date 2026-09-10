@@ -51,6 +51,8 @@ interface AdminOrgKpiPointsBoardProps {
   /** Used to keep a manager inside their own department/team. */
   managerProfile?: { id: string; department_id?: string | null };
   initialSearch?: string;
+  /** Hide the outer title card when embedded under Rewards tabs. */
+  embedded?: boolean;
 }
 
 function roleLabel(role: string): string {
@@ -281,6 +283,7 @@ export default function AdminOrgKpiPointsBoard({
   variant = 'admin',
   managerProfile,
   initialSearch = '',
+  embedded = false,
 }: AdminOrgKpiPointsBoardProps) {
   const isManagerView = variant === 'manager';
   const [rows, setRows] = useState<OrgKpiPointsRow[]>([]);
@@ -369,20 +372,22 @@ export default function AdminOrgKpiPointsBoard({
   }
 
   return (
-    <div className="admin-kpi-points">
-      <header className="admin-kpi-points__header glass-panel">
-        <div className="admin-kpi-points__header-main">
-          <div className="admin-kpi-points__header-icon">
-            <Trophy size={22} />
+    <div className={`admin-kpi-points${embedded ? ' admin-kpi-points--embedded' : ''}`}>
+      {!embedded && (
+        <header className="admin-kpi-points__header glass-panel">
+          <div className="admin-kpi-points__header-main">
+            <div className="admin-kpi-points__header-icon">
+              <Trophy size={22} />
+            </div>
+            <div>
+              <h2 className="admin-kpi-points__title">KPI &amp; Rewards</h2>
+              <p className="admin-kpi-points__subtitle">
+                Per-person weightage (0–100%). Catalog and company gifts redeem with weightage.
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="admin-kpi-points__title">KPI &amp; Rewards</h2>
-            <p className="admin-kpi-points__subtitle">
-              Per-person weightage (0–100%). Catalog and company gifts redeem with weightage.
-            </p>
-          </div>
-        </div>
-      </header>
+        </header>
+      )}
 
       {error && (
         <div className="admin-kpi-points__error" role="alert">

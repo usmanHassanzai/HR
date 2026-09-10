@@ -291,7 +291,7 @@ export default function AdminRewards() {
 
       {activeTab === 'awards' && <AdminKpiAwardsPanel />}
 
-      {activeTab === 'board' && <AdminOrgKpiPointsBoard />}
+      {activeTab === 'board' && <AdminOrgKpiPointsBoard embedded />}
 
       {activeTab === 'redemptions' && (
         <section className="admin-rewards-card glass-panel">

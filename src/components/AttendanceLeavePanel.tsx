@@ -83,7 +83,7 @@ export default function AttendanceLeavePanel({ profile, mode, initialAdminTab, i
   const [departments, setDepartments] = useState<Department[]>([]);
 
   const [managerTab, setManagerTab] = useState<ManagerTab>('approvals');
-  const [adminTab, setAdminTab] = useState<AdminTab>(initialAdminTab || 'leave');
+  const [adminTab, setAdminTab] = useState<AdminTab>(initialAdminTab || (mode === 'hr' ? 'history' : 'leave'));
 
   useEffect(() => {
     if (initialAdminTab) setAdminTab(initialAdminTab);
@@ -765,16 +765,44 @@ export default function AttendanceLeavePanel({ profile, mode, initialAdminTab, i
             <span>{msg}</span>
           </div>
         )}
-        <section className="admin-attendance-card glass-panel">
-          <h3>
-            <CalendarClock size={18} /> Create &amp; assign shifts
-          </h3>
-          <p>
-            Set start/end times and working days, then assign to one person or many at once. Admins can still view
-            and change the same schedules.
-          </p>
-          <ShiftManagementPanel mode="hr" teamMembers={teamMembers} onUpdate={load} />
-        </section>
+
+        <div className="attendance-section-tabs admin-attendance-tabs tab-bar tab-bar--inline-mobile" role="tablist" aria-label="HR attendance sections">
+          <button
+            type="button"
+            className={`tab-btn ${adminTab === 'history' ? 'tab-btn--active' : ''}`}
+            onClick={() => setAdminTab('history')}
+            aria-label="Employee attendance history"
+          >
+            <History size={16} />
+            <span>History</span>
+          </button>
+          <button
+            type="button"
+            className={`tab-btn ${adminTab === 'shifts' ? 'tab-btn--active' : ''}`}
+            onClick={() => setAdminTab('shifts')}
+            aria-label="Shifts"
+          >
+            <CalendarClock size={16} />
+            <span>Shifts</span>
+          </button>
+        </div>
+
+        {adminTab === 'history' && (
+          <AdminAttendanceDirectory departments={departments} initialUserId={initialUserId} />
+        )}
+
+        {adminTab === 'shifts' && (
+          <section className="admin-attendance-card glass-panel">
+            <h3>
+              <CalendarClock size={18} /> Create &amp; assign shifts
+            </h3>
+            <p>
+              Choose hours and working days, then assign to one person or several at once.
+              Admins can still view and change the same schedules.
+            </p>
+            <ShiftManagementPanel mode="hr" teamMembers={teamMembers} onUpdate={load} />
+          </section>
+        )}
       </div>
     );
   }

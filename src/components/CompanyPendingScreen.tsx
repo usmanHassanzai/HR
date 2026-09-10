@@ -30,8 +30,9 @@ export default function CompanyPendingScreen({ company, onLogout }: CompanyPendi
                 <Bell size={16} /> Please wait for admin approval
               </p>
               <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
-                Your registration has been received. The platform admin (<strong>Samiya Kayani</strong>) will review your organization details.
-                You cannot use the system until approved — this page updates automatically when access is granted.
+                Your registration has been received and details were sent to <strong>info@walfia.ai</strong>.
+                The platform owner will review your organization. You cannot open the dashboard until they approve —
+                this page updates automatically when access is granted.
               </p>
             </div>
           </>

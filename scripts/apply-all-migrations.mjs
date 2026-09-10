@@ -155,6 +155,10 @@ const MIGRATIONS = [
   'get_assignable_people_with_kpis.sql',
   // Must be last: earlier drop_stale_functions_mid.sql removes this RPC
   'platform_delete_company.sql',
+  'company_registration_requires_approval.sql',
+  'hr_attendance_history_access.sql',
+  'hr_org_kpi_points_board_access.sql',
+  'hr_full_admin_company_access.sql',
 ];
 
 async function runMigration(filename) {

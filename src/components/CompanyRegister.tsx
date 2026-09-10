@@ -6,8 +6,7 @@ import {
 import {
   INDUSTRY_OPTIONS,
   EMPLOYEE_COUNT_OPTIONS,
-  PLATFORM_OWNER_EMAIL,
-  buildRegistrationEmailBody,
+  notifyPlatformOwnerOfRegistration,
   type CompanyRegistrationForm,
 } from '../utils/companyHelpers';
 import { sendSignupOtp, verifySignupOtp } from '../utils/signupOtp';
@@ -171,17 +170,7 @@ export default function CompanyRegister({ onBack, onSession, embedded = false }:
       });
       if (signupError) throw signupError;
 
-      try {
-        await supabase.functions.invoke('kpi_email', {
-          body: {
-            to: PLATFORM_OWNER_EMAIL,
-            subject: `New company trial: ${form.companyName.trim()}`,
-            body: buildRegistrationEmailBody(form),
-          },
-        });
-      } catch {
-        /* platform notification is created in DB */
-      }
+      await notifyPlatformOwnerOfRegistration(form);
 
       if (data.session) {
         await finishLogin(data.session);
@@ -293,7 +282,7 @@ export default function CompanyRegister({ onBack, onSession, embedded = false }:
           </h2>
           <p className="company-register__intro">
             {step === 1
-              ? 'Takes about a minute. You get a 3-day trial as soon as you verify your email.'
+              ? 'Takes about a minute. After you verify your email, the platform owner (info@walfia.ai) must approve your organization before you can use Scorr.'
               : 'Optional — you can skip this and add details later.'}
           </p>
         </div>

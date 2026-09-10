@@ -109,6 +109,26 @@ export function buildRegistrationEmailBody(form: CompanyRegistrationForm): strin
     `Industry: ${form.industry || '—'}`,
     `Team size: ${form.employeeCount || '—'}`,
     '',
-    '3-day trial started automatically. Review: https://scorr.walfia.ai/platform',
+    'Status: Pending approval by info@walfia.ai',
+    'Approve or reject: https://scorr.walfia.ai/platform',
   ].filter(Boolean).join('\n');
+}
+
+/** Notify platform owner (info@walfia.ai) of a new company registration. Best-effort. */
+export async function notifyPlatformOwnerOfRegistration(
+  form: CompanyRegistrationForm,
+): Promise<void> {
+  const { callEdgeFunction } = await import('./edgeFunctionClient');
+  try {
+    await callEdgeFunction('company_registration_notify', {
+      companyName: form.companyName.trim(),
+      fullName: form.fullName.trim(),
+      email: form.email.trim(),
+      phone: form.phone.trim(),
+      industry: form.industry,
+      employeeCount: form.employeeCount,
+    });
+  } catch (e) {
+    console.warn('Platform owner registration email failed:', e);
+  }
 }

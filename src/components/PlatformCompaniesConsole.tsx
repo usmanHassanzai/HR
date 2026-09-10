@@ -240,7 +240,7 @@ export default function PlatformCompaniesConsole({ profile, embedded = false, on
     const { error } = await supabase.rpc('platform_approve_company', { p_company_id: id });
     if (error) setAlert({ kind: 'error', text: error.message });
     else {
-      setAlert({ kind: 'success', text: 'Company approved. The admin can now sign in and use Scorr.' });
+      setAlert({ kind: 'success', text: 'Company approved. Their 3-day trial started — they can sign in and use Scorr.' });
       await loadData();
       setTab('approved');
     }
