@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Pencil, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { Profile, UserRole, WorkMode, roleNeedsDepartment } from '../utils/kpiHelpers';
+import { Profile, UserRole, WorkMode, roleNeedsDepartment, roleNeedsJobTitle, roleNeedsReportsTo } from '../utils/kpiHelpers';
 import { Department } from '../utils/departmentHelpers';
 import { WORK_MODE_OPTIONS, normalizeWorkMode } from '../utils/workModeHelpers';
 
@@ -54,19 +54,21 @@ export default function AdminEditUserModal({
   const supervisors = useMemo(() => {
     const rank = (r: UserRole) => (r === 'admin' ? 0 : r === 'hr' ? 1 : 2);
     return allUsers
-      .filter(
-        (m) =>
-          m.id !== user.id &&
-          (m.role === 'admin' ||
-            m.role === 'hr' ||
-            (m.role === 'manager' && !!departmentId && m.department_id === departmentId)),
-      )
+      .filter((m) => {
+        if (m.id === user.id) return false;
+        if (role === 'hr') return m.role === 'admin';
+        return (
+          m.role === 'admin' ||
+          m.role === 'hr' ||
+          (m.role === 'manager' && !!departmentId && m.department_id === departmentId)
+        );
+      })
       .sort((a, b) => {
         const byRole = rank(a.role) - rank(b.role);
         if (byRole !== 0) return byRole;
         return a.full_name.localeCompare(b.full_name);
       });
-  }, [allUsers, user.id, departmentId]);
+  }, [allUsers, user.id, departmentId, role]);
 
   const editDeptName = departments.find((d) => d.id === departmentId)?.name ?? '';
   const staleSupervisor =
@@ -87,6 +89,10 @@ export default function AdminEditUserModal({
       setError('Select a department. Employees and managers cannot be saved without one.');
       return;
     }
+    if (role === 'hr' && !managerId) {
+      setError('HR must report to a company admin.');
+      return;
+    }
     if (isSelf && role !== 'admin' && role !== 'hr') {
       setError('You cannot remove your own admin/HR role.');
       return;
@@ -99,8 +105,8 @@ export default function AdminEditUserModal({
         p_full_name: name,
         p_role: role,
         p_department_id: roleNeedsDepartment(role) ? departmentId || null : null,
-        p_manager_id: roleNeedsDepartment(role) ? managerId || null : null,
-        p_job_title: roleNeedsDepartment(role) ? jobTitle.trim() || null : null,
+        p_manager_id: roleNeedsReportsTo(role) ? managerId || null : null,
+        p_job_title: roleNeedsJobTitle(role) ? jobTitle.trim() || null : null,
       });
       if (updateError) throw updateError;
 
@@ -202,16 +208,21 @@ export default function AdminEditUserModal({
                 onChange={(e) => {
                   const next = e.target.value as UserRole;
                   setRole(next);
-                  if (next === 'admin' || next === 'hr') {
+                  if (next === 'admin') {
                     setDepartmentId('');
                     setManagerId('');
+                    setJobTitle('');
+                  } else if (next === 'hr') {
+                    setDepartmentId('');
+                    const current = allUsers.find((m) => m.id === managerId);
+                    if (!current || current.role !== 'admin') setManagerId('');
                   }
                 }}
                 disabled={isSelf}
               >
                 <option value="employee">Employee</option>
                 <option value="manager">Manager</option>
-                <option value="hr">HR (company-wide shifts)</option>
+                <option value="hr">HR (reports to admin)</option>
                 <option value="admin">Admin</option>
               </select>
               {isSelf && (
@@ -221,14 +232,26 @@ export default function AdminEditUserModal({
               )}
             </div>
 
-            {roleNeedsDepartment(role) && (
+            {roleNeedsJobTitle(role) && (
               <div className="form-group" style={{ margin: 0 }}>
-                <label>{role === 'manager' ? 'Manager type / job title' : 'Employee type / job title'}</label>
+                <label>
+                  {role === 'hr'
+                    ? 'HR job title'
+                    : role === 'manager'
+                      ? 'Manager type / job title'
+                      : 'Employee type / job title'}
+                </label>
                 <input
                   className="input-field"
                   value={jobTitle}
                   onChange={(e) => setJobTitle(e.target.value)}
-                  placeholder={role === 'manager' ? 'e.g. Sales Manager, Engineering Lead' : 'e.g. Software Engineer, Accountant'}
+                  placeholder={
+                    role === 'hr'
+                      ? 'e.g. HR Manager, People Operations'
+                      : role === 'manager'
+                        ? 'e.g. Sales Manager, Engineering Lead'
+                        : 'e.g. Software Engineer, Accountant'
+                  }
                 />
               </div>
             )}
@@ -277,12 +300,17 @@ export default function AdminEditUserModal({
               </div>
             )}
 
-            {(role === 'employee' || role === 'manager') && (
+            {roleNeedsReportsTo(role) && (
               <div className="form-group" style={{ margin: 0 }}>
-                <label>Reports to</label>
-                <select className="input-field" value={managerId} onChange={(e) => setManagerId(e.target.value)}>
-                  <option value="">— Unassigned —</option>
-                  {staleSupervisor && (
+                <label>{role === 'hr' ? 'Reports to (admin) *' : 'Reports to'}</label>
+                <select
+                  className="input-field"
+                  value={managerId}
+                  onChange={(e) => setManagerId(e.target.value)}
+                  required={role === 'hr'}
+                >
+                  <option value="">{role === 'hr' ? '— Select admin —' : '— Unassigned —'}</option>
+                  {staleSupervisor && role !== 'hr' && (
                     <option value={staleSupervisor.id}>
                       {supervisorLabel(staleSupervisor, departments)} (other department)
                     </option>
@@ -298,7 +326,7 @@ export default function AdminEditUserModal({
                         ))}
                     </optgroup>
                   )}
-                  {supervisors.filter((m) => m.role === 'hr').length > 0 && (
+                  {role !== 'hr' && supervisors.filter((m) => m.role === 'hr').length > 0 && (
                     <optgroup label="HR">
                       {supervisors
                         .filter((m) => m.role === 'hr')
@@ -309,7 +337,7 @@ export default function AdminEditUserModal({
                         ))}
                     </optgroup>
                   )}
-                  {supervisors.filter((m) => m.role === 'manager').length > 0 && (
+                  {role !== 'hr' && supervisors.filter((m) => m.role === 'manager').length > 0 && (
                     <optgroup label={editDeptName ? `Managers · ${editDeptName}` : 'Department manager'}>
                       {supervisors
                         .filter((m) => m.role === 'manager')

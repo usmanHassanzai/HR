@@ -12,6 +12,16 @@ export function displayRoleLabel(role: string): string {
 export function roleNeedsDepartment(role: UserRole): boolean {
   return role === 'employee' || role === 'manager';
 }
+
+/** Job title applies to employees, managers, and HR (not company admin). */
+export function roleNeedsJobTitle(role: UserRole): boolean {
+  return role === 'employee' || role === 'manager' || role === 'hr';
+}
+
+/** Reports-to applies to employees, managers, and HR (HR reports to admin). */
+export function roleNeedsReportsTo(role: UserRole): boolean {
+  return role === 'employee' || role === 'manager' || role === 'hr';
+}
 export type WorkMode = 'office' | 'remote' | 'hybrid';
 export type KpiStatus = 'on_track' | 'at_risk' | 'off_track';
 export type NotificationType = 'info' | 'alert' | 'reminder' | 'escalation';

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase, supabaseSignup } from '../lib/supabase';
-import { Profile, UserRole, displayRoleLabel, roleNeedsDepartment } from '../utils/kpiHelpers';
+import { Profile, UserRole, displayRoleLabel, roleNeedsDepartment, roleNeedsJobTitle, roleNeedsReportsTo } from '../utils/kpiHelpers';
 import { Department } from '../utils/departmentHelpers';
 import { isDemoProfile } from '../utils/demoMode';
 import { resetAuthenticatorForUser } from '../utils/mfaHelpers';
@@ -304,6 +304,10 @@ export default function AdminUsersPage({
       setFormMsg({ type: 'error', text: 'Select a department. Employees and managers cannot be created without one.' });
       return;
     }
+    if (role === 'hr' && !managerId) {
+      setFormMsg({ type: 'error', text: 'HR must report to a company admin.' });
+      return;
+    }
 
     setFormLoading(true);
     setFormMsg({ type: '', text: '' });
@@ -318,8 +322,8 @@ export default function AdminUsersPage({
             role,
             company_id: profile.company_id ?? undefined,
             department_id: roleNeedsDepartment(role) ? departmentId : undefined,
-            manager_id: roleNeedsDepartment(role) && managerId ? managerId : undefined,
-            job_title: roleNeedsDepartment(role) && jobTitle.trim() ? jobTitle.trim() : undefined,
+            manager_id: roleNeedsReportsTo(role) && managerId ? managerId : undefined,
+            job_title: roleNeedsJobTitle(role) && jobTitle.trim() ? jobTitle.trim() : undefined,
           },
         },
       });
@@ -332,9 +336,9 @@ export default function AdminUsersPage({
 
       if (signupData.user) {
         const updates: { manager_id?: string; department_id?: string; job_title?: string | null } = {};
-        if (managerId && roleNeedsDepartment(role)) updates.manager_id = managerId;
+        if (managerId && roleNeedsReportsTo(role)) updates.manager_id = managerId;
         if (roleNeedsDepartment(role) && departmentId) updates.department_id = departmentId;
-        if (roleNeedsDepartment(role)) updates.job_title = jobTitle.trim() || null;
+        if (roleNeedsJobTitle(role)) updates.job_title = jobTitle.trim() || null;
         if (Object.keys(updates).length > 0) {
           const { error: updateError } = await supabase.from('users').update(updates).eq('id', signupData.user.id);
           if (updateError) {
@@ -730,9 +734,9 @@ export default function AdminUsersPage({
       setQuickError('Department applies to employees and managers only.');
       return;
     }
-    if (field === 'reports' && !roleNeedsDepartment(u.role)) {
+    if (field === 'reports' && !roleNeedsReportsTo(u.role)) {
       setQuickEdit({ userId: u.id, field });
-      setQuickError('Reports to applies to employees and managers only.');
+      setQuickError('Reports to applies to employees, managers, and HR only.');
       return;
     }
     setQuickEdit((prev) =>
@@ -755,7 +759,7 @@ export default function AdminUsersPage({
 
   const saveAccountFields = async (
     u: Profile,
-    next: { role: UserRole; departmentId: string | null; managerId: string | null },
+    next: { role: UserRole; departmentId: string | null; managerId: string | null; jobTitle?: string | null },
   ) => {
     setQuickSaving(true);
     setQuickError('');
@@ -767,12 +771,19 @@ export default function AdminUsersPage({
         setQuickSaving(false);
         return false;
       }
+      if (next.role === 'hr' && !next.managerId) {
+        setQuickError('HR must report to a company admin.');
+        setQuickEdit({ userId: u.id, field: 'reports' });
+        setQuickSaving(false);
+        return false;
+      }
       const { error } = await supabase.rpc('admin_update_user_account', {
         p_user_id: u.id,
         p_full_name: u.full_name,
         p_role: next.role,
         p_department_id: needsDept ? next.departmentId : null,
-        p_manager_id: needsDept ? next.managerId : null,
+        p_manager_id: roleNeedsReportsTo(next.role) ? next.managerId : null,
+        p_job_title: roleNeedsJobTitle(next.role) ? (next.jobTitle ?? u.job_title ?? null) : null,
       });
       if (error) throw error;
       setQuickEdit(null);
@@ -802,10 +813,23 @@ export default function AdminUsersPage({
       setQuickEdit({ userId: u.id, field: 'department' });
       return;
     }
+    const nextManager =
+      nextRole === 'hr'
+        ? (reportToOptions.find((m) => m.id === u.manager_id && m.role === 'admin')?.id ?? null)
+        : roleNeedsReportsTo(nextRole)
+          ? u.manager_id ?? null
+          : null;
+    if (nextRole === 'hr' && !nextManager) {
+      setPendingRole(nextRole);
+      setQuickError('Pick an admin for HR to report to.');
+      setQuickEdit({ userId: u.id, field: 'reports' });
+      return;
+    }
     await saveAccountFields(u, {
       role: nextRole,
       departmentId: roleNeedsDepartment(nextRole) ? u.department_id ?? null : null,
-      managerId: roleNeedsDepartment(nextRole) ? u.manager_id ?? null : null,
+      managerId: nextManager,
+      jobTitle: roleNeedsJobTitle(nextRole) ? u.job_title ?? null : null,
     });
   };
 
@@ -830,14 +854,27 @@ export default function AdminUsersPage({
   };
 
   const applyQuickReportsTo = async (u: Profile, nextManagerId: string | null) => {
-    if (!roleNeedsDepartment(u.role)) {
-      setQuickError('Reports to applies to employees and managers only.');
+    const nextRole = pendingRole ?? u.role;
+    if (!roleNeedsReportsTo(nextRole)) {
+      setQuickError('Reports to applies to employees, managers, and HR only.');
       return;
     }
+    if (nextRole === 'hr' && !nextManagerId) {
+      setQuickError('HR must report to a company admin.');
+      return;
+    }
+    if (nextRole === 'hr') {
+      const admin = reportToOptions.find((m) => m.id === nextManagerId && m.role === 'admin');
+      if (!admin) {
+        setQuickError('HR must report to a company admin.');
+        return;
+      }
+    }
     await saveAccountFields(u, {
-      role: u.role,
-      departmentId: u.department_id ?? null,
+      role: nextRole,
+      departmentId: roleNeedsDepartment(nextRole) ? u.department_id ?? null : null,
       managerId: nextManagerId,
+      jobTitle: roleNeedsJobTitle(nextRole) ? u.job_title ?? null : null,
     });
   };
 
@@ -861,6 +898,7 @@ export default function AdminUsersPage({
             {([
               ['employee', 'Employee'],
               ['manager', 'Manager'],
+              ['hr', 'HR'],
               ['admin', 'Admin'],
             ] as const).map(([value, label]) => (
               <button
@@ -869,7 +907,7 @@ export default function AdminUsersPage({
                 role="option"
                 aria-selected={u.role === value}
                 className={u.role === value ? 'is-active' : undefined}
-                disabled={quickSaving || (u.id === profile.id && value !== 'admin')}
+                disabled={quickSaving || (u.id === profile.id && value !== 'admin' && value !== 'hr')}
                 onClick={() => void applyQuickRole(u, value)}
               >
                 {label}
@@ -900,18 +938,21 @@ export default function AdminUsersPage({
         )}
         {field === 'reports' && (
           <>
-            <button
-              type="button"
-              role="option"
-              aria-selected={!u.manager_id}
-              className={!u.manager_id ? 'is-active' : undefined}
-              disabled={quickSaving}
-              onClick={() => void applyQuickReportsTo(u, null)}
-            >
-              Unassigned
-            </button>
+            {(pendingRole ?? u.role) !== 'hr' && (
+              <button
+                type="button"
+                role="option"
+                aria-selected={!u.manager_id}
+                className={!u.manager_id ? 'is-active' : undefined}
+                disabled={quickSaving}
+                onClick={() => void applyQuickReportsTo(u, null)}
+              >
+                Unassigned
+              </button>
+            )}
             {reportToOptions
               .filter((m) => m.id !== u.id)
+              .filter((m) => ((pendingRole ?? u.role) === 'hr' ? m.role === 'admin' : true))
               .map((m) => (
                 <button
                   key={m.id}
@@ -925,8 +966,13 @@ export default function AdminUsersPage({
                   {supervisorOptionLabel(m)}
                 </button>
               ))}
-            {reportToOptions.filter((m) => m.id !== u.id).length === 0 && (
-              <p className="people-quick-menu__empty">No managers or admins yet.</p>
+            {reportToOptions
+              .filter((m) => m.id !== u.id)
+              .filter((m) => ((pendingRole ?? u.role) === 'hr' ? m.role === 'admin' : true))
+              .length === 0 && (
+              <p className="people-quick-menu__empty">
+                {(pendingRole ?? u.role) === 'hr' ? 'No admins yet.' : 'No managers or admins yet.'}
+              </p>
             )}
           </>
         )}
@@ -1142,7 +1188,7 @@ export default function AdminUsersPage({
                         )}
                       </td>
                       <td>
-                        {roleNeedsDepartment(u.role) ? (
+                        {roleNeedsReportsTo(u.role) ? (
                           !demo ? (
                             <div className="people-quick">
                               <button
@@ -1246,7 +1292,7 @@ export default function AdminUsersPage({
                           </>
                         )}
                       </div>
-                      {roleNeedsDepartment(u.role) ? (
+                      {roleNeedsReportsTo(u.role) ? (
                         !demo ? (
                           <div className={`people-quick people-quick--block${quickEdit?.userId === u.id && quickEdit.field === 'reports' ? ' people-quick--open' : ''}`}>
                             <button
@@ -1336,23 +1382,35 @@ export default function AdminUsersPage({
                   >
                     <option value="employee">Employee — KPIs, attendance, rewards</option>
                     <option value="manager">Manager — team tasks and approvals</option>
-                    <option value="hr">HR — company-wide shifts and awards</option>
+                    <option value="hr">HR — reports to admin, company-wide access</option>
                     <option value="admin">Admin — full company settings</option>
                   </select>
                 </div>
-                {roleNeedsDepartment(role) && (
+                {roleNeedsJobTitle(role) && (
                   <div className="form-group">
                     <label htmlFor="add-job-title">
-                      {role === 'manager' ? 'Manager type / job title' : 'Employee type / job title'}
+                      {role === 'hr'
+                        ? 'HR job title'
+                        : role === 'manager'
+                          ? 'Manager type / job title'
+                          : 'Employee type / job title'}
                     </label>
                     <input
                       id="add-job-title"
                       className="form-input"
                       value={jobTitle}
                       onChange={(e) => setJobTitle(e.target.value)}
-                      placeholder={role === 'manager' ? 'e.g. Sales Manager, Engineering Lead' : 'e.g. Software Engineer, Accountant'}
+                      placeholder={
+                        role === 'hr'
+                          ? 'e.g. HR Manager, People Operations'
+                          : role === 'manager'
+                            ? 'e.g. Sales Manager, Engineering Lead'
+                            : 'e.g. Software Engineer, Accountant'
+                      }
                     />
-                    <span className="people-drawer__field-hint">What kind of {role === 'manager' ? 'manager' : 'employee'} this person is.</span>
+                    <span className="people-drawer__field-hint">
+                      What kind of {role === 'hr' ? 'HR' : role === 'manager' ? 'manager' : 'employee'} this person is.
+                    </span>
                   </div>
                 )}
                 {roleNeedsDepartment(role) && (
@@ -1366,11 +1424,17 @@ export default function AdminUsersPage({
                     </select>
                   </div>
                 )}
-                {roleNeedsDepartment(role) && (
+                {roleNeedsReportsTo(role) && (
                   <div className="form-group">
-                    <label htmlFor="add-mgr">Reports to (optional)</label>
-                    <select id="add-mgr" className="form-input" value={managerId} onChange={(e) => setManagerId(e.target.value)}>
-                      <option value="">Not assigned yet</option>
+                    <label htmlFor="add-mgr">{role === 'hr' ? 'Reports to (admin)' : 'Reports to (optional)'}</label>
+                    <select
+                      id="add-mgr"
+                      className="form-input"
+                      value={managerId}
+                      onChange={(e) => setManagerId(e.target.value)}
+                      required={role === 'hr'}
+                    >
+                      <option value="">{role === 'hr' ? 'Select admin' : 'Not assigned yet'}</option>
                       {supervisorsForForm.filter((m) => m.role === 'admin').length > 0 && (
                         <optgroup label="Admins">
                           {supervisorsForForm.filter((m) => m.role === 'admin').map((m) => (
@@ -1378,14 +1442,14 @@ export default function AdminUsersPage({
                           ))}
                         </optgroup>
                       )}
-                      {supervisorsForForm.filter((m) => m.role === 'hr').length > 0 && (
+                      {role !== 'hr' && supervisorsForForm.filter((m) => m.role === 'hr').length > 0 && (
                         <optgroup label="HR">
                           {supervisorsForForm.filter((m) => m.role === 'hr').map((m) => (
                             <option key={m.id} value={m.id}>{supervisorOptionLabel(m)}</option>
                           ))}
                         </optgroup>
                       )}
-                      {supervisorsForForm.filter((m) => m.role === 'manager').length > 0 && (
+                      {role !== 'hr' && supervisorsForForm.filter((m) => m.role === 'manager').length > 0 && (
                         <optgroup label="Managers">
                           {supervisorsForForm.filter((m) => m.role === 'manager').map((m) => (
                             <option key={m.id} value={m.id}>{supervisorOptionLabel(m)}</option>

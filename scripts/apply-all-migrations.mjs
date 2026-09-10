@@ -160,6 +160,7 @@ const MIGRATIONS = [
   'hr_org_kpi_points_board_access.sql',
   'hr_full_admin_company_access.sql',
   'fix_admin_update_user_hr_supervisor.sql',
+  'hr_reports_to_admin_job_title.sql',
 ];
 
 async function runMigration(filename) {
