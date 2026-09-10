@@ -28,7 +28,7 @@ import {
   displayRoleLabel,
 } from '../utils/kpiHelpers';
 import { Department } from '../utils/departmentHelpers';
-import { formatKpiScore, kpiScoreContribution } from '../utils/kpiScoreHelpers';
+import { employeeKpiBoardBreakdown } from '../utils/kpiScoreHelpers';
 import { formatKpiWeight } from '../utils/kpiWeightHelpers';
 import { isDemoProfile } from '../utils/demoMode';
 import '../styles/admin-dashboard.css';
@@ -64,7 +64,8 @@ interface UserLiveStats {
   attendanceLoading: boolean;
   latestReportDate: string | null;
   reportsLoading: boolean;
-  rewardPoints: number;
+  rewardPoints: number; // achieved weightage 0–100
+  weightAssigned: number;
 }
 
 function initials(name: string): string {
@@ -125,6 +126,7 @@ export default function AdminUserHubModal({
     latestReportDate: null,
     reportsLoading: true,
     rewardPoints: 0,
+    weightAssigned: 0,
   });
 
   const [actionBusy, setActionBusy] = useState<string | null>(null);
@@ -152,12 +154,13 @@ export default function AdminUserHubModal({
 
         if (!cancelled && kpiData) {
           const kpis = kpiData as Kpi[];
-          const totalPoints = kpis.reduce((sum, k) => sum + kpiScoreContribution(k), 0);
+          const board = employeeKpiBoardBreakdown(kpis);
           setStats((prev) => ({
             ...prev,
             kpis,
             kpisLoading: false,
-            rewardPoints: totalPoints,
+            rewardPoints: board.weightAchieved,
+            weightAssigned: board.weightAssigned,
           }));
         } else if (!cancelled) {
           setStats((prev) => ({ ...prev, kpisLoading: false }));
@@ -363,8 +366,8 @@ export default function AdminUserHubModal({
                       <strong className="text-success">{completedKpis.length}</strong>
                     </div>
                     <div className="user-hub-metric">
-                      <span>Task score total</span>
-                      <strong>{formatKpiScore(stats.rewardPoints)}</strong>
+                      <span>Achieved weightage</span>
+                      <strong>{formatKpiWeight(stats.rewardPoints)}</strong>
                     </div>
                     {pausedKpis.length > 0 && (
                       <div className="user-hub-metric">
@@ -414,7 +417,7 @@ export default function AdminUserHubModal({
               </div>
               <div className="user-hub-card__content">
                 <p className="user-hub-card__desc">
-                  Quickly assign a new KPI or urgent task to <strong>{user.full_name}</strong> with custom weight, due date, and score points.
+                  Quickly assign a new KPI or urgent task to <strong>{user.full_name}</strong> with custom weightage and due date.
                 </p>
                 <div className="user-hub-card__pills">
                   <span className="user-hub-pill">
@@ -527,13 +530,17 @@ export default function AdminUserHubModal({
                 </div>
                 <div>
                   <h4>Rewards</h4>
-                  <p>Points & Awards</p>
+                  <p>Weightage & awards</p>
                 </div>
               </div>
               <div className="user-hub-card__content">
                 <div className="user-hub-metric-row">
-                  <span>Earned Points:</span>
-                  <strong>{formatKpiScore(stats.rewardPoints)}</strong>
+                  <span>Achieved weightage:</span>
+                  <strong>{formatKpiWeight(stats.rewardPoints)}</strong>
+                </div>
+                <div className="user-hub-metric-row">
+                  <span>Assigned weightage:</span>
+                  <strong>{formatKpiWeight(stats.weightAssigned)}</strong>
                 </div>
                 <div className="user-hub-metric-row">
                   <span>Completed Tasks:</span>

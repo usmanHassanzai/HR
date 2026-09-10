@@ -53,7 +53,7 @@ function RuleIcon({ rule }: { rule: string }) {
 export default function KpiAwardProgressList({
   rows,
   title = 'How you earn rewards',
-  intro = 'These gifts come from your monthly weightage (completed KPI weight out of 100%) — not from score points or a catalog.',
+  intro = 'These gifts come from your monthly weightage (completed KPI weight out of 100%).',
   monthWeightage = null,
   claimedKeys,
   onRedeem,

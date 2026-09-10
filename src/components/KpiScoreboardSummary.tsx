@@ -4,10 +4,10 @@ import { formatKpiWeight, KPI_WEIGHT_CAP } from '../utils/kpiWeightHelpers';
 import {
   availableKpiYears,
   employeeKpiBoardBreakdown,
-  formatKpiScore,
   kpisForPeriod,
   MONTH_OPTIONS,
   performanceRatingColor,
+  performanceRatingForScore,
   periodLabel,
   type KpiPeriodMode,
 } from '../utils/kpiScoreHelpers';
@@ -36,14 +36,13 @@ interface KpiScoreboardSummaryProps {
 }
 
 /**
- * Shared Overall / Month / Year KPI scoreboard.
- * Weightage ≤ 100%; Score is a points index (no % sign).
+ * Shared Overall / Month / Year KPI board — weightage only (0–100%).
  */
 export default function KpiScoreboardSummary({
   kpis,
   rewardsSummary: _rewardsSummary = null,
   compact = false,
-  title = 'KPI scoreboard',
+  title = 'KPI weightage',
   period,
   onPeriodChange,
   toolbar,
@@ -90,7 +89,8 @@ export default function KpiScoreboardSummary({
 
   const active = periodMode === 'overall' ? overallSummary : periodSummary;
   const activeEmpty = periodMode === 'overall' ? overallKpis.length === 0 : periodKpis.length === 0;
-  const ratingColor = performanceRatingColor(active.performanceRating);
+  const rating = performanceRatingForScore(active.weightAchieved);
+  const ratingColor = performanceRatingColor(rating);
   const has = !activeEmpty && active.kpiCount > 0;
 
   return (
@@ -101,8 +101,8 @@ export default function KpiScoreboardSummary({
             <span className="emp-kpi-summary__eyebrow">Performance overview</span>
             <h2 className="emp-kpi-summary__title">{title}</h2>
             <p className="emp-kpi-summary__formula">
-              Use Overall, Month, or Year to switch views. Each view shows its own weightage and score.
-              Weightage stays within 0–{KPI_WEIGHT_CAP}%. Catalog and company gifts use weightage — not score points.
+              Use Overall, Month, or Year to switch views. Each view shows completed KPI weightage (0–{KPI_WEIGHT_CAP}%).
+              Company gifts and catalog rewards use this weightage.
             </p>
           </div>
           {toolbar ? <div className="emp-kpi-toolbar">{toolbar}</div> : null}
@@ -193,6 +193,21 @@ export default function KpiScoreboardSummary({
               <h4 className="emp-kpi-block__title">Weightage</h4>
               <span className="emp-kpi-block__badge">0–{KPI_WEIGHT_CAP}%</span>
             </div>
+            <div className="emp-kpi-month__score">
+              <div className="emp-kpi-month__score-main">
+                <span className="emp-kpi-month__score-label">Achieved</span>
+                <span className="emp-kpi-month__pct" style={{ color: has ? ratingColor : undefined }}>
+                  {has ? formatKpiWeight(active.weightAchieved) : '—'}
+                </span>
+              </div>
+              {has ? (
+                <span className="emp-kpi-month__rating" style={{ color: ratingColor }}>
+                  {rating}
+                </span>
+              ) : (
+                <span className="emp-kpi-month__rating emp-kpi-month__rating--muted">No tasks</span>
+              )}
+            </div>
             <dl className="emp-kpi-month__stats emp-kpi-month__stats--weight">
               <div>
                 <dt>Total</dt>
@@ -217,46 +232,6 @@ export default function KpiScoreboardSummary({
               <div>
                 <dt>Done</dt>
                 <dd>{has ? `${active.completed}/${active.kpiCount}` : '—'}</dd>
-              </div>
-            </dl>
-          </section>
-
-          <section className="emp-kpi-block emp-kpi-block--score" aria-label="Score">
-            <div className="emp-kpi-block__head">
-              <h4 className="emp-kpi-block__title">Score</h4>
-              <span className="emp-kpi-block__badge">Index</span>
-            </div>
-            <div className="emp-kpi-month__score">
-              <div className="emp-kpi-month__score-main">
-                <span className="emp-kpi-month__score-label">Score</span>
-                <span className="emp-kpi-month__pct" style={{ color: has ? ratingColor : undefined }}>
-                  {has ? formatKpiScore(active.score) : '—'}
-                </span>
-              </div>
-              {has ? (
-                <span className="emp-kpi-month__rating" style={{ color: ratingColor }}>
-                  {active.performanceRating}
-                </span>
-              ) : (
-                <span className="emp-kpi-month__rating emp-kpi-month__rating--muted">No tasks</span>
-              )}
-            </div>
-            <dl className="emp-kpi-month__stats emp-kpi-month__stats--score">
-              <div>
-                <dt>Task total</dt>
-                <dd>{has ? formatKpiScore(active.pointsAwarded) : '—'}</dd>
-              </div>
-              <div>
-                <dt>Weightage</dt>
-                <dd>{has ? formatKpiWeight(active.weightAchieved) : '—'}</dd>
-              </div>
-              <div>
-                <dt>Pending</dt>
-                <dd>{has ? formatKpiWeight(active.weightPending) : '—'}</dd>
-              </div>
-              <div>
-                <dt>Tasks</dt>
-                <dd>{has ? String(active.kpiCount) : '—'}</dd>
               </div>
             </dl>
           </section>

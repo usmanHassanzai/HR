@@ -2,11 +2,8 @@
 import { useState } from 'react';
 import { FileDown, Loader2 } from 'lucide-react';
 import { Kpi } from '../utils/kpiHelpers';
-import {
-  employeeKpiScoreSummary,
-  formatKpiScore,
-  kpiScoreRows,
-} from '../utils/kpiScoreHelpers';
+import { employeeKpiBoardBreakdown, kpiScoreRows } from '../utils/kpiScoreHelpers';
+import { formatKpiWeight } from '../utils/kpiWeightHelpers';
 
 interface ExportButtonProps {
   kpis: Kpi[];
@@ -22,15 +19,15 @@ export default function ExportButton({ kpis, userName }: ExportButtonProps) {
     try {
       const { default: jsPDF } = await import('jspdf');
       const doc = new jsPDF();
-      const summary = employeeKpiScoreSummary(kpis);
+      const summary = employeeKpiBoardBreakdown(kpis);
       const rows = kpiScoreRows(kpis);
       doc.setFontSize(18);
-      doc.text('Scorr — KPI Score Report', 14, 20);
+      doc.text('Scorr — KPI Weightage Report', 14, 20);
       doc.setFontSize(11);
       doc.text(`Employee: ${userName}`, 14, 30);
       doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 37);
       doc.text(
-        `Overall KPI Score: ${formatKpiScore(summary.overallScore)}   Performance: ${summary.performanceRating}`,
+        `Achieved weightage: ${formatKpiWeight(summary.weightAchieved)}   Assigned: ${formatKpiWeight(summary.weightAssigned)}`,
         14,
         44,
       );
@@ -39,19 +36,23 @@ export default function ExportButton({ kpis, userName }: ExportButtonProps) {
       doc.setFontSize(9);
       doc.setFont('helvetica', 'bold');
       doc.text('KPI', 14, y);
-      doc.text('Weight', 90, y);
-      doc.text('Points', 140, y);
+      doc.text('Weightage', 90, y);
+      doc.text('Achieved', 140, y);
       doc.setFont('helvetica', 'normal');
       rows.forEach((row) => {
         y += 8;
         if (y > 270) { doc.addPage(); y = 20; }
         doc.text(row.name.substring(0, 40), 14, y);
         doc.text(`${row.weight}%`, 90, y);
-        doc.text(formatKpiScore(row.weightedScore), 140, y);
+        doc.text(
+          row.kpi.completion_status === 'completed' ? `${row.weight}%` : '—',
+          140,
+          y,
+        );
       });
       y += 10;
       doc.setFont('helvetica', 'bold');
-      doc.text(`Overall KPI Score ${formatKpiScore(summary.overallScore)}`, 14, y);
+      doc.text(`Achieved weightage ${formatKpiWeight(summary.weightAchieved)}`, 14, y);
 
       doc.save(`KPI_Report_${Date.now()}.pdf`);
     } catch (e) {
@@ -65,19 +66,21 @@ export default function ExportButton({ kpis, userName }: ExportButtonProps) {
     setLoadingExcel(true);
     try {
       const XLSX = await import('xlsx');
-      const summary = employeeKpiScoreSummary(kpis);
+      const summary = employeeKpiBoardBreakdown(kpis);
       const rows = kpiScoreRows(kpis).map((row) => ({
-        Employee: userName,
         KPI: row.name,
-        Weight: row.weight,
-        Points: row.weightedScore,
-        'Overall KPI Score': summary.overallScore,
-        'Performance Rating': summary.performanceRating,
+        Weightage: row.weight,
+        Achieved: row.kpi.completion_status === 'completed' ? row.weight : 0,
       }));
-      const ws = XLSX.utils.json_to_sheet(rows);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'KPI Score');
-      XLSX.writeFile(wb, `KPI_Report_${Date.now()}.xlsx`);
+      rows.push({
+        KPI: 'TOTAL',
+        Weightage: summary.weightAssigned,
+        Achieved: summary.weightAchieved,
+      });
+      const sheet = XLSX.utils.json_to_sheet(rows);
+      const book = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(book, sheet, 'KPI Weightage');
+      XLSX.writeFile(book, `KPI_Report_${Date.now()}.xlsx`);
     } catch (e) {
       console.error('Excel export error:', e);
     } finally {

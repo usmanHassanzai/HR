@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { Kpi, kpiHealthLabel, kpiProgressBadge, kpiWorkStage, isKpiPaused, kpiPauseLabel } from '../utils/kpiHelpers';
 import { kpiCategoryMeta } from '../utils/kpiCategories';
 import { formatKpiWeight } from '../utils/kpiWeightHelpers';
-import { formatKpiTaskPoints, kpiAssignedScore, isKpiLatePenaltyApplied } from '../utils/kpiScoreHelpers';
+import { isKpiLatePenaltyApplied } from '../utils/kpiScoreHelpers';
 import { formatLatePenaltyLabel, kpiScoringRule } from '../utils/kpiScoringRules';
 import KpiAssignmentEditNote from './KpiAssignmentEditNote';
 import KpiViewedBadge from './KpiViewedBadge';
@@ -36,7 +36,6 @@ export default function AssignedKpiCard({
   const category = kpiCategoryMeta(kpi.kpi_category);
   const scoring = kpiScoringRule(kpi);
   const penaltyLabel = formatLatePenaltyLabel(scoring);
-  const points = formatKpiTaskPoints(kpi);
   const description = kpi.description?.trim() || '';
   const notes = kpi.assignment_notes?.trim() || '';
   const stage = kpiWorkStage(kpi);
@@ -144,12 +143,8 @@ export default function AssignedKpiCard({
           <dd>{healthLabel}</dd>
         </div>
         <div>
-          <dt>Score</dt>
-          <dd>{kpiAssignedScore(kpi).toLocaleString()}</dd>
-        </div>
-        <div>
-          <dt>Performance Points</dt>
-          <dd>{points == null ? 'Open' : String(points)}</dd>
+          <dt>Achieved</dt>
+          <dd>{isCompleted ? formatKpiWeight(kpi.weight) : 'Open'}</dd>
         </div>
       </dl>
 

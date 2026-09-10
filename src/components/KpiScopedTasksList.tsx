@@ -1,7 +1,7 @@
 import { Check } from 'lucide-react';
 import type { Kpi } from '../utils/kpiHelpers';
 import { kpiCategoryMeta } from '../utils/kpiCategories';
-import { isKpiLateCompletion, kpiAssignedScore, kpiScoreContribution } from '../utils/kpiScoreHelpers';
+import { formatKpiWeight } from '../utils/kpiWeightHelpers';
 import KpiTaskBrief from './KpiTaskBrief';
 import '../styles/kpi-scope-tasks.css';
 
@@ -21,16 +21,14 @@ export default function KpiScopedTasksList({ kpis }: { kpis: Kpi[] }) {
               <th>Task / KPI Name</th>
               <th>Category</th>
               <th>Weightage</th>
-              <th>Score</th>
-              <th>Awarded</th>
+              <th>Achieved</th>
               <th>Status &amp; Completion</th>
             </tr>
           </thead>
           <tbody>
             {kpis.map((kpi) => {
               const isDone = kpi.completion_status === 'completed';
-              const isLate = isKpiLateCompletion(kpi);
-              const awarded = kpiScoreContribution(kpi);
+              const weight = Number(kpi.weight) || 0;
               const cat = kpiCategoryMeta(kpi.kpi_category);
               const completedDateStr = completedDateLabel(kpi, isDone);
 
@@ -42,15 +40,11 @@ export default function KpiScopedTasksList({ kpis }: { kpis: Kpi[] }) {
                   <td>
                     <span className="kpi-scope-tasks__cat">{cat.label}</span>
                   </td>
-                  <td className="kpi-scope-tasks__num">{kpi.weight || 0}%</td>
-                  <td className="kpi-scope-tasks__num">{kpiAssignedScore(kpi)}</td>
+                  <td className="kpi-scope-tasks__num">{formatKpiWeight(weight)}</td>
                   <td>
-                    <strong className={isDone ? (isLate ? 'kpi-scope-tasks__late' : 'kpi-scope-tasks__awarded') : 'kpi-scope-tasks__open'}>
-                      {isDone ? String(awarded) : '0 (open)'}
+                    <strong className={isDone ? 'kpi-scope-tasks__awarded' : 'kpi-scope-tasks__open'}>
+                      {isDone ? formatKpiWeight(weight) : '0% (open)'}
                     </strong>
-                    {isDone && isLate && (
-                      <span className="kpi-scope-tasks__late-note">50% late deduction</span>
-                    )}
                   </td>
                   <td>
                     {isDone ? (
@@ -76,8 +70,7 @@ export default function KpiScopedTasksList({ kpis }: { kpis: Kpi[] }) {
       <ul className="kpi-scope-tasks__cards" aria-label="Tasks in scope">
         {kpis.map((kpi) => {
           const isDone = kpi.completion_status === 'completed';
-          const isLate = isKpiLateCompletion(kpi);
-          const awarded = kpiScoreContribution(kpi);
+          const weight = Number(kpi.weight) || 0;
           const cat = kpiCategoryMeta(kpi.kpi_category);
           const completedDateStr = completedDateLabel(kpi, isDone);
 
@@ -100,16 +93,12 @@ export default function KpiScopedTasksList({ kpis }: { kpis: Kpi[] }) {
               <dl className="kpi-scope-tasks__card-grid">
                 <div>
                   <dt>Weightage</dt>
-                  <dd>{kpi.weight || 0}%</dd>
+                  <dd>{formatKpiWeight(weight)}</dd>
                 </div>
                 <div>
-                  <dt>Score</dt>
-                  <dd>{kpiAssignedScore(kpi)}</dd>
-                </div>
-                <div>
-                  <dt>Awarded</dt>
-                  <dd className={isDone ? (isLate ? 'kpi-scope-tasks__late' : 'kpi-scope-tasks__awarded') : 'kpi-scope-tasks__open'}>
-                    {isDone ? String(awarded) : '0'}
+                  <dt>Achieved</dt>
+                  <dd className={isDone ? 'kpi-scope-tasks__awarded' : 'kpi-scope-tasks__open'}>
+                    {isDone ? formatKpiWeight(weight) : '0%'}
                   </dd>
                 </div>
                 <div>
@@ -118,15 +107,7 @@ export default function KpiScopedTasksList({ kpis }: { kpis: Kpi[] }) {
                 </div>
               </dl>
 
-              {isDone && isLate && (
-                <p className="kpi-scope-tasks__late-note">50% late deduction applied</p>
-              )}
-
-              {kpi.description?.trim() ? (
-                <div className="kpi-scope-tasks__card-actions">
-                  <KpiTaskBrief kpi={kpi} hideName />
-                </div>
-              ) : null}
+              <KpiTaskBrief kpi={kpi} />
             </li>
           );
         })}

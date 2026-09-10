@@ -25,7 +25,7 @@ const FEATURES = [
   {
     icon: Trophy,
     title: 'Rewards & Points',
-    desc: 'Hit monthly weightage targets to unlock company gifts and catalog rewards. No score points to spend — redeem with weightage.',
+    desc: 'Hit monthly weightage targets to unlock company gifts and catalog rewards. Redeem with weightage.',
     color: '#fbbf24',
   },
   {

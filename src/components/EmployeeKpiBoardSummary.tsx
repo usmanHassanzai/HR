@@ -1,11 +1,5 @@
 import { formatKpiAssignmentChange, Kpi } from '../utils/kpiHelpers';
-import {
-  employeeKpiBoardBreakdown,
-  formatKpiScore,
-  kpiManagerScorePct,
-  kpiScoreRows,
-  performanceRatingColor,
-} from '../utils/kpiScoreHelpers';
+import { employeeKpiBoardBreakdown, kpiScoreRows } from '../utils/kpiScoreHelpers';
 import { formatKpiWeight, KPI_WEIGHT_CAP } from '../utils/kpiWeightHelpers';
 import { kpiCategoryMeta } from '../utils/kpiCategories';
 import KpiScoreboardSummary from './KpiScoreboardSummary';
@@ -28,7 +22,7 @@ export default function EmployeeKpiBoardSummary({ kpis, employeeName }: Employee
       <KpiScoreboardSummary
         kpis={kpis}
         compact
-        title={employeeName ? `${employeeName}'s KPI scoreboard` : 'KPI scoreboard'}
+        title={employeeName ? `${employeeName}'s KPI weightage` : 'KPI weightage'}
       />
 
       <div className="kpi-score-list">
@@ -39,9 +33,9 @@ export default function EmployeeKpiBoardSummary({ kpis, employeeName }: Employee
 
         <div className="kpi-score-cards" aria-label="KPI task breakdown">
           {rows.map((row) => {
-            const scorePts = kpiManagerScorePct(row.kpi) == null
-              ? null
-              : formatKpiScore(row.weightedScore);
+            const achieved = row.kpi.completion_status === 'completed'
+              ? formatKpiWeight(row.weight)
+              : null;
             const editNote = formatKpiAssignmentChange(row.kpi);
             return (
               <article key={row.kpi.id} className="kpi-score-card">
@@ -56,8 +50,8 @@ export default function EmployeeKpiBoardSummary({ kpis, employeeName }: Employee
                     <strong>{formatKpiWeight(row.weight)}</strong>
                   </div>
                   <div>
-                    <span>Score</span>
-                    <strong>{scorePts ?? '—'}</strong>
+                    <span>Achieved</span>
+                    <strong>{achieved ?? '—'}</strong>
                   </div>
                 </div>
               </article>
@@ -71,10 +65,8 @@ export default function EmployeeKpiBoardSummary({ kpis, employeeName }: Employee
             <strong>{formatKpiWeight(Math.min(KPI_WEIGHT_CAP, summary.weightAssigned))}</strong>
           </div>
           <div>
-            <span>Overall score</span>
-            <strong style={{ color: performanceRatingColor(summary.performanceRating) }}>
-              {formatKpiScore(summary.score)} · {summary.performanceRating}
-            </strong>
+            <span>Achieved weightage</span>
+            <strong>{formatKpiWeight(summary.weightAchieved)}</strong>
           </div>
         </div>
 
@@ -85,7 +77,7 @@ export default function EmployeeKpiBoardSummary({ kpis, employeeName }: Employee
               <tr>
                 <th>KPI</th>
                 <th>Weightage</th>
-                <th>Score</th>
+                <th>Achieved</th>
               </tr>
             </thead>
             <tbody>
@@ -100,7 +92,9 @@ export default function EmployeeKpiBoardSummary({ kpis, employeeName }: Employee
                   </td>
                   <td>{formatKpiWeight(row.weight)}</td>
                   <td>
-                    {kpiManagerScorePct(row.kpi) == null ? '—' : formatKpiScore(row.weightedScore)}
+                    {row.kpi.completion_status === 'completed'
+                      ? formatKpiWeight(row.weight)
+                      : '—'}
                   </td>
                 </tr>
               ))}
@@ -110,9 +104,7 @@ export default function EmployeeKpiBoardSummary({ kpis, employeeName }: Employee
                 <td>Total</td>
                 <td>{formatKpiWeight(Math.min(KPI_WEIGHT_CAP, summary.weightAssigned))}</td>
                 <td>
-                  <strong style={{ color: performanceRatingColor(summary.performanceRating) }}>
-                    Score {formatKpiScore(summary.score)} · {summary.performanceRating}
-                  </strong>
+                  <strong>{formatKpiWeight(summary.weightAchieved)}</strong>
                 </td>
               </tr>
             </tfoot>

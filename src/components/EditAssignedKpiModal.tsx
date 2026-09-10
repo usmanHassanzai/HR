@@ -3,11 +3,7 @@ import { Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { formatKpiAssignmentChange, formatKpiEditTimestamp, Kpi, displayRoleLabel, type UserRole } from '../utils/kpiHelpers';
 import KpiViewedBadge from './KpiViewedBadge';
-import {
-  calculateOverallKpiScore,
-  formatKpiScore,
-  kpiAssignedScore,
-} from '../utils/kpiScoreHelpers';
+import { employeeKpiBoardBreakdown } from '../utils/kpiScoreHelpers';
 import { formatKpiWeight, KPI_WEIGHT_CAP, sumEmployeeKpiWeights } from '../utils/kpiWeightHelpers';
 import { emailKpiAssignmentUpdated } from '../utils/kpiEmail';
 
@@ -40,7 +36,6 @@ export default function EditAssignedKpiModal({
   onSaved,
 }: EditAssignedKpiModalProps) {
   const [weight, setWeight] = useState(String(kpi.weight ?? ''));
-  const [score, setScore] = useState(String(kpiAssignedScore(kpi)));
   const [endDate, setEndDate] = useState(kpi.end_date || '');
   const [status, setStatus] = useState(kpi.status);
   const [completion, setCompletion] = useState<'pending' | 'completed'>(kpi.completion_status === 'completed' ? 'completed' : 'pending');
@@ -81,33 +76,27 @@ export default function EditAssignedKpiModal({
 
   const previewKpis = useMemo(() => {
     const nextWeight = Number(weight);
-    const nextAssigned = Number(score);
     return siblingKpis.map((item) => {
       if (item.id !== kpi.id) return item;
       return {
         ...item,
         weight: Number.isFinite(nextWeight) ? nextWeight : item.weight,
-        assigned_score: Number.isFinite(nextAssigned) ? nextAssigned : item.assigned_score,
+        assigned_score: Number.isFinite(nextWeight) ? nextWeight : item.assigned_score,
         end_date: endDate || item.end_date,
         status,
         completion_status: completion,
       };
     });
-  }, [siblingKpis, kpi.id, weight, score, endDate, status, completion]);
+  }, [siblingKpis, kpi.id, weight, endDate, status, completion]);
 
-  const liveOverall = calculateOverallKpiScore(previewKpis);
+  const board = employeeKpiBoardBreakdown(previewKpis);
   const pendingWeight = sumEmployeeKpiWeights(previewKpis);
   const weightNum = Number(weight);
-  const scoreNum = Number(score);
 
   const buildChangeLines = (): string[] => {
     const lines: string[] = [];
-    const prevScore = kpiAssignedScore(kpi);
     if (Math.abs(weightNum - Number(kpi.weight || 0)) > 0.001) {
-      lines.push(`Weight: ${formatKpiWeight(kpi.weight)} → ${formatKpiWeight(weightNum)}`);
-    }
-    if (Math.abs(scoreNum - prevScore) > 0.001) {
-      lines.push(`Score: ${formatKpiScore(prevScore)} → ${formatKpiScore(scoreNum)}`);
+      lines.push(`Weightage: ${formatKpiWeight(kpi.weight)} → ${formatKpiWeight(weightNum)}`);
     }
     if ((endDate || '') !== (kpi.end_date || '')) {
       lines.push(`Due date: ${kpi.end_date || '—'} → ${endDate || '—'}`);
@@ -127,10 +116,6 @@ export default function EditAssignedKpiModal({
       setError('Weightage must be between 1% and 100%.');
       return;
     }
-    if (!Number.isFinite(scoreNum) || scoreNum < 0) {
-      setError('Score cannot be negative.');
-      return;
-    }
     if (!endDate) {
       setError('Choose a due date.');
       return;
@@ -138,7 +123,7 @@ export default function EditAssignedKpiModal({
 
     const changeLines = buildChangeLines();
     const weightChanged = Math.abs(weightNum - Number(kpi.weight || 0)) > 0.001;
-    if (weightChanged && !window.confirm(`Save weightage change from ${formatKpiWeight(kpi.weight)} to ${formatKpiWeight(weightNum)}? The employee’s overall KPI score will update immediately.`)) {
+    if (weightChanged && !window.confirm(`Save weightage change from ${formatKpiWeight(kpi.weight)} to ${formatKpiWeight(weightNum)}? Achieved weightage updates when this task is complete.`)) {
       return;
     }
 
@@ -148,7 +133,7 @@ export default function EditAssignedKpiModal({
       const { data, error: rpcError } = await supabase.rpc('edit_assigned_kpi', {
         p_kpi_id: kpi.id,
         p_weight: weightNum,
-        p_score_pct: scoreNum,
+        p_score_pct: weightNum,
         p_end_date: endDate,
         p_status: status,
         p_completion_status: completion,
@@ -228,7 +213,6 @@ export default function EditAssignedKpiModal({
           )}
           <p className="kpi-edit-current-weight">
             Current weightage: <strong>{formatKpiWeight(kpi.weight)}</strong>
-            {' · '}Score: <strong>{formatKpiScore(kpiAssignedScore(kpi))}</strong>
           </p>
           <div className="kpi-edit-viewed">
             <KpiViewedBadge kpi={kpi} />
@@ -242,17 +226,9 @@ export default function EditAssignedKpiModal({
                 max={100}
                 step={0.5}
                 value={weight}
-                onChange={(e) => {
-                  const next = e.target.value;
-                  setWeight(next);
-                  setScore((prev) => (prev === String(kpi.weight) || prev === weight ? next : prev));
-                }}
+                onChange={(e) => setWeight(e.target.value)}
               />
               <em>%</em>
-            </label>
-            <label className="kpi-edit-field">
-              <span>Score</span>
-              <input type="number" min={0} step={0.5} value={score} onChange={(e) => setScore(e.target.value)} />
             </label>
             <label className="kpi-edit-field">
               <span>Due date</span>
@@ -274,11 +250,15 @@ export default function EditAssignedKpiModal({
               </select>
             </label>
           </div>
-          <p className="studio-muted" style={{ marginTop: '0.35rem' }}>Score can be higher than weight. Points follow the task&apos;s scoring rule (shown on the card) when they mark Complete.</p>
+          <p className="studio-muted" style={{ marginTop: '0.35rem' }}>
+            Completing this task counts its full weightage toward monthly rewards.
+          </p>
 
           <div className="kpi-edit-score">
-            <span>Updated overall score</span>
-            <strong>{formatKpiScore(liveOverall)}</strong>
+            <span>Board weightage (preview)</span>
+            <strong>
+              {formatKpiWeight(board.weightAchieved)} achieved · {formatKpiWeight(board.weightAssigned)} assigned
+            </strong>
             {completion === 'pending' && (
               <p>Pending weight {formatKpiWeight(pendingWeight)} of {KPI_WEIGHT_CAP}%</p>
             )}

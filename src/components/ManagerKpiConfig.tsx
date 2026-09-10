@@ -130,7 +130,7 @@ function StudioSteps({
 }
 
 const CATEGORY_HELP: Record<KpiCategoryId, string> = {
-  monthly_goal: 'Grouping only — shows under Monthly Goal on dashboards. Does not change how points are calculated.',
+  monthly_goal: 'Grouping only — shows under Monthly Goal on dashboards. Does not change weightage.',
   quality: 'Grouping only — shows under Quality on dashboards. Scoring is set separately below.',
   punctuality_behaviour: 'Grouping only — shows under Punctuality & Behaviour. Scoring is set separately below.',
   urgent_tasks: 'Grouping only — shows under Urgent Tasks. Optional pause-other-tasks when assigning is separate from scoring.',
@@ -191,7 +191,6 @@ export default function ManagerKpiConfig({
   const [assignStartDate, setAssignStartDate] = useState(() => defaultKpiDates().start);
   const [assignEndDate, setAssignEndDate] = useState(() => defaultKpiDates().end);
   const [assignWeight, setAssignWeight] = useState('');
-  const [assignScore, setAssignScore] = useState('');
   const [boardSearch, setBoardSearch] = useState('');
   const [pauseOngoingOnUrgent, setPauseOngoingOnUrgent] = useState(true);
   const [libPenaltyEnabled, setLibPenaltyEnabled] = useState(DEFAULT_KPI_SCORING_RULE.penaltyEnabled);
@@ -203,17 +202,14 @@ export default function ManagerKpiConfig({
   const remaining = remainingKpiWeightBudget(assignKpis);
   const selectedTemplate = templates.find((t) => t.id === assignKpiId) || null;
   const selectedWeight = Number(assignWeight || selectedTemplate?.weight || 0);
-  const selectedScore = Number(assignScore || selectedWeight || 0);
+  const selectedScore = selectedWeight;
 
   useEffect(() => {
     if (!selectedTemplate) {
       setAssignWeight('');
-      setAssignScore('');
       return;
     }
-    const w = String(selectedTemplate.weight);
-    setAssignWeight(w);
-    setAssignScore(w);
+    setAssignWeight(String(selectedTemplate.weight));
   }, [selectedTemplate?.id]);
 
   const loadTemplates = async () => {
@@ -494,7 +490,7 @@ export default function ManagerKpiConfig({
     }
     if (libPenaltyEnabled) {
       if (!Number.isFinite(penaltyValue) || penaltyValue < 0 || penaltyValue > 100) {
-        setError('Late award % must be between 0 and 100 (50 = half score).');
+        setError('Late flag % must be between 0 and 100.');
         return;
       }
       if (!Number.isFinite(graceDays) || graceDays < 0) {
@@ -595,7 +591,7 @@ export default function ManagerKpiConfig({
       return;
     }
     if (!Number.isFinite(selectedScore) || selectedScore < 0) {
-      setError('Score cannot be negative.');
+      setError('Weightage cannot be negative.');
       return;
     }
     setFormLoading(true);
@@ -757,7 +753,6 @@ export default function ManagerKpiConfig({
                           weight: Number(tpl.weight || 0),
                           start_date: null,
                           end_date: null,
-                          assigned_score: null,
                         }}
                         hideName
                         compact={false}
@@ -901,25 +896,9 @@ export default function ManagerKpiConfig({
                       max={100}
                       step={0.5}
                       value={assignWeight}
-                      onChange={(e) => {
-                        const next = e.target.value;
-                        setAssignWeight(next);
-                        setAssignScore((prev) => (prev === assignWeight || prev === '' ? next : prev));
-                      }}
+                      onChange={(e) => setAssignWeight(e.target.value)}
                       required
                     />
-                  </label>
-                  <label className="studio-assign-field">
-                    Score (points if completed on time)
-                    <input
-                      type="number"
-                      min={0}
-                      step={0.5}
-                      value={assignScore}
-                      onChange={(e) => setAssignScore(e.target.value)}
-                      required
-                    />
-                    <span className="studio-muted">Can be higher than weight if you choose.</span>
                   </label>
                 </div>
               )}
@@ -1153,9 +1132,9 @@ export default function ManagerKpiConfig({
                 <p>{CATEGORY_HELP[libCategory]}</p>
               </fieldset>
               <fieldset className="studio-scoring">
-                <legend>Scoring rules</legend>
+                <legend>Late completion rules</legend>
                 <p className="studio-muted" style={{ marginTop: 0 }}>
-                  Category only groups the KPI on dashboards. Set late scoring here so every score is auditable.
+                  Category only groups the KPI on dashboards. Late rules are recorded for audit; rewards use full completed weightage.
                 </p>
                 <label className="geo-toggle-row" style={{ margin: '0.5rem 0' }}>
                   <input
@@ -1163,12 +1142,12 @@ export default function ManagerKpiConfig({
                     checked={libPenaltyEnabled}
                     onChange={(e) => setLibPenaltyEnabled(e.target.checked)}
                   />
-                  <span>Apply a late penalty after the due date</span>
+                  <span>Flag completions after the due date</span>
                 </label>
                 {libPenaltyEnabled && (
                   <div className="studio-scoring__fields">
                     <label>
-                      Award this % of Score when late
+                      Late flag severity (% of weightage noted)
                       <input
                         type="number"
                         min={0}
@@ -1177,7 +1156,7 @@ export default function ManagerKpiConfig({
                         value={libPenaltyValue}
                         onChange={(e) => setLibPenaltyValue(e.target.value)}
                       />
-                      <span className="studio-muted">50 = half score. 0 = no points if late.</span>
+                      <span className="studio-muted">For records only — monthly rewards still use completed weightage.</span>
                     </label>
                     <label>
                       Grace period (days)
@@ -1201,7 +1180,7 @@ export default function ManagerKpiConfig({
                   </div>
                 )}
                 {!libPenaltyEnabled && (
-                  <p className="studio-muted">No late penalty — completing after the due date still awards full Score.</p>
+                  <p className="studio-muted">No late flag — completing after the due date still counts full weightage.</p>
                 )}
               </fieldset>
               <label>

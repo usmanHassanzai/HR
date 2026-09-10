@@ -4,13 +4,7 @@ import { isKpiViewedByAssignee, kpiProgressBadge, Profile, Kpi } from '../utils/
 import { hydrateKpiLastEdits } from '../utils/kpiAssignmentEdits';
 import { markAssignedKpisViewed } from '../utils/kpiViewed';
 import { formatKpiWeight } from '../utils/kpiWeightHelpers';
-import {
-  formatKpiScore,
-  formatKpiTaskPoints,
-  isKpiLatePenaltyApplied,
-  kpiAssignedScore,
-  kpiScoreContribution,
-} from '../utils/kpiScoreHelpers';
+import { isKpiLatePenaltyApplied } from '../utils/kpiScoreHelpers';
 import { emailKpiOverdue } from '../utils/kpiEmail';
 import { runOverdueKpiCheckOnce } from '../utils/overdueKpiCheck';
 import KpiAssignmentDetails from './KpiAssignmentDetails';
@@ -137,14 +131,11 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
           <div className="emp-kpi-list__head" style={{ marginBottom: '0.75rem' }}>
             <div>
               <h3>Your assigned tasks</h3>
-              <p>Each card shows KPI weightage (0–100%) and score points. Score can rise above weight.</p>
+              <p>Each card shows KPI weightage (0–100%). Complete tasks to achieve weightage toward rewards.</p>
             </div>
           </div>
           {kpis.map((kpi) => {
             const badge = kpiProgressBadge(kpi);
-            const points = formatKpiTaskPoints(kpi);
-            const assigned = kpiAssignedScore(kpi);
-            const awarded = kpiScoreContribution(kpi);
             const complete = kpi.completion_status === 'completed';
             const latePenalized = isKpiLatePenaltyApplied(kpi);
             const penaltyLabel = formatLatePenaltyLabel(kpiScoringRule(kpi));
@@ -165,12 +156,8 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
                     <dd>{formatKpiWeight(kpi.weight)}</dd>
                   </div>
                   <div>
-                    <dt>Score</dt>
-                    <dd>{formatKpiScore(assigned)}</dd>
-                  </div>
-                  <div>
-                    <dt>Awarded</dt>
-                    <dd>{complete ? formatKpiScore(awarded) : '—'}</dd>
+                    <dt>Achieved</dt>
+                    <dd>{complete ? formatKpiWeight(kpi.weight) : '—'}</dd>
                   </div>
                   <div>
                     <dt>Dates</dt>
@@ -178,9 +165,9 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
                   </div>
                 </dl>
                 <p className="kpi-score-line">
-                  {points == null
-                    ? 'Points after you mark Complete'
-                    : `${points} awarded${latePenalized ? ' (late penalty)' : ''}`}
+                  {complete
+                    ? `Weightage achieved ${formatKpiWeight(kpi.weight)}${latePenalized ? ' (late)' : ''}`
+                    : 'Weightage after you mark Complete'}
                 </p>
                 <KpiAssignmentDetails kpi={kpi} />
                 <KpiEvaluationBlock

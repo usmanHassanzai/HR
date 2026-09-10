@@ -17,11 +17,7 @@ import '../styles/manager-personal.css';
 import { formatKpiWeight, KPI_WEIGHT_CAP } from '../utils/kpiWeightHelpers';
 import {
   availableKpiYears,
-  formatKpiScore,
-  formatKpiTaskPoints,
   isKpiLatePenaltyApplied,
-  kpiAssignedScore,
-  kpiScoreContribution,
   kpisForPeriod,
   periodLabel,
   type KpiPeriodMode,
@@ -390,9 +386,6 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
           ) : (
             listedKpis.map((kpi) => {
             const badge = kpiProgressBadge(kpi);
-            const points = formatKpiTaskPoints(kpi);
-            const assigned = kpiAssignedScore(kpi);
-            const awarded = kpiScoreContribution(kpi);
             const paused = Boolean(kpi.paused_at) && kpi.completion_status !== 'completed';
             const complete = kpi.completion_status === 'completed';
             const latePenalized = isKpiLatePenaltyApplied(kpi);
@@ -420,12 +413,8 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
                     <dd>{formatKpiWeight(kpi.weight)}</dd>
                   </div>
                   <div>
-                    <dt>Score</dt>
-                    <dd>{formatKpiScore(assigned)}</dd>
-                  </div>
-                  <div>
-                    <dt>Awarded</dt>
-                    <dd>{complete ? formatKpiScore(awarded) : '—'}</dd>
+                    <dt>Achieved</dt>
+                    <dd>{complete ? formatKpiWeight(kpi.weight) : '—'}</dd>
                   </div>
                   <div>
                     <dt>{complete ? 'Completed' : 'Dates'}</dt>
@@ -445,24 +434,26 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
                     <span>Timing</span>
                     <strong>
                       {!complete
-                        ? 'Open — mark Complete to earn points'
+                        ? 'Open — mark Complete to earn weightage'
                         : latePenalized
                           ? 'Completed after due date (late penalty applied)'
-                          : 'Completed on time (full score)'}
+                          : 'Completed on time'}
                     </strong>
                   </div>
                   <div className="emp-kpi-detail__row">
                     <span>Contribution</span>
                     <strong>
                       {complete
-                        ? `${formatKpiScore(awarded)} of ${formatKpiWeight(kpi.weight)} weightage`
-                        : `Not complete (weightage ${formatKpiWeight(kpi.weight)} still counts)`}
+                        ? `${formatKpiWeight(kpi.weight)} of ${formatKpiWeight(kpi.weight)} weightage`
+                        : `Not complete (weightage ${formatKpiWeight(kpi.weight)} still counts toward assigned)`}
                     </strong>
                   </div>
                 </div>
                 <KpiAssignmentDetails kpi={kpi} compact />
                 <p className="kpi-score-line">
-                  {points == null ? 'Score after you mark Complete' : `Score awarded ${points}`}
+                  {complete
+                    ? `Weightage achieved ${formatKpiWeight(kpi.weight)}`
+                    : 'Weightage after you mark Complete'}
                 </p>
                 <KpiEvaluationBlock
                   kpi={kpi}

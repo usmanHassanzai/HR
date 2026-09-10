@@ -4,7 +4,6 @@ import { Eye } from 'lucide-react';
 import type { Kpi } from '../utils/kpiHelpers';
 import { kpiCategoryMeta } from '../utils/kpiCategories';
 import { formatKpiWeight } from '../utils/kpiWeightHelpers';
-import { formatKpiScore, kpiAssignedScore } from '../utils/kpiScoreHelpers';
 import '../styles/kpi-task-brief.css';
 
 function fmtDate(d?: string | null): string {
@@ -17,7 +16,7 @@ function fmtDate(d?: string | null): string {
 }
 
 interface KpiTaskBriefProps {
-  kpi: Pick<Kpi, 'name' | 'description' | 'kpi_category' | 'weight' | 'start_date' | 'end_date' | 'assigned_score'>;
+  kpi: Pick<Kpi, 'name' | 'description' | 'kpi_category' | 'weight' | 'start_date' | 'end_date'>;
   /** Compact table cell: name + View button only. */
   compact?: boolean;
   /** When name is already shown outside (e.g. card title). */
@@ -86,10 +85,6 @@ export default function KpiTaskBrief({ kpi, compact = true, hideName = false }: 
               <div>
                 <dt>Weightage</dt>
                 <dd>{formatKpiWeight(Number(kpi.weight || 0))}</dd>
-              </div>
-              <div>
-                <dt>Score</dt>
-                <dd>{formatKpiScore(kpiAssignedScore(kpi as Kpi))}</dd>
               </div>
               <div>
                 <dt>Dates</dt>

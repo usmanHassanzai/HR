@@ -1,16 +1,11 @@
 import { supabase } from '../lib/supabase';
 import { Kpi, Profile, KpiSubmission } from './kpiHelpers';
-import {
-  calculateOverallKpiScore,
-  kpiAssignedScore,
-  kpiScoreContribution,
-  performanceRatingForScore,
-  isKpiLateCompletion,
-} from './kpiScoreHelpers';
+import { employeeKpiBoardBreakdown, isKpiLateCompletion } from './kpiScoreHelpers';
+import { formatKpiWeight } from './kpiWeightHelpers';
 
 function kpiTimingLabel(kpi: Kpi): string {
   if (kpi.completion_status !== 'completed') return 'Open';
-  return isKpiLateCompletion(kpi) ? 'Late (half points)' : 'On time';
+  return isKpiLateCompletion(kpi) ? 'Late' : 'On time';
 }
 
 export interface ReportData {
@@ -87,21 +82,21 @@ export function exportToCsv(data: ReportData) {
     list.push(kpi);
     kpisByUser.set(kpi.user_id, list);
   }
-  const header = 'Employee,Department,KPI,Weight,Score,Timing,Points Awarded,Overall KPI Score,Performance Band';
+  const header = 'Employee,Department,KPI,Weightage,Achieved,Timing,Board Achieved Weightage,Board Assigned Weightage';
   const rows = data.kpis.map((kpi) => {
     const user = userMap.get(kpi.user_id);
     const userKpis = kpisByUser.get(kpi.user_id) || [];
-    const overall = calculateOverallKpiScore(userKpis);
+    const board = employeeKpiBoardBreakdown(userKpis);
+    const achieved = kpi.completion_status === 'completed' ? Number(kpi.weight || 0) : 0;
     const fields = [
       user?.full_name || 'Unknown',
       kpi.department || kpi.category || '',
       kpi.name,
       String(kpi.weight ?? ''),
-      String(kpiAssignedScore(kpi)),
+      String(achieved),
       kpiTimingLabel(kpi),
-      String(kpiScoreContribution(kpi)),
-      String(overall),
-      performanceRatingForScore(overall),
+      String(board.weightAchieved),
+      String(board.weightAssigned),
     ];
     return fields.map((f) => `"${f}"`).join(',');
   });
@@ -115,17 +110,16 @@ export async function exportToExcel(data: ReportData) {
 
   const kpiRows = data.kpis.map((kpi) => {
     const userKpis = data.kpis.filter((k) => k.user_id === kpi.user_id);
-    const overall = calculateOverallKpiScore(userKpis);
+    const board = employeeKpiBoardBreakdown(userKpis);
     return {
       Employee: userMap.get(kpi.user_id)?.full_name || 'Unknown',
       Department: kpi.department || kpi.category || '',
       KPI: kpi.name,
-      Weight: kpi.weight,
-      Score: kpiAssignedScore(kpi),
+      Weightage: kpi.weight,
+      Achieved: kpi.completion_status === 'completed' ? kpi.weight : 0,
       Timing: kpiTimingLabel(kpi),
-      'Points Awarded': kpiScoreContribution(kpi),
-      'Overall KPI Score': overall,
-      'Performance Band': performanceRatingForScore(overall),
+      'Board Achieved Weightage': board.weightAchieved,
+      'Board Assigned Weightage': board.weightAssigned,
     };
   });
 
@@ -170,8 +164,9 @@ export async function exportToPdf(data: ReportData) {
     if (y > 270) { doc.addPage(); y = 20; }
     const employee = userMap.get(kpi.user_id)?.full_name || 'Unknown';
     const userKpis = data.kpis.filter((k) => k.user_id === kpi.user_id);
-    const overall = calculateOverallKpiScore(userKpis);
-    const line = `${employee} — ${kpi.name}: weight ${kpi.weight}%  score ${kpiAssignedScore(kpi)}  ${kpiTimingLabel(kpi)}  awarded ${kpiScoreContribution(kpi)}  overall ${overall}% ${performanceRatingForScore(overall)}`;
+    const board = employeeKpiBoardBreakdown(userKpis);
+    const achieved = kpi.completion_status === 'completed' ? formatKpiWeight(kpi.weight) : '0%';
+    const line = `${employee} — ${kpi.name}: weightage ${formatKpiWeight(kpi.weight)}  achieved ${achieved}  ${kpiTimingLabel(kpi)}  board ${formatKpiWeight(board.weightAchieved)} / ${formatKpiWeight(board.weightAssigned)}`;
     doc.text(line, 14, y);
     y += 5;
     if (kpi.ai_narrative) {

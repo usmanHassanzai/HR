@@ -10,13 +10,8 @@ import {
 } from '../utils/kpiHelpers';
 import { Department } from '../utils/departmentHelpers';
 import {
-  calculateOverallKpiScore,
-  formatKpiScore,
+  employeeKpiBoardBreakdown,
   isKpiLateCompletion,
-  kpiAssignedScore,
-  kpiScoreContribution,
-  performanceRatingColor,
-  performanceRatingForScore,
 } from '../utils/kpiScoreHelpers';
 import { formatKpiWeight } from '../utils/kpiWeightHelpers';
 import KpiTaskBrief from './KpiTaskBrief';
@@ -300,9 +295,8 @@ export default function Analytics({
   }, [selectedUserId, loadUserData]);
 
   // KPI Calculations
-  const overallScore = useMemo(() => calculateOverallKpiScore(kpis), [kpis]);
-  const perfRating = useMemo(() => performanceRatingForScore(overallScore), [overallScore]);
-  const perfColor = useMemo(() => performanceRatingColor(perfRating), [perfRating]);
+  const board = useMemo(() => employeeKpiBoardBreakdown(kpis), [kpis]);
+  const overallWeightage = board.weightAchieved;
 
   const completedKpis = useMemo(() => kpis.filter((k) => k.completion_status === 'completed'), [kpis]);
   const onTimeKpis = useMemo(() => completedKpis.filter((k) => !isKpiLateCompletion(k)), [completedKpis]);
@@ -485,13 +479,13 @@ export default function Analytics({
               </div>
             </div>
 
-            <div className="analytics-user-hero__score-box" style={{ borderColor: perfColor }}>
-              <span className="analytics-user-hero__score-label">Overall KPI Score</span>
-              <div className="analytics-user-hero__score-num" style={{ color: perfColor }}>
-                {formatKpiScore(overallScore)}
+            <div className="analytics-user-hero__score-box">
+              <span className="analytics-user-hero__score-label">Achieved weightage</span>
+              <div className="analytics-user-hero__score-num">
+                {formatKpiWeight(overallWeightage)}
               </div>
-              <span className="analytics-user-hero__score-rating" style={{ color: perfColor }}>
-                {perfRating}
+              <span className="analytics-user-hero__score-rating">
+                {formatKpiWeight(board.weightAssigned)} assigned
               </span>
             </div>
           </section>
@@ -501,7 +495,7 @@ export default function Analytics({
               kpis={kpis}
               rewardsSummary={rewardsSummary}
               compact
-              title={`${selectedUser.full_name}'s KPI scoreboard`}
+              title={`${selectedUser.full_name}'s KPI weightage`}
             />
           )}
 
@@ -683,17 +677,14 @@ export default function Analytics({
                         <tr>
                           <th>KPI / Task Name</th>
                           <th>Category</th>
-                          <th>Weight</th>
-                          <th>Assigned Score</th>
-                          <th>Points Awarded</th>
+                          <th>Weightage</th>
+                          <th>Achieved</th>
                           <th>Dates</th>
                           <th>Status / Progress</th>
                         </tr>
                       </thead>
                       <tbody>
                         {kpis.map((k) => {
-                          const assignedScore = kpiAssignedScore(k);
-                          const awarded = kpiScoreContribution(k);
                           const isDone = k.completion_status === 'completed';
                           const isLate = isKpiLateCompletion(k);
                           const paused = isKpiPaused(k);
@@ -711,15 +702,12 @@ export default function Analytics({
                                 <strong>{formatKpiWeight(k.weight)}</strong>
                               </td>
                               <td>
-                                <span>{formatKpiScore(assignedScore)}</span>
-                              </td>
-                              <td>
                                 {isDone ? (
                                   <strong className={isLate ? 'text-warning' : 'text-success'}>
-                                    {formatKpiScore(awarded)} {isLate ? '(Half - Late)' : '(Full)'}
+                                    {formatKpiWeight(k.weight)} {isLate ? '(late)' : '(on time)'}
                                   </strong>
                                 ) : (
-                                  <span className="text-muted">0.00 (Open)</span>
+                                  <span className="text-muted">0% (open)</span>
                                 )}
                               </td>
                               <td>

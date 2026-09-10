@@ -25,7 +25,7 @@ export default function WeightageRewardCatalog({
   userId,
   monthWeightage,
   title = 'Reward catalog',
-  intro = 'Redeem these when your this-month weightage meets the requirement. No score points needed.',
+  intro = 'Redeem these when your this-month weightage meets the requirement.',
   onRedeemed,
 }: {
   userId: string;

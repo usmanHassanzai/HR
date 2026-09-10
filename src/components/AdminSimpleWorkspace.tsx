@@ -11,10 +11,7 @@ import {
 } from '../utils/adminKpiDateRange';
 import { formatKpiWeight } from '../utils/kpiWeightHelpers';
 import {
-  formatKpiScore,
-  kpiScoreContribution,
   isKpiPastDeadline,
-  kpiManagerScorePct,
 } from '../utils/kpiScoreHelpers';
 import KpiAssignmentDetails from './KpiAssignmentDetails';
 import KpiViewedBadge from './KpiViewedBadge';
@@ -216,7 +213,6 @@ export default function AdminSimpleWorkspace({
           <div className="admin-simple__tasks dashboard-grid">
             {visibleKpis.map((kpi) => {
               const badge = kpiProgressBadge(kpi);
-              const contribution = kpiScoreContribution(kpi);
               return (
                 <article key={kpi.id} className={`glass-panel kpi-card kpi-card--${badge.light}`}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.5rem' }}>
@@ -228,10 +224,10 @@ export default function AdminSimpleWorkspace({
                   <KpiViewedBadge kpi={kpi} />
                   <KpiAssignmentDetails kpi={kpi} />
                   <p className="kpi-score-line">
-                    Weight {formatKpiWeight(kpi.weight)}
-                    {kpiManagerScorePct(kpi) == null
-                      ? ' · Not complete yet'
-                      : ` · ${formatKpiScore(contribution)}`}
+                    Weightage {formatKpiWeight(kpi.weight)}
+                    {kpi.completion_status === 'completed'
+                      ? ` · Achieved ${formatKpiWeight(kpi.weight)}`
+                      : ' · Not complete yet'}
                   </p>
                   <div className="kpi-dates">{fmtDate(kpi.start_date)} → {fmtDate(kpi.end_date)}</div>
                   {isKpiPastDeadline(kpi) && (

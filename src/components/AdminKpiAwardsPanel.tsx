@@ -200,7 +200,7 @@ export default function AdminKpiAwardsPanel() {
             <h3>
               <Settings2 size={18} /> Award settings
             </h3>
-            <p>Change weightage targets, streak length, or gift names for this company only. Targets use completed KPI weightage (0–100%), not score points.</p>
+            <p>Change weightage targets, streak length, or gift names for this company only. Targets use completed KPI weightage (0–100%).</p>
           </div>
         </div>
         <div className="kpi-award-settings">

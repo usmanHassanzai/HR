@@ -1,12 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Profile, Kpi } from '../utils/kpiHelpers';
-import {
-  employeeKpiScoreSummary,
-  formatKpiScore,
-  performanceRatingColor,
-  thisMonthKpiScore,
-} from '../utils/kpiScoreHelpers';
+import { employeeKpiBoardBreakdown } from '../utils/kpiScoreHelpers';
+import { formatKpiWeight } from '../utils/kpiWeightHelpers';
 import { Trophy, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
 
 interface LeaderboardProps {
@@ -17,7 +13,7 @@ interface LeaderboardProps {
 interface RankedEmployee {
   profile: Profile;
   kpis: Kpi[];
-  healthScore: number;
+  weightAchieved: number;
 }
 
 export default function Leaderboard({ managerId, onSelectEmployee }: LeaderboardProps) {
@@ -65,17 +61,16 @@ export default function Leaderboard({ managerId, onSelectEmployee }: Leaderboard
       // 3. Process and rank
       const list: RankedEmployee[] = reports.map((emp) => {
         const empKpis = ((kpis || []) as Kpi[]).filter((k) => k.user_id === emp.id);
-        const healthScore = thisMonthKpiScore(empKpis);
+        const weightAchieved = employeeKpiBoardBreakdown(empKpis).weightAchieved;
         
         return {
           profile: emp,
           kpis: empKpis,
-          healthScore,
+          weightAchieved,
         };
       });
 
-      // Sort by health score descending
-      list.sort((a, b) => b.healthScore - a.healthScore);
+      list.sort((a, b) => b.weightAchieved - a.weightAchieved);
       setRankings(list);
     } catch (err) {
       console.error(err);
@@ -179,18 +174,15 @@ export default function Leaderboard({ managerId, onSelectEmployee }: Leaderboard
 
               <div className="leaderboard-item-score">
                 <div style={{ textAlign: 'right' }}>
-                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Overall KPI Score</span>
+                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Achieved weightage</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', justifyContent: 'flex-end' }}>
                     <strong style={{ 
                       fontSize: '1.25rem', 
                       fontFamily: 'var(--font-display)', 
-                      color: performanceRatingColor(employeeKpiScoreSummary(rank.kpis).performanceRating)
+                      color: 'var(--accent-primary)'
                     }}>
-                      {formatKpiScore(rank.healthScore)}
+                      {formatKpiWeight(rank.weightAchieved)}
                     </strong>
-                    <span style={{ fontSize: '0.7rem', color: performanceRatingColor(employeeKpiScoreSummary(rank.kpis).performanceRating) }}>
-                      {employeeKpiScoreSummary(rank.kpis).performanceRating}
-                    </span>
                   </div>
                 </div>
 
