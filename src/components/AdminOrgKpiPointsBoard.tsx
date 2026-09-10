@@ -18,7 +18,6 @@ import { karachiYearMonth } from '../utils/kpiCategories';
 import { kpisForPeriod, type KpiPeriodMode } from '../utils/kpiScoreHelpers';
 import KpiScopedTasksList from './KpiScopedTasksList';
 import KpiScoreboardSummary, { type KpiScoreboardPeriodState } from './KpiScoreboardSummary';
-import { fetchRewardsSummary, type RewardsSummary } from '../utils/rewardsHelpers';
 import '../styles/admin-kpi-points.css';
 import '../styles/employee-kpis.css';
 
@@ -109,11 +108,8 @@ interface OrgUserMonthModalProps {
   fullName: string;
   role: string;
   healthScore: number;
-  thisMonthPoints: number | null;
+  thisMonthWeightage: number | null;
   thisMonthScore: number | null;
-  rewardBalance: number;
-  rewardEarned: number;
-  rewardUsed: number;
   onClose: () => void;
 }
 
@@ -122,11 +118,8 @@ function OrgUserMonthModal({
   fullName,
   role,
   healthScore,
-  thisMonthPoints,
+  thisMonthWeightage,
   thisMonthScore,
-  rewardBalance,
-  rewardEarned,
-  rewardUsed,
   onClose,
 }: OrgUserMonthModalProps) {
   const initialYm = useMemo(() => karachiYearMonth(), []);
@@ -138,7 +131,6 @@ function OrgUserMonthModal({
     month: initialYm.monthIndex,
     year: initialYm.year,
   });
-  const [rewardsSummary, setRewardsSummary] = useState<RewardsSummary | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -146,25 +138,10 @@ function OrgUserMonthModal({
       setLoading(true);
       setError(null);
       try {
-        const [kpiRes, rewards] = await Promise.all([
-          supabase.from('kpis').select('*').eq('user_id', userId).order('end_date', { ascending: false }),
-          fetchRewardsSummary(userId).catch(() => null),
-        ]);
+        const kpiRes = await supabase.from('kpis').select('*').eq('user_id', userId).order('end_date', { ascending: false });
         if (kpiRes.error) throw kpiRes.error;
         if (isMounted) {
           setAllKpis((kpiRes.data || []) as Kpi[]);
-          setRewardsSummary(
-            rewards || {
-              balance: rewardBalance,
-              totalEarned: rewardEarned,
-              usedPoints: rewardUsed,
-              thisMonthPoints,
-              thisMonthScore,
-              pointsToNextReward: 0,
-              progressPct: 0,
-              canRedeem: rewardBalance >= 1000,
-            },
-          );
         }
       } catch (err) {
         if (isMounted) {
@@ -181,7 +158,7 @@ function OrgUserMonthModal({
     return () => {
       isMounted = false;
     };
-  }, [userId, rewardBalance, rewardEarned, rewardUsed, thisMonthPoints, thisMonthScore]);
+  }, [userId]);
 
   const scopedKpis = useMemo(
     () => kpisForPeriod(allKpis, period.mode as KpiPeriodMode, period.year, period.month),
@@ -228,7 +205,11 @@ function OrgUserMonthModal({
                     {' '}· Month score: <strong style={{ color: tierColorForScore(thisMonthScore) }}>{Number(thisMonthScore).toFixed(2)}</strong>
                   </>
                 )}
-                {' '}· Month bonus: <strong style={{ color: 'var(--color-success)' }}>+{Number(thisMonthPoints ?? 0).toLocaleString()} pts</strong>
+                {thisMonthWeightage != null && (
+                  <>
+                    {' '}· Month weightage: <strong style={{ color: 'var(--color-success)' }}>{Number(thisMonthWeightage).toFixed(Number(thisMonthWeightage) % 1 === 0 ? 0 : 1)}%</strong>
+                  </>
+                )}
               </p>
               <ul className="user-hub-hero__score-stack" aria-label="Score summary">
                 <li>
@@ -241,10 +222,12 @@ function OrgUserMonthModal({
                     <strong style={{ color: tierColorForScore(thisMonthScore) }}>{Number(thisMonthScore).toFixed(2)}</strong>
                   </li>
                 )}
-                <li>
-                  <span>Month bonus</span>
-                  <strong style={{ color: 'var(--color-success)' }}>+{Number(thisMonthPoints ?? 0).toLocaleString()} pts</strong>
-                </li>
+                {thisMonthWeightage != null && (
+                  <li>
+                    <span>Month weightage</span>
+                    <strong style={{ color: 'var(--color-success)' }}>{Number(thisMonthWeightage).toFixed(Number(thisMonthWeightage) % 1 === 0 ? 0 : 1)}%</strong>
+                  </li>
+                )}
               </ul>
             </div>
           </div>
@@ -265,7 +248,6 @@ function OrgUserMonthModal({
             <>
               <KpiScoreboardSummary
                 kpis={allKpis}
-                rewardsSummary={rewardsSummary}
                 compact
                 title={`${fullName}'s KPI scoreboard`}
                 period={period}
@@ -402,8 +384,7 @@ export default function AdminOrgKpiPointsBoard({
           <div>
             <h2 className="admin-kpi-points__title">KPI &amp; Rewards</h2>
             <p className="admin-kpi-points__subtitle">
-              Per-person weightage (0–100%), KPI score (points index), performance points, and reward balance.
-              Monthly reward bands use the same score thresholds: 90+ → 1,000 · 80–89 → 500 · 70–79 → 250 · below 70 → 0.
+              Per-person weightage (0–100%) and KPI score. Catalog and company gifts redeem with weightage — not score points.
             </p>
           </div>
         </div>
@@ -468,11 +449,8 @@ export default function AdminOrgKpiPointsBoard({
           fullName={selectedRow.full_name}
           role={selectedRow.role}
           healthScore={selectedRow.health_score}
-          thisMonthPoints={selectedRow.this_month_points}
+          thisMonthWeightage={selectedRow.weight_achieved}
           thisMonthScore={selectedRow.this_month_score}
-          rewardBalance={selectedRow.balance}
-          rewardEarned={selectedRow.total_earned}
-          rewardUsed={selectedRow.used_points}
           onClose={() => setSelectedRow(null)}
         />
       )}
@@ -495,14 +473,12 @@ function PeopleTable({
             <tr>
               <th>Person</th>
               <th>Role</th>
-              <th title="Weight assigned across all KPIs (0–100%)">Weightage</th>
-              <th title="All-time score (points awarded ÷ weight assigned × 100)">Score</th>
-              <th>Performance pts</th>
+              <th title="Weight assigned / achieved (0–100%)">Weightage</th>
+              <th title="All-time KPI score">Score</th>
               <th>KPI tasks</th>
               <th>Period</th>
               <th title="Score for KPIs overlapping the current month only">Month score</th>
-              <th>Reward earned</th>
-              <th>Reward balance</th>
+              <th title="Completed weight this month">Month weightage</th>
               <th>History</th>
             </tr>
           </thead>
@@ -556,45 +532,33 @@ function PeopleTable({
                     </strong>
                   </td>
                   <td>
-                    <strong className="admin-kpi-points__kpi-pts">{r.kpi_points.toLocaleString()}</strong>
+                    <span className="admin-kpi-points__kpi-count">
+                      {r.completed_kpis}/{r.total_kpis}
+                    </span>
                   </td>
                   <td>
-                    <span className="admin-kpi-points__tasks">{r.completed_kpis}/{r.total_kpis}</span>
-                    {r.pending_kpis > 0 && (
-                      <span className="admin-kpi-points__pending"> · {r.pending_kpis} open</span>
-                    )}
+                    <span className="admin-kpi-points__period">{periodLabel}</span>
                   </td>
                   <td>
-                    <span className="admin-kpi-points__month-dates">{periodLabel}</span>
+                    <strong className={`admin-kpi-points__health ${healthClass(Number(r.this_month_score) || 0)}`}>
+                      {r.this_month_score != null ? Number(r.this_month_score).toFixed(2) : '—'}
+                    </strong>
                   </td>
                   <td>
-                    <div className="admin-kpi-points__month-score">
-                      {r.this_month_score != null ? (
-                        <strong className={`admin-kpi-points__health ${healthClass(Number(r.this_month_score))}`}>
-                          {Number(r.this_month_score).toFixed(2)}
-                        </strong>
-                      ) : (
-                        <span className="admin-kpi-points__muted">—</span>
-                      )}
-                      <span className="admin-kpi-points__month-reward">
-                        +{Number(r.this_month_points ?? 0).toLocaleString()} reward pts
-                      </span>
-                    </div>
-                  </td>
-                  <td>{r.total_earned.toLocaleString()}</td>
-                  <td>
-                    <strong>{r.balance.toLocaleString()}</strong>
+                    <strong style={{ color: 'var(--color-success)' }}>
+                      {weightAchieved.toFixed(weightAchieved % 1 === 0 ? 0 : 1)}%
+                    </strong>
                   </td>
                   <td>
                     <button
                       type="button"
-                      className="btn btn-secondary btn-sm admin-kpi-points__history-btn"
+                      className="btn btn-secondary btn-sm"
                       onClick={(e) => {
                         e.stopPropagation();
                         onSelectRow(r);
                       }}
                     >
-                      <Eye size={13} /> Tasks
+                      <Eye size={14} /> View
                     </button>
                   </td>
                 </tr>
@@ -641,10 +605,6 @@ function PeopleTable({
                   <dd className={healthClass(r.health_score)}>{Number(r.health_score).toFixed(2)}</dd>
                 </div>
                 <div>
-                  <dt>Performance pts</dt>
-                  <dd>{r.kpi_points.toLocaleString()}</dd>
-                </div>
-                <div>
                   <dt>KPI tasks</dt>
                   <dd>
                     {r.completed_kpis}/{r.total_kpis}
@@ -655,12 +615,13 @@ function PeopleTable({
                   <dt>Month score</dt>
                   <dd>
                     {r.this_month_score != null ? Number(r.this_month_score).toFixed(2) : '—'}
-                    <span> · +{Number(r.this_month_points ?? 0).toLocaleString()} pts</span>
                   </dd>
                 </div>
                 <div>
-                  <dt>Reward balance</dt>
-                  <dd>{r.balance.toLocaleString()}</dd>
+                  <dt>Month weightage</dt>
+                  <dd style={{ color: 'var(--color-success)' }}>
+                    {weightAchieved.toFixed(weightAchieved % 1 === 0 ? 0 : 1)}%
+                  </dd>
                 </div>
                 <div className="admin-kpi-points__mobile-card-period">
                   <dt>Period</dt>

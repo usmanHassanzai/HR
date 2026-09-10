@@ -56,7 +56,7 @@ export default function EmployeeKpiBoardSummary({ kpis, employeeName }: Employee
                     <strong>{formatKpiWeight(row.weight)}</strong>
                   </div>
                   <div>
-                    <span>Score pts</span>
+                    <span>Score</span>
                     <strong>{scorePts ?? '—'}</strong>
                   </div>
                 </div>
@@ -85,7 +85,7 @@ export default function EmployeeKpiBoardSummary({ kpis, employeeName }: Employee
               <tr>
                 <th>KPI</th>
                 <th>Weightage</th>
-                <th>Score pts</th>
+                <th>Score</th>
               </tr>
             </thead>
             <tbody>

@@ -91,8 +91,8 @@ export default function KpiEvaluationBlock({
     : !complete
       ? (pauseText ? `${pauseText} · Points when marked Complete` : 'Points when marked Complete')
       : latePenalized
-        ? `Awarded ${formatKpiScore(awarded)} pts (late penalty applied)`
-        : `Awarded ${formatKpiScore(awarded)} pts (on time)`;
+        ? `Awarded ${formatKpiScore(awarded)} (late penalty applied)`
+        : `Awarded ${formatKpiScore(awarded)} (on time)`;
 
   return (
     <div className={`kpi-eval${compact ? ' kpi-eval--compact' : ''}`}>

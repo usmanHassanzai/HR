@@ -25,7 +25,7 @@ const FEATURES = [
   {
     icon: Trophy,
     title: 'Rewards & Points',
-    desc: 'Monthly score bands convert to reward points (90+ → 1,000 · 80–89 → 500 · 70–79 → 250). Redeem catalog gifts; balances stay until used.',
+    desc: 'Hit monthly weightage targets to unlock company gifts and catalog rewards. No score points to spend — redeem with weightage.',
     color: '#fbbf24',
   },
   {
@@ -55,7 +55,7 @@ const FEATURES = [
   {
     icon: Users,
     title: 'People & Scoreboards',
-    desc: 'Admin and manager boards show each person’s overall score, month score, performance points, and reward balance — same math as the employee scoreboard.',
+    desc: 'Admin and manager boards show each person’s overall score, month score, and weightage — same math as the employee scoreboard.',
     color: '#38bdf8',
   },
   {
@@ -519,7 +519,7 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
             <div className="landing-fees__highlight">
               <strong>Rewards points never expire.</strong>
               <p>
-                Monthly score bands: 90+ → 1,000 pts · 80–89 → 500 · 70–79 → 250 · below 70 → 0.
+                Catalog and company gifts redeem with monthly weightage (0–100%). No score-point balances.
                 Weightage stays 0–100%; score can exceed 100 when people over-deliver.
               </p>
             </div>

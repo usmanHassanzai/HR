@@ -188,7 +188,7 @@ export function getAdminNavMeta(id: string): { label: string; description: strin
     users: { label: 'People', description: 'Add teammates, set roles, and manage logins.' },
     kpis: { label: 'Assign Task', description: 'Create KPIs, assign them, and review or edit assigned tasks.' },
     dailyReports: { label: 'Daily Reports', description: 'Staff daily work logs.' },
-    kpiPoints: { label: 'KPI & Rewards', description: "Each person's KPI score, performance points, and reward points." },
+    kpiPoints: { label: 'KPI & Rewards', description: "Each person's weightage, KPI score, and gift progress." },
     analytics: { label: 'Analytics', description: 'Trends and attainment.' },
     attendance: { label: 'Attendance', description: 'Leave, check-ins, and live map.' },
     office: { label: 'Office GPS', description: 'Geofence and check-ins.' },

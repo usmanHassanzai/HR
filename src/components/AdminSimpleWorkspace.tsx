@@ -231,7 +231,7 @@ export default function AdminSimpleWorkspace({
                     Weight {formatKpiWeight(kpi.weight)}
                     {kpiManagerScorePct(kpi) == null
                       ? ' · Not complete yet'
-                      : ` · ${formatKpiScore(contribution)} pts`}
+                      : ` · ${formatKpiScore(contribution)}`}
                   </p>
                   <div className="kpi-dates">{fmtDate(kpi.start_date)} → {fmtDate(kpi.end_date)}</div>
                   {isKpiPastDeadline(kpi) && (

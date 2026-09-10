@@ -383,7 +383,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
               <h3>{listMode === 'history' ? 'No completed KPIs yet' : 'No open KPIs'}</h3>
               <p>
                 {listMode === 'history'
-                  ? 'When you mark tasks Complete, they appear here with month, year, and date. After you redeem reward points, redemptions are listed below.'
+                  ? 'When you mark tasks Complete, they appear here with month, year, and date. After you redeem catalog or company gifts, requests are listed below.'
                   : 'All tasks in this period are complete — open History to review them.'}
               </p>
             </div>
@@ -455,14 +455,14 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
                     <span>Contribution</span>
                     <strong>
                       {complete
-                        ? `${formatKpiScore(awarded)} pts of ${formatKpiWeight(kpi.weight)} weightage`
-                        : `0 pts until Complete (weightage ${formatKpiWeight(kpi.weight)} still counts)`}
+                        ? `${formatKpiScore(awarded)} of ${formatKpiWeight(kpi.weight)} weightage`
+                        : `Not complete (weightage ${formatKpiWeight(kpi.weight)} still counts)`}
                     </strong>
                   </div>
                 </div>
                 <KpiAssignmentDetails kpi={kpi} compact />
                 <p className="kpi-score-line">
-                  {points == null ? 'Points after you mark Complete' : `${points} pts awarded`}
+                  {points == null ? 'Score after you mark Complete' : `Score awarded ${points}`}
                 </p>
                 <KpiEvaluationBlock
                   kpi={kpi}
@@ -480,7 +480,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
           {listMode === 'history' && redemptions.length > 0 && (
             <section className="emp-kpi-redeem-history">
               <h3>Redeemed rewards</h3>
-              <p>Points you already redeemed. Open tasks and unredeemed balance stay on the Overview and Open tabs.</p>
+              <p>Gifts and catalog rewards you already requested. Open tasks and weightage stay on the Overview and Open tabs.</p>
               <ul>
                 {redemptions.map((r) => (
                   <li key={r.id}>
@@ -488,7 +488,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
                       <strong>{r.rewards_catalog?.name || 'Reward'}</strong>
                       <span>{fmtFullDate(r.redeemed_at)} · {fmtMonthYear(r.redeemed_at)}</span>
                     </div>
-                    <em>−{Number(r.points_used).toLocaleString()} pts · {r.status}</em>
+                    <em>{r.status}</em>
                   </li>
                 ))}
               </ul>

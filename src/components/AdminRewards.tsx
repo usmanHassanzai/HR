@@ -179,7 +179,6 @@ function PersonPointsDetailModal({
 
   const selectedLedger = person.months.find((m) => m.month.slice(0, 7) === selectedMonth.slice(0, 7));
   const displayScore = selectedLedger?.kpi_score ?? person.this_month_score;
-  const displayBonus = selectedLedger?.points_earned ?? person.this_month_points;
 
   useEffect(() => {
     let isMounted = true;
@@ -187,25 +186,11 @@ function PersonPointsDetailModal({
       setLoading(true);
       setError(null);
       try {
-        const [kpiRes, rewards] = await Promise.all([
-          supabase.from('kpis').select('*').eq('user_id', person.employee_id).order('end_date', { ascending: false }),
-          fetchRewardsSummary(person.employee_id).catch(() => null),
-        ]);
+        const kpiRes = await supabase.from('kpis').select('*').eq('user_id', person.employee_id).order('end_date', { ascending: false });
         if (kpiRes.error) throw kpiRes.error;
         if (isMounted) {
           setAllKpis((kpiRes.data || []) as Kpi[]);
-          setRewardsSummary(
-            rewards || {
-              balance: person.balance,
-              totalEarned: person.total_earned,
-              usedPoints: person.used_points,
-              thisMonthPoints: person.this_month_points,
-              thisMonthScore: person.this_month_score,
-              pointsToNextReward: 0,
-              progressPct: 0,
-              canRedeem: person.balance >= 1000,
-            },
-          );
+          setRewardsSummary(null);
         }
       } catch (err) {
         if (isMounted) {
@@ -271,24 +256,14 @@ function PersonPointsDetailModal({
               </strong>
             </div>
             <div className="person-points-detail__metric">
+              <span>Achieved</span>
+              <strong style={{ color: 'var(--color-success)' }}>
+                {(person.weight_achieved || 0).toFixed((person.weight_achieved || 0) % 1 === 0 ? 0 : 2)}%
+              </strong>
+            </div>
+            <div className="person-points-detail__metric">
               <span>KPI score</span>
               <strong style={{ color: tierColorForScore(displayScore) }}>{Math.round(displayScore)}</strong>
-            </div>
-            <div className="person-points-detail__metric">
-              <span>Performance pts</span>
-              <strong>{person.kpi_points.toLocaleString()}</strong>
-            </div>
-            <div className="person-points-detail__metric">
-              <span>Month bonus</span>
-              <strong style={{ color: 'var(--color-success)' }}>+{displayBonus.toLocaleString()}</strong>
-            </div>
-            <div className="person-points-detail__metric">
-              <span>Total earned</span>
-              <strong>{person.total_earned.toLocaleString()}</strong>
-            </div>
-            <div className="person-points-detail__metric">
-              <span>Balance</span>
-              <strong>{person.balance.toLocaleString()}</strong>
             </div>
             <div className="person-points-detail__metric">
               <span>Tasks</span>
@@ -298,14 +273,13 @@ function PersonPointsDetailModal({
 
           {person.months.length > 0 && (
             <section className="person-points-detail__section">
-              <h4 className="user-hub-section-title">Monthly bonus history</h4>
+              <h4 className="user-hub-section-title">Monthly score history</h4>
               <div className="admin-rewards-table-wrap">
                 <table className="admin-rewards-table">
                   <thead>
                     <tr>
                       <th>Month</th>
                       <th>KPI score</th>
-                      <th>Reward points</th>
                       <th />
                     </tr>
                   </thead>
@@ -318,7 +292,6 @@ function PersonPointsDetailModal({
                       >
                         <td><strong>{new Date(m.month).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</strong></td>
                         <td style={{ color: tierColorForScore(m.kpi_score), fontWeight: 700 }}>{Math.round(m.kpi_score)}</td>
-                        <td style={{ color: 'var(--color-success)', fontWeight: 700 }}>+{m.points_earned.toLocaleString()}</td>
                         <td>
                           <button
                             type="button"
@@ -387,7 +360,7 @@ export default function AdminRewards() {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [msg, setMsg] = useState('');
-  const [activeTab, setActiveTab] = useState<'board' | 'monthly' | 'redemptions' | 'catalog' | 'awards'>('board');
+  const [activeTab, setActiveTab] = useState<'board' | 'redemptions' | 'catalog' | 'awards'>('board');
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: '', description: '', icon: '🎁', weightage_required: 80 });
   const [iconUploading, setIconUploading] = useState(false);
@@ -679,22 +652,17 @@ export default function AdminRewards() {
             <Trophy size={22} />
           </div>
           <div>
-            <h2 className="admin-rewards-header__title">Rewards &amp; Points</h2>
+            <h2 className="admin-rewards-header__title">Rewards</h2>
             <p className="admin-rewards-header__subtitle">
-              Automatic KPI gifts, weightage-based catalog rewards, monthly score bands for analytics, and redemptions.
+              Company gifts and catalog rewards use this month&apos;s weightage. Approve redemptions when staff claim them.
             </p>
           </div>
         </div>
 
         <div className="admin-rewards-stats">
-          <div className="admin-rewards-stat admin-rewards-stat--accent">
-            <Trophy size={16} />
-            <span className="admin-rewards-stat__label">Performance pts</span>
-            <strong>{orgKpiPointsTotal.toLocaleString()}</strong>
-          </div>
           <div className="admin-rewards-stat">
             <Gift size={16} />
-            <span className="admin-rewards-stat__label">Active rewards</span>
+            <span className="admin-rewards-stat__label">Active catalog</span>
             <strong>{activeCatalog}</strong>
           </div>
           <div className="admin-rewards-stat">
@@ -702,15 +670,10 @@ export default function AdminRewards() {
             <span className="admin-rewards-stat__label">Open redemptions</span>
             <strong>{pending.length}</strong>
           </div>
-          <div className="admin-rewards-stat">
-            <Star size={16} />
-            <span className="admin-rewards-stat__label">Bonuses awarded</span>
-            <strong>{bonusesThisPeriod}</strong>
-          </div>
-          <div className="admin-rewards-stat">
-            <Coins size={16} />
-            <span className="admin-rewards-stat__label">Points issued</span>
-            <strong>{totalPointsIssued.toLocaleString()}</strong>
+          <div className="admin-rewards-stat admin-rewards-stat--accent">
+            <Users size={16} />
+            <span className="admin-rewards-stat__label">People</span>
+            <strong>{orgUserCount.toLocaleString()}</strong>
           </div>
         </div>
       </header>
@@ -728,14 +691,7 @@ export default function AdminRewards() {
           className={`tab-btn ${activeTab === 'board' ? 'tab-btn--active' : ''}`}
           onClick={() => setActiveTab('board')}
         >
-          <Users size={16} /> Team points
-        </button>
-        <button
-          type="button"
-          className={`tab-btn ${activeTab === 'monthly' ? 'tab-btn--active' : ''}`}
-          onClick={() => setActiveTab('monthly')}
-        >
-          <Star size={16} /> Monthly points
+          <Users size={16} /> People
         </button>
         <button
           type="button"
@@ -770,141 +726,6 @@ export default function AdminRewards() {
       {activeTab === 'awards' && <AdminKpiAwardsPanel />}
 
       {activeTab === 'board' && <AdminOrgKpiPointsBoard />}
-
-      {activeTab === 'monthly' && (
-        <section className="admin-rewards-card glass-panel">
-          <div className="admin-rewards-card__head">
-            <div>
-              <h3><Star size={18} /> Monthly points — person by person</h3>
-              <p>Each employee and manager is listed individually. Click any person to see their full points breakdown, monthly bonus history, and completed tasks.</p>
-            </div>
-            <button type="button" className="btn btn-primary btn-sm" onClick={() => void runMonthlyJob()} disabled={running || orgUserCount === 0}>
-              {running ? <Loader2 size={14} className="spin-icon" /> : <PlayCircle size={14} />}
-              Run now
-            </button>
-          </div>
-
-          <div className="admin-rewards-tier-hint">
-            <strong>Tier rules:</strong> KPI score ≥90% → 1,000 pts · 80–89% → 500 · 70–79% → 250 · below 70% → 0.
-            Applies to {orgUserCount} company employee{orgUserCount !== 1 ? 's' : ''}/manager{orgUserCount !== 1 ? 's' : ''} (demo excluded).
-          </div>
-
-          {orgUserCount === 0 ? (
-            <div className="admin-rewards-empty">
-              <Users size={40} strokeWidth={1.25} />
-              <h4>No company employees yet</h4>
-              <p>Add employees under <strong>People</strong>, then run the monthly job to award points.</p>
-            </div>
-          ) : personSummaries.length === 0 ? (
-            <div className="admin-rewards-empty">
-              <Star size={40} strokeWidth={1.25} />
-              <h4>No people data yet</h4>
-              <p>Click <strong>Run now</strong> to calculate this month&apos;s bonuses, or wait for the scheduled job.</p>
-            </div>
-          ) : (
-            <>
-              <div className="person-points-toolbar">
-                <label className="person-points-toolbar__search">
-                  <Search size={16} />
-                  <input
-                    type="search"
-                    placeholder="Search by name, email, department, or role…"
-                    value={monthlySearch}
-                    onChange={(e) => setMonthlySearch(e.target.value)}
-                  />
-                </label>
-                <span className="person-points-toolbar__count">
-                  {filteredPersons.length} person{filteredPersons.length !== 1 ? 's' : ''}
-                </span>
-              </div>
-
-              {filteredPersons.length === 0 ? (
-                <p className="person-points-empty">No people match your search.</p>
-              ) : (
-                <div className="person-points-grid">
-                  {filteredPersons.map((person) => {
-                    const latest = person.months[0];
-                    const score = latest?.kpi_score ?? person.this_month_score;
-                    const bonus = latest?.points_earned ?? person.this_month_points;
-                    const monthLabel = latest
-                      ? new Date(latest.month).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
-                      : 'Current month';
-
-                    return (
-                      <button
-                        key={person.employee_id}
-                        type="button"
-                        className="person-points-card"
-                        onClick={() => openPersonDetail(person, latest?.month)}
-                      >
-                        <div className="person-points-card__top">
-                          <div className={`admin-user-card__avatar admin-user-card__avatar--${person.role}`}>
-                            {person.full_name.slice(0, 2).toUpperCase()}
-                          </div>
-                          <div className="person-points-card__identity">
-                            <strong>{person.full_name}</strong>
-                            <span>{person.email}</span>
-                            <div className="person-points-card__tags">
-                              <span className={`admin-role-badge admin-role-badge--${person.role}`}>
-                                {person.role}
-                              </span>
-                              {person.department_name && (
-                                <span className="person-points-card__dept">{person.department_name}</span>
-                              )}
-                            </div>
-                          </div>
-                          <ChevronRight size={18} className="person-points-card__arrow" />
-                        </div>
-
-                        <div className="person-points-card__stats">
-                          <div className="person-points-card__stat">
-                            <span>Weightage</span>
-                            <strong>
-                              {(person.weight_assigned || 0).toFixed((person.weight_assigned || 0) % 1 === 0 ? 0 : 2)}%
-                            </strong>
-                          </div>
-                          <div className="person-points-card__stat">
-                            <span>{monthLabel} KPI</span>
-                            <strong style={{ color: tierColorForScore(score) }}>{Math.round(score)}</strong>
-                          </div>
-                          <div className="person-points-card__stat">
-                            <span>Month bonus</span>
-                            <strong style={{ color: bonus ? 'var(--color-success)' : 'var(--text-muted)' }}>
-                              +{bonus.toLocaleString()}
-                            </strong>
-                          </div>
-                          <div className="person-points-card__stat">
-                            <span>Balance</span>
-                            <strong>{person.balance.toLocaleString()}</strong>
-                          </div>
-                        </div>
-
-                        <div className="person-points-card__footer">
-                          <span><Target size={13} /> {person.completed_kpis}/{person.total_kpis} tasks done</span>
-                          <span className="person-points-card__cta">
-                            <Eye size={13} /> View full details
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </>
-          )}
-        </section>
-      )}
-
-      {selectedPerson && (
-        <PersonPointsDetailModal
-          person={selectedPerson}
-          initialMonth={selectedPersonMonth}
-          onClose={() => {
-            setSelectedPerson(null);
-            setSelectedPersonMonth(undefined);
-          }}
-        />
-      )}
 
       {activeTab === 'redemptions' && (
         <section className="admin-rewards-card glass-panel">
@@ -941,9 +762,7 @@ export default function AdminRewards() {
                   <span className="redemption-pts">
                     {r.weightage_at_claim != null
                       ? `${Number(r.weightage_at_claim)}% weightage`
-                      : r.points_used > 0
-                        ? `-${r.points_used.toLocaleString()} pts`
-                        : 'Catalog'}
+                      : 'Catalog'}
                   </span>
                   <div className="redemption-actions">
                     {r.status === 'pending' && (

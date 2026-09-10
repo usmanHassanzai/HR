@@ -43,7 +43,7 @@ export async function emailKpiOverdue(employeeEmail: string, employeeName: strin
   await sendKpiEmail(
     employeeEmail,
     `KPI overdue: ${department}`,
-    `Hi ${employeeName},\n\nYour KPI "${department}" was due ${endDate} and is not yet complete.\n\nMiss count: ${redoCount}/3. After 3 missed deadlines you will lose reward points.\n\nPlease complete it in Scorr as soon as possible.`
+    `Hi ${employeeName},\n\nYour KPI "${department}" was due ${endDate} and is not yet complete.\n\nMiss count: ${redoCount}/3. After 3 missed deadlines your weightage and score will be affected.\n\nPlease complete it in Scorr as soon as possible.`
   );
 }
 

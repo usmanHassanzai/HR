@@ -168,7 +168,7 @@ export default function ManagerDashboard({ profile, organizationName }: ManagerD
           <KpiWorkspace
             panes={[
               { id: 'tasks', label: 'Tasks', hint: 'Create a KPI, then assign it to someone in your department.', content: <ManagerKpiConfig assignerId={profile.id} managerDepartmentId={profile.department_id} hideChrome /> },
-              { id: 'points', label: 'Points', hint: 'KPI scores for each person.', content: <AdminOrgKpiPointsBoard variant="manager" managerProfile={profile} /> },
+              { id: 'points', label: 'People', hint: 'Weightage and KPI scores for each person.', content: <AdminOrgKpiPointsBoard variant="manager" managerProfile={profile} /> },
             ]}
           />
         ) : activeTab === 'rewards' ? (

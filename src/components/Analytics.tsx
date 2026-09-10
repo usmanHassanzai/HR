@@ -711,15 +711,15 @@ export default function Analytics({
                                 <strong>{formatKpiWeight(k.weight)}</strong>
                               </td>
                               <td>
-                                <span>{formatKpiScore(assignedScore)} pts</span>
+                                <span>{formatKpiScore(assignedScore)}</span>
                               </td>
                               <td>
                                 {isDone ? (
                                   <strong className={isLate ? 'text-warning' : 'text-success'}>
-                                    {formatKpiScore(awarded)} pts {isLate ? '(Half - Late)' : '(Full)'}
+                                    {formatKpiScore(awarded)} {isLate ? '(Half - Late)' : '(Full)'}
                                   </strong>
                                 ) : (
-                                  <span className="text-muted">0.00 pts (Open)</span>
+                                  <span className="text-muted">0.00 (Open)</span>
                                 )}
                               </td>
                               <td>

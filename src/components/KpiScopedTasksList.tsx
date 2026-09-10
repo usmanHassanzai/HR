@@ -20,9 +20,9 @@ export default function KpiScopedTasksList({ kpis }: { kpis: Kpi[] }) {
             <tr>
               <th>Task / KPI Name</th>
               <th>Category</th>
-              <th>Weight</th>
+              <th>Weightage</th>
               <th>Score</th>
-              <th>Points Awarded</th>
+              <th>Awarded</th>
               <th>Status &amp; Completion</th>
             </tr>
           </thead>
@@ -43,10 +43,10 @@ export default function KpiScopedTasksList({ kpis }: { kpis: Kpi[] }) {
                     <span className="kpi-scope-tasks__cat">{cat.label}</span>
                   </td>
                   <td className="kpi-scope-tasks__num">{kpi.weight || 0}%</td>
-                  <td className="kpi-scope-tasks__num">{kpiAssignedScore(kpi)} pts</td>
+                  <td className="kpi-scope-tasks__num">{kpiAssignedScore(kpi)}</td>
                   <td>
                     <strong className={isDone ? (isLate ? 'kpi-scope-tasks__late' : 'kpi-scope-tasks__awarded') : 'kpi-scope-tasks__open'}>
-                      {isDone ? `${awarded} pts` : '0 pts (open)'}
+                      {isDone ? String(awarded) : '0 (open)'}
                     </strong>
                     {isDone && isLate && (
                       <span className="kpi-scope-tasks__late-note">50% late deduction</span>
@@ -99,17 +99,17 @@ export default function KpiScopedTasksList({ kpis }: { kpis: Kpi[] }) {
 
               <dl className="kpi-scope-tasks__card-grid">
                 <div>
-                  <dt>Weight</dt>
+                  <dt>Weightage</dt>
                   <dd>{kpi.weight || 0}%</dd>
                 </div>
                 <div>
                   <dt>Score</dt>
-                  <dd>{kpiAssignedScore(kpi)} pts</dd>
+                  <dd>{kpiAssignedScore(kpi)}</dd>
                 </div>
                 <div>
                   <dt>Awarded</dt>
                   <dd className={isDone ? (isLate ? 'kpi-scope-tasks__late' : 'kpi-scope-tasks__awarded') : 'kpi-scope-tasks__open'}>
-                    {isDone ? `${awarded} pts` : '0 pts'}
+                    {isDone ? String(awarded) : '0'}
                   </dd>
                 </div>
                 <div>

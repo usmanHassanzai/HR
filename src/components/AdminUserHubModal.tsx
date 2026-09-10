@@ -363,7 +363,7 @@ export default function AdminUserHubModal({
                       <strong className="text-success">{completedKpis.length}</strong>
                     </div>
                     <div className="user-hub-metric">
-                      <span>Performance Pts</span>
+                      <span>Task score total</span>
                       <strong>{formatKpiScore(stats.rewardPoints)}</strong>
                     </div>
                     {pausedKpis.length > 0 && (
@@ -533,7 +533,7 @@ export default function AdminUserHubModal({
               <div className="user-hub-card__content">
                 <div className="user-hub-metric-row">
                   <span>Earned Points:</span>
-                  <strong>{formatKpiScore(stats.rewardPoints)} pts</strong>
+                  <strong>{formatKpiScore(stats.rewardPoints)}</strong>
                 </div>
                 <div className="user-hub-metric-row">
                   <span>Completed Tasks:</span>

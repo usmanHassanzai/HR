@@ -149,7 +149,7 @@ export default function AssignedKpiCard({
         </div>
         <div>
           <dt>Performance Points</dt>
-          <dd>{points == null ? 'Open' : `${points} pts`}</dd>
+          <dd>{points == null ? 'Open' : String(points)}</dd>
         </div>
       </dl>
 

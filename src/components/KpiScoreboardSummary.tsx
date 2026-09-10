@@ -41,7 +41,7 @@ interface KpiScoreboardSummaryProps {
  */
 export default function KpiScoreboardSummary({
   kpis,
-  rewardsSummary = null,
+  rewardsSummary: _rewardsSummary = null,
   compact = false,
   title = 'KPI scoreboard',
   period,
@@ -93,9 +93,6 @@ export default function KpiScoreboardSummary({
   const ratingColor = performanceRatingColor(active.performanceRating);
   const has = !activeEmpty && active.kpiCount > 0;
 
-  const notRedeemedText = rewardsSummary ? rewardsSummary.balance.toLocaleString() : '—';
-  const redeemedText = rewardsSummary ? rewardsSummary.usedPoints.toLocaleString() : '—';
-
   return (
     <section className="emp-kpi-summary emp-kpi-summary--shared">
       {!compact && (
@@ -104,8 +101,8 @@ export default function KpiScoreboardSummary({
             <span className="emp-kpi-summary__eyebrow">Performance overview</span>
             <h2 className="emp-kpi-summary__title">{title}</h2>
             <p className="emp-kpi-summary__formula">
-              Use Overall, Month, or Year to switch views. Each view shows its own weightage and score — they are not shown together.
-              Weightage stays within 0–{KPI_WEIGHT_CAP}%. Score is a points index (no % sign).
+              Use Overall, Month, or Year to switch views. Each view shows its own weightage and score.
+              Weightage stays within 0–{KPI_WEIGHT_CAP}%. Catalog and company gifts use weightage — not score points.
             </p>
           </div>
           {toolbar ? <div className="emp-kpi-toolbar">{toolbar}</div> : null}
@@ -227,7 +224,7 @@ export default function KpiScoreboardSummary({
           <section className="emp-kpi-block emp-kpi-block--score" aria-label="Score">
             <div className="emp-kpi-block__head">
               <h4 className="emp-kpi-block__title">Score</h4>
-              <span className="emp-kpi-block__badge">Points index</span>
+              <span className="emp-kpi-block__badge">Index</span>
             </div>
             <div className="emp-kpi-month__score">
               <div className="emp-kpi-month__score-main">
@@ -246,27 +243,22 @@ export default function KpiScoreboardSummary({
             </div>
             <dl className="emp-kpi-month__stats emp-kpi-month__stats--score">
               <div>
-                <dt>Awarded</dt>
+                <dt>Task total</dt>
                 <dd>{has ? formatKpiScore(active.pointsAwarded) : '—'}</dd>
               </div>
               <div>
-                <dt>Not redeemed</dt>
-                <dd>{notRedeemedText}</dd>
+                <dt>Weightage</dt>
+                <dd>{has ? formatKpiWeight(active.weightAchieved) : '—'}</dd>
               </div>
               <div>
-                <dt>Redeemed</dt>
-                <dd>{redeemedText}</dd>
+                <dt>Pending</dt>
+                <dd>{has ? formatKpiWeight(active.weightPending) : '—'}</dd>
               </div>
               <div>
                 <dt>Tasks</dt>
                 <dd>{has ? String(active.kpiCount) : '—'}</dd>
               </div>
             </dl>
-            {rewardsSummary && rewardsSummary.totalEarned > 0 && (
-              <p className="emp-kpi-month__note">
-                Reward points stay available until you redeem them · {rewardsSummary.totalEarned.toLocaleString()} earned lifetime.
-              </p>
-            )}
           </section>
         </article>
       </div>

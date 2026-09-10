@@ -180,7 +180,7 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
                 <p className="kpi-score-line">
                   {points == null
                     ? 'Points after you mark Complete'
-                    : `${points} pts awarded${latePenalized ? ' (late penalty)' : ''}`}
+                    : `${points} awarded${latePenalized ? ' (late penalty)' : ''}`}
                 </p>
                 <KpiAssignmentDetails kpi={kpi} />
                 <KpiEvaluationBlock
