@@ -41,6 +41,7 @@ interface CatalogItem {
   description: string;
   icon: string;
   point_cost: number;
+  weightage_required: number;
   active: boolean;
 }
 
@@ -57,6 +58,7 @@ interface Redemption {
   id: string;
   employee_id: string;
   points_used: number;
+  weightage_at_claim?: number | null;
   status: string;
   redeemed_at: string;
   users?: { full_name: string; role: string; is_demo?: boolean };
@@ -387,7 +389,7 @@ export default function AdminRewards() {
   const [msg, setMsg] = useState('');
   const [activeTab, setActiveTab] = useState<'board' | 'monthly' | 'redemptions' | 'catalog' | 'awards'>('board');
   const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: '', description: '', icon: '🎁', point_cost: 1000 });
+  const [form, setForm] = useState({ name: '', description: '', icon: '🎁', weightage_required: 80 });
   const [iconUploading, setIconUploading] = useState(false);
   const [boardRows, setBoardRows] = useState<OrgKpiPointsRow[]>([]);
   const [selectedPerson, setSelectedPerson] = useState<PersonPointsSummary | null>(null);
@@ -415,7 +417,7 @@ export default function AdminRewards() {
     setOrgUserCount(allowedIds.length);
 
     const [catRes, ledgerRes, redemRes, boardRes] = await Promise.all([
-      supabase.from('rewards_catalog').select('*').order('point_cost'),
+      supabase.from('rewards_catalog').select('*').order('weightage_required'),
       allowedIds.length
         ? supabase
             .from('points_ledger')
@@ -459,7 +461,17 @@ export default function AdminRewards() {
       setOrgKpiPointsTotal(0);
     }
 
-    if (catRes.data) setCatalog(catRes.data);
+    if (catRes.data) {
+      setCatalog(
+        (catRes.data as CatalogItem[]).map((item) => ({
+          ...item,
+          weightage_required: Number(item.weightage_required ?? (
+            item.point_cost >= 1000 ? 90 : item.point_cost >= 500 ? 80 : item.point_cost >= 250 ? 70 : 80
+          )),
+          point_cost: Number(item.point_cost) || 0,
+        })),
+      );
+    }
 
     if (ledgerRes.data) {
       setMonthly(
@@ -494,10 +506,15 @@ export default function AdminRewards() {
   const startEdit = (item?: CatalogItem) => {
     if (item) {
       setEditId(item.id);
-      setForm({ name: item.name, description: item.description, icon: item.icon, point_cost: item.point_cost });
+      setForm({
+        name: item.name,
+        description: item.description,
+        icon: item.icon,
+        weightage_required: Number(item.weightage_required) || 80,
+      });
     } else {
       setEditId('new');
-      setForm({ name: '', description: '', icon: '🎁', point_cost: 1000 });
+      setForm({ name: '', description: '', icon: '🎁', weightage_required: 80 });
     }
   };
 
@@ -519,11 +536,24 @@ export default function AdminRewards() {
       showMsg('Error: Reward name is required.');
       return;
     }
+    const weightage = Number(form.weightage_required);
+    if (!Number.isFinite(weightage) || weightage < 0 || weightage > 100) {
+      showMsg('Error: Weightage required must be between 0 and 100.');
+      return;
+    }
     setMsg('');
+    const payload = {
+      name: form.name.trim(),
+      description: form.description,
+      icon: form.icon,
+      weightage_required: weightage,
+      // Keep legacy column in sync for older reports (not used for redeem).
+      point_cost: Math.max(100, Math.round(weightage) * 10),
+    };
     const { error } =
       editId === 'new'
-        ? await supabase.from('rewards_catalog').insert({ ...form })
-        : await supabase.from('rewards_catalog').update({ ...form }).eq('id', editId);
+        ? await supabase.from('rewards_catalog').insert({ ...payload })
+        : await supabase.from('rewards_catalog').update({ ...payload }).eq('id', editId);
     if (error) {
       showMsg(`Error: ${error.message}`);
       return;
@@ -651,7 +681,7 @@ export default function AdminRewards() {
           <div>
             <h2 className="admin-rewards-header__title">Rewards &amp; Points</h2>
             <p className="admin-rewards-header__subtitle">
-              Automatic KPI gifts, monthly Reward Points from score bands (not raw KPI points), catalog, and redemptions.
+              Automatic KPI gifts, weightage-based catalog rewards, monthly score bands for analytics, and redemptions.
             </p>
           </div>
         </div>
@@ -908,7 +938,13 @@ export default function AdminRewards() {
                       {r.rewards_catalog?.name} · {new Date(r.redeemed_at).toLocaleDateString()}
                     </span>
                   </div>
-                  <span className="redemption-pts">-{r.points_used.toLocaleString()} pts</span>
+                  <span className="redemption-pts">
+                    {r.weightage_at_claim != null
+                      ? `${Number(r.weightage_at_claim)}% weightage`
+                      : r.points_used > 0
+                        ? `-${r.points_used.toLocaleString()} pts`
+                        : 'Catalog'}
+                  </span>
                   <div className="redemption-actions">
                     {r.status === 'pending' && (
                       <button type="button" className="btn btn-secondary btn-sm" onClick={() => void updateStatus(r.id, 'approved')}>
@@ -934,7 +970,7 @@ export default function AdminRewards() {
                     <tr>
                       <th>Employee</th>
                       <th>Reward</th>
-                      <th>Points</th>
+                      <th>At claim</th>
                       <th>Date</th>
                     </tr>
                   </thead>
@@ -951,7 +987,13 @@ export default function AdminRewards() {
                               {r.rewards_catalog?.name}
                             </span>
                           </td>
-                          <td>-{r.points_used.toLocaleString()}</td>
+                          <td>
+                            {r.weightage_at_claim != null
+                              ? `${Number(r.weightage_at_claim)}%`
+                              : r.points_used > 0
+                                ? `-${r.points_used.toLocaleString()}`
+                                : '—'}
+                          </td>
                           <td>{new Date(r.redeemed_at).toLocaleDateString()}</td>
                         </tr>
                       ))}
@@ -968,7 +1010,7 @@ export default function AdminRewards() {
           <div className="admin-rewards-card__head">
             <div>
               <h3><Gift size={18} /> Reward catalog</h3>
-              <p>Employees redeem points for these rewards. Hide items temporarily or remove them permanently.</p>
+              <p>Staff redeem these when their this-month weightage meets the requirement. Hide items temporarily or remove them permanently.</p>
             </div>
             <button type="button" className="btn btn-primary btn-sm" onClick={() => startEdit()}>
               <Plus size={14} /> Add reward
@@ -1023,9 +1065,16 @@ export default function AdminRewards() {
                   <label>Name</label>
                   <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Team dinner" />
                 </div>
-                <div className="form-group" style={{ flex: '0 0 120px', margin: 0 }}>
-                  <label>Point cost</label>
-                  <input type="number" min={100} step={100} value={form.point_cost} onChange={(e) => setForm({ ...form, point_cost: Number(e.target.value) })} />
+                <div className="form-group" style={{ flex: '0 0 140px', margin: 0 }}>
+                  <label>Weightage required %</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={form.weightage_required}
+                    onChange={(e) => setForm({ ...form, weightage_required: Number(e.target.value) })}
+                  />
                 </div>
               </div>
               <div className="form-group" style={{ margin: 0 }}>
@@ -1045,7 +1094,7 @@ export default function AdminRewards() {
             <div className="admin-rewards-empty">
               <Gift size={40} strokeWidth={1.25} />
               <h4>No rewards in catalog</h4>
-              <p>Add your first reward so employees can redeem their points.</p>
+              <p>Add your first reward so staff can redeem with weightage.</p>
             </div>
           ) : (
             <div className="reward-catalog-grid">
@@ -1057,7 +1106,9 @@ export default function AdminRewards() {
                   <h4>{item.name}</h4>
                   <p>{item.description}</p>
                   <div className="reward-card-footer">
-                    <span className="reward-card-cost">{item.point_cost.toLocaleString()} pts</span>
+                    <span className="reward-card-cost">
+                      {Number(item.weightage_required) || 0}% weightage
+                    </span>
                     <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
                       <button type="button" className="btn btn-secondary btn-sm" onClick={() => void toggleActive(item)}>
                         {item.active ? 'Hide' : 'Show'}

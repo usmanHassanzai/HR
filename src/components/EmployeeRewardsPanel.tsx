@@ -12,6 +12,7 @@ import {
 } from '../utils/kpiScoreHelpers';
 import { karachiYearMonth } from '../utils/kpiCategories';
 import KpiAwardProgressList from './KpiAwardProgressList';
+import WeightageRewardCatalog from './WeightageRewardCatalog';
 import { Gift, Loader2, Trophy, TrendingUp } from 'lucide-react';
 import '../styles/employee-rewards.css';
 
@@ -135,7 +136,7 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
           <div>
             <h2 className="emp-rewards-header__title">Company rewards</h2>
             <p className="emp-rewards-header__subtitle">
-              Hit the weightage targets below and redeem the gift. No catalog, no points to spend.
+              Earn company gifts from weightage streaks, and redeem admin catalog rewards with this month&apos;s weightage.
             </p>
           </div>
         </div>
@@ -163,6 +164,8 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
         onRedeem={handleRedeem}
         redeemingKey={redeemingKey}
       />
+
+      <WeightageRewardCatalog userId={userId} monthWeightage={displayWeightage} />
 
       {milestones.length > 0 && (
         <section className="emp-rewards-card">

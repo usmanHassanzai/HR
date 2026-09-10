@@ -12,8 +12,9 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import type { KpiAwardPipelineRow, KpiAwardProgress } from '../utils/kpiAwardHelpers';
-import { awardGiftLine } from '../utils/kpiAwardHelpers';
+import { awardGiftLine, coerceAwardWeightage } from '../utils/kpiAwardHelpers';
 import KpiAwardProgressList from './KpiAwardProgressList';
+import WeightageRewardCatalog from './WeightageRewardCatalog';
 import '../styles/manager-rewards.css';
 import '../styles/employee-rewards.css';
 
@@ -43,18 +44,34 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
   const [msg, setMsg] = useState('');
   const [msgError, setMsgError] = useState(false);
   const [selected, setSelected] = useState<TeamGiftRow | null>(null);
+  const [catalogQueue, setCatalogQueue] = useState<{
+    id: string;
+    status: string;
+    redeemed_at: string;
+    users?: { full_name: string } | null;
+    rewards_catalog?: { name: string } | null;
+  }[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [mineRes, reportsRes, pipeRes] = await Promise.all([
+    const [mineRes, reportsRes, pipeRes, catRedRes] = await Promise.all([
       supabase.rpc('get_kpi_award_progress', { p_user_id: managerId }),
       supabase.rpc('get_direct_reports', { p_manager_id: managerId }),
       supabase.rpc('get_kpi_award_pipeline'),
+      supabase
+        .from('reward_redemptions')
+        .select('id, employee_id, status, redeemed_at, users(full_name), rewards_catalog(name)')
+        .in('status', ['pending', 'approved'])
+        .order('redeemed_at', { ascending: false })
+        .limit(40),
     ]);
 
     if (mineRes.data) setMyProgress(mineRes.data as KpiAwardProgress[]);
 
     const members = ((reportsRes.data || []) as Profile[]).filter((u) => !u.is_demo);
+    const memberIds = new Set(members.map((m) => m.id));
+    memberIds.add(managerId);
+
     const progressLists = await Promise.all(
       members.map((m) => supabase.rpc('get_kpi_award_progress', { p_user_id: m.id })),
     );
@@ -83,6 +100,31 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
     } else {
       setQueue(((pipeRes.data || []) as KpiAwardPipelineRow[]).filter((r) => r.bucket === 'eligible'));
     }
+
+    type CatRow = {
+      id: string;
+      employee_id: string;
+      status: string;
+      redeemed_at: string;
+      users?: { full_name: string } | { full_name: string }[] | null;
+      rewards_catalog?: { name: string } | { name: string }[] | null;
+    };
+    const catRows = (catRedRes.data || []) as CatRow[];
+    setCatalogQueue(
+      catRows
+        .filter((r) => memberIds.has(r.employee_id))
+        .map((r) => {
+          const user = Array.isArray(r.users) ? r.users[0] : r.users;
+          const catalog = Array.isArray(r.rewards_catalog) ? r.rewards_catalog[0] : r.rewards_catalog;
+          return {
+            id: r.id,
+            status: r.status,
+            redeemed_at: r.redeemed_at,
+            users: user ?? null,
+            rewards_catalog: catalog ?? null,
+          };
+        }),
+    );
     setLoading(false);
   }, [managerId]);
 
@@ -103,6 +145,24 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
     }
   };
 
+  const updateCatalogRedemption = async (id: string, status: string) => {
+    setMsg('');
+    setMsgError(false);
+    const { error } = await supabase.from('reward_redemptions').update({ status }).eq('id', id);
+    if (error) {
+      setMsgError(true);
+      setMsg(error.message);
+      return;
+    }
+    setMsg(status === 'fulfilled' ? 'Catalog reward marked delivered.' : 'Catalog reward approved.');
+    void load();
+  };
+
+  const myWeightage = coerceAwardWeightage(
+    myProgress.find((r) => r.latest_score != null)?.latest_score ?? null,
+  );
+  const arrangeCount = queue.length + catalogQueue.length;
+
   if (loading && myProgress.length === 0 && team.length === 0) {
     return (
       <div className="mgr-rewards-loading">
@@ -122,14 +182,14 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
           <div>
             <h2 className="mgr-rewards-header__title">Company rewards</h2>
             <p className="mgr-rewards-header__subtitle">
-              The same three gifts as employees: movie tickets, dinner for 2, and a surprise gift. You can earn them too, and approve them person by person.
+              Company weightage gifts plus the admin catalog. Redeem with this month&apos;s weightage, and approve team requests.
             </p>
           </div>
         </div>
         <div className="mgr-rewards-stats">
           <div className="mgr-rewards-stat mgr-rewards-stat--gold">
             <span className="mgr-rewards-stat__label">Gifts to arrange</span>
-            <strong>{queue.length}</strong>
+            <strong>{arrangeCount}</strong>
           </div>
         </div>
       </header>
@@ -143,21 +203,29 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
 
       <KpiAwardProgressList
         rows={myProgress}
-        title="Your rewards"
+        title="Your company gifts"
         intro="These gifts come from your monthly weightage — the same rules as everyone else."
+        monthWeightage={myWeightage}
+      />
+
+      <WeightageRewardCatalog
+        userId={managerId}
+        monthWeightage={myWeightage}
+        title="Reward catalog"
+        intro="Admin catalog rewards. Redeem when your this-month weightage meets the requirement."
       />
 
       <section className="mgr-rewards-card">
         <h3>
           <Gift size={18} /> Gifts to arrange
-          {queue.length > 0 && <span className="mgr-rewards-count-badge">{queue.length}</span>}
+          {arrangeCount > 0 && <span className="mgr-rewards-count-badge">{arrangeCount}</span>}
         </h3>
         <p>Approve, then mark delivered when the gift is given.</p>
-        {queue.length === 0 ? (
+        {arrangeCount === 0 ? (
           <div className="mgr-rewards-empty">
             <CheckCircle size={36} strokeWidth={1.25} />
             <h4>Nothing waiting</h4>
-            <p>No pending movie tickets, dinner vouchers, or surprise gifts right now.</p>
+            <p>No pending company gifts or catalog redemptions right now.</p>
           </div>
         ) : (
           <div className="mgr-rewards-queue">
@@ -174,6 +242,24 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
                 )}
                 {r.qualification_id && r.status !== 'issued' && r.status !== 'fulfilled' && (
                   <button type="button" className="btn btn-primary btn-sm" onClick={() => void updateGift(r.qualification_id!, 'fulfilled')}>
+                    Delivered
+                  </button>
+                )}
+              </article>
+            ))}
+            {catalogQueue.map((r) => (
+              <article key={r.id} className="mgr-rewards-queue-item">
+                <div className="mgr-rewards-queue-item__body">
+                  <strong>{r.users?.full_name || 'Team member'}</strong>
+                  <span>{r.rewards_catalog?.name || 'Catalog reward'} · {statusLabel(r.status)}</span>
+                </div>
+                {r.status === 'pending' && (
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => void updateCatalogRedemption(r.id, 'approved')}>
+                    Approve
+                  </button>
+                )}
+                {r.status !== 'fulfilled' && (
+                  <button type="button" className="btn btn-primary btn-sm" onClick={() => void updateCatalogRedemption(r.id, 'fulfilled')}>
                     Delivered
                   </button>
                 )}
