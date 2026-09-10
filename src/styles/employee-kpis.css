@@ -345,6 +345,8 @@
   margin: 0;
   font-size: 1rem;
   font-weight: 700;
+  line-height: 1.35;
+  overflow: visible;
 }
 
 .emp-kpi-month {
@@ -849,23 +851,33 @@
     border-radius: 16px;
     min-width: 0;
     max-width: 100%;
-    overflow: hidden;
+    /* overflow:hidden + flex parent lets this shrink and clip the title */
+    overflow-x: clip;
+    overflow-y: visible;
+    flex-shrink: 0;
+    min-height: min-content;
     box-sizing: border-box;
   }
 
   .emp-kpi-summary__head {
     gap: 0.55rem;
+    flex-shrink: 0;
+    min-height: min-content;
+    overflow: visible;
   }
 
   .emp-kpi-summary__title {
     font-size: 1.1rem;
     margin: 0.1rem 0 0.2rem;
+    line-height: 1.35;
     overflow-wrap: anywhere;
     word-break: break-word;
   }
 
   .emp-kpi-summary__title--compact {
     font-size: 1.02rem;
+    line-height: 1.4;
+    padding-block: 0.05rem;
   }
 
   .emp-kpi-summary__formula {
@@ -946,7 +958,8 @@
     gap: 0.75rem;
     min-width: 0;
     max-width: 100%;
-    overflow: hidden;
+    overflow-x: clip;
+    overflow-y: visible;
   }
 
   .emp-kpi-month__header,

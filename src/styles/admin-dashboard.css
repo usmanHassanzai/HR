@@ -4009,9 +4009,16 @@ body.app-shell .admin-users-mobile-list,
   padding: 1.75rem 2rem 2.25rem;
   overflow-y: auto;
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 1.75rem;
+}
+
+/* Scroll the body instead of crushing flex children (clips titles on mobile). */
+.user-hub-body > * {
+  flex-shrink: 0;
+  min-width: 0;
 }
 
 .user-hub-dialog--page .user-hub-body {
