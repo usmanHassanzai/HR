@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { Profile, Kpi } from '../utils/kpiHelpers';
+import { Profile } from '../utils/kpiHelpers';
 import {
   Gift,
   Plus,
@@ -9,28 +9,16 @@ import {
   Loader2,
   CheckCircle2,
   Trophy,
-  Star,
-  PlayCircle,
   AlertCircle,
   Info,
-  Coins,
   Clock,
   Package,
   Users,
-  Eye,
-  Search,
-  Target,
-  ChevronRight,
-  ArrowLeft,
   Upload,
 } from 'lucide-react';
-import { tierColorForScore } from '../utils/rewardsTiers';
-import AdminOrgKpiPointsBoard, { type OrgKpiPointsRow } from './AdminOrgKpiPointsBoard';
+import AdminOrgKpiPointsBoard from './AdminOrgKpiPointsBoard';
 import AdminKpiAwardsPanel from './AdminKpiAwardsPanel';
-import KpiScopedTasksList from './KpiScopedTasksList';
-import KpiScoreboardSummary from './KpiScoreboardSummary';
 import RewardCatalogIcon from './RewardCatalogIcon';
-import { fetchRewardsSummary, type RewardsSummary } from '../utils/rewardsHelpers';
 import { fileToRewardIconDataUrl, REWARD_EMOJI_PRESETS } from '../utils/rewardIconHelpers';
 import '../styles/admin-rewards.css';
 import '../styles/employee-kpis.css';
@@ -45,15 +33,6 @@ interface CatalogItem {
   active: boolean;
 }
 
-interface MonthlyRow {
-  employee_id: string;
-  full_name: string;
-  role: string;
-  kpi_score: number;
-  points_earned: number;
-  month: string;
-}
-
 interface Redemption {
   id: string;
   employee_id: string;
@@ -65,309 +44,20 @@ interface Redemption {
   rewards_catalog?: { name: string; icon: string };
 }
 
-interface PersonPointsSummary {
-  employee_id: string;
-  full_name: string;
-  role: string;
-  email: string;
-  department_name: string | null;
-  health_score: number;
-  kpi_points: number;
-  weight_assigned: number;
-  weight_achieved: number;
-  total_earned: number;
-  used_points: number;
-  balance: number;
-  completed_kpis: number;
-  total_kpis: number;
-  pending_kpis: number;
-  this_month_points: number;
-  this_month_score: number;
-  months: MonthlyRow[];
-}
-
-function monthBounds(month: string): { start: string; end: string; label: string } {
-  const monthObj = new Date(month);
-  if (Number.isNaN(monthObj.getTime())) {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = now.getMonth() + 1;
-    const start = `${y}-${String(m).padStart(2, '0')}-01`;
-    const lastDay = new Date(y, m, 0).getDate();
-    const end = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-    return { start, end, label: now.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) };
-  }
-  const y = monthObj.getFullYear();
-  const m = monthObj.getMonth() + 1;
-  const start = `${y}-${String(m).padStart(2, '0')}-01`;
-  const lastDay = new Date(y, m, 0).getDate();
-  const end = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-  return {
-    start,
-    end,
-    label: monthObj.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }),
-  };
-}
-
-function filterKpisForMonth(allKpis: Kpi[], monthStart: string, monthEnd: string): Kpi[] {
-  return allKpis.filter((k) => {
-    const completedDate = (k.completed_at || k.updated_at || '').slice(0, 10);
-    const endDate = (k.end_date || '').slice(0, 10);
-    const startDate = (k.start_date || k.created_at || '').slice(0, 10);
-    if (k.completion_status === 'completed' && completedDate >= monthStart && completedDate <= monthEnd) {
-      return true;
-    }
-    if (endDate >= monthStart && endDate <= monthEnd) {
-      return true;
-    }
-    return startDate <= monthEnd && (endDate ? endDate >= monthStart : true);
-  });
-}
-
-function TaskHistoryTable({ kpis, monthLabel }: { kpis: Kpi[]; monthLabel: string }) {
-  const completedKpis = kpis.filter((k) => k.completion_status === 'completed');
-  const openKpis = kpis.filter((k) => k.completion_status !== 'completed');
-
-  if (kpis.length === 0) {
-    return (
-      <div className="admin-rewards-empty" style={{ padding: '1.5rem 1rem' }}>
-        <CheckCircle2 size={32} strokeWidth={1.25} />
-        <h4>No tasks for {monthLabel}</h4>
-        <p>No KPI tasks were assigned or completed in this period.</p>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      <div className="person-points-detail__task-meta">
-        <span className="person-points-detail__task-stat person-points-detail__task-stat--done">
-          ✓ {completedKpis.length} completed
-        </span>
-        {openKpis.length > 0 && (
-          <span className="person-points-detail__task-stat">
-            {openKpis.length} in progress / open
-          </span>
-        )}
-      </div>
-      <KpiScopedTasksList kpis={kpis} />
-    </>
-  );
-}
-
-function PersonPointsDetailModal({
-  person,
-  initialMonth,
-  onClose,
-}: {
-  person: PersonPointsSummary;
-  initialMonth?: string;
-  onClose: () => void;
-}) {
-  const defaultMonth = initialMonth || person.months[0]?.month || new Date().toISOString().slice(0, 10);
-  const [selectedMonth, setSelectedMonth] = useState(defaultMonth);
-  const [allKpis, setAllKpis] = useState<Kpi[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [rewardsSummary, setRewardsSummary] = useState<RewardsSummary | null>(null);
-
-  const { start: monthStart, end: monthEnd, label: monthDisplay } = monthBounds(selectedMonth);
-  const monthKpis = useMemo(
-    () => filterKpisForMonth(allKpis, monthStart, monthEnd),
-    [allKpis, monthStart, monthEnd],
-  );
-
-  const selectedLedger = person.months.find((m) => m.month.slice(0, 7) === selectedMonth.slice(0, 7));
-  const displayScore = selectedLedger?.kpi_score ?? person.this_month_score;
-
-  useEffect(() => {
-    let isMounted = true;
-    async function loadTasks() {
-      setLoading(true);
-      setError(null);
-      try {
-        const kpiRes = await supabase.from('kpis').select('*').eq('user_id', person.employee_id).order('end_date', { ascending: false });
-        if (kpiRes.error) throw kpiRes.error;
-        if (isMounted) {
-          setAllKpis((kpiRes.data || []) as Kpi[]);
-          setRewardsSummary(null);
-        }
-      } catch (err) {
-        if (isMounted) {
-          setError(err instanceof Error ? err.message : 'Failed to load task history');
-        }
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    }
-    void loadTasks();
-    return () => { isMounted = false; };
-  }, [person.employee_id]);
-
-  return (
-    <div className="user-hub-overlay" onClick={onClose}>
-      <div className="user-hub-dialog person-points-detail" onClick={(e) => e.stopPropagation()}>
-        <div className="user-hub-topbar">
-          <button type="button" className="user-hub-back" onClick={onClose}>
-            <ArrowLeft size={18} />
-            Back
-          </button>
-        </div>
-
-        <header className="user-hub-hero">
-          <div className="user-hub-hero__info">
-            <div className={`admin-user-card__avatar admin-user-card__avatar--${person.role}`}>
-              {person.full_name.slice(0, 2).toUpperCase()}
-            </div>
-            <div className="user-hub-hero__text">
-              <div className="user-hub-hero__title-row">
-                <h2>{person.full_name}</h2>
-                <span className={`admin-role-badge admin-role-badge--${person.role}`}>
-                  {person.role.toUpperCase()}
-                </span>
-              </div>
-              <p className="user-hub-hero__email">{person.email}</p>
-              <div className="user-hub-hero__tags">
-                {person.department_name && (
-                  <span className="user-hub-tag">{person.department_name}</span>
-                )}
-              </div>
-            </div>
-          </div>
-        </header>
-
-        <div className="user-hub-body">
-          {allKpis.length > 0 && (
-            <div style={{ marginBottom: '1.25rem' }}>
-              <KpiScoreboardSummary
-                kpis={allKpis}
-                rewardsSummary={rewardsSummary}
-                compact
-                title={`${person.full_name}'s KPI scoreboard`}
-              />
-            </div>
-          )}
-
-          <div className="person-points-detail__metrics">
-            <div className="person-points-detail__metric">
-              <span>Weightage</span>
-              <strong>
-                {(person.weight_assigned || 0).toFixed((person.weight_assigned || 0) % 1 === 0 ? 0 : 2)}%
-              </strong>
-            </div>
-            <div className="person-points-detail__metric">
-              <span>Achieved</span>
-              <strong style={{ color: 'var(--color-success)' }}>
-                {(person.weight_achieved || 0).toFixed((person.weight_achieved || 0) % 1 === 0 ? 0 : 2)}%
-              </strong>
-            </div>
-            <div className="person-points-detail__metric">
-              <span>KPI score</span>
-              <strong style={{ color: tierColorForScore(displayScore) }}>{Math.round(displayScore)}</strong>
-            </div>
-            <div className="person-points-detail__metric">
-              <span>Tasks</span>
-              <strong>{person.completed_kpis}/{person.total_kpis}</strong>
-            </div>
-          </div>
-
-          {person.months.length > 0 && (
-            <section className="person-points-detail__section">
-              <h4 className="user-hub-section-title">Monthly score history</h4>
-              <div className="admin-rewards-table-wrap">
-                <table className="admin-rewards-table">
-                  <thead>
-                    <tr>
-                      <th>Month</th>
-                      <th>KPI score</th>
-                      <th />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {person.months.map((m) => (
-                      <tr
-                        key={m.month}
-                        className={`admin-rewards-row--clickable${selectedMonth.slice(0, 7) === m.month.slice(0, 7) ? ' person-points-detail__month--active' : ''}`}
-                        onClick={() => setSelectedMonth(m.month)}
-                      >
-                        <td><strong>{new Date(m.month).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</strong></td>
-                        <td style={{ color: tierColorForScore(m.kpi_score), fontWeight: 700 }}>{Math.round(m.kpi_score)}</td>
-                        <td>
-                          <button
-                            type="button"
-                            className="btn btn-secondary btn-sm"
-                            onClick={(e) => { e.stopPropagation(); setSelectedMonth(m.month); }}
-                          >
-                            View tasks
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          )}
-
-          <section className="person-points-detail__section">
-            <div className="person-points-detail__section-head">
-              <h4 className="user-hub-section-title">Task history — {monthDisplay}</h4>
-              {person.months.length > 1 && (
-                <select
-                  className="person-points-detail__month-select"
-                  value={selectedMonth.slice(0, 10)}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
-                >
-                  {person.months.map((m) => (
-                    <option key={m.month} value={m.month.slice(0, 10)}>
-                      {new Date(m.month).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-
-            {loading ? (
-              <div className="admin-rewards-loading" style={{ padding: '2rem 1rem' }}>
-                <Loader2 size={24} className="spin-icon" />
-                <span>Loading tasks…</span>
-              </div>
-            ) : error ? (
-              <div className="admin-rewards-alert admin-rewards-alert--error">
-                <AlertCircle size={16} />
-                <span>{error}</span>
-              </div>
-            ) : (
-              <TaskHistoryTable kpis={monthKpis} monthLabel={monthDisplay} />
-            )}
-          </section>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function isAlertError(message: string): boolean {
   return /^error|failed|cannot|must/i.test(message);
 }
 
 export default function AdminRewards() {
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
-  const [monthly, setMonthly] = useState<MonthlyRow[]>([]);
   const [redemptions, setRedemptions] = useState<Redemption[]>([]);
   const [orgUserCount, setOrgUserCount] = useState(0);
-  const [orgKpiPointsTotal, setOrgKpiPointsTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [running, setRunning] = useState(false);
   const [msg, setMsg] = useState('');
   const [activeTab, setActiveTab] = useState<'board' | 'redemptions' | 'catalog' | 'awards'>('board');
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: '', description: '', icon: '🎁', weightage_required: 80 });
   const [iconUploading, setIconUploading] = useState(false);
-  const [boardRows, setBoardRows] = useState<OrgKpiPointsRow[]>([]);
-  const [selectedPerson, setSelectedPerson] = useState<PersonPointsSummary | null>(null);
-  const [selectedPersonMonth, setSelectedPersonMonth] = useState<string | undefined>();
-  const [monthlySearch, setMonthlySearch] = useState('');
 
   const showMsg = useCallback((text: string) => {
     setMsg(text);
@@ -389,16 +79,8 @@ export default function AdminRewards() {
     const allowedIds = orgUsers.map((u) => u.id);
     setOrgUserCount(allowedIds.length);
 
-    const [catRes, ledgerRes, redemRes, boardRes] = await Promise.all([
+    const [catRes, redemRes] = await Promise.all([
       supabase.from('rewards_catalog').select('*').order('weightage_required'),
-      allowedIds.length
-        ? supabase
-            .from('points_ledger')
-            .select('*, users(full_name, role, is_demo)')
-            .in('employee_id', allowedIds)
-            .order('month', { ascending: false })
-            .limit(80)
-        : Promise.resolve({ data: [], error: null }),
       allowedIds.length
         ? supabase
             .from('reward_redemptions')
@@ -407,32 +89,7 @@ export default function AdminRewards() {
             .order('redeemed_at', { ascending: false })
             .limit(50)
         : Promise.resolve({ data: [], error: null }),
-      supabase.rpc('get_org_kpi_points_board'),
     ]);
-
-    if (boardRes.data) {
-      const rows = ((boardRes.data as OrgKpiPointsRow[]) || []).map((r) => ({
-        ...r,
-        health_score: Number(r.health_score) || 0,
-        kpi_points: Number(r.kpi_points) || 0,
-        weight_assigned: Number(r.weight_assigned) || 0,
-        weight_achieved: Number(r.weight_achieved) || 0,
-        total_earned: Number(r.total_earned) || 0,
-        used_points: Number(r.used_points) || 0,
-        balance: (Number(r.total_earned) || 0) - (Number(r.used_points) || 0),
-        completed_kpis: Number(r.completed_kpis) || 0,
-        total_kpis: Number(r.total_kpis) || 0,
-        pending_kpis: Number(r.pending_kpis) || 0,
-        this_month_points: r.this_month_points == null ? 0 : Number(r.this_month_points),
-        this_month_score: r.this_month_score == null ? 0 : Number(r.this_month_score),
-      }));
-      setBoardRows(rows);
-      const total = rows.reduce((s, r) => s + (Number(r.kpi_points) || 0), 0);
-      setOrgKpiPointsTotal(Math.round(total * 100) / 100);
-    } else {
-      setBoardRows([]);
-      setOrgKpiPointsTotal(0);
-    }
 
     if (catRes.data) {
       setCatalog(
@@ -444,23 +101,6 @@ export default function AdminRewards() {
           point_cost: Number(item.point_cost) || 0,
         })),
       );
-    }
-
-    if (ledgerRes.data) {
-      setMonthly(
-        ledgerRes.data
-          .filter((r: { users?: { is_demo?: boolean } }) => !r.users?.is_demo)
-          .map((r: { employee_id: string; users?: { full_name?: string; role?: string }; kpi_score: number; points_earned: number; month: string }) => ({
-            employee_id: r.employee_id,
-            full_name: r.users?.full_name ?? 'Unknown',
-            role: r.users?.role ?? '',
-            kpi_score: r.kpi_score,
-            points_earned: r.points_earned,
-            month: r.month,
-          })),
-      );
-    } else {
-      setMonthly([]);
     }
 
     if (redemRes.data) {
@@ -558,82 +198,8 @@ export default function AdminRewards() {
     }
   };
 
-  const runMonthlyJob = async () => {
-    setRunning(true);
-    setMsg('');
-    const { data, error } = await supabase.rpc('calculate_monthly_points');
-    if (error) {
-      showMsg(`Error: ${error.message}`);
-    } else {
-      const awarded = ((data as { points?: number }[]) || []).filter((r) => (r.points ?? 0) > 0).length;
-      showMsg(`Monthly job complete — ${awarded} team member(s) received tiered bonuses. Demo accounts excluded.`);
-      void fetchAll();
-    }
-    setRunning(false);
-  };
-
   const pending = redemptions.filter((r) => r.status !== 'fulfilled');
   const activeCatalog = catalog.filter((c) => c.active).length;
-  const bonusesThisPeriod = monthly.filter((m) => m.points_earned > 0).length;
-  const totalPointsIssued = monthly.reduce((s, m) => s + m.points_earned, 0);
-
-  const personSummaries = useMemo(() => {
-    const byPerson = new Map<string, PersonPointsSummary>();
-
-    for (const row of boardRows) {
-      if (row.role === 'admin') continue;
-      byPerson.set(row.user_id, {
-        employee_id: row.user_id,
-        full_name: row.full_name,
-        role: row.role,
-        email: row.email,
-        department_name: row.department_name,
-        health_score: row.health_score,
-        kpi_points: row.kpi_points,
-        weight_assigned: row.weight_assigned ?? 0,
-        weight_achieved: row.weight_achieved ?? 0,
-        total_earned: row.total_earned,
-        used_points: row.used_points,
-        balance: row.balance,
-        completed_kpis: row.completed_kpis,
-        total_kpis: row.total_kpis,
-        pending_kpis: row.pending_kpis,
-        this_month_points: row.this_month_points ?? 0,
-        this_month_score: row.this_month_score ?? 0,
-        months: [],
-      });
-    }
-
-    for (const m of monthly) {
-      const existing = byPerson.get(m.employee_id);
-      if (existing) {
-        existing.months.push(m);
-      }
-    }
-
-    for (const p of byPerson.values()) {
-      p.months.sort((a, b) => b.month.localeCompare(a.month));
-    }
-
-    return Array.from(byPerson.values()).sort((a, b) => a.full_name.localeCompare(b.full_name));
-  }, [boardRows, monthly]);
-
-  const filteredPersons = useMemo(() => {
-    const q = monthlySearch.trim().toLowerCase();
-    if (!q) return personSummaries;
-    return personSummaries.filter(
-      (p) =>
-        p.full_name.toLowerCase().includes(q) ||
-        p.email.toLowerCase().includes(q) ||
-        (p.department_name || '').toLowerCase().includes(q) ||
-        p.role.toLowerCase().includes(q),
-    );
-  }, [personSummaries, monthlySearch]);
-
-  const openPersonDetail = (person: PersonPointsSummary, month?: string) => {
-    setSelectedPersonMonth(month);
-    setSelectedPerson(person);
-  };
 
   if (loading && catalog.length === 0) {
     return (
