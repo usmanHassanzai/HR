@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { isKpiViewedByAssignee, kpiProgressBadge, Profile, Kpi } from '../utils/kpiHelpers';
 import { hydrateKpiLastEdits } from '../utils/kpiAssignmentEdits';
 import { markAssignedKpisViewed } from '../utils/kpiViewed';
-import { RefreshCw, BarChart2, Trophy, KeyRound, CalendarCheck, Settings, Target, Search } from 'lucide-react';
+import { RefreshCw, BarChart2, Trophy, KeyRound, CalendarCheck, Settings, Target, Search, FileText } from 'lucide-react';
 import ExportButton from './ExportButton';
 import ChangePasswordModal from './ChangePasswordModal';
 import { emailKpiOverdue } from '../utils/kpiEmail';
@@ -53,7 +53,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
 
   const [kpis, setKpis] = useState<Kpi[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'kpis' | 'attendance' | 'rewards' | 'settings'>('kpis');
+  const [activeTab, setActiveTab] = useState<'kpis' | 'attendance' | 'rewards' | 'dailyReport' | 'settings'>('kpis');
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const initialYm = useMemo(() => karachiYearMonth(), []);
@@ -262,12 +262,19 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
       { id: 'kpis', label: 'My KPIs', icon: <BarChart2 size={16} /> },
       { id: 'attendance', label: 'Attendance', icon: <CalendarCheck size={16} /> },
       { id: 'rewards', label: 'Rewards', icon: <Trophy size={16} /> },
+      { id: 'dailyReport', label: 'Daily report', icon: <FileText size={16} /> },
       { id: 'settings', label: 'Settings', icon: <Settings size={16} /> },
     ],
   }], []);
 
   const pageIcon = findAdminNavIcon(navGroups, activeTab);
-  const pageTitle = { kpis: 'My KPIs', attendance: 'Attendance', rewards: 'Rewards', settings: 'Settings' }[activeTab];
+  const pageTitle = {
+    kpis: 'My KPIs',
+    attendance: 'Attendance',
+    rewards: 'Rewards',
+    dailyReport: 'Daily report',
+    settings: 'Settings',
+  }[activeTab];
 
   const kpiBoard = (
       <div className="emp-kpi-board">
@@ -556,11 +563,15 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
           <div className="admin-shell__panel">
       {activeTab === 'rewards' ? (
         <Suspense fallback={<TabFallback />}>
-          <EmployeeRewardsPanel userId={activeUser.id} />
+          <EmployeeRewardsPanel userId={activeUser.id} kpis={kpis} />
         </Suspense>
       ) : activeTab === 'attendance' ? (
         <Suspense fallback={<TabFallback />}>
         <AttendanceLeavePanel profile={profile} mode={profile.role === 'manager' ? 'manager' : 'employee'} />
+        </Suspense>
+      ) : activeTab === 'dailyReport' ? (
+        <Suspense fallback={<TabFallback />}>
+          <DailyWorkReportPanel profile={profile} />
         </Suspense>
       ) : activeTab === 'settings' ? (
         <Suspense fallback={<TabFallback />}>
@@ -576,10 +587,6 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
           <details className="app-settings-block" open>
             <summary>Account security (2FA recovery)</summary>
             <AccountSecurityPanel fullName={activeUser.full_name} />
-          </details>
-          <details className="app-settings-block" open>
-            <summary>Daily report</summary>
-            <DailyWorkReportPanel profile={profile} />
           </details>
         </div>
         </Suspense>

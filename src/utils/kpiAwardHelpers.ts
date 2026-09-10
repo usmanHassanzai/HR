@@ -102,16 +102,66 @@ function weightageInBand(weightage: number, min: number, max: number): boolean {
   return weightage <= max;
 }
 
+/** Whether the employee can tap Redeem for this gift (meets rule, not yet claimed). */
+export function isAwardRedeemable(
+  row: KpiAwardProgress | undefined,
+  monthWeightage: number | null = null,
+): boolean {
+  if (!row) return false;
+  if (row.qualified) return true;
+  const weightage = coerceAwardWeightage(row.latest_score, monthWeightage);
+  if (weightage == null) return false;
+  // Dinner is a single-month band — client can verify with this month's weightage.
+  if (row.rule_key === 'dinner_voucher') {
+    return weightageInBand(weightage, Number(row.min_pct), Number(row.max_pct));
+  }
+  return false;
+}
+
+/** Normalize RPC latest_score: reject legacy score points (>100) so UI can fall back to real weightage. */
+export function coerceAwardWeightage(
+  value: number | null | undefined,
+  fallback: number | null = null,
+): number | null {
+  if (value == null || Number.isNaN(Number(value))) return fallback;
+  const n = Number(value);
+  // Score points can exceed 100; monthly weightage never does.
+  if (n > 100) return fallback;
+  return n;
+}
+
+export function withAwardWeightage(
+  row: KpiAwardProgress | undefined,
+  monthWeightage: number | null,
+): KpiAwardProgress | undefined {
+  if (!row) return row;
+  const weightage = coerceAwardWeightage(row.latest_score, monthWeightage);
+  if (weightage == null || weightage === Number(row.latest_score)) return row;
+  return { ...row, latest_score: weightage };
+}
+
 /** Professional status line for a gift rule. Prefers clean server hint when present. */
-export function awardProgressHint(row: KpiAwardProgress | undefined, fallbackMonths: string): string {
+export function awardProgressHint(
+  row: KpiAwardProgress | undefined,
+  fallbackMonths: string,
+  opts?: { claimed?: boolean; canRedeem?: boolean },
+): string {
   if (!row) return fallbackMonths;
-  if (row.qualified) {
-    return 'You qualified — waiting for your manager or admin to arrange this gift.';
+  if (opts?.claimed) {
+    return 'Requested — waiting for your manager or admin to arrange this gift.';
+  }
+  if (row.qualified || opts?.canRedeem) {
+    return 'You meet the target — tap Redeem to request this gift.';
   }
   const hint = row.hint?.trim();
-  if (hint && !/Above the gift band/i.test(hint) && !/score points/i.test(hint)) {
-    // Prefer server hints that already say weightage; rewrite legacy "score" phrasing.
-    if (/weightage/i.test(hint)) return hint;
+  if (
+    hint
+    && !/Above the gift band/i.test(hint)
+    && !/score points/i.test(hint)
+    && !/\bscore\b/i.test(hint)
+  ) {
+    if (/weightage/i.test(hint) && !/tap Redeem/i.test(hint)) return hint;
+    if (/tap Redeem/i.test(hint)) return hint;
     if (!/score/i.test(hint)) return hint;
   }
 
@@ -120,7 +170,7 @@ export function awardProgressHint(row: KpiAwardProgress | undefined, fallbackMon
   const band = formatAwardWeightageBand(min, max);
   const current = Number(row.current_months || 0);
   const needed = Number(row.required_months || 1);
-  const weightage = row.latest_score == null ? null : Number(row.latest_score);
+  const weightage = coerceAwardWeightage(row.latest_score);
 
   if (row.rule_key === 'dinner_voucher') {
     if (weightage == null) return `Reach weightage of ${band} in any one month.`;

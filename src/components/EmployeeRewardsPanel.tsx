@@ -1,14 +1,23 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import type { KpiAwardProgress } from '../utils/kpiAwardHelpers';
-import { formatAwardWeightage } from '../utils/kpiAwardHelpers';
+import type { Kpi } from '../utils/kpiHelpers';
+import type { KpiAwardProgress, KpiAwardRuleKey } from '../utils/kpiAwardHelpers';
+import {
+  coerceAwardWeightage,
+  formatAwardWeightage,
+} from '../utils/kpiAwardHelpers';
+import {
+  employeeKpiBoardBreakdown,
+  kpisForPeriod,
+} from '../utils/kpiScoreHelpers';
+import { karachiYearMonth } from '../utils/kpiCategories';
 import KpiAwardProgressList from './KpiAwardProgressList';
 import { Gift, Loader2, Trophy, TrendingUp } from 'lucide-react';
-import { tierColorForScore } from '../utils/rewardsTiers';
 import '../styles/employee-rewards.css';
 
 interface EmployeeRewardsPanelProps {
   userId: string;
+  kpis?: Kpi[];
   kpiPoints?: number | null;
 }
 
@@ -32,11 +41,25 @@ function statusClass(status: string): string {
   return 'emp-rewards-status emp-rewards-status--fulfilled';
 }
 
-export default function EmployeeRewardsPanel({ userId }: EmployeeRewardsPanelProps) {
+function periodEndMonthKey(periodEnd: string): string {
+  return String(periodEnd).slice(0, 7);
+}
+
+export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewardsPanelProps) {
   const [loading, setLoading] = useState(true);
   const [awardProgress, setAwardProgress] = useState<KpiAwardProgress[]>([]);
   const [milestones, setMilestones] = useState<MilestoneRow[]>([]);
-  const [thisMonthScore, setThisMonthScore] = useState<number | null>(null);
+  const [thisMonthWeightage, setThisMonthWeightage] = useState<number | null>(null);
+  const [redeemingKey, setRedeemingKey] = useState<KpiAwardRuleKey | null>(null);
+  const [actionMsg, setActionMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+
+  const clientMonthWeightage = useMemo(() => {
+    if (!kpis.length) return null;
+    const { year, monthIndex } = karachiYearMonth();
+    const monthKpis = kpisForPeriod(kpis, 'month', year, monthIndex);
+    if (!monthKpis.length) return null;
+    return employeeKpiBoardBreakdown(monthKpis).weightAchieved;
+  }, [kpis]);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -52,12 +75,45 @@ export default function EmployeeRewardsPanel({ userId }: EmployeeRewardsPanelPro
     if (awardRes.data) setAwardProgress(progress);
     if (mileRes.data) setMilestones(mileRes.data as MilestoneRow[]);
     const fromProgress = progress.find((r) => r.latest_score != null)?.latest_score;
-    setThisMonthScore(fromProgress != null ? Number(fromProgress) : null);
+    setThisMonthWeightage(coerceAwardWeightage(fromProgress, clientMonthWeightage));
     setLoading(false);
-  }, [userId]);
+  }, [userId, clientMonthWeightage]);
 
   useEffect(() => {
     void fetchAll();
+  }, [fetchAll]);
+
+  useEffect(() => {
+    if (clientMonthWeightage != null) {
+      setThisMonthWeightage((prev) => coerceAwardWeightage(prev, clientMonthWeightage));
+    }
+  }, [clientMonthWeightage]);
+
+  const displayWeightage = coerceAwardWeightage(thisMonthWeightage, clientMonthWeightage);
+
+  const claimedKeys = useMemo(() => {
+    const { year, monthIndex } = karachiYearMonth();
+    const thisKey = `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
+    const keys = new Set<string>();
+    for (const m of milestones) {
+      if (m.status === 'dismissed') continue;
+      if (periodEndMonthKey(m.period_end) === thisKey) keys.add(m.rule_key);
+    }
+    return keys;
+  }, [milestones]);
+
+  const handleRedeem = useCallback(async (ruleKey: KpiAwardRuleKey) => {
+    setRedeemingKey(ruleKey);
+    setActionMsg(null);
+    const { error } = await supabase.rpc('claim_my_kpi_award', { p_rule_key: ruleKey });
+    if (error) {
+      setActionMsg({ type: 'err', text: error.message || 'Could not redeem this gift.' });
+      setRedeemingKey(null);
+      return;
+    }
+    setActionMsg({ type: 'ok', text: 'Gift requested — your manager or admin will arrange it.' });
+    await fetchAll();
+    setRedeemingKey(null);
   }, [fetchAll]);
 
   if (loading && awardProgress.length === 0 && milestones.length === 0) {
@@ -79,7 +135,7 @@ export default function EmployeeRewardsPanel({ userId }: EmployeeRewardsPanelPro
           <div>
             <h2 className="emp-rewards-header__title">Company rewards</h2>
             <p className="emp-rewards-header__subtitle">
-              Hit the weightage targets below and the company gives you the gift. No catalog, no points to spend.
+              Hit the weightage targets below and redeem the gift. No catalog, no points to spend.
             </p>
           </div>
         </div>
@@ -87,21 +143,33 @@ export default function EmployeeRewardsPanel({ userId }: EmployeeRewardsPanelPro
           <div className="emp-rewards-stat emp-rewards-stat--accent">
             <TrendingUp size={16} />
             <span className="emp-rewards-stat__label">This month&apos;s weightage</span>
-            <strong style={{ color: thisMonthScore != null ? tierColorForScore(thisMonthScore) : undefined }}>
-              {formatAwardWeightage(thisMonthScore)}
+            <strong>
+              {formatAwardWeightage(displayWeightage)}
             </strong>
           </div>
         </div>
       </header>
 
-      <KpiAwardProgressList rows={awardProgress} />
+      {actionMsg ? (
+        <div className={`emp-rewards-alert emp-rewards-alert--${actionMsg.type === 'ok' ? 'success' : 'error'}`}>
+          {actionMsg.text}
+        </div>
+      ) : null}
+
+      <KpiAwardProgressList
+        rows={awardProgress}
+        monthWeightage={displayWeightage}
+        claimedKeys={claimedKeys}
+        onRedeem={handleRedeem}
+        redeemingKey={redeemingKey}
+      />
 
       {milestones.length > 0 && (
         <section className="emp-rewards-card">
           <h3>
             <Gift size={18} /> Your gifts
           </h3>
-          <p>When you qualify, your manager or admin approves and arranges delivery.</p>
+          <p>When you redeem, your manager or admin approves and arranges delivery.</p>
           <div className="emp-rewards-redemption-list">
             {milestones.map((m) => (
               <article key={m.id} className="emp-rewards-redemption">

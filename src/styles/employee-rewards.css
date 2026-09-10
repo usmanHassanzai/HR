@@ -540,3 +540,20 @@
   color: var(--text-secondary);
   line-height: 1.4;
 }
+
+.kpi-award-card__redeem {
+  align-self: flex-start;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.kpi-award-card__claimed {
+  align-self: flex-start;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-success);
+}

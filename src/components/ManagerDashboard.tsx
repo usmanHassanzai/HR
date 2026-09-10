@@ -4,7 +4,7 @@ import { Profile } from '../utils/kpiHelpers';
 import { runOverdueKpiCheckOnce } from '../utils/overdueKpiCheck';
 import Leaderboard from './Leaderboard';
 import EmployeeDashboard from './EmployeeDashboard';
-import { Users, KeyRound, Trophy, Settings, CalendarCheck, ClipboardList, BarChart2 } from 'lucide-react';
+import { Users, KeyRound, Trophy, Settings, CalendarCheck, ClipboardList, BarChart2, FileText } from 'lucide-react';
 import ChangePasswordModal from './ChangePasswordModal';
 import AdminSidebarNav, { findAdminNavIcon, type AdminNavGroup } from './AdminSidebarNav';
 import AdminHamburgerButton from './AdminHamburgerButton';
@@ -23,7 +23,7 @@ const AdminLiveTracking = lazy(() => import('./AdminLiveTracking'));
 const AccountSecurityPanel = lazy(() => import('./AccountSecurityPanel'));
 const BackupCodesLowBanner = lazy(() => import('./BackupCodesLowBanner'));
 
-type ManagerTab = 'mine' | 'employees' | 'kpis' | 'attendance' | 'rewards' | 'settings';
+type ManagerTab = 'mine' | 'employees' | 'kpis' | 'attendance' | 'rewards' | 'dailyReport' | 'settings';
 
 interface ManagerDashboardProps {
   profile: Profile;
@@ -37,7 +37,8 @@ function getManagerNavMeta(id: string): { label: string; description: string } {
     kpis: { label: 'Assign Task', description: 'Create and assign KPIs.' },
     attendance: { label: 'Attendance', description: 'Team leave and check-in.' },
     rewards: { label: 'Rewards', description: 'Company gifts for you and your team.' },
-    settings: { label: 'Settings', description: 'Password and daily report.' },
+    dailyReport: { label: 'Daily report', description: 'Submit and review your daily work log.' },
+    settings: { label: 'Settings', description: 'Password and account security.' },
   };
   return map[id] ?? { label: 'Manager', description: 'Team and personal workspace.' };
 }
@@ -93,6 +94,7 @@ export default function ManagerDashboard({ profile, organizationName }: ManagerD
         { id: 'mine', label: 'My KPIs', icon: <BarChart2 size={16} /> },
         { id: 'attendance', label: 'Attendance', icon: <CalendarCheck size={16} /> },
         { id: 'rewards', label: 'Rewards', icon: <Trophy size={16} /> },
+        { id: 'dailyReport', label: 'Daily report', icon: <FileText size={16} /> },
         { id: 'settings', label: 'Settings', icon: <Settings size={16} /> },
       ],
     },
@@ -179,6 +181,8 @@ export default function ManagerDashboard({ profile, organizationName }: ManagerD
               <AdminLiveTracking mode="manager" profile={profile} />
             </details>
           </div>
+        ) : activeTab === 'dailyReport' ? (
+          <DailyWorkReportPanel profile={profile} />
         ) : (
           <div className="app-settings-stack">
             <BackupCodesLowBanner onOpenSettings={() => setActiveTab('settings')} />
@@ -190,10 +194,6 @@ export default function ManagerDashboard({ profile, organizationName }: ManagerD
             <details className="app-settings-block" open>
               <summary>Account security (2FA recovery)</summary>
               <AccountSecurityPanel fullName={profile.full_name} />
-            </details>
-            <details className="app-settings-block" open>
-              <summary>Daily report</summary>
-              <DailyWorkReportPanel profile={profile} />
             </details>
           </div>
         )}

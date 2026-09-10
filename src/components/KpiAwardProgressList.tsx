@@ -1,6 +1,11 @@
-import { Film, Gift, UtensilsCrossed } from 'lucide-react';
-import type { KpiAwardProgress } from '../utils/kpiAwardHelpers';
-import { awardProgressHint, formatAwardWeightageBand } from '../utils/kpiAwardHelpers';
+import { Film, Gift, Loader2, UtensilsCrossed } from 'lucide-react';
+import type { KpiAwardProgress, KpiAwardRuleKey } from '../utils/kpiAwardHelpers';
+import {
+  awardProgressHint,
+  formatAwardWeightageBand,
+  isAwardRedeemable,
+  withAwardWeightage,
+} from '../utils/kpiAwardHelpers';
 import '../styles/employee-rewards.css';
 
 const RULES: {
@@ -49,10 +54,19 @@ export default function KpiAwardProgressList({
   rows,
   title = 'How you earn rewards',
   intro = 'These gifts come from your monthly weightage (completed KPI weight out of 100%) — not from score points or a catalog.',
+  monthWeightage = null,
+  claimedKeys,
+  onRedeem,
+  redeemingKey = null,
 }: {
   rows: KpiAwardProgress[];
   title?: string;
   intro?: string;
+  /** Client-computed this-month weightage (0–100); used when RPC still returns score points. */
+  monthWeightage?: number | null;
+  claimedKeys?: Set<string> | ReadonlySet<string>;
+  onRedeem?: (ruleKey: KpiAwardRuleKey) => void | Promise<void>;
+  redeemingKey?: KpiAwardRuleKey | null;
 }) {
   const byKey = new Map(rows.map((r) => [r.rule_key, r]));
 
@@ -62,11 +76,14 @@ export default function KpiAwardProgressList({
       <p className="kpi-award-progress__intro">{intro}</p>
       <div className="kpi-award-progress__list">
         {RULES.map((rule) => {
-          const row = byKey.get(rule.key);
+          const row = withAwardWeightage(byKey.get(rule.key), monthWeightage ?? null);
           const current = Number(row?.current_months || 0);
           const needed = Number(row?.required_months || (rule.key === 'dinner_voucher' ? 1 : rule.key === 'movie_tickets' ? 3 : 6));
-          const ready = Boolean(row?.qualified);
+          const claimed = Boolean(claimedKeys?.has(rule.key));
+          const canRedeem = isAwardRedeemable(row, monthWeightage ?? null) && !claimed && Boolean(onRedeem);
+          const ready = canRedeem || claimed;
           const barPct = Math.min(100, needed > 0 ? (current / needed) * 100 : 0);
+          const busy = redeemingKey === rule.key;
           return (
             <article key={rule.key} className={`kpi-award-card${ready ? ' kpi-award-card--ready' : ''}`}>
               <div className="kpi-award-card__head">
@@ -82,8 +99,28 @@ export default function KpiAwardProgressList({
                 <span className="kpi-award-bar__fill" style={{ width: `${barPct}%` }} />
               </div>
               <p className="kpi-award-card__hint">
-                {awardProgressHint(row, `${current} of ${needed} months`)}
+                {awardProgressHint(row, `${current} of ${needed} months`, { claimed, canRedeem })}
               </p>
+              {canRedeem ? (
+                <button
+                  type="button"
+                  className="btn btn-primary kpi-award-card__redeem"
+                  disabled={busy}
+                  onClick={() => void onRedeem?.(rule.key)}
+                >
+                  {busy ? (
+                    <>
+                      <Loader2 size={16} className="spin-icon" />
+                      Requesting…
+                    </>
+                  ) : (
+                    'Redeem'
+                  )}
+                </button>
+              ) : null}
+              {claimed ? (
+                <span className="kpi-award-card__claimed">Requested</span>
+              ) : null}
             </article>
           );
         })}
