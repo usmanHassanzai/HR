@@ -1907,41 +1907,98 @@
 }
 
 .studio-hero--assign h2 {
-  font-size: clamp(1.75rem, 2.4vw, 2.15rem);
+  font-size: clamp(1.35rem, 2vw, 1.65rem);
 }
 
 .studio-hero--assign p {
-  max-width: 46rem;
-  font-size: 1rem;
+  max-width: 40rem;
+  font-size: 0.92rem;
 }
 
 .studio-assign-form {
   display: flex;
   flex-direction: column;
-  gap: 1.35rem;
+  gap: 0;
   width: 100%;
   max-width: none;
-  margin-top: 0.85rem;
-  padding: 1.5rem 1.6rem 1.25rem;
-  border-radius: 18px;
+  margin-top: 0.35rem;
+  padding: 0;
+  border-radius: 16px;
   border: 1px solid var(--dash-card-border);
   background: var(--dash-card-bg);
   box-shadow: var(--dash-card-shadow);
+  overflow: hidden;
+}
+
+.studio-assign-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem 1.4rem 1.35rem;
+  border-bottom: 1px solid var(--dash-card-border);
+}
+
+.studio-assign-section:last-of-type {
+  border-bottom: 0;
+}
+
+.studio-assign-section__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.studio-assign-section__step {
+  flex: 0 0 auto;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.78rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 22%, transparent);
+}
+
+.studio-assign-section__head h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.02rem;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.studio-assign-section__head p {
+  margin: 0.15rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+  font-weight: 500;
 }
 
 .studio-assign-form__row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1.15rem;
+  gap: 0.95rem;
 }
 
 .studio-assign-field {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
-  font-size: 0.9rem;
+  gap: 0.4rem;
+  font-size: 0.78rem;
   font-weight: 700;
+  letter-spacing: 0.01em;
   color: var(--text-secondary);
+}
+
+.studio-assign-field--weight {
+  min-width: 7.5rem;
+  max-width: 9rem;
 }
 
 .studio-field-error {
@@ -1952,22 +2009,23 @@
 
 .studio-assign-form select,
 .studio-assign-form .studio-dates input,
-.studio-assign-form .studio-notes textarea {
+.studio-assign-form .studio-notes textarea,
+.studio-assign-form .studio-assign-field--weight input {
   width: 100%;
-  border-radius: 12px;
+  border-radius: 10px;
   border: 1px solid var(--border-color);
-  background: var(--dash-card-bg);
+  background: color-mix(in srgb, var(--surface-muted) 55%, var(--dash-card-bg));
   color: var(--text-primary);
-  padding: 0.85rem 1rem;
-  font-size: 1.05rem;
+  padding: 0.7rem 0.85rem;
+  font-size: 0.95rem;
   font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
-  min-height: 3.15rem;
+  min-height: 2.75rem;
 }
 
 .studio-assign-form .studio-notes textarea {
-  min-height: 7.5rem;
+  min-height: 5.25rem;
   resize: vertical;
   line-height: 1.45;
 }
@@ -1979,77 +2037,164 @@
 
 .studio-assign-form select:focus,
 .studio-assign-form .studio-dates input:focus,
-.studio-assign-form .studio-notes textarea:focus {
-  outline: 2px solid color-mix(in srgb, var(--accent-primary) 45%, transparent);
+.studio-assign-form .studio-notes textarea:focus,
+.studio-assign-form .studio-assign-field--weight input:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent-primary) 40%, transparent);
   outline-offset: 1px;
   border-color: var(--accent-primary);
+  background: var(--dash-card-bg);
+}
+
+.studio-assign-callout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.85rem 1rem;
+  padding: 0.95rem 1.05rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 22%, var(--dash-card-border));
+  background: color-mix(in srgb, var(--accent-primary) 6%, var(--dash-card-bg));
+}
+
+.studio-assign-callout__icon {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
+  flex: 0 0 auto;
+}
+
+.studio-assign-callout__body {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.studio-assign-callout__body strong {
+  display: block;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.studio-assign-callout__body p {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.studio-assign-callout .btn {
+  flex: 0 0 auto;
+}
+
+.studio-assign-kpi-preview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: start;
+  padding: 0.95rem 1.05rem;
+  border-radius: 12px;
+  border: 1px solid var(--dash-card-border);
+  background: color-mix(in srgb, var(--surface-muted) 45%, var(--dash-card-bg));
+}
+
+.studio-assign-kpi-preview__main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.studio-assign-kpi-preview__main strong {
+  font-size: 1.02rem;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.studio-assign-kpi-preview__main p {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.studio-assign-kpi-preview__muted {
+  color: var(--text-muted) !important;
+  font-style: italic;
 }
 
 .studio-assign-person {
   display: grid;
-  grid-template-columns: minmax(16rem, 1fr) minmax(18rem, 1.2fr);
-  gap: 1.15rem;
+  grid-template-columns: minmax(14rem, 1fr) minmax(16rem, 1.1fr);
+  gap: 1rem;
   align-items: stretch;
-  padding: 1.1rem 1.2rem;
-  border-radius: 14px;
-  border: 1px solid color-mix(in srgb, var(--accent-primary) 18%, var(--dash-card-border));
-  background: color-mix(in srgb, var(--accent-primary) 5%, var(--dash-card-bg));
+  padding: 0.95rem 1.05rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 16%, var(--dash-card-border));
+  background: color-mix(in srgb, var(--accent-primary) 4%, var(--dash-card-bg));
 }
 
 .studio-assign-person__who {
   display: flex;
   align-items: center;
-  gap: 0.9rem;
+  gap: 0.8rem;
   min-width: 0;
 }
 
 .studio-assign-person__who strong {
   display: block;
-  font-size: 1.12rem;
+  font-size: 1.02rem;
   letter-spacing: -0.02em;
   color: var(--text-primary);
 }
 
 .studio-assign-person__who p {
-  margin: 0.2rem 0 0;
-  font-size: 0.88rem;
+  margin: 0.15rem 0 0;
+  font-size: 0.82rem;
   color: var(--text-secondary);
   line-height: 1.4;
 }
 
 .studio-assign-person .mgr-kpi-weight-meter {
   margin: 0;
-  padding: 0.85rem 1rem;
+  padding: 0.75rem 0.9rem;
 }
 
 .studio-assign-person .mgr-kpi-weight-meter__value {
-  font-size: 1.05rem;
+  font-size: 0.98rem;
 }
 
 .studio-assign-person .mgr-kpi-weight-meter__track {
-  height: 8px;
+  height: 7px;
 }
 
 .studio-assign-form .studio-dates {
-  gap: 1.15rem;
+  gap: 0.95rem;
 }
 
 .studio-assign-form .studio-assign-bar {
-  margin: 0.25rem -1.6rem -1.25rem;
-  padding: 1.1rem 1.6rem;
-  border-bottom-left-radius: 18px;
-  border-bottom-right-radius: 18px;
+  margin: 0;
+  padding: 1rem 1.4rem;
+  border-radius: 0;
+  border-top: 1px solid var(--dash-card-border);
+  background: color-mix(in srgb, var(--surface-muted) 50%, var(--dash-card-bg));
 }
 
 .studio-assign-form .studio-assign-bar p {
-  font-size: 0.95rem;
+  font-size: 0.86rem;
 }
 
 .studio-assign-form .studio-assign-bar .btn {
-  min-height: 3rem;
-  min-width: 14rem;
-  font-size: 1rem;
-  padding: 0.75rem 1.35rem;
+  min-height: 2.75rem;
+  min-width: 12.5rem;
+  font-size: 0.95rem;
+  padding: 0.65rem 1.15rem;
 }
 
 .studio-dates {
@@ -2380,18 +2525,30 @@
   }
 
   .studio-assign-form {
-    padding: 1.15rem 1rem 1rem;
-    gap: 1.1rem;
+    padding: 0;
+  }
+
+  .studio-assign-section {
+    padding: 1.1rem 1rem 1.15rem;
   }
 
   .studio-assign-form__row,
-  .studio-assign-person {
+  .studio-assign-person,
+  .studio-assign-kpi-preview {
     grid-template-columns: 1fr;
   }
 
+  .studio-assign-field--weight {
+    max-width: none;
+  }
+
   .studio-assign-form .studio-assign-bar {
-    margin: 0.15rem -1rem -1rem;
-    padding: 1rem;
+    margin: 0;
+    padding: 0.95rem 1rem;
+  }
+
+  .studio-assign-callout {
+    align-items: flex-start;
   }
 
   .studio-assigned__row {

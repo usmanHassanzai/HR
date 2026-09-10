@@ -437,9 +437,9 @@ export default function ManagerKpiConfig({
   }, [templates, libQuery]);
 
   const whoHint = isAdmin
-    ? 'Choose department, then the employee or manager, then the KPI, dates, and an optional note.'
+    ? 'Select the department and person, choose a KPI, then set dates and an optional note.'
     : managerDepartmentId
-      ? 'Choose the employee, then the KPI, dates, and an optional note.'
+      ? 'Select the employee, choose a KPI, then set dates and an optional note.'
       : 'Ask an admin to set your department before you can assign KPIs.';
 
   const resetLibraryForm = () => {
@@ -794,156 +794,219 @@ export default function ManagerKpiConfig({
             </div>
           ) : (
             <form onSubmit={handleAssign} className="studio-assign-form">
-              <div className="studio-assign-form__row">
-                {isAdmin && (
+              <section className="studio-assign-section">
+                <header className="studio-assign-section__head">
+                  <span className="studio-assign-section__step" aria-hidden>1</span>
+                  <div>
+                    <h3>Who</h3>
+                    <p>Pick the person this task belongs to.</p>
+                  </div>
+                </header>
+                <div className="studio-assign-form__row">
+                  {isAdmin && (
+                    <label className="studio-assign-field">
+                      Department
+                      <select
+                        value={assignDeptId}
+                        onChange={(e) => {
+                          setAssignDeptId(e.target.value);
+                          setAssignUserId('');
+                          setAssignKpiId('');
+                          setError('');
+                        }}
+                        required
+                      >
+                        <option value="">Select department</option>
+                        {assignGroups.map((g) => (
+                          <option key={g.id} value={g.id}>
+                            {g.name} ({g.people.length})
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+
                   <label className="studio-assign-field">
-                    Department
+                    {isAdmin ? 'Employee or manager' : 'Employee'}
                     <select
-                      value={assignDeptId}
+                      value={assignUserId}
                       onChange={(e) => {
-                        setAssignDeptId(e.target.value);
-                        setAssignUserId('');
+                        setAssignUserId(e.target.value);
                         setAssignKpiId('');
                         setError('');
                       }}
+                      disabled={isAdmin && !assignDeptId}
                       required
                     >
-                      <option value="">Select department</option>
-                      {assignGroups.map((g) => (
-                        <option key={g.id} value={g.id}>
-                          {g.name} ({g.people.length})
+                      <option value="">
+                        {isAdmin && !assignDeptId ? 'Select a department first' : 'Select employee'}
+                      </option>
+                      {peopleInAssignDept.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.full_name} · {displayRoleLabel(p.role)}
                         </option>
                       ))}
                     </select>
                   </label>
-                )}
+                </div>
 
-                <label className="studio-assign-field">
-                  {isAdmin ? 'Employee or manager' : 'Employee'}
-                  <select
-                    value={assignUserId}
-                    onChange={(e) => {
-                      setAssignUserId(e.target.value);
-                      setAssignKpiId('');
-                      setError('');
-                    }}
-                    disabled={isAdmin && !assignDeptId}
-                    required
-                  >
-                    <option value="">
-                      {isAdmin && !assignDeptId ? 'Select a department first' : 'Select employee'}
-                    </option>
-                    {peopleInAssignDept.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.full_name} · {displayRoleLabel(p.role)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-
-              {assignPerson && (
-                <div className="studio-assign-person">
-                  <div className="studio-assign-person__who">
-                    <span className={`studio-av studio-av--lg studio-av--${assignPerson.role}`} aria-hidden>
-                      {initials(assignPerson.full_name)}
-                    </span>
-                    <div>
-                      <strong>{assignPerson.full_name}</strong>
-                      <p>
-                        {displayRoleLabel(assignPerson.role)} · {assignPerson.email}
-                        {assignDept ? ` · ${assignDept.name}` : ''}
-                      </p>
+                {assignPerson && (
+                  <div className="studio-assign-person">
+                    <div className="studio-assign-person__who">
+                      <span className={`studio-av studio-av--lg studio-av--${assignPerson.role}`} aria-hidden>
+                        {initials(assignPerson.full_name)}
+                      </span>
+                      <div>
+                        <strong>{assignPerson.full_name}</strong>
+                        <p>
+                          {displayRoleLabel(assignPerson.role)} · {assignPerson.email}
+                          {assignDept ? ` · ${assignDept.name}` : ''}
+                        </p>
+                      </div>
                     </div>
+                    <EmployeeKpiWeightMeter kpis={assignKpis} pendingWeight={selectedWeight} />
                   </div>
-                  <EmployeeKpiWeightMeter kpis={assignKpis} pendingWeight={selectedWeight} />
-                </div>
-              )}
+                )}
+              </section>
 
-              {templates.length === 0 ? (
-                <div className="studio-empty studio-empty--compact">
-                  <p>Create a KPI in the library first.</p>
-                  <button type="button" className="btn btn-primary" onClick={() => { setDesk('library'); openCreate(); }}>
-                    <Plus size={16} /> New KPI
-                  </button>
-                </div>
-              ) : (
-                <label className="studio-assign-field">
-                  KPI
-                  <select
-                    value={assignKpiId}
-                    onChange={(e) => setAssignKpiId(e.target.value)}
-                    disabled={!assignUserId}
-                    required
-                  >
-                    <option value="">{assignUserId ? 'Select KPI' : 'Select a person first'}</option>
-                    {templates.map((tpl) => (
-                      <option key={tpl.id} value={tpl.id}>
-                        {tpl.name} · {kpiCategoryMeta(tpl.kpi_category).label} · {formatKpiWeight(Number(tpl.weight))}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
+              <section className="studio-assign-section">
+                <header className="studio-assign-section__head">
+                  <span className="studio-assign-section__step" aria-hidden>2</span>
+                  <div>
+                    <h3>What</h3>
+                    <p>Choose a KPI from the company library and set its weight.</p>
+                  </div>
+                </header>
 
-              {selectedTemplate && (
+                {templates.length === 0 ? (
+                  <div className="studio-assign-callout">
+                    <div className="studio-assign-callout__icon" aria-hidden>
+                      <ClipboardList size={20} strokeWidth={1.75} />
+                    </div>
+                    <div className="studio-assign-callout__body">
+                      <strong>No KPIs in the library yet</strong>
+                      <p>Create one under KPI&apos;s, then return here to assign it.</p>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => {
+                        setDesk('library');
+                        openCreate();
+                      }}
+                    >
+                      <Plus size={16} /> New KPI
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <label className="studio-assign-field">
+                      KPI
+                      <select
+                        value={assignKpiId}
+                        onChange={(e) => setAssignKpiId(e.target.value)}
+                        disabled={!assignUserId}
+                        required
+                      >
+                        <option value="">{assignUserId ? 'Select KPI' : 'Select a person first'}</option>
+                        {templates.map((tpl) => (
+                          <option key={tpl.id} value={tpl.id}>
+                            {tpl.name} · {kpiCategoryMeta(tpl.kpi_category).label} · {formatKpiWeight(Number(tpl.weight))}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    {selectedTemplate && (
+                      <div className="studio-assign-kpi-preview">
+                        <div className="studio-assign-kpi-preview__main">
+                          <span className="studio-tag">{kpiCategoryMeta(selectedTemplate.kpi_category).label}</span>
+                          <strong>{selectedTemplate.name}</strong>
+                          {selectedTemplate.description?.trim() ? (
+                            <p>{selectedTemplate.description.trim()}</p>
+                          ) : (
+                            <p className="studio-assign-kpi-preview__muted">No description on this KPI.</p>
+                          )}
+                          {formatLatePenaltyLabel(kpiScoringRule(selectedTemplate)) ? (
+                            <span className="studio-tag studio-tag--warn">
+                              {formatLatePenaltyLabel(kpiScoringRule(selectedTemplate))}
+                            </span>
+                          ) : null}
+                        </div>
+                        <label className="studio-assign-field studio-assign-field--weight">
+                          Weight (%)
+                          <input
+                            type="number"
+                            min={1}
+                            max={100}
+                            step={0.5}
+                            value={assignWeight}
+                            onChange={(e) => setAssignWeight(e.target.value)}
+                            required
+                          />
+                        </label>
+                      </div>
+                    )}
+                  </>
+                )}
+              </section>
+
+              <section className="studio-assign-section">
+                <header className="studio-assign-section__head">
+                  <span className="studio-assign-section__step" aria-hidden>3</span>
+                  <div>
+                    <h3>When &amp; note</h3>
+                    <p>Set the window and any instructions for this person.</p>
+                  </div>
+                </header>
+
                 <div className="studio-dates">
                   <label className="studio-assign-field">
-                    Weight (%)
+                    Start date
                     <input
-                      type="number"
-                      min={1}
-                      max={100}
-                      step={0.5}
-                      value={assignWeight}
-                      onChange={(e) => setAssignWeight(e.target.value)}
+                      type="date"
+                      value={assignStartDate}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setAssignStartDate(next);
+                        if (assignEndDate && next && assignEndDate < next) setAssignEndDate(next);
+                      }}
                       required
                     />
                   </label>
+                  <label className="studio-assign-field">
+                    Due date
+                    <input type="date" value={assignEndDate} onChange={(e) => setAssignEndDate(e.target.value)} required />
+                  </label>
                 </div>
-              )}
 
-              <div className="studio-dates">
-                <label className="studio-assign-field">
-                  Start date
-                  <input
-                    type="date"
-                    value={assignStartDate}
-                    onChange={(e) => {
-                      const next = e.target.value;
-                      setAssignStartDate(next);
-                      if (assignEndDate && next && assignEndDate < next) setAssignEndDate(next);
-                    }}
-                    required
+                {selectedTemplate?.kpi_category === 'urgent_tasks' && (
+                  <label className="studio-checkbox-field">
+                    <input
+                      type="checkbox"
+                      checked={pauseOngoingOnUrgent}
+                      onChange={(e) => setPauseOngoingOnUrgent(e.target.checked)}
+                    />
+                    <span>Pause ongoing tasks while they work on this urgent task (auto-extends due dates when resumed)</span>
+                  </label>
+                )}
+
+                <label className="studio-notes studio-assign-field">
+                  Additional note <span>(optional)</span>
+                  <textarea
+                    rows={3}
+                    value={assignNotes}
+                    onChange={(e) => setAssignNotes(e.target.value)}
+                    placeholder="Anything this person should know"
                   />
                 </label>
-                <label className="studio-assign-field">
-                  Due date
-                  <input type="date" value={assignEndDate} onChange={(e) => setAssignEndDate(e.target.value)} required />
-                </label>
-              </div>
-
-              {selectedTemplate?.kpi_category === 'urgent_tasks' && (
-                <label className="studio-checkbox-field">
-                  <input
-                    type="checkbox"
-                    checked={pauseOngoingOnUrgent}
-                    onChange={(e) => setPauseOngoingOnUrgent(e.target.checked)}
-                  />
-                  <span>Pause ongoing tasks while they work on this urgent task (auto-extends due dates when resumed)</span>
-                </label>
-              )}
-
-              <label className="studio-notes studio-assign-field">
-                Additional note <span>(optional)</span>
-                <textarea rows={4} value={assignNotes} onChange={(e) => setAssignNotes(e.target.value)} placeholder="Anything this person should know" />
-              </label>
+              </section>
 
               <div className="studio-assign-bar">
                 <p>
                   {!assignUserId || !assignKpiId
-                    ? 'Complete the selections above, then assign.'
-                    : `Assign ${selectedTemplate?.name || 'KPI'} (${formatKpiWeight(selectedWeight)}) · ${formatKpiWeight(Math.max(0, remaining - selectedWeight))} left after`}
+                    ? 'Complete Who and What above, then assign.'
+                    : `Ready: ${selectedTemplate?.name || 'KPI'} (${formatKpiWeight(selectedWeight)}) · ${formatKpiWeight(Math.max(0, remaining - selectedWeight))} weight left after`}
                 </p>
                 <button type="submit" className="btn btn-primary" disabled={formLoading || !assignUserId || !assignKpiId}>
                   {formLoading ? <Loader2 size={18} className="spin-icon" /> : <Send size={18} />}
