@@ -239,7 +239,7 @@ export default function AdminUsersPage({
     departments.find((d) => d.id === id)?.name ?? '—';
 
   const supervisorOptionLabel = (m: Profile) => {
-    const roleLabel = m.role === 'admin' ? 'Admin' : 'Manager';
+    const roleLabel = m.role === 'admin' ? 'Admin' : m.role === 'hr' ? 'HR' : 'Manager';
     const dept = m.role === 'manager' && m.department_id ? deptName(m.department_id) : '';
     if (dept && dept !== '—') return `${m.full_name} — ${roleLabel} · ${dept}`;
     return `${m.full_name} — ${roleLabel}`;
@@ -272,14 +272,16 @@ export default function AdminUsersPage({
 
   const supervisorsForForm = users
     .filter((m) => {
-      if (m.role === 'admin') return true;
+      if (m.role === 'admin' || m.role === 'hr') return true;
       if (m.role !== 'manager') return false;
       if (!departmentId) return true;
       return m.department_id === departmentId;
     })
     .sort((a, b) => {
-      if (a.role === b.role) return a.full_name.localeCompare(b.full_name);
-      return a.role === 'admin' ? -1 : 1;
+      const rank = (r: UserRole) => (r === 'admin' ? 0 : r === 'hr' ? 1 : 2);
+      const byRole = rank(a.role) - rank(b.role);
+      if (byRole !== 0) return byRole;
+      return a.full_name.localeCompare(b.full_name);
     });
 
   const reportsTo = (u: Profile) => {
@@ -741,10 +743,12 @@ export default function AdminUsersPage({
   const reportToOptions = useMemo(
     () =>
       users
-        .filter((m) => m.role === 'admin' || m.role === 'manager')
+        .filter((m) => m.role === 'admin' || m.role === 'hr' || m.role === 'manager')
         .sort((a, b) => {
-          if (a.role === b.role) return a.full_name.localeCompare(b.full_name);
-          return a.role === 'admin' ? -1 : 1;
+          const rank = (r: UserRole) => (r === 'admin' ? 0 : r === 'hr' ? 1 : 2);
+          const byRole = rank(a.role) - rank(b.role);
+          if (byRole !== 0) return byRole;
+          return a.full_name.localeCompare(b.full_name);
         }),
     [users],
   );
@@ -784,8 +788,8 @@ export default function AdminUsersPage({
   };
 
   const applyQuickRole = async (u: Profile, nextRole: UserRole) => {
-    if (u.id === profile.id && nextRole !== 'admin') {
-      setQuickError('You cannot remove your own admin role.');
+    if (u.id === profile.id && nextRole !== 'admin' && nextRole !== 'hr') {
+      setQuickError('You cannot remove your own admin/HR role.');
       return;
     }
     if (nextRole === u.role) {
@@ -815,7 +819,7 @@ export default function AdminUsersPage({
       !!u.manager_id &&
       reportToOptions.some((m) => {
         if (m.id !== u.manager_id) return false;
-        if (m.role === 'admin') return true;
+        if (m.role === 'admin' || m.role === 'hr') return true;
         return m.department_id === nextDeptId;
       });
     await saveAccountFields(u, {
@@ -1370,6 +1374,13 @@ export default function AdminUsersPage({
                       {supervisorsForForm.filter((m) => m.role === 'admin').length > 0 && (
                         <optgroup label="Admins">
                           {supervisorsForForm.filter((m) => m.role === 'admin').map((m) => (
+                            <option key={m.id} value={m.id}>{supervisorOptionLabel(m)}</option>
+                          ))}
+                        </optgroup>
+                      )}
+                      {supervisorsForForm.filter((m) => m.role === 'hr').length > 0 && (
+                        <optgroup label="HR">
+                          {supervisorsForForm.filter((m) => m.role === 'hr').map((m) => (
                             <option key={m.id} value={m.id}>{supervisorOptionLabel(m)}</option>
                           ))}
                         </optgroup>

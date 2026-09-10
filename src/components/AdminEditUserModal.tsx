@@ -14,9 +14,19 @@ interface AdminEditUserModalProps {
   onSaved: () => void;
 }
 
+function rpcErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof Error && err.message) return err.message;
+  if (err && typeof err === 'object' && 'message' in err) {
+    const msg = (err as { message?: unknown }).message;
+    if (typeof msg === 'string' && msg.trim()) return msg;
+  }
+  return fallback;
+}
+
 function supervisorLabel(m: Profile, departments: Department[]): string {
   const dept = departments.find((d) => d.id === m.department_id)?.name;
   if (m.role === 'admin') return `${m.full_name} — Admin`;
+  if (m.role === 'hr') return `${m.full_name} — HR`;
   if (dept) return `${m.full_name} — Manager · ${dept}`;
   return `${m.full_name} — Manager`;
 }
@@ -42,16 +52,19 @@ export default function AdminEditUserModal({
   const isSelf = user.id === currentAdminId;
 
   const supervisors = useMemo(() => {
+    const rank = (r: UserRole) => (r === 'admin' ? 0 : r === 'hr' ? 1 : 2);
     return allUsers
       .filter(
         (m) =>
           m.id !== user.id &&
           (m.role === 'admin' ||
+            m.role === 'hr' ||
             (m.role === 'manager' && !!departmentId && m.department_id === departmentId)),
       )
       .sort((a, b) => {
-        if (a.role === b.role) return a.full_name.localeCompare(b.full_name);
-        return a.role === 'admin' ? -1 : 1;
+        const byRole = rank(a.role) - rank(b.role);
+        if (byRole !== 0) return byRole;
+        return a.full_name.localeCompare(b.full_name);
       });
   }, [allUsers, user.id, departmentId]);
 
@@ -74,8 +87,8 @@ export default function AdminEditUserModal({
       setError('Select a department. Employees and managers cannot be saved without one.');
       return;
     }
-    if (isSelf && role !== 'admin') {
-      setError('You cannot remove your own admin role.');
+    if (isSelf && role !== 'admin' && role !== 'hr') {
+      setError('You cannot remove your own admin/HR role.');
       return;
     }
 
@@ -102,7 +115,7 @@ export default function AdminEditUserModal({
       setSuccess(true);
       onSaved();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to update user.');
+      setError(rpcErrorMessage(err, 'Failed to update user.'));
     } finally {
       setLoading(false);
     }
@@ -233,6 +246,7 @@ export default function AdminEditUserModal({
                     const keep =
                       !!current &&
                       (current.role === 'admin' ||
+                        current.role === 'hr' ||
                         (current.role === 'manager' && current.department_id === nextDept));
                     if (!keep) setManagerId('');
                   }}
@@ -277,6 +291,17 @@ export default function AdminEditUserModal({
                     <optgroup label="Admins">
                       {supervisors
                         .filter((m) => m.role === 'admin')
+                        .map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {supervisorLabel(m, departments)}
+                          </option>
+                        ))}
+                    </optgroup>
+                  )}
+                  {supervisors.filter((m) => m.role === 'hr').length > 0 && (
+                    <optgroup label="HR">
+                      {supervisors
+                        .filter((m) => m.role === 'hr')
                         .map((m) => (
                           <option key={m.id} value={m.id}>
                             {supervisorLabel(m, departments)}
