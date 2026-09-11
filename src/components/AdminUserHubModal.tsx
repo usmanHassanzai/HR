@@ -30,6 +30,7 @@ import {
 import { Department } from '../utils/departmentHelpers';
 import { employeeKpiBoardBreakdown } from '../utils/kpiScoreHelpers';
 import { formatKpiWeight } from '../utils/kpiWeightHelpers';
+import { fetchMonthWeightageBalance, formatWeightagePct } from '../utils/monthWeightageBalance';
 import { isDemoProfile } from '../utils/demoMode';
 import '../styles/admin-dashboard.css';
 
@@ -64,8 +65,11 @@ interface UserLiveStats {
   attendanceLoading: boolean;
   latestReportDate: string | null;
   reportsLoading: boolean;
-  rewardPoints: number; // achieved weightage 0–100
+  rewardPoints: number; // earned weightage 0–100
   weightAssigned: number;
+  monthAvailable: number | null;
+  monthUsed: number;
+  monthBanked: number;
 }
 
 function initials(name: string): string {
@@ -127,6 +131,9 @@ export default function AdminUserHubModal({
     reportsLoading: true,
     rewardPoints: 0,
     weightAssigned: 0,
+    monthAvailable: null,
+    monthUsed: 0,
+    monthBanked: 0,
   });
 
   const [actionBusy, setActionBusy] = useState<string | null>(null);
@@ -155,12 +162,17 @@ export default function AdminUserHubModal({
         if (!cancelled && kpiData) {
           const kpis = kpiData as Kpi[];
           const board = employeeKpiBoardBreakdown(kpis);
+          const bal = await fetchMonthWeightageBalance(user.id);
+          if (cancelled) return;
           setStats((prev) => ({
             ...prev,
             kpis,
             kpisLoading: false,
             rewardPoints: board.weightAchieved,
             weightAssigned: board.weightAssigned,
+            monthAvailable: bal.available,
+            monthUsed: bal.deducted,
+            monthBanked: bal.banked,
           }));
         } else if (!cancelled) {
           setStats((prev) => ({ ...prev, kpisLoading: false }));
@@ -366,8 +378,20 @@ export default function AdminUserHubModal({
                       <strong className="text-success">{completedKpis.length}</strong>
                     </div>
                     <div className="user-hub-metric">
-                      <span>Achieved weightage</span>
+                      <span>Earned</span>
                       <strong>{formatKpiWeight(stats.rewardPoints)}</strong>
+                    </div>
+                    <div className="user-hub-metric">
+                      <span>Current</span>
+                      <strong>{formatWeightagePct(stats.monthAvailable ?? stats.rewardPoints)}</strong>
+                    </div>
+                    <div className="user-hub-metric">
+                      <span>Used</span>
+                      <strong>{formatWeightagePct(stats.monthUsed)}</strong>
+                    </div>
+                    <div className="user-hub-metric">
+                      <span>Banked</span>
+                      <strong>{formatWeightagePct(stats.monthBanked)}</strong>
                     </div>
                     {pausedKpis.length > 0 && (
                       <div className="user-hub-metric">
@@ -535,8 +559,20 @@ export default function AdminUserHubModal({
               </div>
               <div className="user-hub-card__content">
                 <div className="user-hub-metric-row">
-                  <span>Achieved weightage:</span>
+                  <span>Earned:</span>
                   <strong>{formatKpiWeight(stats.rewardPoints)}</strong>
+                </div>
+                <div className="user-hub-metric-row">
+                  <span>Current:</span>
+                  <strong>{formatWeightagePct(stats.monthAvailable ?? stats.rewardPoints)}</strong>
+                </div>
+                <div className="user-hub-metric-row">
+                  <span>Used:</span>
+                  <strong>{formatWeightagePct(stats.monthUsed)}</strong>
+                </div>
+                <div className="user-hub-metric-row">
+                  <span>Banked:</span>
+                  <strong>{formatWeightagePct(stats.monthBanked)}</strong>
                 </div>
                 <div className="user-hub-metric-row">
                   <span>Assigned weightage:</span>

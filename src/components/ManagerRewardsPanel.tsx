@@ -12,10 +12,14 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import type { KpiAwardPipelineRow, KpiAwardProgress } from '../utils/kpiAwardHelpers';
-import { awardGiftLine, coerceAwardWeightage } from '../utils/kpiAwardHelpers';
+import { awardGiftLine, coerceAwardWeightage, formatAwardWeightage } from '../utils/kpiAwardHelpers';
 import KpiAwardProgressList from './KpiAwardProgressList';
 import WeightageRewardCatalog from './WeightageRewardCatalog';
 import AdminRewardHistoryPanel from './AdminRewardHistoryPanel';
+import {
+  fetchMonthWeightageBalance,
+  type MonthWeightageBalance,
+} from '../utils/monthWeightageBalance';
 import '../styles/manager-rewards.css';
 import '../styles/employee-rewards.css';
 import '../styles/admin-rewards.css';
@@ -35,6 +39,7 @@ type TeamGiftRow = {
 function statusLabel(status: string): string {
   if (status === 'approved') return 'Approved';
   if (status === 'issued' || status === 'fulfilled') return 'Delivered';
+  if (status === 'dismissed' || status === 'rejected') return 'Rejected';
   return 'Pending';
 }
 
@@ -53,10 +58,16 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
     users?: { full_name: string } | null;
     rewards_catalog?: { name: string } | null;
   }[]>([]);
+  const [myBalance, setMyBalance] = useState<MonthWeightageBalance>({
+    earned: null,
+    deducted: 0,
+    available: null,
+    banked: 0,
+  });
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [mineRes, reportsRes, pipeRes, catRedRes] = await Promise.all([
+    const [mineRes, reportsRes, pipeRes, catRedRes, bal] = await Promise.all([
       supabase.rpc('get_kpi_award_progress', { p_user_id: managerId }),
       supabase.rpc('get_direct_reports', { p_manager_id: managerId }),
       supabase.rpc('get_kpi_award_pipeline'),
@@ -66,9 +77,11 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
         .in('status', ['pending', 'approved'])
         .order('redeemed_at', { ascending: false })
         .limit(40),
+      fetchMonthWeightageBalance(managerId),
     ]);
 
     if (mineRes.data) setMyProgress(mineRes.data as KpiAwardProgress[]);
+    setMyBalance(bal);
 
     const members = ((reportsRes.data || []) as Profile[]).filter((u) => !u.is_demo);
     const memberIds = new Set(members.map((m) => m.id));
@@ -100,7 +113,16 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
     if (pipeRes.error) {
       setQueue([]);
     } else {
-      setQueue(((pipeRes.data || []) as KpiAwardPipelineRow[]).filter((r) => r.bucket === 'eligible'));
+      setQueue(
+        ((pipeRes.data || []) as KpiAwardPipelineRow[]).filter(
+          (r) =>
+            r.bucket === 'eligible' &&
+            r.status !== 'dismissed' &&
+            r.status !== 'rejected' &&
+            r.status !== 'issued' &&
+            r.status !== 'fulfilled',
+        ),
+      );
     }
 
     type CatRow = {
@@ -142,7 +164,13 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
       setMsgError(true);
       setMsg(error.message);
     } else {
-      setMsg(status === 'fulfilled' || status === 'issued' ? 'Gift marked delivered.' : 'Gift approved.');
+      setMsg(
+        status === 'rejected' || status === 'dismissed'
+          ? 'Request rejected — weightage returned.'
+          : status === 'fulfilled' || status === 'issued'
+            ? 'Gift marked delivered.'
+            : 'Gift approved.',
+      );
       void load();
     }
   };
@@ -160,14 +188,17 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
       return;
     }
     setMsg(
-      status === 'fulfilled'
-        ? 'Catalog reward delivered — weightage deducted.'
-        : 'Catalog reward approved.',
+      status === 'rejected'
+        ? 'Catalog request rejected — weightage returned.'
+        : status === 'fulfilled'
+          ? 'Catalog reward delivered.'
+          : 'Catalog reward approved.',
     );
     void load();
   };
 
   const myWeightage = coerceAwardWeightage(
+    myBalance.available,
     myProgress.find((r) => r.latest_score != null)?.latest_score ?? null,
   );
   const arrangeCount = queue.length + catalogQueue.length;
@@ -191,11 +222,27 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
           <div>
             <h2 className="mgr-rewards-header__title">Company rewards</h2>
             <p className="mgr-rewards-header__subtitle">
-              One monthly gift per person. Movie and surprise can be redeemed in the same month as dinner/catalog. Only monthly gifts deduct weightage.
+              One monthly gift per person uses the gift cost; leftover goes to Banked. Movie and surprise can be redeemed in the same month and do not spend weightage.
             </p>
           </div>
         </div>
         <div className="mgr-rewards-stats">
+          <div className="mgr-rewards-stat">
+            <span className="mgr-rewards-stat__label">Earned</span>
+            <strong>{formatAwardWeightage(myBalance.earned ?? myWeightage)}</strong>
+          </div>
+          <div className="mgr-rewards-stat mgr-rewards-stat--accent">
+            <span className="mgr-rewards-stat__label">Current</span>
+            <strong>{formatAwardWeightage(myWeightage)}</strong>
+          </div>
+          <div className="mgr-rewards-stat">
+            <span className="mgr-rewards-stat__label">Used</span>
+            <strong>{formatAwardWeightage(myBalance.deducted)}</strong>
+          </div>
+          <div className="mgr-rewards-stat">
+            <span className="mgr-rewards-stat__label">Banked</span>
+            <strong>{formatAwardWeightage(myBalance.banked)}</strong>
+          </div>
           <div className="mgr-rewards-stat mgr-rewards-stat--gold">
             <span className="mgr-rewards-stat__label">Gifts to arrange</span>
             <strong>{arrangeCount}</strong>
@@ -213,7 +260,7 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
       <KpiAwardProgressList
         rows={myProgress}
         title="Your company gifts"
-        intro="Monthly gifts spend available weightage. Movie: 90–95% × 3 months in a row. Surprise: 90–95% × 6 months in a row."
+        intro="Monthly gifts use the gift cost; leftover banks. Movie: 90–95% × 3 months in a row. Surprise: 90–95% × 6 months in a row."
         monthWeightage={myWeightage}
       />
 
@@ -229,7 +276,7 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
           <Gift size={18} /> Gifts to arrange
           {arrangeCount > 0 && <span className="mgr-rewards-count-badge">{arrangeCount}</span>}
         </h3>
-        <p>Approve, then mark delivered when the gift is given.</p>
+        <p>Approve, reject, or mark delivered. Rejecting returns the employee&apos;s used weightage.</p>
         {arrangeCount === 0 ? (
           <div className="mgr-rewards-empty">
             <CheckCircle size={36} strokeWidth={1.25} />
@@ -244,16 +291,31 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
                   <strong>{r.full_name}</strong>
                   <span>{r.reward_name} · {statusLabel(r.status || 'pending')}</span>
                 </div>
-                {r.qualification_id && (r.status === 'pending' || r.status === 'pending_fulfillment') && (
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => void updateGift(r.qualification_id!, 'approved')}>
-                    Approve
-                  </button>
-                )}
-                {r.qualification_id && r.status !== 'issued' && r.status !== 'fulfilled' && (
-                  <button type="button" className="btn btn-primary btn-sm" onClick={() => void updateGift(r.qualification_id!, 'fulfilled')}>
-                    Delivered
-                  </button>
-                )}
+                <div className="mgr-rewards-queue-item__actions">
+                  {r.qualification_id && (r.status === 'pending' || r.status === 'pending_fulfillment') && (
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => void updateGift(r.qualification_id!, 'approved')}>
+                      Approve
+                    </button>
+                  )}
+                  {r.qualification_id && r.status !== 'issued' && r.status !== 'fulfilled' && r.status !== 'dismissed' && (
+                    <>
+                      <button type="button" className="btn btn-primary btn-sm" onClick={() => void updateGift(r.qualification_id!, 'fulfilled')}>
+                        Delivered
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => {
+                          if (window.confirm(`Reject ${r.full_name}'s request for ${r.reward_name}? Weightage will be returned.`)) {
+                            void updateGift(r.qualification_id!, 'rejected');
+                          }
+                        }}
+                      >
+                        Reject
+                      </button>
+                    </>
+                  )}
+                </div>
               </article>
             ))}
             {catalogQueue.map((r) => (
@@ -262,16 +324,31 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
                   <strong>{r.users?.full_name || 'Team member'}</strong>
                   <span>{r.rewards_catalog?.name || 'Catalog reward'} · {statusLabel(r.status)}</span>
                 </div>
-                {r.status === 'pending' && (
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => void updateCatalogRedemption(r.id, 'approved')}>
-                    Approve
-                  </button>
-                )}
-                {r.status !== 'fulfilled' && (
-                  <button type="button" className="btn btn-primary btn-sm" onClick={() => void updateCatalogRedemption(r.id, 'fulfilled')}>
-                    Delivered
-                  </button>
-                )}
+                <div className="mgr-rewards-queue-item__actions">
+                  {r.status === 'pending' && (
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => void updateCatalogRedemption(r.id, 'approved')}>
+                      Approve
+                    </button>
+                  )}
+                  {r.status !== 'fulfilled' && r.status !== 'rejected' && (
+                    <>
+                      <button type="button" className="btn btn-primary btn-sm" onClick={() => void updateCatalogRedemption(r.id, 'fulfilled')}>
+                        Delivered
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => {
+                          if (window.confirm(`Reject this catalog request? Weightage will be returned.`)) {
+                            void updateCatalogRedemption(r.id, 'rejected');
+                          }
+                        }}
+                      >
+                        Reject
+                      </button>
+                    </>
+                  )}
+                </div>
               </article>
             ))}
           </div>

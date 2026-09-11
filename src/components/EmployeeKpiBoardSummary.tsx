@@ -9,9 +9,10 @@ import '../styles/employee-kpis.css';
 interface EmployeeKpiBoardSummaryProps {
   kpis: Kpi[];
   employeeName?: string;
+  userId?: string;
 }
 
-export default function EmployeeKpiBoardSummary({ kpis, employeeName }: EmployeeKpiBoardSummaryProps) {
+export default function EmployeeKpiBoardSummary({ kpis, employeeName, userId }: EmployeeKpiBoardSummaryProps) {
   if (kpis.length === 0) return null;
 
   const rows = kpiScoreRows(kpis);
@@ -21,6 +22,7 @@ export default function EmployeeKpiBoardSummary({ kpis, employeeName }: Employee
     <div className="glass-panel employee-kpi-board-summary">
       <KpiScoreboardSummary
         kpis={kpis}
+        userId={userId}
         compact
         title={employeeName ? `${employeeName}'s KPI weightage` : 'KPI weightage'}
       />

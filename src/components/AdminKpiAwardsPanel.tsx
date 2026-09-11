@@ -89,7 +89,15 @@ export default function AdminKpiAwardsPanel() {
     const { error } = await supabase.rpc('set_kpi_award_status', { p_id: id, p_status: status });
     if (error) setMsg(`Error: ${error.message}`);
     else {
-      setMsg(status === 'issued' ? 'Marked as issued.' : `Status: ${status}.`);
+      setMsg(
+        status === 'rejected'
+          ? 'Request rejected — weightage returned.'
+          : status === 'fulfilled' || status === 'issued'
+            ? 'Marked as fulfilled.'
+            : status === 'approved'
+              ? 'Gift approved.'
+              : `Status: ${status}.`,
+      );
       await load();
     }
   };
@@ -162,10 +170,24 @@ export default function AdminKpiAwardsPanel() {
                           Approve
                         </button>
                       )}
-                      {r.qualification_id && r.status !== 'issued' && r.status !== 'fulfilled' && (
-                        <button type="button" className="btn btn-primary btn-sm" style={{ marginLeft: '0.35rem' }} onClick={() => void setStatus(r.qualification_id!, 'fulfilled')}>
-                          Fulfilled
-                        </button>
+                      {r.qualification_id && r.status !== 'issued' && r.status !== 'fulfilled' && r.status !== 'dismissed' && (
+                        <>
+                          <button type="button" className="btn btn-primary btn-sm" style={{ marginLeft: '0.35rem' }} onClick={() => void setStatus(r.qualification_id!, 'fulfilled')}>
+                            Fulfilled
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            style={{ marginLeft: '0.35rem' }}
+                            onClick={() => {
+                              if (window.confirm(`Reject this gift request for ${r.full_name}? Weightage will be returned.`)) {
+                                void setStatus(r.qualification_id!, 'rejected');
+                              }
+                            }}
+                          >
+                            Reject
+                          </button>
+                        </>
                       )}
                     </td>
                   </tr>

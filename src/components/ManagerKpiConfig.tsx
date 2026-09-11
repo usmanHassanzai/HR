@@ -1131,7 +1131,11 @@ export default function ManagerKpiConfig({
                     <>
                   <EmployeeKpiWeightMeter kpis={boardKpis} compact />
                   {boardKpis.length > 0 && (
-                    <EmployeeKpiBoardSummary kpis={boardKpis} employeeName={boardPerson.full_name} />
+                    <EmployeeKpiBoardSummary
+                      kpis={boardKpis}
+                      employeeName={boardPerson.full_name}
+                      userId={boardPerson.id}
+                    />
                   )}
                   {boardKpis.length === 0 ? (
                     <div className="studio-empty studio-empty--compact">

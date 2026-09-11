@@ -18,6 +18,11 @@ import KpiTaskBrief from './KpiTaskBrief';
 import KpiScoreboardSummary from './KpiScoreboardSummary';
 import { fetchRewardsSummary, type RewardsSummary } from '../utils/rewardsHelpers';
 import {
+  fetchMonthWeightageBalance,
+  formatWeightagePct,
+  type MonthWeightageBalance,
+} from '../utils/monthWeightageBalance';
+import {
   AttendanceRecord,
   ATTENDANCE_STATUS_LABEL,
   attendanceStatusBadgeClass,
@@ -181,6 +186,7 @@ export default function Analytics({
 
   const [kpis, setKpis] = useState<Kpi[]>([]);
   const [rewardsSummary, setRewardsSummary] = useState<RewardsSummary | null>(null);
+  const [monthBalance, setMonthBalance] = useState<MonthWeightageBalance | null>(null);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [dailyReports, setDailyReports] = useState<DailyWorkReport[]>([]);
 
@@ -266,11 +272,12 @@ export default function Analytics({
     setError('');
 
     try {
-      const [kpiRes, attRes, repRes, rewards] = await Promise.all([
+      const [kpiRes, attRes, repRes, rewards, balance] = await Promise.all([
         supabase.from('kpis').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
         supabase.from('attendance_records').select('*').eq('user_id', uid).order('attendance_date', { ascending: false }).limit(60),
         supabase.from('daily_work_reports').select('*').eq('user_id', uid).order('report_date', { ascending: false }).limit(30),
         fetchRewardsSummary(uid).catch(() => null),
+        fetchMonthWeightageBalance(uid),
       ]);
 
       if (kpiRes.error) throw kpiRes.error;
@@ -278,6 +285,7 @@ export default function Analytics({
       const userKpis = (kpiRes.data || []) as Kpi[];
       setKpis(userKpis);
       setRewardsSummary(rewards);
+      setMonthBalance(balance);
       setAttendance((attRes.data || []) as AttendanceRecord[]);
       setDailyReports((repRes.data || []) as DailyWorkReport[]);
     } catch (err: unknown) {
@@ -480,12 +488,18 @@ export default function Analytics({
             </div>
 
             <div className="analytics-user-hero__score-box">
-              <span className="analytics-user-hero__score-label">Achieved weightage</span>
+              <span className="analytics-user-hero__score-label">Current weightage</span>
               <div className="analytics-user-hero__score-num">
-                {formatKpiWeight(overallWeightage)}
+                {formatWeightagePct(monthBalance?.available ?? overallWeightage)}
               </div>
               <span className="analytics-user-hero__score-rating">
-                {formatKpiWeight(board.weightAssigned)} assigned
+                Earned {formatWeightagePct(monthBalance?.earned ?? overallWeightage)}
+                {monthBalance && monthBalance.deducted > 0
+                  ? ` · Used ${formatWeightagePct(monthBalance.deducted)}`
+                  : ` · ${formatKpiWeight(board.weightAssigned)} assigned`}
+                {monthBalance && monthBalance.banked > 0
+                  ? ` · Banked ${formatWeightagePct(monthBalance.banked)}`
+                  : ''}
               </span>
             </div>
           </section>
@@ -493,6 +507,7 @@ export default function Analytics({
           {kpis.length > 0 && (
             <KpiScoreboardSummary
               kpis={kpis}
+              userId={selectedUser.id}
               rewardsSummary={rewardsSummary}
               compact
               title={`${selectedUser.full_name}'s KPI weightage`}

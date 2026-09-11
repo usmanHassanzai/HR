@@ -13,6 +13,7 @@ import {
 } from '../utils/kpiScoreHelpers';
 import { karachiYearMonth } from '../utils/kpiCategories';
 import type { RewardsSummary } from '../utils/rewardsHelpers';
+import { fetchMonthWeightageBalance } from '../utils/monthWeightageBalance';
 import '../styles/employee-kpis.css';
 
 export interface KpiScoreboardPeriodState {
@@ -23,6 +24,7 @@ export interface KpiScoreboardPeriodState {
 
 interface KpiScoreboardSummaryProps {
   kpis: Kpi[];
+  userId?: string;
   rewardsSummary?: RewardsSummary | null;
   /** Compact: hide long formula copy (manager embeds). */
   compact?: boolean;
@@ -40,6 +42,7 @@ interface KpiScoreboardSummaryProps {
  */
 export default function KpiScoreboardSummary({
   kpis,
+  userId,
   rewardsSummary: _rewardsSummary = null,
   compact = false,
   title = 'KPI weightage',
@@ -53,6 +56,9 @@ export default function KpiScoreboardSummary({
   const [internalMode, setInternalMode] = useState<KpiPeriodMode>('month');
   const [internalMonth, setInternalMonth] = useState(now.monthIndex);
   const [internalYear, setInternalYear] = useState(now.year);
+  const [giftUsed, setGiftUsed] = useState(0);
+  const [giftAvailable, setGiftAvailable] = useState<number | null>(null);
+  const [giftBanked, setGiftBanked] = useState(0);
 
   const controlled = period != null;
   const periodMode = controlled ? period.mode : internalMode;
@@ -78,6 +84,29 @@ export default function KpiScoreboardSummary({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only sync when year list changes
   }, [years]);
 
+  const isCurrentMonthView =
+    periodMode === 'month' && filterYear === now.year && filterMonth === now.monthIndex;
+
+  useEffect(() => {
+    if (!userId || !isCurrentMonthView) {
+      setGiftUsed(0);
+      setGiftAvailable(null);
+      setGiftBanked(0);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const bal = await fetchMonthWeightageBalance(userId);
+      if (cancelled) return;
+      setGiftUsed(bal.deducted);
+      setGiftAvailable(bal.available);
+      setGiftBanked(bal.banked);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, isCurrentMonthView, kpis]);
+
   const overallKpis = kpis;
   const overallSummary = useMemo(() => employeeKpiBoardBreakdown(overallKpis), [overallKpis]);
   const periodKpis = useMemo(
@@ -92,6 +121,10 @@ export default function KpiScoreboardSummary({
   const rating = performanceRatingForScore(active.weightAchieved);
   const ratingColor = performanceRatingColor(rating);
   const has = !activeEmpty && active.kpiCount > 0;
+  const showGiftSplit = Boolean(isCurrentMonthView && userId && has);
+  const currentWeightage =
+    showGiftSplit && giftAvailable != null ? giftAvailable : active.weightAchieved;
+  const usedWeightage = showGiftSplit ? giftUsed : 0;
 
   return (
     <section className="emp-kpi-summary emp-kpi-summary--shared">
@@ -101,8 +134,8 @@ export default function KpiScoreboardSummary({
             <span className="emp-kpi-summary__eyebrow">Performance overview</span>
             <h2 className="emp-kpi-summary__title">{title}</h2>
             <p className="emp-kpi-summary__formula">
-              Use Overall, Month, or Year to switch views. Each view shows completed KPI weightage (0–{KPI_WEIGHT_CAP}%).
-              Company gifts and catalog rewards use this weightage.
+              Use Overall, Month, or Year to switch views. Earned weightage comes from completed KPIs (0–{KPI_WEIGHT_CAP}%).
+              Monthly gifts use the gift cost; leftover moves to Banked and can help pay later gifts when that month still qualifies.
             </p>
           </div>
           {toolbar ? <div className="emp-kpi-toolbar">{toolbar}</div> : null}
@@ -195,9 +228,11 @@ export default function KpiScoreboardSummary({
             </div>
             <div className="emp-kpi-month__score">
               <div className="emp-kpi-month__score-main">
-                <span className="emp-kpi-month__score-label">Achieved</span>
+                <span className="emp-kpi-month__score-label">
+                  {showGiftSplit ? 'Current' : 'Achieved'}
+                </span>
                 <span className="emp-kpi-month__pct" style={{ color: has ? ratingColor : undefined }}>
-                  {has ? formatKpiWeight(active.weightAchieved) : '—'}
+                  {has ? formatKpiWeight(currentWeightage) : '—'}
                 </span>
               </div>
               {has ? (
@@ -218,9 +253,25 @@ export default function KpiScoreboardSummary({
                 <dd>{has ? formatKpiWeight(active.weightAssigned) : '—'}</dd>
               </div>
               <div>
-                <dt>Achieved</dt>
+                <dt>Earned</dt>
                 <dd>{has ? formatKpiWeight(active.weightAchieved) : '—'}</dd>
               </div>
+              {showGiftSplit ? (
+                <>
+                  <div>
+                    <dt>Current</dt>
+                    <dd>{formatKpiWeight(currentWeightage)}</dd>
+                  </div>
+                  <div>
+                    <dt>Used</dt>
+                    <dd>{formatKpiWeight(usedWeightage)}</dd>
+                  </div>
+                  <div>
+                    <dt>Banked</dt>
+                    <dd>{formatKpiWeight(giftBanked)}</dd>
+                  </div>
+                </>
+              ) : null}
               <div>
                 <dt>Unassigned</dt>
                 <dd>{has ? formatKpiWeight(active.weightUnassigned) : '—'}</dd>

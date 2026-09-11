@@ -276,6 +276,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
       <div className="emp-kpi-board">
       <KpiScoreboardSummary
         kpis={kpis}
+        userId={activeUser.id}
         rewardsSummary={rewardsSummary}
         title="KPI scoreboard"
         period={{ mode: periodMode, month: filterMonth, year: filterYear }}

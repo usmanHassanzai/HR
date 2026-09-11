@@ -35,6 +35,7 @@ function statusLabel(status: string): string {
   const s = (status || '').toLowerCase();
   if (s === 'issued' || s === 'fulfilled') return 'Fulfilled';
   if (s === 'pending_fulfillment') return 'Pending';
+  if (s === 'dismissed' || s === 'rejected') return 'Rejected';
   if (!s) return 'Pending';
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
@@ -43,7 +44,7 @@ function statusTone(status: string): string {
   const s = (status || '').toLowerCase();
   if (s === 'issued' || s === 'fulfilled') return 'fulfilled';
   if (s === 'approved') return 'approved';
-  if (s === 'dismissed') return 'dismissed';
+  if (s === 'dismissed' || s === 'rejected') return 'dismissed';
   return 'pending';
 }
 

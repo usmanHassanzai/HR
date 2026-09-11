@@ -116,6 +116,7 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
     <div className="mgr-personal-page">
       <KpiScoreboardSummary
         kpis={kpis}
+        userId={profile.id}
         rewardsSummary={rewardsSummary}
         title="My KPI scoreboard"
       />

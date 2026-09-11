@@ -199,15 +199,17 @@ export default function AdminRewards() {
     if (error) showMsg(`Error: ${error.message}`);
     else {
       showMsg(
-        status === 'fulfilled'
-          ? 'Redemption fulfilled — gift weightage deducted from this month.'
-          : 'Redemption status updated.',
+        status === 'rejected'
+          ? 'Redemption rejected — weightage returned to the employee.'
+          : status === 'fulfilled'
+            ? 'Redemption fulfilled.'
+            : 'Redemption status updated.',
       );
       void fetchAll();
     }
   };
 
-  const pending = redemptions.filter((r) => r.status !== 'fulfilled');
+  const pending = redemptions.filter((r) => r.status !== 'fulfilled' && r.status !== 'rejected');
   const activeCatalog = catalog.filter((c) => c.active).length;
 
   if (loading && catalog.length === 0) {
@@ -229,7 +231,7 @@ export default function AdminRewards() {
           <div>
             <h2 className="admin-rewards-header__title">Rewards</h2>
             <p className="admin-rewards-header__subtitle">
-              One monthly gift per person (dinner or catalog). Movie and surprise can be redeemed in the same month as a monthly gift. Only monthly gifts deduct available weightage when fulfilled.
+              One monthly gift per person (dinner or catalog). Movie and surprise can be redeemed in the same month as a monthly gift. Monthly gifts move weightage to Used as soon as they are redeemed.
             </p>
           </div>
         </div>
@@ -354,9 +356,24 @@ export default function AdminRewards() {
                         Approve
                       </button>
                     )}
-                    <button type="button" className="btn btn-primary btn-sm" onClick={() => void updateStatus(r.id, 'fulfilled')}>
-                      <CheckCircle2 size={12} /> Fulfil
-                    </button>
+                    {r.status !== 'rejected' && (
+                      <>
+                        <button type="button" className="btn btn-primary btn-sm" onClick={() => void updateStatus(r.id, 'fulfilled')}>
+                          <CheckCircle2 size={12} /> Fulfil
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => {
+                            if (window.confirm(`Reject this redemption for ${r.users?.full_name || 'this person'}? Weightage will be returned.`)) {
+                              void updateStatus(r.id, 'rejected');
+                            }
+                          }}
+                        >
+                          Reject
+                        </button>
+                      </>
+                    )}
                     <span className={`redemption-status redemption-status--${r.status}`}>{r.status}</span>
                   </div>
                 </div>

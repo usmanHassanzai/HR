@@ -11,6 +11,10 @@ import {
   kpisForPeriod,
 } from '../utils/kpiScoreHelpers';
 import { karachiYearMonth } from '../utils/kpiCategories';
+import {
+  fetchMonthWeightageBalance,
+  type MonthWeightageBalance,
+} from '../utils/monthWeightageBalance';
 import KpiAwardProgressList from './KpiAwardProgressList';
 import WeightageRewardCatalog from './WeightageRewardCatalog';
 import { Gift, Loader2, Trophy, TrendingUp } from 'lucide-react';
@@ -30,21 +34,17 @@ interface MilestoneRow {
   period_end: string;
 }
 
-interface WeightageBalance {
-  earned: number | null;
-  deducted: number;
-  available: number | null;
-}
-
 function milestoneStatusLabel(status: string): string {
   if (status === 'approved') return 'Approved — being arranged';
   if (status === 'issued' || status === 'fulfilled') return 'Delivered';
+  if (status === 'dismissed' || status === 'rejected') return 'Rejected';
   return 'Pending approval';
 }
 
 function statusClass(status: string): string {
   if (status === 'pending' || status === 'pending_fulfillment') return 'emp-rewards-status emp-rewards-status--pending';
   if (status === 'approved') return 'emp-rewards-status emp-rewards-status--approved';
+  if (status === 'dismissed' || status === 'rejected') return 'emp-rewards-status emp-rewards-status--rejected';
   return 'emp-rewards-status emp-rewards-status--fulfilled';
 }
 
@@ -56,10 +56,11 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
   const [loading, setLoading] = useState(true);
   const [awardProgress, setAwardProgress] = useState<KpiAwardProgress[]>([]);
   const [milestones, setMilestones] = useState<MilestoneRow[]>([]);
-  const [balance, setBalance] = useState<WeightageBalance>({
+  const [balance, setBalance] = useState<MonthWeightageBalance>({
     earned: null,
     deducted: 0,
     available: null,
+    banked: 0,
   });
   const [redeemingKey, setRedeemingKey] = useState<KpiAwardRuleKey | null>(null);
   const [actionMsg, setActionMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
@@ -74,36 +75,21 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    const [awardRes, mileRes, balRes] = await Promise.all([
+    const [awardRes, mileRes, bal] = await Promise.all([
       supabase.rpc('get_kpi_award_progress', { p_user_id: userId }),
       supabase
         .from('kpi_award_qualifications')
         .select('id, rule_key, reward_name, status, period_end')
         .eq('employee_id', userId)
         .order('created_at', { ascending: false }),
-      supabase.rpc('get_month_weightage_balance', { p_user_id: userId }),
+      fetchMonthWeightageBalance(userId),
     ]);
     const progress = (awardRes.data || []) as KpiAwardProgress[];
     if (awardRes.data) setAwardProgress(progress);
     if (mileRes.data) setMilestones(mileRes.data as MilestoneRow[]);
-
-    const balRow = Array.isArray(balRes.data) ? balRes.data[0] : balRes.data;
-    if (balRow && !balRes.error) {
-      setBalance({
-        earned: balRow.earned == null ? null : Number(balRow.earned),
-        deducted: Number(balRow.deducted) || 0,
-        available: balRow.available == null ? null : Number(balRow.available),
-      });
-    } else {
-      const fromProgress = progress.find((r) => r.latest_score != null)?.latest_score;
-      setBalance({
-        earned: coerceAwardWeightage(fromProgress, clientMonthWeightage),
-        deducted: 0,
-        available: coerceAwardWeightage(fromProgress, clientMonthWeightage),
-      });
-    }
+    setBalance(bal);
     setLoading(false);
-  }, [userId, clientMonthWeightage]);
+  }, [userId]);
 
   useEffect(() => {
     void fetchAll();
@@ -120,7 +106,7 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
     const thisKey = `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
     const keys = new Set<string>();
     for (const m of milestones) {
-      if (m.status === 'dismissed') continue;
+      if (m.status === 'dismissed' || m.status === 'rejected') continue;
       if (periodEndMonthKey(m.period_end) === thisKey) keys.add(m.rule_key);
     }
     return keys;
@@ -161,8 +147,9 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
           <div>
             <h2 className="emp-rewards-header__title">Company rewards</h2>
             <p className="emp-rewards-header__subtitle">
-              Complete tasks to earn weightage. One monthly gift (dinner or catalog) per month spends available weightage.
-              Movie needs 90–95% for 3 months in a row; surprise needs 90–95% for 6 months in a row. You can redeem a streak gift in the same month as one monthly gift.
+              Complete tasks to earn weightage. One monthly gift (dinner or catalog) per month uses the gift cost;
+              leftover goes to Banked. Movie needs 90–95% for 3 months in a row; surprise needs 90–95% for 6 months in a row.
+              Banked can help pay a gift only when this month&apos;s score already qualifies.
             </p>
           </div>
         </div>
@@ -174,15 +161,17 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
           </div>
           <div className="emp-rewards-stat emp-rewards-stat--accent">
             <Gift size={16} />
-            <span className="emp-rewards-stat__label">Available to redeem</span>
+            <span className="emp-rewards-stat__label">Current</span>
             <strong>{formatAwardWeightage(availableWeightage)}</strong>
           </div>
-          {balance.deducted > 0 ? (
-            <div className="emp-rewards-stat">
-              <span className="emp-rewards-stat__label">Used on gifts</span>
-              <strong>{formatAwardWeightage(balance.deducted)}</strong>
-            </div>
-          ) : null}
+          <div className="emp-rewards-stat">
+            <span className="emp-rewards-stat__label">Used on gifts</span>
+            <strong>{formatAwardWeightage(balance.deducted)}</strong>
+          </div>
+          <div className="emp-rewards-stat">
+            <span className="emp-rewards-stat__label">Banked</span>
+            <strong>{formatAwardWeightage(balance.banked)}</strong>
+          </div>
         </div>
       </header>
 
@@ -213,7 +202,7 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
           <h3>
             <Gift size={18} /> Your gifts
           </h3>
-          <p>When you redeem, your manager or admin approves and arranges delivery. Weightage is deducted on fulfill.</p>
+          <p>When you redeem a monthly gift, its weightage moves to Used immediately. Your manager or admin then arranges delivery.</p>
           <div className="emp-rewards-redemption-list">
             {milestones.map((m) => (
               <article key={m.id} className="emp-rewards-redemption">

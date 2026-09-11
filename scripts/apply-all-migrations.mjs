@@ -171,6 +171,9 @@ const MIGRATIONS = [
   'reward_monthly_vs_streak_gift_rules.sql',
   'reward_qualifying_months_no_reset.sql',
   'reward_streak_consecutive_90_95.sql',
+  'reward_deduct_on_monthly_redeem.sql',
+  'reward_reject_and_refund.sql',
+  'reward_weightage_bank.sql',
 ];
 
 async function runMigration(filename) {

@@ -412,6 +412,11 @@
   color: var(--color-success);
 }
 
+.emp-rewards-status--rejected {
+  background: color-mix(in srgb, var(--color-danger, #c0392b) 15%, transparent);
+  color: var(--color-danger, #c0392b);
+}
+
 .emp-rewards-empty,
 .emp-rewards-loading {
   display: flex;
