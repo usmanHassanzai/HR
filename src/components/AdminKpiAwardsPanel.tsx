@@ -208,11 +208,14 @@ export default function AdminKpiAwardsPanel() {
             <legend>Consistent Good Performer (movie tickets)</legend>
             <label>
               Min weightage %
-              <input type="number" min={0} max={100} value={form.movie_min_pct ?? 85} onChange={(e) => setForm({ ...form, movie_min_pct: Number(e.target.value) })} />
+              <input type="number" min={0} max={100} value={form.movie_min_pct ?? 90} onChange={(e) => setForm({ ...form, movie_min_pct: Number(e.target.value) })} />
             </label>
             <label>
               Max weightage %
-              <input type="number" min={0} max={100} step={0.01} value={form.movie_max_pct ?? 90} onChange={(e) => setForm({ ...form, movie_max_pct: Number(e.target.value) })} />
+              <input type="number" min={0} max={100} step={0.01} value={form.movie_max_pct ?? 95} onChange={(e) => setForm({ ...form, movie_max_pct: Number(e.target.value) })} />
+              <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                Streak requires this band every month in a row (default 90–95%).
+              </span>
             </label>
             <label>
               Months
@@ -242,11 +245,14 @@ export default function AdminKpiAwardsPanel() {
             <legend>Elite Consistency (surprise gift)</legend>
             <label>
               Min weightage %
-              <input type="number" min={0} max={100} value={form.gift_min_pct ?? 95} onChange={(e) => setForm({ ...form, gift_min_pct: Number(e.target.value) })} />
+              <input type="number" min={0} max={100} value={form.gift_min_pct ?? 90} onChange={(e) => setForm({ ...form, gift_min_pct: Number(e.target.value) })} />
             </label>
             <label>
               Max weightage %
-              <input type="number" min={0} max={100} step={0.01} value={form.gift_max_pct ?? 100} onChange={(e) => setForm({ ...form, gift_max_pct: Number(e.target.value) })} />
+              <input type="number" min={0} max={100} step={0.01} value={form.gift_max_pct ?? 95} onChange={(e) => setForm({ ...form, gift_max_pct: Number(e.target.value) })} />
+              <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                Must hit this band every month in a row (default 90–95%).
+              </span>
             </label>
             <label>
               Months

@@ -150,13 +150,20 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
   const updateCatalogRedemption = async (id: string, status: string) => {
     setMsg('');
     setMsgError(false);
-    const { error } = await supabase.from('reward_redemptions').update({ status }).eq('id', id);
+    const { error } = await supabase.rpc('set_catalog_redemption_status', {
+      p_id: id,
+      p_status: status,
+    });
     if (error) {
       setMsgError(true);
       setMsg(error.message);
       return;
     }
-    setMsg(status === 'fulfilled' ? 'Catalog reward marked delivered.' : 'Catalog reward approved.');
+    setMsg(
+      status === 'fulfilled'
+        ? 'Catalog reward delivered — weightage deducted.'
+        : 'Catalog reward approved.',
+    );
     void load();
   };
 
@@ -184,7 +191,7 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
           <div>
             <h2 className="mgr-rewards-header__title">Company rewards</h2>
             <p className="mgr-rewards-header__subtitle">
-              Company weightage gifts plus the admin catalog. Redeem with this month&apos;s weightage, and approve team requests.
+              One monthly gift per person. Movie and surprise can be redeemed in the same month as dinner/catalog. Only monthly gifts deduct weightage.
             </p>
           </div>
         </div>
@@ -206,7 +213,7 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
       <KpiAwardProgressList
         rows={myProgress}
         title="Your company gifts"
-        intro="These gifts come from your monthly weightage — the same rules as everyone else."
+        intro="Monthly gifts spend available weightage. Movie: 90–95% × 3 months in a row. Surprise: 90–95% × 6 months in a row."
         monthWeightage={myWeightage}
       />
 
@@ -214,7 +221,7 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
         userId={managerId}
         monthWeightage={myWeightage}
         title="Reward catalog"
-        intro="Admin catalog rewards. Redeem when your this-month weightage meets the requirement."
+        intro="One monthly catalog gift per month. Streak gifts can be redeemed in the same month and do not spend weightage."
       />
 
       <section className="mgr-rewards-card">

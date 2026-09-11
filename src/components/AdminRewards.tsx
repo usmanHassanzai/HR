@@ -192,10 +192,17 @@ export default function AdminRewards() {
 
   const updateStatus = async (id: string, status: string) => {
     setMsg('');
-    const { error } = await supabase.from('reward_redemptions').update({ status }).eq('id', id);
+    const { error } = await supabase.rpc('set_catalog_redemption_status', {
+      p_id: id,
+      p_status: status,
+    });
     if (error) showMsg(`Error: ${error.message}`);
     else {
-      showMsg(status === 'fulfilled' ? 'Redemption marked as fulfilled.' : 'Redemption status updated.');
+      showMsg(
+        status === 'fulfilled'
+          ? 'Redemption fulfilled — gift weightage deducted from this month.'
+          : 'Redemption status updated.',
+      );
       void fetchAll();
     }
   };
@@ -222,7 +229,7 @@ export default function AdminRewards() {
           <div>
             <h2 className="admin-rewards-header__title">Rewards</h2>
             <p className="admin-rewards-header__subtitle">
-              Company gifts and catalog rewards use this month&apos;s weightage. Search History for any employee or manager&apos;s past redemptions.
+              One monthly gift per person (dinner or catalog). Movie and surprise can be redeemed in the same month as a monthly gift. Only monthly gifts deduct available weightage when fulfilled.
             </p>
           </div>
         </div>

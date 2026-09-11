@@ -30,6 +30,12 @@ interface MilestoneRow {
   period_end: string;
 }
 
+interface WeightageBalance {
+  earned: number | null;
+  deducted: number;
+  available: number | null;
+}
+
 function milestoneStatusLabel(status: string): string {
   if (status === 'approved') return 'Approved — being arranged';
   if (status === 'issued' || status === 'fulfilled') return 'Delivered';
@@ -50,7 +56,11 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
   const [loading, setLoading] = useState(true);
   const [awardProgress, setAwardProgress] = useState<KpiAwardProgress[]>([]);
   const [milestones, setMilestones] = useState<MilestoneRow[]>([]);
-  const [thisMonthWeightage, setThisMonthWeightage] = useState<number | null>(null);
+  const [balance, setBalance] = useState<WeightageBalance>({
+    earned: null,
+    deducted: 0,
+    available: null,
+  });
   const [redeemingKey, setRedeemingKey] = useState<KpiAwardRuleKey | null>(null);
   const [actionMsg, setActionMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
@@ -64,19 +74,34 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    const [awardRes, mileRes] = await Promise.all([
+    const [awardRes, mileRes, balRes] = await Promise.all([
       supabase.rpc('get_kpi_award_progress', { p_user_id: userId }),
       supabase
         .from('kpi_award_qualifications')
         .select('id, rule_key, reward_name, status, period_end')
         .eq('employee_id', userId)
         .order('created_at', { ascending: false }),
+      supabase.rpc('get_month_weightage_balance', { p_user_id: userId }),
     ]);
     const progress = (awardRes.data || []) as KpiAwardProgress[];
     if (awardRes.data) setAwardProgress(progress);
     if (mileRes.data) setMilestones(mileRes.data as MilestoneRow[]);
-    const fromProgress = progress.find((r) => r.latest_score != null)?.latest_score;
-    setThisMonthWeightage(coerceAwardWeightage(fromProgress, clientMonthWeightage));
+
+    const balRow = Array.isArray(balRes.data) ? balRes.data[0] : balRes.data;
+    if (balRow && !balRes.error) {
+      setBalance({
+        earned: balRow.earned == null ? null : Number(balRow.earned),
+        deducted: Number(balRow.deducted) || 0,
+        available: balRow.available == null ? null : Number(balRow.available),
+      });
+    } else {
+      const fromProgress = progress.find((r) => r.latest_score != null)?.latest_score;
+      setBalance({
+        earned: coerceAwardWeightage(fromProgress, clientMonthWeightage),
+        deducted: 0,
+        available: coerceAwardWeightage(fromProgress, clientMonthWeightage),
+      });
+    }
     setLoading(false);
   }, [userId, clientMonthWeightage]);
 
@@ -84,13 +109,11 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
     void fetchAll();
   }, [fetchAll]);
 
-  useEffect(() => {
-    if (clientMonthWeightage != null) {
-      setThisMonthWeightage((prev) => coerceAwardWeightage(prev, clientMonthWeightage));
-    }
-  }, [clientMonthWeightage]);
-
-  const displayWeightage = coerceAwardWeightage(thisMonthWeightage, clientMonthWeightage);
+  const earnedWeightage = coerceAwardWeightage(balance.earned, clientMonthWeightage);
+  const availableWeightage = coerceAwardWeightage(
+    balance.available,
+    balance.earned != null ? Math.max(0, Number(balance.earned) - Number(balance.deducted || 0)) : null,
+  );
 
   const claimedKeys = useMemo(() => {
     const { year, monthIndex } = karachiYearMonth();
@@ -102,6 +125,8 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
     }
     return keys;
   }, [milestones]);
+
+  const monthMonthlyGiftClaimed = claimedKeys.has('dinner_voucher');
 
   const handleRedeem = useCallback(async (ruleKey: KpiAwardRuleKey) => {
     setRedeemingKey(ruleKey);
@@ -136,18 +161,28 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
           <div>
             <h2 className="emp-rewards-header__title">Company rewards</h2>
             <p className="emp-rewards-header__subtitle">
-              Earn company gifts from weightage streaks, and redeem admin catalog rewards with this month&apos;s weightage.
+              Complete tasks to earn weightage. One monthly gift (dinner or catalog) per month spends available weightage.
+              Movie needs 90–95% for 3 months in a row; surprise needs 90–95% for 6 months in a row. You can redeem a streak gift in the same month as one monthly gift.
             </p>
           </div>
         </div>
         <div className="emp-rewards-stats">
-          <div className="emp-rewards-stat emp-rewards-stat--accent">
+          <div className="emp-rewards-stat">
             <TrendingUp size={16} />
-            <span className="emp-rewards-stat__label">This month&apos;s weightage</span>
-            <strong>
-              {formatAwardWeightage(displayWeightage)}
-            </strong>
+            <span className="emp-rewards-stat__label">Earned this month</span>
+            <strong>{formatAwardWeightage(earnedWeightage)}</strong>
           </div>
+          <div className="emp-rewards-stat emp-rewards-stat--accent">
+            <Gift size={16} />
+            <span className="emp-rewards-stat__label">Available to redeem</span>
+            <strong>{formatAwardWeightage(availableWeightage)}</strong>
+          </div>
+          {balance.deducted > 0 ? (
+            <div className="emp-rewards-stat">
+              <span className="emp-rewards-stat__label">Used on gifts</span>
+              <strong>{formatAwardWeightage(balance.deducted)}</strong>
+            </div>
+          ) : null}
         </div>
       </header>
 
@@ -159,20 +194,26 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
 
       <KpiAwardProgressList
         rows={awardProgress}
-        monthWeightage={displayWeightage}
+        monthWeightage={availableWeightage}
         claimedKeys={claimedKeys}
         onRedeem={handleRedeem}
         redeemingKey={redeemingKey}
       />
 
-      <WeightageRewardCatalog userId={userId} monthWeightage={displayWeightage} />
+      <WeightageRewardCatalog
+        userId={userId}
+        monthWeightage={availableWeightage}
+        monthGiftClaimed={monthMonthlyGiftClaimed}
+        onRedeemed={() => void fetchAll()}
+        intro="One monthly catalog or dinner gift per month. Movie and surprise streaks can be redeemed in the same month and do not spend weightage."
+      />
 
       {milestones.length > 0 && (
         <section className="emp-rewards-card">
           <h3>
             <Gift size={18} /> Your gifts
           </h3>
-          <p>When you redeem, your manager or admin approves and arranges delivery.</p>
+          <p>When you redeem, your manager or admin approves and arranges delivery. Weightage is deducted on fulfill.</p>
           <div className="emp-rewards-redemption-list">
             {milestones.map((m) => (
               <article key={m.id} className="emp-rewards-redemption">

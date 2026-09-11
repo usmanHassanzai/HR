@@ -167,6 +167,10 @@ const MIGRATIONS = [
   'company_pause_and_trial_expiry.sql',
   'fix_kpi_award_fulfill_status.sql',
   'manager_kpi_award_history_select.sql',
+  'reward_weightage_spend_on_fulfill.sql',
+  'reward_monthly_vs_streak_gift_rules.sql',
+  'reward_qualifying_months_no_reset.sql',
+  'reward_streak_consecutive_90_95.sql',
 ];
 
 async function runMigration(filename) {

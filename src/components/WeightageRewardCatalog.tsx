@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Gift, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { formatAwardWeightage } from '../utils/kpiAwardHelpers';
@@ -24,12 +24,15 @@ interface CatalogRedemption {
 export default function WeightageRewardCatalog({
   userId,
   monthWeightage,
+  monthGiftClaimed = false,
   title = 'Reward catalog',
-  intro = 'Redeem these when your this-month weightage meets the requirement.',
+  intro = 'One monthly catalog gift per month (not with dinner). Movie/surprise streaks can be redeemed in the same month.',
   onRedeemed,
 }: {
   userId: string;
   monthWeightage: number | null;
+  /** True if this person already claimed a monthly gift (dinner or catalog) this month. */
+  monthGiftClaimed?: boolean;
   title?: string;
   intro?: string;
   onRedeemed?: () => void;
@@ -65,6 +68,13 @@ export default function WeightageRewardCatalog({
   useEffect(() => {
     void load();
   }, [load]);
+
+  const anyCatalogThisMonth = useMemo(() => {
+    const key = new Date().toISOString().slice(0, 7);
+    return mine.some((r) => String(r.redeemed_at).slice(0, 7) === key);
+  }, [mine]);
+
+  const blockedForMonth = monthGiftClaimed || anyCatalogThisMonth;
 
   const openOrPending = (rewardId: string) =>
     mine.find((r) => r.reward_id === rewardId && (r.status === 'pending' || r.status === 'approved'));
@@ -133,12 +143,12 @@ export default function WeightageRewardCatalog({
           const meets = have != null && have >= need;
           const pending = openOrPending(item.id);
           const doneMonth = redeemedThisMonth(item.id);
-          const locked = !meets || Boolean(pending) || Boolean(doneMonth);
+          const locked = !meets || Boolean(pending) || Boolean(doneMonth) || (blockedForMonth && !pending && !doneMonth);
           const busy = redeemingId === item.id;
           return (
             <article
               key={item.id}
-              className={`emp-rewards-catalog-item${meets && !pending && !doneMonth ? ' emp-rewards-catalog-item--ready' : ''}${locked && !pending && !doneMonth ? ' emp-rewards-catalog-item--locked' : ''}`}
+              className={`emp-rewards-catalog-item${meets && !pending && !doneMonth && !blockedForMonth ? ' emp-rewards-catalog-item--ready' : ''}${locked && !pending && !doneMonth ? ' emp-rewards-catalog-item--locked' : ''}`}
             >
               <div className="emp-rewards-catalog-item__icon">
                 <RewardCatalogIcon icon={item.icon} size={32} />
@@ -146,10 +156,15 @@ export default function WeightageRewardCatalog({
               <div className="emp-rewards-catalog-item__body">
                 <strong>{item.name}</strong>
                 <span>{item.description || 'Company catalog reward'}</span>
-                {!meets && (
+                {!meets && !blockedForMonth && (
                   <span className="emp-rewards-catalog-item__need">
-                    Need {formatAwardWeightage(need)} this month
+                    Need {formatAwardWeightage(need)} available
                     {have != null ? ` · you have ${formatAwardWeightage(have)}` : ''}
+                  </span>
+                )}
+                {blockedForMonth && !pending && !doneMonth && (
+                  <span className="emp-rewards-catalog-item__need">
+                    You already redeemed a monthly gift this month
                   </span>
                 )}
                 {pending && (
@@ -162,7 +177,7 @@ export default function WeightageRewardCatalog({
                 )}
               </div>
               <div className="emp-rewards-catalog-item__foot">
-                <span className="emp-rewards-catalog-item__cost">{formatAwardWeightage(need)} weightage</span>
+                <span className="emp-rewards-catalog-item__cost">Uses {formatAwardWeightage(need)}</span>
                 <button
                   type="button"
                   className="btn btn-primary btn-sm"
@@ -176,8 +191,8 @@ export default function WeightageRewardCatalog({
                     </>
                   ) : pending ? (
                     'Requested'
-                  ) : doneMonth ? (
-                    'Redeemed'
+                  ) : doneMonth || blockedForMonth ? (
+                    'Unavailable'
                   ) : (
                     'Redeem'
                   )}
