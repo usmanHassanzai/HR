@@ -161,6 +161,7 @@ const MIGRATIONS = [
   'hr_full_admin_company_access.sql',
   'fix_admin_update_user_hr_supervisor.sql',
   'hr_reports_to_admin_job_title.sql',
+  'skip_company_setup_wizard.sql',
 ];
 
 async function runMigration(filename) {

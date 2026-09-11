@@ -31,7 +31,6 @@ const LandingPage = lazy(() => import('./components/LandingPage'));
 const PlatformOwnerPortal = lazy(() => import('./components/PlatformOwnerPortal'));
 const EmployeeDashboard = lazy(() => import('./components/EmployeeDashboard'));
 const ManagerDashboard = lazy(() => import('./components/ManagerDashboard'));
-const CompanySetupWizard = lazy(() => import('./components/CompanySetupWizard'));
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
 
 function RouteFallback() {
@@ -368,25 +367,6 @@ function App() {
     main = (
       <NativeScrollRoot>
         <CompanyPendingScreen company={company} onLogout={handleLogout} />
-      </NativeScrollRoot>
-    );
-  } else if (
-    profile.role === 'admin'
-    && company?.status === 'active'
-    && !company.onboarding_completed_at
-    && !isDemoProfile(profile)
-  ) {
-    main = (
-      <NativeScrollRoot>
-        <Suspense fallback={<RouteFallback />}>
-          <CompanySetupWizard
-            profile={profile}
-            company={company}
-            onFinished={() => {
-              if (session?.user?.id) void fetchUserProfile(session.user.id);
-            }}
-          />
-        </Suspense>
       </NativeScrollRoot>
     );
   } else if (roleRequiresMfa(profile) && !privilegedMfaOk) {
