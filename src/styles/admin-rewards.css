@@ -766,3 +766,167 @@
   }
 }
 
+/* Gift history (search by person) */
+.admin-reward-history__search {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0 0 1rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  background: var(--surface-muted);
+  color: var(--text-muted);
+}
+
+.admin-reward-history__search input {
+  flex: 1;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.92rem;
+}
+
+.admin-reward-history__layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+.admin-reward-history__people {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: min(70vh, 560px);
+  overflow: auto;
+  padding-right: 0.15rem;
+}
+
+.admin-reward-history__person {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.65rem 0.7rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  background: var(--surface);
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.admin-reward-history__person:hover {
+  border-color: color-mix(in srgb, var(--accent-primary) 40%, var(--border-color));
+}
+
+.admin-reward-history__person.is-active {
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 10%, var(--surface));
+}
+
+.admin-reward-history__avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.admin-reward-history__person-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.admin-reward-history__person-text strong {
+  font-size: 0.88rem;
+  color: var(--text-primary);
+}
+
+.admin-reward-history__person-text span {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-reward-history__detail {
+  min-width: 0;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  background: var(--surface-muted);
+  padding: 0.85rem;
+}
+
+.admin-reward-history__detail-head {
+  margin-bottom: 0.85rem;
+}
+
+.admin-reward-history__detail-head h4 {
+  margin: 0 0 0.2rem;
+  font-size: 1.05rem;
+  font-family: var(--font-display);
+}
+
+.admin-reward-history__detail-head p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.admin-reward-history__gift {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+}
+
+.admin-reward-history__gift strong {
+  display: block;
+}
+
+.admin-reward-history__detail-line {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  max-width: 22rem;
+  line-height: 1.35;
+}
+
+.admin-reward-history__type {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.admin-reward-history__type--kpi {
+  color: #b45309;
+}
+
+.admin-reward-history__type--catalog {
+  color: var(--accent-primary);
+}
+
+@media (max-width: 820px) {
+  .admin-reward-history__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-reward-history__people {
+    max-height: 220px;
+  }
+}
+

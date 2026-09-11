@@ -15,8 +15,10 @@ import type { KpiAwardPipelineRow, KpiAwardProgress } from '../utils/kpiAwardHel
 import { awardGiftLine, coerceAwardWeightage } from '../utils/kpiAwardHelpers';
 import KpiAwardProgressList from './KpiAwardProgressList';
 import WeightageRewardCatalog from './WeightageRewardCatalog';
+import AdminRewardHistoryPanel from './AdminRewardHistoryPanel';
 import '../styles/manager-rewards.css';
 import '../styles/employee-rewards.css';
+import '../styles/admin-rewards.css';
 
 interface ManagerRewardsPanelProps {
   managerId: string;
@@ -268,6 +270,8 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
           </div>
         )}
       </section>
+
+      <AdminRewardHistoryPanel scope="manager" managerId={managerId} />
 
       <section className="mgr-rewards-card">
         <h3>

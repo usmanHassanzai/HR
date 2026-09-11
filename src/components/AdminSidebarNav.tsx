@@ -194,7 +194,7 @@ export function getAdminNavMeta(id: string): { label: string; description: strin
     office: { label: 'Office GPS', description: 'Geofence and check-ins.' },
     tracking: { label: 'Live Tracking', description: 'Field team locations.' },
     departments: { label: 'Departments', description: 'Org structure.' },
-    rewards: { label: 'Rewards', description: 'Catalog, weightage, and redemptions.' },
+    rewards: { label: 'Rewards', description: 'Catalog, gift history, and redemptions.' },
     export: { label: 'Export', description: 'Monthly and quarterly exports.' },
     settings: { label: 'Settings', description: 'Logo and company theme.' },
     companies: { label: 'Registered Companies', description: 'Approve new company sign-ups.' },

@@ -166,6 +166,7 @@ const MIGRATIONS = [
   'platform_update_company.sql',
   'company_pause_and_trial_expiry.sql',
   'fix_kpi_award_fulfill_status.sql',
+  'manager_kpi_award_history_select.sql',
 ];
 
 async function runMigration(filename) {

@@ -15,9 +15,11 @@ import {
   Package,
   Users,
   Upload,
+  History,
 } from 'lucide-react';
 import AdminOrgKpiPointsBoard from './AdminOrgKpiPointsBoard';
 import AdminKpiAwardsPanel from './AdminKpiAwardsPanel';
+import AdminRewardHistoryPanel from './AdminRewardHistoryPanel';
 import RewardCatalogIcon from './RewardCatalogIcon';
 import { fileToRewardIconDataUrl, REWARD_EMOJI_PRESETS } from '../utils/rewardIconHelpers';
 import '../styles/admin-rewards.css';
@@ -54,7 +56,7 @@ export default function AdminRewards() {
   const [orgUserCount, setOrgUserCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState('');
-  const [activeTab, setActiveTab] = useState<'board' | 'redemptions' | 'catalog' | 'awards'>('board');
+  const [activeTab, setActiveTab] = useState<'board' | 'redemptions' | 'catalog' | 'awards' | 'history'>('awards');
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: '', description: '', icon: '🎁', weightage_required: 80 });
   const [iconUploading, setIconUploading] = useState(false);
@@ -220,7 +222,7 @@ export default function AdminRewards() {
           <div>
             <h2 className="admin-rewards-header__title">Rewards</h2>
             <p className="admin-rewards-header__subtitle">
-              Company gifts and catalog rewards use this month&apos;s weightage. Approve redemptions when staff claim them.
+              Company gifts and catalog rewards use this month&apos;s weightage. Search History for any employee or manager&apos;s past redemptions.
             </p>
           </div>
         </div>
@@ -251,6 +253,13 @@ export default function AdminRewards() {
           onClick={() => setActiveTab('awards')}
         >
           <Gift size={16} /> KPI awards
+        </button>
+        <button
+          type="button"
+          className={`tab-btn ${activeTab === 'history' ? 'tab-btn--active' : ''}`}
+          onClick={() => setActiveTab('history')}
+        >
+          <History size={16} /> History
         </button>
         <button
           type="button"
@@ -290,6 +299,8 @@ export default function AdminRewards() {
       )}
 
       {activeTab === 'awards' && <AdminKpiAwardsPanel />}
+
+      {activeTab === 'history' && <AdminRewardHistoryPanel />}
 
       {activeTab === 'board' && <AdminOrgKpiPointsBoard embedded />}
 
