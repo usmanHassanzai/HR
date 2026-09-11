@@ -162,6 +162,7 @@ const MIGRATIONS = [
   'fix_admin_update_user_hr_supervisor.sql',
   'hr_reports_to_admin_job_title.sql',
   'skip_company_setup_wizard.sql',
+  'fix_platform_delete_company_department_constraint.sql',
 ];
 
 async function runMigration(filename) {
