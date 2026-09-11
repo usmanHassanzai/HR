@@ -11,6 +11,8 @@ export interface Company {
   trial_ends_at?: string | null;
   created_at?: string;
   onboarding_completed_at?: string | null;
+  paused_reason?: string | null;
+  paused_at?: string | null;
 }
 
 export interface CompanyRegistrationForm {
@@ -46,6 +48,9 @@ export interface PlatformCompanyRow {
   created_at: string;
   approved_at: string | null;
   user_count: number;
+  trial_ends_at?: string | null;
+  paused_reason?: string | null;
+  paused_at?: string | null;
 }
 
 export interface PlatformNotification {

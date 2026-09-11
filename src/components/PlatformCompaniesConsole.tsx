@@ -22,6 +22,8 @@ import {
   Mail,
   Phone,
   Pencil,
+  PauseCircle,
+  PlayCircle,
 } from 'lucide-react';
 import '../styles/platform.css';
 
@@ -248,6 +250,11 @@ export default function PlatformCompaniesConsole({ profile, embedded = false, on
   const [editTarget, setEditTarget] = useState<PlatformCompanyRow | null>(null);
   const [editForm, setEditForm] = useState<CompanyEditForm | null>(null);
   const [editSaving, setEditSaving] = useState(false);
+  const [resumeTarget, setResumeTarget] = useState<PlatformCompanyRow | null>(null);
+  const [resumePlan, setResumePlan] = useState('trial');
+  const [resumeTrialDays, setResumeTrialDays] = useState('3');
+  const [pauseTarget, setPauseTarget] = useState<PlatformCompanyRow | null>(null);
+  const [pauseReason, setPauseReason] = useState('billing');
 
   const loadData = useCallback(async () => {
     const [co, no] = await Promise.all([
@@ -332,6 +339,60 @@ export default function PlatformCompaniesConsole({ profile, embedded = false, on
       setAlert({ kind: 'success', text: `Company "${label}" was permanently deleted.` });
       await loadData();
     }
+    setActionLoading(null);
+  };
+
+  const confirmPause = async () => {
+    if (!pauseTarget) return;
+    if (isWalfiaDefaultCompany(pauseTarget)) {
+      setAlert({ kind: 'error', text: 'The Walfia default organization cannot be paused.' });
+      setPauseTarget(null);
+      return;
+    }
+    setActionLoading(pauseTarget.id);
+    setAlert(null);
+    const { error } = await supabase.rpc('platform_pause_company', {
+      p_company_id: pauseTarget.id,
+      p_reason: pauseReason.trim() || 'billing',
+    });
+    if (error) setAlert({ kind: 'error', text: error.message });
+    else {
+      setAlert({
+        kind: 'success',
+        text: `"${pauseTarget.name}" is paused. All employees, managers, HR, and admins are locked out until you resume.`,
+      });
+      await loadData();
+    }
+    setPauseTarget(null);
+    setPauseReason('billing');
+    setActionLoading(null);
+  };
+
+  const confirmResume = async () => {
+    if (!resumeTarget) return;
+    setActionLoading(resumeTarget.id);
+    setAlert(null);
+    const days = resumePlan === 'trial' ? Math.max(1, Number.parseInt(resumeTrialDays, 10) || 3) : null;
+    const { error } = await supabase.rpc('platform_resume_company', {
+      p_company_id: resumeTarget.id,
+      p_subscription_plan: resumePlan,
+      p_extend_trial_days: days,
+    });
+    if (error) setAlert({ kind: 'error', text: error.message });
+    else {
+      setAlert({
+        kind: 'success',
+        text:
+          resumePlan === 'trial'
+            ? `"${resumeTarget.name}" resumed with a ${days}-day trial.`
+            : `"${resumeTarget.name}" resumed on the ${resumePlan} plan.`,
+      });
+      await loadData();
+      setTab('approved');
+    }
+    setResumeTarget(null);
+    setResumePlan('trial');
+    setResumeTrialDays('3');
     setActionLoading(null);
   };
 
@@ -444,7 +505,18 @@ export default function PlatformCompaniesConsole({ profile, embedded = false, on
                 {c.contact_phone && <span className="platform-table__sub">{c.contact_phone}</span>}
               </td>
               <td style={{ whiteSpace: 'nowrap' }}>{formatDate(c.created_at)}</td>
-              <td>{c.subscription_plan || 'trial'}</td>
+              <td>{c.subscription_plan || 'trial'}
+                {c.subscription_plan === 'trial' && c.trial_ends_at && (
+                  <span className="platform-table__sub">
+                    {new Date(c.trial_ends_at).getTime() < Date.now()
+                      ? 'Trial expired'
+                      : `Ends ${formatDate(c.trial_ends_at, true)}`}
+                  </span>
+                )}
+                {c.status === 'suspended' && c.paused_reason && (
+                  <span className="platform-table__sub">Paused: {c.paused_reason}</span>
+                )}
+              </td>
               <td>{c.industry || '—'}</td>
               <td><StatusBadge status={c.status} /></td>
               <td>
@@ -466,6 +538,35 @@ export default function PlatformCompaniesConsole({ profile, embedded = false, on
                   >
                     <Pencil size={14} />
                   </button>
+                  {c.status === 'active' && !isWalfiaDefaultCompany(c) && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      disabled={actionLoading === c.id}
+                      onClick={() => {
+                        setPauseTarget(c);
+                        setPauseReason('billing');
+                      }}
+                      title="Pause company access"
+                    >
+                      <PauseCircle size={14} />
+                    </button>
+                  )}
+                  {c.status === 'suspended' && (
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      disabled={actionLoading === c.id}
+                      onClick={() => {
+                        setResumeTarget(c);
+                        setResumePlan(c.subscription_plan && c.subscription_plan !== 'trial' ? c.subscription_plan : 'trial');
+                        setResumeTrialDays('3');
+                      }}
+                      title="Resume company access"
+                    >
+                      <PlayCircle size={14} />
+                    </button>
+                  )}
                   {showApproveReject && c.status === 'pending' && (
                     <>
                       <button
@@ -992,6 +1093,111 @@ export default function PlatformCompaniesConsole({ profile, embedded = false, on
               >
                 {editSaving ? <Loader2 size={14} className="animate-spin" /> : <Pencil size={14} />}
                 Save changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pauseTarget && (
+        <div className="platform-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="pause-company-title">
+          <div className="glass-panel platform-modal">
+            <h3 id="pause-company-title" className="platform-modal__title">Pause organization</h3>
+            <p className="platform-modal__hint">
+              Pause <strong>{pauseTarget.name}</strong>? All employees, managers, HR, and admins will be locked out until you resume.
+            </p>
+            <div className="form-group">
+              <label className="form-label" htmlFor="pause-reason">Reason</label>
+              <select
+                id="pause-reason"
+                className="form-input"
+                value={pauseReason}
+                onChange={(e) => setPauseReason(e.target.value)}
+              >
+                <option value="billing">Billing / unpaid invoice</option>
+                <option value="trial_expired">Trial ended</option>
+                <option value="policy">Policy / compliance</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div className="platform-modal__actions">
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => { setPauseTarget(null); setPauseReason('billing'); }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm platform-btn-delete"
+                disabled={actionLoading === pauseTarget.id}
+                onClick={() => void confirmPause()}
+              >
+                {actionLoading === pauseTarget.id ? <Loader2 size={14} className="animate-spin" /> : <PauseCircle size={14} />}
+                Pause access
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {resumeTarget && (
+        <div className="platform-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="resume-company-title">
+          <div className="glass-panel platform-modal">
+            <h3 id="resume-company-title" className="platform-modal__title">Resume organization</h3>
+            <p className="platform-modal__hint">
+              Resume <strong>{resumeTarget.name}</strong> so the company can sign in again.
+              For trial accounts, set how many more days they get.
+            </p>
+            <div className="form-group">
+              <label className="form-label" htmlFor="resume-plan">Plan</label>
+              <select
+                id="resume-plan"
+                className="form-input"
+                value={resumePlan}
+                onChange={(e) => setResumePlan(e.target.value)}
+              >
+                <option value="trial">Trial</option>
+                <option value="starter">Starter</option>
+                <option value="professional">Professional</option>
+                <option value="enterprise">Enterprise</option>
+              </select>
+            </div>
+            {resumePlan === 'trial' && (
+              <div className="form-group">
+                <label className="form-label" htmlFor="resume-days">Trial days from today</label>
+                <input
+                  id="resume-days"
+                  className="form-input"
+                  type="number"
+                  min={1}
+                  max={90}
+                  value={resumeTrialDays}
+                  onChange={(e) => setResumeTrialDays(e.target.value)}
+                />
+              </div>
+            )}
+            <div className="platform-modal__actions">
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => {
+                  setResumeTarget(null);
+                  setResumePlan('trial');
+                  setResumeTrialDays('3');
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                disabled={actionLoading === resumeTarget.id}
+                onClick={() => void confirmResume()}
+              >
+                {actionLoading === resumeTarget.id ? <Loader2 size={14} className="animate-spin" /> : <PlayCircle size={14} />}
+                Resume access
               </button>
             </div>
           </div>

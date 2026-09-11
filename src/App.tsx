@@ -9,7 +9,7 @@ import { isAppShell, isNativeApp } from './utils/nativePlatform';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { applyBranding, fetchCompanyBranding, loadBranding } from './lib/branding';
 import { isDemoProfile } from './utils/demoMode';
-import { isPlatformRoute, fetchMyCompany, Company } from './utils/companyHelpers';
+import { isPlatformRoute, fetchMyCompany, Company, isPlatformOwner } from './utils/companyHelpers';
 import { useSupabaseRealtime } from './utils/useSupabaseRealtime';
 import { usePortalSessionGuard } from './utils/usePortalSessionGuard';
 import {
@@ -363,7 +363,7 @@ function App() {
         </div>
       </NativeScrollRoot>
     );
-  } else if (company && company.status !== 'active') {
+  } else if (company && company.status !== 'active' && !isPlatformOwner(profile)) {
     main = (
       <NativeScrollRoot>
         <CompanyPendingScreen company={company} onLogout={handleLogout} />

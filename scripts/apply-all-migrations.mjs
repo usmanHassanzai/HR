@@ -164,6 +164,7 @@ const MIGRATIONS = [
   'skip_company_setup_wizard.sql',
   'fix_platform_delete_company_department_constraint.sql',
   'platform_update_company.sql',
+  'company_pause_and_trial_expiry.sql',
 ];
 
 async function runMigration(filename) {

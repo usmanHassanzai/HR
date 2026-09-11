@@ -1,4 +1,4 @@
-import { Clock, Mail, Building2, Bell, Phone, CreditCard } from 'lucide-react';
+import { Clock, Mail, Building2, Bell, Phone, CreditCard, PauseCircle } from 'lucide-react';
 import { Company, SUBSCRIPTION_PLANS } from '../utils/companyHelpers';
 
 interface CompanyPendingScreenProps {
@@ -10,9 +10,17 @@ function planLabel(plan?: string | null) {
   return SUBSCRIPTION_PLANS.find((p) => p.id === plan)?.label ?? plan ?? '—';
 }
 
+function isTrialExpired(company: Company): boolean {
+  if (company.subscription_plan && company.subscription_plan !== 'trial') return false;
+  if (company.paused_reason === 'trial_expired') return true;
+  if (!company.trial_ends_at) return false;
+  return new Date(company.trial_ends_at).getTime() < Date.now();
+}
+
 export default function CompanyPendingScreen({ company, onLogout }: CompanyPendingScreenProps) {
   const isRejected = company.status === 'rejected';
   const isSuspended = company.status === 'suspended';
+  const trialExpired = isSuspended && isTrialExpired(company);
 
   return (
     <div className="dashboard-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
@@ -44,10 +52,29 @@ export default function CompanyPendingScreen({ company, onLogout }: CompanyPendi
           </p>
         )}
 
-        {isSuspended && (
-          <p style={{ color: 'var(--color-danger)', lineHeight: 1.6, marginBottom: '1rem' }}>
-            Your company account is suspended. Contact the platform owner for assistance.
-          </p>
+        {isSuspended && trialExpired && (
+          <>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(239,68,68,0.12)', color: 'var(--color-danger)', padding: '0.35rem 0.75rem', borderRadius: 999, fontSize: '0.85rem', marginBottom: '1rem' }}>
+              <PauseCircle size={14} /> Trial ended
+            </div>
+            <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '1rem' }}>
+              Your 3-day free trial has ended, so access for all employees, managers, HR, and admins is paused.
+              Contact <strong>info@walfia.ai</strong> to subscribe or request a trial extension.
+            </p>
+          </>
+        )}
+
+        {isSuspended && !trialExpired && (
+          <>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(239,68,68,0.12)', color: 'var(--color-danger)', padding: '0.35rem 0.75rem', borderRadius: 999, fontSize: '0.85rem', marginBottom: '1rem' }}>
+              <PauseCircle size={14} /> Account paused
+            </div>
+            <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '1rem' }}>
+              Your organization is paused by the platform owner
+              {company.paused_reason && company.paused_reason !== 'billing' ? ` (${company.paused_reason})` : ' (usually billing)'}.
+              Nobody in this company can open Scorr until <strong>info@walfia.ai</strong> resumes access.
+            </p>
+          </>
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '1rem' }}>
