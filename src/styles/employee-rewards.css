@@ -321,6 +321,14 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.emp-rewards-catalog-item__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: flex-end;
 }
 
 .emp-rewards-catalog-item__cost {
@@ -544,6 +552,13 @@
   font-size: 0.8rem;
   color: var(--text-secondary);
   line-height: 1.4;
+}
+
+.kpi-award-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-self: flex-start;
 }
 
 .kpi-award-card__redeem {

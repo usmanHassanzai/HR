@@ -11,7 +11,7 @@ import {
   ArrowLeft,
   ChevronRight,
 } from 'lucide-react';
-import type { KpiAwardPipelineRow, KpiAwardProgress } from '../utils/kpiAwardHelpers';
+import type { KpiAwardPipelineRow, KpiAwardProgress, KpiAwardRuleKey } from '../utils/kpiAwardHelpers';
 import { awardGiftLine, coerceAwardWeightage, formatAwardWeightage } from '../utils/kpiAwardHelpers';
 import KpiAwardProgressList from './KpiAwardProgressList';
 import WeightageRewardCatalog from './WeightageRewardCatalog';
@@ -51,6 +51,7 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
   const [msg, setMsg] = useState('');
   const [msgError, setMsgError] = useState(false);
   const [selected, setSelected] = useState<TeamGiftRow | null>(null);
+  const [redeemingKey, setRedeemingKey] = useState<KpiAwardRuleKey | null>(null);
   const [catalogQueue, setCatalogQueue] = useState<{
     id: string;
     status: string;
@@ -197,6 +198,28 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
     void load();
   };
 
+  const claimMyGift = async (ruleKey: KpiAwardRuleKey, opts?: { useBanked?: boolean }) => {
+    setRedeemingKey(ruleKey);
+    setMsg('');
+    setMsgError(false);
+    const { error } = await supabase.rpc('claim_my_kpi_award', {
+      p_rule_key: ruleKey,
+      p_use_banked: Boolean(opts?.useBanked),
+    });
+    if (error) {
+      setMsgError(true);
+      setMsg(error.message);
+    } else {
+      setMsg(
+        opts?.useBanked
+          ? 'Gift requested using banked weightage.'
+          : 'Gift request submitted.',
+      );
+      void load();
+    }
+    setRedeemingKey(null);
+  };
+
   const myWeightage = coerceAwardWeightage(
     myBalance.available,
     myProgress.find((r) => r.latest_score != null)?.latest_score ?? null,
@@ -260,15 +283,20 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
       <KpiAwardProgressList
         rows={myProgress}
         title="Your company gifts"
-        intro="Monthly gifts use the gift cost; leftover banks. Movie: 90–95% × 3 months in a row. Surprise: 90–95% × 6 months in a row."
+        intro="Monthly gifts use the gift cost; leftover banks. You can also redeem dinner or catalog with Banked when it covers the cost."
         monthWeightage={myWeightage}
+        bankedWeightage={myBalance.banked}
+        onRedeem={claimMyGift}
+        redeemingKey={redeemingKey}
       />
 
       <WeightageRewardCatalog
         userId={managerId}
         monthWeightage={myWeightage}
+        bankedWeightage={myBalance.banked}
         title="Reward catalog"
-        intro="One monthly catalog gift per month. Streak gifts can be redeemed in the same month and do not spend weightage."
+        intro="One monthly catalog gift per month. Redeem with Current or with Banked when banked covers the cost."
+        onRedeemed={() => void load()}
       />
 
       <section className="mgr-rewards-card">

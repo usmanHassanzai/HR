@@ -174,6 +174,8 @@ const MIGRATIONS = [
   'reward_deduct_on_monthly_redeem.sql',
   'reward_reject_and_refund.sql',
   'reward_weightage_bank.sql',
+  'reward_fix_used_cap.sql',
+  'reward_redeem_with_banked.sql',
 ];
 
 async function runMigration(filename) {

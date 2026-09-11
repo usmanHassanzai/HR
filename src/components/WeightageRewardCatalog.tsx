@@ -24,13 +24,16 @@ interface CatalogRedemption {
 export default function WeightageRewardCatalog({
   userId,
   monthWeightage,
+  bankedWeightage = 0,
   monthGiftClaimed = false,
   title = 'Reward catalog',
-  intro = 'One monthly catalog gift per month (not with dinner). Movie/surprise streaks can be redeemed in the same month.',
+  intro = 'One monthly catalog gift per month (not with dinner). Use Current when this month qualifies, or Redeem with Banked when banked covers the cost.',
   onRedeemed,
 }: {
   userId: string;
   monthWeightage: number | null;
+  /** Cross-month banked leftover weightage. */
+  bankedWeightage?: number;
   /** True if this person already claimed a monthly gift (dinner or catalog) this month. */
   monthGiftClaimed?: boolean;
   title?: string;
@@ -71,7 +74,7 @@ export default function WeightageRewardCatalog({
 
   const anyCatalogThisMonth = useMemo(() => {
     const key = new Date().toISOString().slice(0, 7);
-    return mine.some((r) => String(r.redeemed_at).slice(0, 7) === key);
+    return mine.some((r) => String(r.redeemed_at).slice(0, 7) === key && r.status !== 'rejected');
   }, [mine]);
 
   const blockedForMonth = monthGiftClaimed || anyCatalogThisMonth;
@@ -82,20 +85,31 @@ export default function WeightageRewardCatalog({
   const redeemedThisMonth = (rewardId: string) => {
     const key = new Date().toISOString().slice(0, 7);
     return mine.find(
-      (r) => r.reward_id === rewardId && String(r.redeemed_at).slice(0, 7) === key,
+      (r) =>
+        r.reward_id === rewardId &&
+        String(r.redeemed_at).slice(0, 7) === key &&
+        r.status !== 'rejected',
     );
   };
 
-  const handleRedeem = async (item: WeightageCatalogItem) => {
+  const handleRedeem = async (item: WeightageCatalogItem, useBanked: boolean) => {
     setRedeemingId(item.id);
     setMsg(null);
-    const { error } = await supabase.rpc('redeem_catalog_reward', { p_reward_id: item.id });
+    const { error } = await supabase.rpc('redeem_catalog_reward', {
+      p_reward_id: item.id,
+      p_use_banked: useBanked,
+    });
     if (error) {
       setMsg({ type: 'err', text: error.message || 'Could not redeem this reward.' });
       setRedeemingId(null);
       return;
     }
-    setMsg({ type: 'ok', text: `Requested “${item.name}” — waiting for approval.` });
+    setMsg({
+      type: 'ok',
+      text: useBanked
+        ? `Requested “${item.name}” using banked weightage — waiting for approval.`
+        : `Requested “${item.name}” — waiting for approval.`,
+    });
     await load();
     onRedeemed?.();
     setRedeemingId(null);
@@ -140,15 +154,20 @@ export default function WeightageRewardCatalog({
         {items.map((item) => {
           const need = Number(item.weightage_required) || 0;
           const have = monthWeightage;
-          const meets = have != null && have >= need;
+          const banked = Number(bankedWeightage) || 0;
+          const meetsCurrent = have != null && have >= need;
+          const meetsBanked = banked >= need;
           const pending = openOrPending(item.id);
           const doneMonth = redeemedThisMonth(item.id);
-          const locked = !meets || Boolean(pending) || Boolean(doneMonth) || (blockedForMonth && !pending && !doneMonth);
+          const monthBlocked = blockedForMonth && !pending && !doneMonth;
           const busy = redeemingId === item.id;
+          const canCurrent = meetsCurrent && !pending && !doneMonth && !monthBlocked;
+          const canBanked = meetsBanked && !pending && !doneMonth && !monthBlocked;
+          const ready = canCurrent || canBanked;
           return (
             <article
               key={item.id}
-              className={`emp-rewards-catalog-item${meets && !pending && !doneMonth && !blockedForMonth ? ' emp-rewards-catalog-item--ready' : ''}${locked && !pending && !doneMonth ? ' emp-rewards-catalog-item--locked' : ''}`}
+              className={`emp-rewards-catalog-item${ready ? ' emp-rewards-catalog-item--ready' : ''}${!ready && !pending && !doneMonth ? ' emp-rewards-catalog-item--locked' : ''}`}
             >
               <div className="emp-rewards-catalog-item__icon">
                 <RewardCatalogIcon icon={item.icon} size={32} />
@@ -156,13 +175,19 @@ export default function WeightageRewardCatalog({
               <div className="emp-rewards-catalog-item__body">
                 <strong>{item.name}</strong>
                 <span>{item.description || 'Company catalog reward'}</span>
-                {!meets && !blockedForMonth && (
+                {!meetsCurrent && !meetsBanked && !monthBlocked && (
                   <span className="emp-rewards-catalog-item__need">
-                    Need {formatAwardWeightage(need)} available
-                    {have != null ? ` · you have ${formatAwardWeightage(have)}` : ''}
+                    Need {formatAwardWeightage(need)}
+                    {have != null ? ` · current ${formatAwardWeightage(have)}` : ''}
+                    {` · banked ${formatAwardWeightage(banked)}`}
                   </span>
                 )}
-                {blockedForMonth && !pending && !doneMonth && (
+                {!meetsCurrent && meetsBanked && !monthBlocked && (
+                  <span className="emp-rewards-catalog-item__need">
+                    Current is short — you can redeem with banked ({formatAwardWeightage(banked)})
+                  </span>
+                )}
+                {monthBlocked && (
                   <span className="emp-rewards-catalog-item__need">
                     You already redeemed a monthly gift this month
                   </span>
@@ -178,25 +203,39 @@ export default function WeightageRewardCatalog({
               </div>
               <div className="emp-rewards-catalog-item__foot">
                 <span className="emp-rewards-catalog-item__cost">Uses {formatAwardWeightage(need)}</span>
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm"
-                  disabled={locked || busy}
-                  onClick={() => void handleRedeem(item)}
-                >
-                  {busy ? (
-                    <>
-                      <Loader2 size={14} className="spin-icon" />
-                      …
-                    </>
-                  ) : pending ? (
-                    'Requested'
-                  ) : doneMonth || blockedForMonth ? (
-                    'Unavailable'
-                  ) : (
-                    'Redeem'
-                  )}
-                </button>
+                <div className="emp-rewards-catalog-item__actions">
+                  {canCurrent ? (
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      disabled={busy}
+                      onClick={() => void handleRedeem(item, false)}
+                    >
+                      {busy ? <Loader2 size={14} className="spin-icon" /> : null}
+                      Redeem
+                    </button>
+                  ) : null}
+                  {canBanked ? (
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      disabled={busy}
+                      onClick={() => {
+                        if (window.confirm(`Use ${formatAwardWeightage(need)} from banked weightage for “${item.name}”?`)) {
+                          void handleRedeem(item, true);
+                        }
+                      }}
+                    >
+                      {busy ? <Loader2 size={14} className="spin-icon" /> : null}
+                      Redeem with Banked
+                    </button>
+                  ) : null}
+                  {!canCurrent && !canBanked ? (
+                    <button type="button" className="btn btn-primary btn-sm" disabled>
+                      {pending ? 'Requested' : doneMonth || monthBlocked ? 'Unavailable' : 'Redeem'}
+                    </button>
+                  ) : null}
+                </div>
               </div>
             </article>
           );
