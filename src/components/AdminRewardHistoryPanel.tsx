@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { History, Loader2, Search, UserRound, Gift, Package } from 'lucide-react';
+import {
+  History,
+  Loader2,
+  Search,
+  Gift,
+  Package,
+  ArrowLeft,
+  X,
+} from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Profile } from '../utils/kpiHelpers';
 import RewardCatalogIcon from './RewardCatalogIcon';
@@ -31,11 +39,34 @@ function statusLabel(status: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+function statusTone(status: string): string {
+  const s = (status || '').toLowerCase();
+  if (s === 'issued' || s === 'fulfilled') return 'fulfilled';
+  if (s === 'approved') return 'approved';
+  if (s === 'dismissed') return 'dismissed';
+  return 'pending';
+}
+
 function roleLabel(role: string | undefined): string {
   if (role === 'manager') return 'Manager';
   if (role === 'hr') return 'HR';
   if (role === 'admin') return 'Admin';
   return 'Employee';
+}
+
+function initials(name: string | undefined): string {
+  const parts = (name || '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase();
+}
+
+function formatHistoryDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
 }
 
 export default function AdminRewardHistoryPanel({
@@ -208,18 +239,12 @@ export default function AdminRewardHistoryPanel({
     void loadHistory(selectedId);
   }, [selectedId, loadHistory]);
 
-  const emptyPeopleCopy = isManagerScope
-    ? 'No team members match that search.'
-    : 'No employees or managers match that search.';
-
-  const introCopy = isManagerScope
-    ? 'Search your team to see each employee’s catalog redemptions and KPI gifts — pending, approved, and fulfilled.'
-    : 'Search any employee or manager to see every catalog redemption and KPI gift they claimed — including pending, approved, and fulfilled.';
+  const clearSelection = () => setSelectedId(null);
 
   if (loadingPeople) {
     return (
-      <div className="admin-rewards-loading">
-        <Loader2 size={28} className="spin-icon" />
+      <div className="rgh-loading" role="status">
+        <Loader2 size={26} className="spin-icon" />
         <span>Loading people…</span>
       </div>
     );
@@ -227,187 +252,184 @@ export default function AdminRewardHistoryPanel({
 
   return (
     <section
-      className={
-        isManagerScope
-          ? 'mgr-rewards-card admin-reward-history'
-          : 'admin-rewards-card glass-panel admin-reward-history'
-      }
+      className={`rgh ${isManagerScope ? 'rgh--manager' : 'rgh--admin glass-panel'}${
+        selectedId ? ' rgh--has-selection' : ''
+      }`}
     >
-      <div className={isManagerScope ? undefined : 'admin-rewards-card__head'}>
-        <div>
-          <h3>
-            <History size={18} /> {isManagerScope ? 'Team gift history' : 'Gift history'}
-          </h3>
-          <p>{introCopy}</p>
+      <header className="rgh__header">
+        <div className="rgh__header-icon" aria-hidden>
+          <History size={20} />
         </div>
-      </div>
+        <div className="rgh__header-copy">
+          <div className="rgh__title-row">
+            <h3>{isManagerScope ? 'Team gift history' : 'Gift history'}</h3>
+            <span className="rgh__count">{people.length}</span>
+          </div>
+          <p>
+            {isManagerScope
+              ? 'Look up anyone on your team and review every gift they claimed.'
+              : 'Look up any employee or manager and review their full redemption record.'}
+          </p>
+        </div>
+      </header>
 
       {error && (
-        <div
-          className={
-            isManagerScope
-              ? 'mgr-rewards-alert mgr-rewards-alert--error'
-              : 'admin-rewards-alert admin-rewards-alert--error'
-          }
-          role="alert"
-        >
-          {error}
+        <div className="rgh__alert" role="alert">
+          <span>{error}</span>
+          <button type="button" className="rgh__alert-dismiss" onClick={() => setError('')} aria-label="Dismiss">
+            <X size={14} />
+          </button>
         </div>
       )}
 
-      <label className="admin-reward-history__search">
-        <Search size={16} aria-hidden />
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by name or email…"
-          autoComplete="off"
-        />
-      </label>
-
-      <div className="admin-reward-history__layout">
-        <div className="admin-reward-history__people" role="listbox" aria-label="People">
-          {matches.length === 0 ? (
-            <p className="admin-rewards-empty" style={{ padding: '1rem' }}>
-              {emptyPeopleCopy}
-            </p>
-          ) : (
-            matches.map((p) => (
+      <div className="rgh__shell">
+        <aside className="rgh__aside" aria-label={isManagerScope ? 'Team members' : 'People'}>
+          <label className="rgh__search">
+            <Search size={16} aria-hidden />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search name or email…"
+              autoComplete="off"
+              enterKeyHint="search"
+            />
+            {query ? (
               <button
-                key={p.id}
                 type="button"
-                role="option"
-                aria-selected={selectedId === p.id}
-                className={`admin-reward-history__person${selectedId === p.id ? ' is-active' : ''}`}
-                onClick={() => setSelectedId(p.id)}
+                className="rgh__search-clear"
+                onClick={() => setQuery('')}
+                aria-label="Clear search"
               >
-                <span className="admin-reward-history__avatar" aria-hidden>
-                  <UserRound size={16} />
-                </span>
-                <span className="admin-reward-history__person-text">
-                  <strong>{p.full_name}</strong>
-                  <span>
-                    {roleLabel(p.role)}
-                    {p.email ? ` · ${p.email}` : ''}
-                  </span>
-                </span>
+                <X size={14} />
               </button>
-            ))
-          )}
-        </div>
+            ) : null}
+          </label>
 
-        <div className="admin-reward-history__detail">
+          <div className="rgh__people" role="listbox" aria-label="Matching people">
+            {matches.length === 0 ? (
+              <div className="rgh__empty rgh__empty--compact">
+                <p>{isManagerScope ? 'No team members match.' : 'No people match that search.'}</p>
+              </div>
+            ) : (
+              matches.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  role="option"
+                  aria-selected={selectedId === p.id}
+                  className={`rgh__person${selectedId === p.id ? ' is-active' : ''}`}
+                  onClick={() => setSelectedId(p.id)}
+                >
+                  <span className="rgh__avatar" aria-hidden>
+                    {initials(p.full_name)}
+                  </span>
+                  <span className="rgh__person-meta">
+                    <strong>{p.full_name}</strong>
+                    <span className="rgh__person-sub">
+                      <span className="rgh__role-chip">{roleLabel(p.role)}</span>
+                      {p.email ? <span className="rgh__email">{p.email}</span> : null}
+                    </span>
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+        </aside>
+
+        <div className="rgh__detail" aria-live="polite">
           {!selected ? (
-            <div className="admin-rewards-empty" style={{ padding: '2rem 1rem' }}>
-              <Search size={36} strokeWidth={1.25} />
+            <div className="rgh__empty">
+              <div className="rgh__empty-icon" aria-hidden>
+                <Search size={28} strokeWidth={1.5} />
+              </div>
               <h4>Select a person</h4>
               <p>
                 {isManagerScope
-                  ? 'Pick someone on your team to open their gift history.'
-                  : 'Type a name to find someone, then open their full gift history.'}
+                  ? 'Choose someone from your team to open their gift timeline.'
+                  : 'Search, then select a person to open their gift timeline.'}
               </p>
             </div>
           ) : loadingHistory ? (
-            <div className="admin-rewards-loading" style={{ padding: '2rem' }}>
+            <div className="rgh-loading rgh-loading--inset" role="status">
               <Loader2 size={24} className="spin-icon" />
               <span>Loading history…</span>
             </div>
           ) : (
             <>
-              <header className="admin-reward-history__detail-head">
-                <div>
+              <div className="rgh__detail-toolbar">
+                <button type="button" className="rgh__back" onClick={clearSelection}>
+                  <ArrowLeft size={16} />
+                  Back
+                </button>
+              </div>
+
+              <header className="rgh__profile">
+                <span className="rgh__avatar rgh__avatar--lg" aria-hidden>
+                  {initials(selected.full_name)}
+                </span>
+                <div className="rgh__profile-text">
                   <h4>{selected.full_name}</h4>
                   <p>
-                    {roleLabel(selected.role)}
-                    {selected.email ? ` · ${selected.email}` : ''}
-                    {' · '}
-                    {rows.length} gift{rows.length === 1 ? '' : 's'}
+                    <span className="rgh__role-chip">{roleLabel(selected.role)}</span>
+                    {selected.email ? <span className="rgh__email">{selected.email}</span> : null}
+                  </p>
+                  <p className="rgh__profile-count">
+                    {rows.length === 0
+                      ? 'No gifts recorded'
+                      : `${rows.length} gift${rows.length === 1 ? '' : 's'} on record`}
                   </p>
                 </div>
               </header>
 
               {rows.length === 0 ? (
-                <div className="admin-rewards-empty" style={{ padding: '1.5rem 1rem' }}>
-                  <Gift size={36} strokeWidth={1.25} />
+                <div className="rgh__empty rgh__empty--inset">
+                  <div className="rgh__empty-icon" aria-hidden>
+                    <Gift size={28} strokeWidth={1.5} />
+                  </div>
                   <h4>No gifts yet</h4>
-                  <p>This person has not redeemed a catalog reward or claimed a KPI gift.</p>
+                  <p>No catalog redemptions or KPI awards have been claimed by this person.</p>
                 </div>
               ) : (
-                <div className={isManagerScope ? 'mgr-rewards-table-wrap' : 'admin-rewards-table-wrap'}>
-                  <table className={isManagerScope ? 'mgr-rewards-table' : 'admin-rewards-table'}>
-                    <thead>
-                      <tr>
-                        <th>Gift</th>
-                        <th>Type</th>
-                        <th>Weightage</th>
-                        <th>Status</th>
-                        <th>Date</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {rows.map((r) => (
-                        <tr key={r.id}>
-                          <td>
-                            <span className="admin-reward-history__gift">
-                              {r.kind === 'catalog' ? (
-                                <RewardCatalogIcon icon={r.icon ?? '🎁'} size={18} />
-                              ) : (
-                                <Gift size={16} />
-                              )}
-                              <span>
-                                <strong>{r.rewardName}</strong>
-                                {r.detail ? (
-                                  <span className="admin-reward-history__detail-line">{r.detail}</span>
-                                ) : null}
-                              </span>
-                            </span>
-                          </td>
-                          <td>
-                            <span className={`admin-reward-history__type admin-reward-history__type--${r.kind}`}>
-                              {r.kind === 'catalog' ? (
-                                <>
-                                  <Package size={12} /> Catalog
-                                </>
-                              ) : (
-                                <>
-                                  <Gift size={12} /> KPI award
-                                </>
-                              )}
-                            </span>
-                          </td>
-                          <td>
-                            {r.weightage != null && !Number.isNaN(r.weightage)
-                              ? `${r.weightage}%`
-                              : '—'}
-                          </td>
-                          <td>
-                            <span
-                              className={
-                                isManagerScope
-                                  ? `mgr-rewards-status mgr-rewards-status--${
-                                      r.status === 'issued' ? 'fulfilled' : r.status || 'pending'
-                                    }`
-                                  : `redemption-status redemption-status--${
-                                      r.status === 'issued' ? 'fulfilled' : r.status || 'pending'
-                                    }`
-                              }
-                            >
-                              {statusLabel(r.status)}
-                            </span>
-                          </td>
-                          <td>
-                            {new Date(r.at).toLocaleDateString(undefined, {
-                              year: 'numeric',
-                              month: 'short',
-                              day: 'numeric',
-                            })}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <ol className="rgh__timeline">
+                  {rows.map((r) => (
+                    <li key={r.id} className="rgh__event">
+                      <div className={`rgh__event-icon rgh__event-icon--${r.kind}`} aria-hidden>
+                        {r.kind === 'catalog' ? (
+                          <RewardCatalogIcon icon={r.icon ?? '🎁'} size={20} />
+                        ) : (
+                          <Gift size={18} />
+                        )}
+                      </div>
+                      <div className="rgh__event-body">
+                        <div className="rgh__event-top">
+                          <strong className="rgh__event-title">{r.rewardName}</strong>
+                          <span className={`rgh__status rgh__status--${statusTone(r.status)}`}>
+                            {statusLabel(r.status)}
+                          </span>
+                        </div>
+                        <div className="rgh__event-meta">
+                          <span className={`rgh__kind rgh__kind--${r.kind}`}>
+                            {r.kind === 'catalog' ? (
+                              <>
+                                <Package size={12} /> Catalog
+                              </>
+                            ) : (
+                              <>
+                                <Gift size={12} /> KPI award
+                              </>
+                            )}
+                          </span>
+                          {r.weightage != null && !Number.isNaN(r.weightage) ? (
+                            <span>{r.weightage}% weightage</span>
+                          ) : null}
+                          <time dateTime={r.at}>{formatHistoryDate(r.at)}</time>
+                        </div>
+                        {r.detail ? <p className="rgh__event-detail">{r.detail}</p> : null}
+                      </div>
+                    </li>
+                  ))}
+                </ol>
               )}
             </>
           )}
