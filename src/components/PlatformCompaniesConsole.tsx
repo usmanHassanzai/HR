@@ -21,11 +21,48 @@ import {
   X,
   Mail,
   Phone,
+  Pencil,
 } from 'lucide-react';
 import '../styles/platform.css';
 
 type PlatformTab = 'pending' | 'approved' | 'all' | 'notifications';
 type AlertKind = 'success' | 'error';
+
+type CompanyEditForm = {
+  name: string;
+  contact_name: string;
+  contact_email: string;
+  contact_phone: string;
+  job_title: string;
+  industry: string;
+  employee_count: string;
+  website: string;
+  address_line: string;
+  city: string;
+  country: string;
+  subscription_plan: string;
+  status: PlatformCompanyRow['status'];
+  registration_notes: string;
+};
+
+function toEditForm(c: PlatformCompanyRow): CompanyEditForm {
+  return {
+    name: c.name || '',
+    contact_name: c.contact_name || '',
+    contact_email: c.contact_email || '',
+    contact_phone: c.contact_phone || '',
+    job_title: c.job_title || '',
+    industry: c.industry || '',
+    employee_count: c.employee_count || '',
+    website: c.website || '',
+    address_line: c.address_line || '',
+    city: c.city || '',
+    country: c.country || '',
+    subscription_plan: c.subscription_plan || 'trial',
+    status: c.status,
+    registration_notes: c.registration_notes || '',
+  };
+}
 
 interface PlatformCompaniesConsoleProps {
   profile: Profile;
@@ -141,12 +178,14 @@ function PendingCard({
   busy,
   onApprove,
   onReject,
+  onEdit,
   onDelete,
 }: {
   c: PlatformCompanyRow;
   busy: boolean;
   onApprove: () => void;
   onReject: () => void;
+  onEdit: () => void;
   onDelete: () => void;
 }) {
   const protectedOrg = isWalfiaDefaultCompany(c);
@@ -172,6 +211,9 @@ function PendingCard({
           </p>
         </div>
         <div className="platform-pending-card__actions">
+          <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={onEdit} title="Edit company">
+            <Pencil size={14} /> Edit
+          </button>
           <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={onApprove}>
             {busy ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
             Approve
@@ -203,6 +245,9 @@ export default function PlatformCompaniesConsole({ profile, embedded = false, on
   const [statusFilter, setStatusFilter] = useState<'all' | PlatformCompanyRow['status']>('all');
   const [rejectTarget, setRejectTarget] = useState<PlatformCompanyRow | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [editTarget, setEditTarget] = useState<PlatformCompanyRow | null>(null);
+  const [editForm, setEditForm] = useState<CompanyEditForm | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
 
   const loadData = useCallback(async () => {
     const [co, no] = await Promise.all([
@@ -290,6 +335,55 @@ export default function PlatformCompaniesConsole({ profile, embedded = false, on
     setActionLoading(null);
   };
 
+  const openEdit = (c: PlatformCompanyRow) => {
+    setEditTarget(c);
+    setEditForm(toEditForm(c));
+    setAlert(null);
+  };
+
+  const saveEdit = async () => {
+    if (!editTarget || !editForm) return;
+    const name = editForm.name.trim();
+    const email = editForm.contact_email.trim();
+    if (!name) {
+      setAlert({ kind: 'error', text: 'Company name is required.' });
+      return;
+    }
+    if (!email) {
+      setAlert({ kind: 'error', text: 'Contact email is required.' });
+      return;
+    }
+    setEditSaving(true);
+    setActionLoading(editTarget.id);
+    setAlert(null);
+    const { error } = await supabase.rpc('platform_update_company', {
+      p_company_id: editTarget.id,
+      p_name: name,
+      p_contact_name: editForm.contact_name.trim() || null,
+      p_contact_email: email,
+      p_contact_phone: editForm.contact_phone.trim() || null,
+      p_job_title: editForm.job_title.trim() || null,
+      p_industry: editForm.industry.trim() || null,
+      p_employee_count: editForm.employee_count.trim() || null,
+      p_website: editForm.website.trim() || null,
+      p_address_line: editForm.address_line.trim() || null,
+      p_city: editForm.city.trim() || null,
+      p_country: editForm.country.trim() || null,
+      p_subscription_plan: editForm.subscription_plan || 'trial',
+      p_status: editForm.status,
+      p_registration_notes: editForm.registration_notes.trim() || null,
+    });
+    if (error) setAlert({ kind: 'error', text: error.message });
+    else {
+      setAlert({ kind: 'success', text: `Updated "${name}".` });
+      setEditTarget(null);
+      setEditForm(null);
+      await loadData();
+    }
+    setEditSaving(false);
+    setActionLoading(null);
+  };
+
   const markNotificationRead = async (n: PlatformNotification) => {
     if (n.read) return;
     await supabase.rpc('platform_mark_notification_read', { p_notification_id: n.id });
@@ -363,6 +457,15 @@ export default function PlatformCompaniesConsole({ profile, embedded = false, on
               </td>
               <td>
                 <div className="platform-table__actions">
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    disabled={actionLoading === c.id}
+                    onClick={() => openEdit(c)}
+                    title="Edit company"
+                  >
+                    <Pencil size={14} />
+                  </button>
                   {showApproveReject && c.status === 'pending' && (
                     <>
                       <button
@@ -579,6 +682,7 @@ export default function PlatformCompaniesConsole({ profile, embedded = false, on
                   busy={actionLoading === c.id}
                   onApprove={() => approve(c.id)}
                   onReject={() => setRejectTarget(c)}
+                  onEdit={() => openEdit(c)}
                   onDelete={() => removeCompany(c)}
                 />
               ))}
@@ -702,6 +806,192 @@ export default function PlatformCompaniesConsole({ profile, embedded = false, on
               >
                 {actionLoading === rejectTarget.id ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
                 Reject company
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editTarget && editForm && (
+        <div className="platform-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="edit-company-title">
+          <div className="glass-panel platform-modal platform-modal--wide">
+            <div className="platform-modal__head">
+              <div>
+                <h3 id="edit-company-title" className="platform-modal__title">Edit organization</h3>
+                <p className="platform-modal__hint" style={{ marginBottom: 0 }}>
+                  Update details for <strong>{editTarget.name}</strong>. Changes apply immediately for the company workspace.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="scorr-dialog-close"
+                aria-label="Close"
+                onClick={() => { setEditTarget(null); setEditForm(null); }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="platform-edit-grid">
+              <div className="form-group">
+                <label className="form-label" htmlFor="edit-co-name">Company name *</label>
+                <input
+                  id="edit-co-name"
+                  className="form-input"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="edit-co-status">Status</label>
+                <select
+                  id="edit-co-status"
+                  className="form-input"
+                  value={editForm.status}
+                  onChange={(e) => setEditForm({ ...editForm, status: e.target.value as PlatformCompanyRow['status'] })}
+                >
+                  <option value="pending">Pending</option>
+                  <option value="active">Active</option>
+                  <option value="rejected">Rejected</option>
+                  <option value="suspended">Suspended</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="edit-co-plan">Plan</label>
+                <select
+                  id="edit-co-plan"
+                  className="form-input"
+                  value={editForm.subscription_plan}
+                  onChange={(e) => setEditForm({ ...editForm, subscription_plan: e.target.value })}
+                >
+                  <option value="trial">Trial</option>
+                  <option value="starter">Starter</option>
+                  <option value="professional">Professional</option>
+                  <option value="enterprise">Enterprise</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="edit-co-industry">Industry</label>
+                <input
+                  id="edit-co-industry"
+                  className="form-input"
+                  value={editForm.industry}
+                  onChange={(e) => setEditForm({ ...editForm, industry: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="edit-co-contact">Contact name</label>
+                <input
+                  id="edit-co-contact"
+                  className="form-input"
+                  value={editForm.contact_name}
+                  onChange={(e) => setEditForm({ ...editForm, contact_name: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="edit-co-job">Job title</label>
+                <input
+                  id="edit-co-job"
+                  className="form-input"
+                  value={editForm.job_title}
+                  onChange={(e) => setEditForm({ ...editForm, job_title: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="edit-co-email">Contact email *</label>
+                <input
+                  id="edit-co-email"
+                  className="form-input"
+                  type="email"
+                  value={editForm.contact_email}
+                  onChange={(e) => setEditForm({ ...editForm, contact_email: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="edit-co-phone">Phone</label>
+                <input
+                  id="edit-co-phone"
+                  className="form-input"
+                  value={editForm.contact_phone}
+                  onChange={(e) => setEditForm({ ...editForm, contact_phone: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="edit-co-size">Team size</label>
+                <input
+                  id="edit-co-size"
+                  className="form-input"
+                  value={editForm.employee_count}
+                  onChange={(e) => setEditForm({ ...editForm, employee_count: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="edit-co-web">Website</label>
+                <input
+                  id="edit-co-web"
+                  className="form-input"
+                  value={editForm.website}
+                  onChange={(e) => setEditForm({ ...editForm, website: e.target.value })}
+                />
+              </div>
+              <div className="form-group platform-edit-grid__full">
+                <label className="form-label" htmlFor="edit-co-address">Address</label>
+                <input
+                  id="edit-co-address"
+                  className="form-input"
+                  value={editForm.address_line}
+                  onChange={(e) => setEditForm({ ...editForm, address_line: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="edit-co-city">City</label>
+                <input
+                  id="edit-co-city"
+                  className="form-input"
+                  value={editForm.city}
+                  onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="edit-co-country">Country</label>
+                <input
+                  id="edit-co-country"
+                  className="form-input"
+                  value={editForm.country}
+                  onChange={(e) => setEditForm({ ...editForm, country: e.target.value })}
+                />
+              </div>
+              <div className="form-group platform-edit-grid__full">
+                <label className="form-label" htmlFor="edit-co-notes">Notes</label>
+                <textarea
+                  id="edit-co-notes"
+                  className="form-input"
+                  rows={3}
+                  value={editForm.registration_notes}
+                  onChange={(e) => setEditForm({ ...editForm, registration_notes: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="platform-modal__actions">
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                disabled={editSaving}
+                onClick={() => { setEditTarget(null); setEditForm(null); }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                disabled={editSaving}
+                onClick={() => void saveEdit()}
+              >
+                {editSaving ? <Loader2 size={14} className="animate-spin" /> : <Pencil size={14} />}
+                Save changes
               </button>
             </div>
           </div>

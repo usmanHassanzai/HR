@@ -163,6 +163,7 @@ const MIGRATIONS = [
   'hr_reports_to_admin_job_title.sql',
   'skip_company_setup_wizard.sql',
   'fix_platform_delete_company_department_constraint.sql',
+  'platform_update_company.sql',
 ];
 
 async function runMigration(filename) {
