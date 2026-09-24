@@ -10,7 +10,7 @@
 endobj
 4 0 obj
 <<
-/Length 1483
+/Length 1448
 >>
 stream
 0.5670000000000001 w
@@ -33,28 +33,28 @@ BT
 17.25 TL
 0.973 0.98 0.988 rg
 45.354330708661422 603.7797637795274568 Td
-(Complete Project Guideline) Tj
+(User Guide) Tj
 ET
 BT
 /F1 11.5 Tf
 13.2249999999999996 TL
 0.796 0.835 0.882 rg
 45.354330708661422 558.42543307086612 Td
-(How Scorr works — company registration, every role and tab,) Tj
+(Company workspace for KPIs, attendance, and rewards.) Tj
 ET
 BT
 /F1 11.5 Tf
 13.2249999999999996 TL
 0.796 0.835 0.882 rg
 45.354330708661422 538.5829133858267141 Td
-(KPI weightage & score, attendance & GPS, authenticator MFA,) Tj
+(Weightage \(0–100%\), company gifts, Banked leftovers,) Tj
 ET
 BT
 /F1 11.5 Tf
 13.2249999999999996 TL
 0.796 0.835 0.882 rg
 45.354330708661422 518.7403937007873083 Td
-(backup codes, email recovery, and how your data is protected.) Tj
+(GPS attendance, and authenticator-secured sign-in.) Tj
 ET
 BT
 /F1 10 Tf
@@ -68,7 +68,7 @@ BT
 11.5 TL
 0.58 0.639 0.722 rg
 45.354330708661422 450.7088976377952463 Td
-(Document date: September 9, 2026) Tj
+(Document date: September 24, 2026) Tj
 ET
 BT
 /F1 10 Tf
@@ -82,7 +82,7 @@ BT
 10.3499999999999996 TL
 0.392 0.455 0.545 rg
 45.354330708661422 62.3624409448817687 Td
-(Registration · MFA · KPIs · Attendance · Security · Devices) Tj
+(Registration · KPIs · Rewards · Attendance · Mobile · Security) Tj
 ET
 endstream
 endobj
@@ -96,7 +96,7 @@ endobj
 endobj
 6 0 obj
 <<
-/Length 3359
+/Length 2883
 >>
 stream
 0.5670000000000001 w
@@ -120,7 +120,7 @@ BT
 9.1999999999999993 TL
 0.392 0.455 0.545 rg
 96.3779527559055254 816.3781889763779418 Td
-(Project Guideline) Tj
+(User Guide) Tj
 ET
 BT
 /F1 8 Tf
@@ -153,49 +153,49 @@ BT
 11.5 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 718.8663779527558972 Td
-(2.  How to Register Your Organization) Tj
+(2.  Register your organization) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 700.7246456692912489 Td
-(3.  User Roles at a Glance) Tj
+(3.  Roles) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 682.5829133858267141 Td
-(4.  Administrator tabs \(complete\)) Tj
+(4.  Administrator menu) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 664.4411811023621794 Td
-(5.  How to Add People) Tj
+(5.  Add people) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 646.2994488188976447 Td
-(6.  First-Time Admin Setup) Tj
+(6.  First-time admin checklist) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 628.1577165354329964 Td
-(7.  Manager tabs \(complete\)) Tj
+(7.  Manager menu) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 610.0159842519684616 Td
-(8.  Employee tabs \(complete\)) Tj
+(8.  Employee menu) Tj
 ET
 BT
 /F1 10 Tf
@@ -209,70 +209,49 @@ BT
 11.5 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 573.7325196850392786 Td
-(10.  Departments) Tj
+(10.  Departments & KPI weightage) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 555.5907874015747439 Td
-(11.  KPI weightage, score & notifications) Tj
+(11.  Rewards \(weightage, Banked, gifts\)) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 537.4490551181100955 Td
-(12.  Attendance, leave, shifts and GPS) Tj
+(12.  Attendance, leave, shifts & GPS) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 519.3073228346454471 Td
-(13.  What the app needs from the device) Tj
+(13.  Device permissions) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 501.1655905511809124 Td
-(14.  Rewards and reports) Tj
+(14.  Mobile apps) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 483.0238582677163208 Td
-(15.  Mobile apps) Tj
+(15.  Security \(MFA & recovery\)) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 464.8821259842517293 Td
-(16.  Security credentials \(MFA & recovery\)) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-51.0236220472441033 446.7403937007871946 Td
-(17.  What “secure” means \(honest guarantee\)) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-51.0236220472441033 428.598661417322603 Td
-(18.  How the platform is built) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-51.0236220472441033 410.4569291338580115 Td
-(19.  Troubleshooting) Tj
+(16.  Troubleshooting) Tj
 ET
 BT
 /F1 8 Tf
@@ -286,7 +265,7 @@ BT
 9.1999999999999993 TL
 0.58 0.639 0.722 rg
 45.354330708661422 28.3466929133857093 Td
-(© Walfia · Project Guideline) Tj
+(© Walfia · Scorr) Tj
 ET
 endstream
 endobj
@@ -300,7 +279,7 @@ endobj
 endobj
 8 0 obj
 <<
-/Length 4639
+/Length 3809
 >>
 stream
 1.7007874015748032 w
@@ -324,7 +303,7 @@ BT
 9.1999999999999993 TL
 0.392 0.455 0.545 rg
 96.3779527559055254 816.3781889763779418 Td
-(Project Guideline) Tj
+(User Guide) Tj
 ET
 BT
 /F1 8 Tf
@@ -350,14 +329,14 @@ BT
 11.5 TL
 0.2 0.255 0.333 rg
 45.354330708661422 737.0081102362204319 Td
-(Scorr \(scorr.walfia.ai\) is a company workspace for performance, attendance, and rewards. One login serves the) Tj
+(Scorr \(https://scorr.walfia.ai\) is a company workspace for performance KPIs, GPS attendance, and company gifts.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 45.354330708661422 721.7010236220471597 Td
-(website, Android app, and iPhone home-screen app.) Tj
+(One login works on the website, Android app, and iPhone Home Screen app.) Tj
 ET
 BT
 /F1 10 Tf
@@ -378,105 +357,70 @@ BT
 12.0749999999999993 TL
 0.118 0.161 0.231 rg
 45.354330708661422 664.4411811023621794 Td
-(What you can run in one place) Tj
+(What you run in one place) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 647.4333070866141497 Td
-(•  KPI tasks with clear Weightage \(0–100%\) and Score \(points index — can exceed 100 when people) Tj
+(•  KPI tasks with weightage \(0–100% per person\). Overall, Month, and Year views.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 632.1262204724408775 Td
-(over-deliver\). Overall, Month, and Year views are independent.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 616.8191338582676053 Td
 (•  Departments, people, roles, and reporting lines.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
+48.1889763779527627 616.8191338582676053 Td
+(•  GPS attendance \(geofence\), day and overnight shifts, leave, and live team location.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
 48.1889763779527627 601.5120472440944468 Td
-(•  GPS attendance \(geofence\), day and overnight shifts, multi-visit check-in/out, auto clock-out when the shift) Tj
+(•  Company rewards based on monthly weightage — not a separate points wallet.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 586.2049606299211746 Td
-(ends, leave, and live team location.) Tj
+(•  Daily work reports, analytics, and exports.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 570.8978740157479024 Td
-(•  Email + in-app alerts when a KPI is completed — to the reporting manager and the person who assigned the) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 555.5907874015747439 Td
-(task.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 540.283700787401358 Td
-(•  Rewards points from monthly score bands, catalog redemption, and approvals.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 524.9766141732281994 Td
-(•  Daily work reports, analytics, attendance/KPI exports.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 509.6695275590549272 Td
-(•  Authenticator MFA, one-time backup codes, and login-email OTP recovery for privileged and staff logins.) Tj
+(•  Authenticator MFA, backup codes, and email OTP recovery.) Tj
 ET
 0.94 0.99 0.98 rg
 0.05 0.58 0.53 RG
 1.1338582677165356 w
-49.6062992125984294 502.8663779527557267 m
-545.6692913385827524 502.8663779527557267 l
-548.0175887000680177 502.8663779527557267 549.9212598425197029 500.9627068103039278 549.9212598425197029 498.6144094488187193 c
-549.9212598425197029 459.49629921259816 l
-549.9212598425197029 457.1480018511129515 547.5729624810344376 455.2443307086611526 545.6692913385827524 455.2443307086611526 c
-49.6062992125984294 455.2443307086611526 l
-47.2580018511131641 455.2443307086611526 45.354330708661422 457.5926280701464179 45.354330708661422 459.49629921259816 c
-45.354330708661422 498.6144094488186056 l
-45.354330708661422 500.9627068103039278 47.7026280701466874 502.866377952755613 49.6062992125984294 502.866377952755613 c
+49.6062992125984294 564.094724409448645 m
+545.6692913385827524 564.094724409448645 l
+548.0175887000680177 564.094724409448645 549.9212598425197029 562.1910532669969598 549.9212598425197029 559.8427559055116944 c
+549.9212598425197029 536.0317322834644074 l
+549.9212598425197029 533.683434921979142 547.5729624810344376 531.7797637795274568 545.6692913385827524 531.7797637795274568 c
+49.6062992125984294 531.7797637795274568 l
+47.2580018511131641 531.7797637795274568 45.354330708661422 534.1280611410126085 45.354330708661422 536.0317322834644074 c
+45.354330708661422 559.8427559055116944 l
+45.354330708661422 562.1910532669969598 47.7026280701466874 564.094724409448645 49.6062992125984294 564.094724409448645 c
 h
 B
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.059 0.463 0.431 rg
-56.6929133858267775 488.6931496062990163 Td
-(The person who registers the company becomes the first Administrator after the organization is approved \(or) Tj
-ET
-BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.059 0.463 0.431 rg
-56.6929133858267775 473.3860629921257441 Td
-(as directed by Walfia onboarding\).) Tj
+56.6929133858267775 549.9214960629919915 Td
+(The person who registers the company becomes the first Administrator after the organization is approved.) Tj
 ET
 BT
 /F1 8 Tf
@@ -490,7 +434,7 @@ BT
 9.1999999999999993 TL
 0.58 0.639 0.722 rg
 45.354330708661422 28.3466929133857093 Td
-(© Walfia · Project Guideline) Tj
+(© Walfia · Scorr) Tj
 ET
 endstream
 endobj
@@ -504,7 +448,7 @@ endobj
 endobj
 10 0 obj
 <<
-/Length 8560
+/Length 5985
 >>
 stream
 1.1338582677165356 w
@@ -528,7 +472,7 @@ BT
 9.1999999999999993 TL
 0.392 0.455 0.545 rg
 96.3779527559055254 816.3781889763779418 Td
-(Project Guideline) Tj
+(User Guide) Tj
 ET
 BT
 /F1 8 Tf
@@ -542,7 +486,7 @@ BT
 17.25 TL
 0.059 0.09 0.165 rg
 45.354330708661422 779.5277952755905062 Td
-(2. How to Register Your Organization) Tj
+(2. Register your organization) Tj
 ET
 0.05 0.58 0.53 RG
 1.7007874015748032 w
@@ -554,308 +498,231 @@ BT
 11.5 TL
 0.2 0.255 0.333 rg
 45.354330708661422 737.0081102362204319 Td
-(Use the public Register Company form. No credit card is required. After approval you receive a 3-day trial with full) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-45.354330708661422 721.7010236220471597 Td
-(product access.) Tj
+(Use Register Company on the public site. After approval you receive trial access with full product features.) Tj
 ET
 BT
 /F2 11.5 Tf
 13.2249999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 700.7246456692912489 Td
+45.354330708661422 716.0317322834645211 Td
 (2.1 Fill the form) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.051 0.58 0.533 rg
-45.354330708661422 680.8821259842519567 Td
+45.354330708661422 696.1892125984252289 Td
 (Step 1:) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-84.1236220472440976 680.8821259842519567 Td
+84.1236220472440976 696.1892125984252289 Td
 (Open https://scorr.walfia.ai and choose Register Company.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.051 0.58 0.533 rg
-45.354330708661422 661.3230708661417339 Td
+45.354330708661422 676.6301574803148924 Td
 (Step 2:) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-84.1236220472440976 661.3230708661417339 Td
+84.1236220472440976 676.6301574803148924 Td
 (Enter company name, industry, and approximate headcount.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.051 0.58 0.533 rg
-45.354330708661422 641.7640157480315111 Td
+45.354330708661422 657.0711023622047833 Td
 (Step 3:) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-84.1236220472440976 641.7640157480315111 Td
-(Enter your name, work email, phone, and a password \(at least 6 characters, confirmed\).) Tj
+84.1236220472440976 657.0711023622047833 Td
+(Enter your name, work email, phone, and password \(at least 6 characters\).) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.051 0.58 0.533 rg
-45.354330708661422 622.2049606299212883 Td
+45.354330708661422 637.5120472440944468 Td
 (Step 4:) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-84.1236220472440976 622.2049606299212883 Td
-(Choose a plan \(Trial / Starter / Professional / Enterprise\).) Tj
+84.1236220472440976 637.5120472440944468 Td
+(Choose a plan.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.051 0.58 0.533 rg
-45.354330708661422 602.6459055118109518 Td
+45.354330708661422 617.952992125984224 Td
 (Step 5:) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-84.1236220472440976 602.6459055118109518 Td
-(Scorr emails a one-time code \(OTP\) to that work email. Enter the code to prove you own the mailbox.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 587.3388188976377933 Td
-(Registration does not complete without this step.) Tj
+84.1236220472440976 617.952992125984224 Td
+(Enter the one-time email code \(OTP\). Registration does not finish without it.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.051 0.58 0.533 rg
-45.354330708661422 567.7797637795274568 Td
+45.354330708661422 598.3939370078740012 Td
 (Step 6:) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-84.1236220472440976 567.7797637795274568 Td
-(Submit. You will see that the company is waiting for platform approval.) Tj
+84.1236220472440976 598.3939370078740012 Td
+(Submit and wait for platform approval.) Tj
 ET
 BT
 /F2 11.5 Tf
 13.2249999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 548.220708661417234 Td
-(2.2 After you submit) Tj
+45.354330708661422 578.8348818897636647 Td
+(2.2 After approval) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 558.9923622047242588 Td
+(•  Sign in with the same email and password.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 543.6852755905511003 Td
+(•  Scorr opens the Admin dashboard.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 528.3781889763778281 Td
-(•  The organization is stored as pending.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 513.0711023622045559 Td
-(•  Walfia \(platform owner\) is notified by email and in the Companies console.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 497.7640157480313405 Td
-(•  When approved, sign in with the same email and password.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 482.4569291338581252 Td
-(•  Scorr opens the Admin dashboard. A short onboarding wizard can help you add people, a default shift, and first) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 467.149842519684853 Td
-(KPI categories.) Tj
-ET
-0.94 0.99 0.98 rg
-0.05 0.58 0.53 RG
-1.1338582677165356 w
-49.6062992125984294 460.3466929133855956 m
-545.6692913385827524 460.3466929133855956 l
-548.0175887000680177 460.3466929133855956 549.9212598425197029 458.4430217709338535 549.9212598425197029 456.0947244094485882 c
-549.9212598425197029 432.283700787401358 l
-549.9212598425197029 429.9354034259160926 547.5729624810344376 428.0317322834643505 545.6692913385827524 428.0317322834643505 c
-49.6062992125984294 428.0317322834643505 l
-47.2580018511131641 428.0317322834643505 45.354330708661422 430.380029644949559 45.354330708661422 432.283700787401358 c
-45.354330708661422 456.0947244094485882 l
-45.354330708661422 458.4430217709338535 47.7026280701466874 460.3466929133855956 49.6062992125984294 460.3466929133855956 c
-h
-B
-BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.059 0.463 0.431 rg
-56.6929133858267775 446.1734645669289421 Td
-(Do not create the rest of your team until the company is approved and you can sign in as Admin.) Tj
+(•  Do not create the rest of the team until you can sign in as Admin.) Tj
 ET
 BT
 /F2 11.5 Tf
 13.2249999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 408.1892125984250015 Td
-(2.3 First sign-in and security credentials) Tj
+45.354330708661422 513.0711023622045559 Td
+(2.3 First sign-in) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.051 0.58 0.533 rg
-45.354330708661422 388.3466929133855956 Td
+45.354330708661422 493.2285826771652069 Td
 (Step 1:) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-84.1236220472440976 388.3466929133855956 Td
-( h t t p s : / / s c o r r . w a l f i a . a i  !’   S i g n   I n   w i t h   c o m p a n y   e m a i l   a n d   p a s s w o r d .) Tj
+84.1236220472440976 493.2285826771652069 Td
+( h t t p s : / / s c o r r . w a l f i a . a i  !’   S i g n   I n .) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.051 0.58 0.533 rg
-45.354330708661422 368.7876377952753728 Td
+45.354330708661422 473.6695275590549841 Td
 (Step 2:) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-84.1236220472440976 368.7876377952753728 Td
-(Accept the monitoring and data-use policy \(attendance location at clock-in/out and KPI records\). Sign-in is) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 353.4805511811021006 Td
-(blocked until this is checked.) Tj
+84.1236220472440976 473.6695275590549841 Td
+(Accept the monitoring / data-use policy \(required\).) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.051 0.58 0.533 rg
-45.354330708661422 333.9214960629918778 Td
+45.354330708661422 454.1104724409447044 Td
 (Step 3:) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-84.1236220472440976 333.9214960629918778 Td
-(Admins, managers, HR, and employees must set up an authenticator app \(Google Authenticator,) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 318.6144094488186056 Td
-(Microsoft Authenticator, or Authy\): scan the QR and enter the 6-digit code.) Tj
+84.1236220472440976 454.1104724409447044 Td
+(Set up an authenticator app \(Google Authenticator, Microsoft Authenticator, or Authy\).) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.051 0.58 0.533 rg
-45.354330708661422 299.0553543307083828 Td
+45.354330708661422 434.5514173228344816 Td
 (Step 4:) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-84.1236220472440976 299.0553543307083828 Td
-(Save your backup codes when shown — each code works once if the phone is unavailable. Store them) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 283.7482677165351106 Td
-(offline \(password manager or printed\).) Tj
+84.1236220472440976 434.5514173228344816 Td
+(Save backup codes offline — each code works once.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.051 0.58 0.533 rg
-45.354330708661422 264.1892125984248878 Td
+45.354330708661422 414.992362204724202 Td
 (Step 5:) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-84.1236220472440976 264.1892125984248878 Td
-(On later logins: password + current authenticator code \(or one unused backup code\).) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 244.6301574803145513 Td
-(•  Demo sandbox accounts may skip MFA. Production company accounts do not.) Tj
+84.1236220472440976 414.992362204724202 Td
+(Later logins: password + authenticator code \(or one unused backup code\).) Tj
 ET
 0.94 0.99 0.98 rg
 0.05 0.58 0.53 RG
 1.1338582677165356 w
-49.6062992125984294 237.8270078740153508 m
-545.6692913385827524 237.8270078740153508 l
-548.0175887000680177 237.8270078740153508 549.9212598425197029 235.9233367315635803 549.9212598425197029 233.5750393700783434 c
-549.9212598425197029 194.456929133857841 l
-549.9212598425197029 192.1086317723725756 547.5729624810344376 190.2049606299208335 545.6692913385827524 190.2049606299208335 c
-49.6062992125984294 190.2049606299208335 l
-47.2580018511131641 190.2049606299208335 45.354330708661422 192.5532579914060705 45.354330708661422 194.456929133857841 c
-45.354330708661422 233.5750393700783434 l
-45.354330708661422 235.9233367315635803 47.7026280701466874 237.8270078740153508 49.6062992125984294 237.8270078740153508 c
+49.6062992125984294 403.9372440944879372 m
+545.6692913385827524 403.9372440944879372 l
+548.0175887000680177 403.9372440944879372 549.9212598425197029 402.0335729520361951 549.9212598425197029 399.6852755905509298 c
+549.9212598425197029 360.5671653543304274 l
+549.9212598425197029 358.2188679928452189 547.5729624810344376 356.3151968503934199 545.6692913385827524 356.3151968503934199 c
+49.6062992125984294 356.3151968503934199 l
+47.2580018511131641 356.3151968503934199 45.354330708661422 358.6634942118786853 45.354330708661422 360.5671653543304274 c
+45.354330708661422 399.6852755905509298 l
+45.354330708661422 402.0335729520361951 47.7026280701466874 403.9372440944879372 49.6062992125984294 403.9372440944879372 c
 h
 B
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.059 0.463 0.431 rg
-56.6929133858267775 223.6537795275586404 Td
-(Lost authenticator and no backup codes? On the MFA screen choose verify with your login email \(OTP\), then) Tj
+56.6929133858267775 389.7640157480312837 Td
+(Lost authenticator and no backup codes? On the MFA screen use email OTP recovery, then re-enroll MFA.) Tj
 ET
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.059 0.463 0.431 rg
-56.6929133858267775 208.3466929133854819 Td
-(re-enroll MFA and save new backup codes. Admins can also reset authenticators from People.) Tj
+56.6929133858267775 374.4569291338580115 Td
+(Admins can also reset authenticators from People.) Tj
 ET
 BT
 /F1 8 Tf
@@ -869,7 +736,7 @@ BT
 9.1999999999999993 TL
 0.58 0.639 0.722 rg
 45.354330708661422 28.3466929133857093 Td
-(© Walfia · Project Guideline) Tj
+(© Walfia · Scorr) Tj
 ET
 endstream
 endobj
@@ -883,7 +750,7 @@ endobj
 endobj
 12 0 obj
 <<
-/Length 4375
+/Length 3400
 >>
 stream
 1.1338582677165356 w
@@ -907,7 +774,7 @@ BT
 9.1999999999999993 TL
 0.392 0.455 0.545 rg
 96.3779527559055254 816.3781889763779418 Td
-(Project Guideline) Tj
+(User Guide) Tj
 ET
 BT
 /F1 8 Tf
@@ -921,7 +788,7 @@ BT
 17.25 TL
 0.059 0.09 0.165 rg
 45.354330708661422 779.5277952755905062 Td
-(3. User Roles at a Glance) Tj
+(3. Roles) Tj
 ET
 0.05 0.58 0.53 RG
 1.7007874015748032 w
@@ -933,7 +800,7 @@ BT
 11.5 TL
 0.2 0.255 0.333 rg
 45.354330708661422 737.0081102362204319 Td
-(Each person has one role. The role chooses the dashboard and what the database will allow.) Tj
+(Each person has one role. The role chooses the dashboard and what Scorr allows.) Tj
 ET
 0.95 0.96 0.98 rg
 45.354330708661422 727.3703149606299121 504.5669291338583093 -19.8425196850393704 re
@@ -964,14 +831,14 @@ BT
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 696.1892125984252289 Td
-(Whole company: people, departments, assign KPIs, scoreboard, rewards catalog,) Tj
+(Whole company: people, departments, assign KPIs, rewards, attendance, GPS, live) Tj
 ET
 BT
 /F1 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 680.8821259842519567 Td
-(attendance, GPS sites, live map, reports, analytics, branding in Settings.) Tj
+(map, analytics, export, branding.) Tj
 ET
 BT
 /F2 9 Tf
@@ -985,98 +852,63 @@ BT
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 662.7403937007874219 Td
-(Team only: assign tasks, team ranking, own KPIs/scoreboard, team) Tj
+(Team: assign tasks, team ranking, own KPIs, team attendance/leave, live tracking,) Tj
 ET
 BT
 /F1 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 647.4333070866141497 Td
-(attendance/leave \(incl. overnight\), live tracking, team rewards, Account Security) Tj
-ET
-BT
-/F1 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 632.1262204724408775 Td
-(and daily report in Settings.) Tj
+(approve/reject team gifts.) Tj
 ET
 BT
 /F2 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-51.0236220472441033 613.9844881889763428 Td
+51.0236220472441033 629.291574803149615 Td
 (Employee) Tj
 ET
 BT
 /F1 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-181.4173228346456881 613.9844881889763428 Td
-(Own work: My KPIs scoreboard, attendance/leave/shift, rewards, Account Security) Tj
-ET
-BT
-/F1 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 598.6774015748030706 Td
-(and daily report in Settings. No branding tab.) Tj
+181.4173228346456881 629.291574803149615 Td
+(Own work: My KPIs, attendance/leave, redeem gifts, Account Security, daily report.) Tj
 ET
 BT
 /F2 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-51.0236220472441033 580.5356692913385359 Td
+51.0236220472441033 611.1498425196849666 Td
 (HR) Tj
 ET
 BT
 /F1 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-181.4173228346456881 580.5356692913385359 Td
-(Company shifts and rewards support. Does not replace Admin for users or) Tj
-ET
-BT
-/F1 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 565.2285826771652637 Td
-(branding.) Tj
-ET
-BT
-/F2 11.5 Tf
-13.2249999999999996 TL
-0.051 0.58 0.533 rg
-45.354330708661422 535.748267716535338 Td
-(Access rules) Tj
+181.4173228346456881 611.1498425196849666 Td
+(Shifts and rewards support without full Admin powers.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 515.9057480314959321 Td
-(•  Employees see only their own KPIs, attendance, points, and reports.) Tj
+48.1889763779527627 581.6695275590550409 Td
+(•  Employees see only their own records.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 500.5986614173227167 Td
-(•  Managers see direct reports \(and department team where designed\), not every company.) Tj
+48.1889763779527627 566.3624409448818824 Td
+(•  Managers see their team, not every department.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 485.2915748031494445 Td
-(•  Admins see the organization they belong to, not other companies.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 469.9844881889761723 Td
-(•  Platform owner \(Walfia\) approves companies; it is not a second copy of your staff files for daily HR work.) Tj
+48.1889763779527627 551.0553543307084965 Td
+(•  Admins see only their organization.) Tj
 ET
 BT
 /F1 8 Tf
@@ -1090,7 +922,7 @@ BT
 9.1999999999999993 TL
 0.58 0.639 0.722 rg
 45.354330708661422 28.3466929133857093 Td
-(© Walfia · Project Guideline) Tj
+(© Walfia · Scorr) Tj
 ET
 endstream
 endobj
@@ -1104,7 +936,7 @@ endobj
 endobj
 14 0 obj
 <<
-/Length 6459
+/Length 5129
 >>
 stream
 1.7007874015748032 w
@@ -1128,7 +960,7 @@ BT
 9.1999999999999993 TL
 0.392 0.455 0.545 rg
 96.3779527559055254 816.3781889763779418 Td
-(Project Guideline) Tj
+(User Guide) Tj
 ET
 BT
 /F1 8 Tf
@@ -1142,7 +974,7 @@ BT
 17.25 TL
 0.059 0.09 0.165 rg
 45.354330708661422 779.5277952755905062 Td
-(4. Administrator tabs \(complete\)) Tj
+(4. Administrator menu) Tj
 ET
 0.05 0.58 0.53 RG
 1.7007874015748032 w
@@ -1154,238 +986,196 @@ BT
 11.5 TL
 0.2 0.255 0.333 rg
 45.354330708661422 737.0081102362204319 Td
-(Sidebar groups: Organization, Performance, Workforce. Branding is not its own tab — it lives under Settings.) Tj
-ET
-BT
-/F2 11.5 Tf
-13.2249999999999996 TL
-0.051 0.58 0.533 rg
-45.354330708661422 716.0317322834645211 Td
-(4.1 Organization) Tj
+(Sidebar order on the Admin dashboard \(as shown in Scorr\):) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.059 0.09 0.165 rg
-45.354330708661422 696.1892125984252289 Td
+45.354330708661422 716.0317322834645211 Td
 (People) Tj
 ET
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 680.5986614173227736 Td
-(Company directory. Add users, set role \(employee/manager/admin/HR\), department, reporting manager, reset) Tj
+53.8582677165354369 700.4411811023621794 Td
+(Directory: add users, roles, department, reporting manager, reset password / authenticator, open a person’s tasks and) Tj
 ET
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 665.291574803149615 Td
-(password, reset authenticator, edit account, remove user, open that person’s assigned tasks and scoreboard.) Tj
+53.8582677165354369 685.1340944881890209 Td
+(scoreboard.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.059 0.09 0.165 rg
-45.354330708661422 641.480551181102328 Td
-(Departments) Tj
-ET
-BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.278 0.333 0.412 rg
-53.8582677165354369 625.8899999999999864 Td
-(Create/rename/remove departments \(Sales, Finance, …\). This is structure only — not a KPI score library.) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.059 0.09 0.165 rg
-45.354330708661422 602.0789763779526993 Td
-(KPI & Rewards) Tj
-ET
-BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.278 0.333 0.412 rg
-53.8582677165354369 586.4884251968503577 Td
-(People board: overall Score \(all-time\), Month score, performance points, reward earned/balance. Open a person to) Tj
-ET
-BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.278 0.333 0.412 rg
-53.8582677165354369 571.1813385826770855 Td
-(see the same Weightage / Score scoreboard as employees \(Overall / Month / Year\) plus task history.) Tj
-ET
-BT
-/F2 11.5 Tf
-13.2249999999999996 TL
-0.051 0.58 0.533 rg
-45.354330708661422 547.3703149606297984 Td
-(4.2 Performance) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.059 0.09 0.165 rg
-45.354330708661422 527.5277952755905062 Td
+45.354330708661422 661.3230708661417339 Td
 (Assign Task) Tj
 ET
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 511.9372440944881077 Td
-(Create a KPI in a category, set weightage and dates, pick department then person, optional note, Assign. Scorr stores) Tj
+53.8582677165354369 645.7325196850393922 Td
+( P i c k   d e p a r t m e n t  !’   p e r s o n  !’   K P I ,   s e t   w e i g h t a g e   a n d   d a t e s ,   A s s i g n .   C o m p l e t i n g   a   t a s k   n o t i f i e s   t h e   r e p o r t i n g   m a n a g e r) Tj
 ET
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 496.6301574803148355 Td
-(who assigned the task. When the person marks Complete, that assigner and their manager get email + in-app alerts.) Tj
-ET
-BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.278 0.333 0.412 rg
-53.8582677165354369 481.3230708661416202 Td
-( S e q u e n t i a l   d r o p d o w n s :   d e p a r t m e n t  !’   p e r s o n  !’   K P I .) Tj
+53.8582677165354369 630.42543307086612 Td
+(and the assigner.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.059 0.09 0.165 rg
-45.354330708661422 457.51204724409439 Td
-(Analytics) Tj
-ET
-BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.278 0.333 0.412 rg
-53.8582677165354369 441.9214960629919915 Td
-(Company KPI health, trends, attainment, and per-person Weightage / Score scoreboards.) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.059 0.09 0.165 rg
-45.354330708661422 418.1104724409447613 Td
-(Reports) Tj
-ET
-BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.278 0.333 0.412 rg
-53.8582677165354369 402.5199212598423628 Td
-(Monthly or quarterly export as Excel, PDF, or CSV.) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.059 0.09 0.165 rg
-45.354330708661422 378.7088976377951326 Td
-(Rewards) Tj
-ET
-BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.278 0.333 0.412 rg
-53.8582677165354369 363.1183464566927341 Td
-(Monthly points job, catalog, approve and fulfill redemptions.) Tj
-ET
-BT
-/F2 11.5 Tf
-13.2249999999999996 TL
-0.051 0.58 0.533 rg
-45.354330708661422 339.3073228346455039 Td
-(4.3 Workforce) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.059 0.09 0.165 rg
-45.354330708661422 319.4648031496061549 Td
-(Attendance) Tj
-ET
-BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.278 0.333 0.412 rg
-53.8582677165354369 303.8742519685036996 Td
-(Leave approvals, attendance history by person \(clock in/out, duration, shift\). Opening attendance reconciles ended) Tj
-ET
-BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.278 0.333 0.412 rg
-53.8582677165354369 288.567165354330541 Td
-(shifts so “still working” does not stick after auto clock-out.) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.059 0.09 0.165 rg
-45.354330708661422 264.756141732283254 Td
+45.354330708661422 606.614409448818833 Td
 (Daily Reports) Tj
 ET
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 249.1655905511809124 Td
-(Read submitted daily work logs by department and role.) Tj
+53.8582677165354369 591.0238582677164914 Td
+(Read staff daily work logs by department and role.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.059 0.09 0.165 rg
-45.354330708661422 225.3545669291336253 Td
-(Live Tracking) Tj
+45.354330708661422 567.212834645669318 Td
+(Rewards) Tj
 ET
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 209.7640157480312837 Td
-(Map and table of who is at site, away, or offline \(from GPS pings while checked in\). Respects overnight shifts and) Tj
-ET
-BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.278 0.333 0.412 rg
-53.8582677165354369 194.4569291338580115 Td
-(closed visits.) Tj
+53.8582677165354369 551.6222834645668627 Td
+(Company gifts catalog, redemption queue \(approve / reject / fulfill\), and gift history. Reject returns weightage.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.059 0.09 0.165 rg
-45.354330708661422 170.6459055118107244 Td
+45.354330708661422 527.8112598425195756 Td
+(KPI & Rewards) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.278 0.333 0.412 rg
+53.8582677165354369 512.220708661417234 Td
+(People board with Earned / Current / Used / Banked weightage for the month. Open a person for the full scoreboard) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.278 0.333 0.412 rg
+53.8582677165354369 496.9136220472440186 Td
+(and tasks.) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.059 0.09 0.165 rg
+45.354330708661422 473.1025984251967316 Td
+(Analytics) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.278 0.333 0.412 rg
+53.8582677165354369 457.51204724409439 Td
+(Company KPI health, trends, and per-person weightage.) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.059 0.09 0.165 rg
+45.354330708661422 433.7010236220471029 Td
+(Attendance) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.278 0.333 0.412 rg
+53.8582677165354369 418.1104724409447613 Td
+(Leave approvals and attendance history. Opening Attendance reconciles ended shifts.) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.059 0.09 0.165 rg
+45.354330708661422 394.2994488188974742 Td
 (Office GPS) Tj
 ET
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 155.0553543307083828 Td
-(Office/site pin, radius \(typically 50 m\), assign sites to staff.) Tj
+53.8582677165354369 378.7088976377951326 Td
+(Office/site pin, radius, assign sites to staff.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.059 0.09 0.165 rg
-45.354330708661422 131.2443307086610957 Td
+45.354330708661422 354.8978740157478455 Td
+(Live Tracking) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.278 0.333 0.412 rg
+53.8582677165354369 339.3073228346455039 Td
+(Who is at site, away, or offline while checked in.) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.059 0.09 0.165 rg
+45.354330708661422 315.4962992125982737 Td
+(Departments) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.278 0.333 0.412 rg
+53.8582677165354369 299.9057480314958184 Td
+(Org structure only \(Sales, Finance, …\) — not a separate score engine.) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.059 0.09 0.165 rg
+45.354330708661422 276.094724409448645 Td
+(Export) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.278 0.333 0.412 rg
+53.8582677165354369 260.5041732283461897 Td
+(Monthly or quarterly Excel, PDF, or CSV.) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.059 0.09 0.165 rg
+45.354330708661422 236.6931496062990163 Td
 (Settings) Tj
 ET
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 115.6537795275588678 Td
-(White-label branding: company name, logo, tagline, colors. Managers and employees cannot open this.) Tj
+53.8582677165354369 221.102598425196561 Td
+(Company name, logo, tagline, and colors.) Tj
 ET
 BT
 /F1 8 Tf
@@ -1399,7 +1189,7 @@ BT
 9.1999999999999993 TL
 0.58 0.639 0.722 rg
 45.354330708661422 28.3466929133857093 Td
-(© Walfia · Project Guideline) Tj
+(© Walfia · Scorr) Tj
 ET
 endstream
 endobj
@@ -1413,7 +1203,7 @@ endobj
 endobj
 16 0 obj
 <<
-/Length 8919
+/Length 5496
 >>
 stream
 1.7007874015748032 w
@@ -1437,7 +1227,7 @@ BT
 9.1999999999999993 TL
 0.392 0.455 0.545 rg
 96.3779527559055254 816.3781889763779418 Td
-(Project Guideline) Tj
+(User Guide) Tj
 ET
 BT
 /F1 8 Tf
@@ -1451,7 +1241,7 @@ BT
 17.25 TL
 0.059 0.09 0.165 rg
 45.354330708661422 779.5277952755905062 Td
-(5. How to Add Employees, Managers & Admins) Tj
+(5. Add people) Tj
 ET
 0.05 0.58 0.53 RG
 1.7007874015748032 w
@@ -1463,14 +1253,14 @@ BT
 11.5 TL
 0.2 0.255 0.333 rg
 45.354330708661422 737.0081102362204319 Td
-(Only an Administrator can create new accounts. You must already be signed in to your company’s Admin) Tj
+(Only an Administrator can create accounts. Sign in to your production company Admin dashboard \(not the public) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 45.354330708661422 721.7010236220471597 Td
-(dashboard \(not the demo sandbox\).) Tj
+(demo\).) Tj
 ET
 BT
 /F2 11.5 Tf
@@ -1484,385 +1274,179 @@ BT
 11.5 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 680.8821259842519567 Td
-( •     C r e a t e   D e p a r t m e n t s   f i r s t   \( A d m i n  !’   D e p a r t m e n t s \) .   M a n a g e r s   a n d   e m p l o y e e s   n e e d   a   d e p a r t m e n t .) Tj
+(•  Create Departments first.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 665.5750393700786844 Td
-(•  Create Managers before Employees if you want to assign a reporting manager.) Tj
+(•  Create Managers before Employees if you need reporting lines.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 650.2679527559055259 Td
-(•  Have each person’s work email ready — that email becomes their login.) Tj
+(•  Use each person’s work email — that becomes their login.) Tj
 ET
 BT
 /F2 11.5 Tf
 13.2249999999999996 TL
 0.051 0.58 0.533 rg
 45.354330708661422 634.9608661417322537 Td
-(5.2 Open the Add User form) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.051 0.58 0.533 rg
-45.354330708661422 615.1183464566928478 Td
-(Step 1:) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 615.1183464566928478 Td
-(Sign in as Admin at https://scorr.walfia.ai) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.051 0.58 0.533 rg
-45.354330708661422 595.559291338582625 Td
-(Step 2:) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 595.559291338582625 Td
-(Open the People tab \(default home of Admin\).) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.051 0.58 0.533 rg
-45.354330708661422 576.0002362204722886 Td
-(Step 3:) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 576.0002362204722886 Td
-(On the right \(or below on mobile\), find the panel “Add new user”.) Tj
-ET
-BT
-/F2 11.5 Tf
-13.2249999999999996 TL
-0.051 0.58 0.533 rg
-45.354330708661422 556.4411811023621794 Td
-(5.3 Fields you fill in) Tj
+(5.2 Fields) Tj
 ET
 0.95 0.96 0.98 rg
-45.354330708661422 547.9372440944880509 504.5669291338583093 -19.8425196850393704 re
+45.354330708661422 626.4569291338582389 504.5669291338583093 -19.8425196850393704 re
 f
 BT
 /F2 9 Tf
 10.3499999999999996 TL
 0.118 0.161 0.231 rg
-51.0236220472441033 536.5986614173227736 Td
+51.0236220472441033 615.1183464566928478 Td
 (Field) Tj
 ET
 BT
 /F2 9 Tf
 10.3499999999999996 TL
 0.118 0.161 0.231 rg
-181.4173228346456881 536.5986614173227736 Td
+181.4173228346456881 615.1183464566928478 Td
 (What to enter) Tj
 ET
 BT
 /F2 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-51.0236220472441033 516.7561417322833677 Td
+51.0236220472441033 595.2758267716535556 Td
 (Full name) Tj
 ET
 BT
 /F1 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-181.4173228346456881 516.7561417322833677 Td
-(Person’s display name \(e.g. Sara Khan\).) Tj
+181.4173228346456881 595.2758267716535556 Td
+(Display name.) Tj
 ET
 BT
 /F2 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-51.0236220472441033 498.6144094488187761 Td
+51.0236220472441033 577.1340944881889072 Td
 (Email) Tj
 ET
 BT
 /F1 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-181.4173228346456881 498.6144094488187761 Td
-(Work email they will use to sign in.) Tj
+181.4173228346456881 577.1340944881889072 Td
+(Work email used to sign in.) Tj
 ET
 BT
 /F2 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-51.0236220472441033 480.4726771653541846 Td
+51.0236220472441033 558.9923622047242588 Td
 (Password) Tj
 ET
 BT
 /F1 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-181.4173228346456881 480.4726771653541846 Td
-(Temporary password \(min 6 characters\). Share it securely; they can change it later.) Tj
+181.4173228346456881 558.9923622047242588 Td
+(Temporary password \(min 6 characters\). Share it securely.) Tj
 ET
 BT
 /F2 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-51.0236220472441033 462.330944881889593 Td
+51.0236220472441033 540.8506299212597241 Td
 (System role) Tj
 ET
 BT
 /F1 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-181.4173228346456881 462.330944881889593 Td
-(Choose Employee, Manager, or Admin.) Tj
+181.4173228346456881 540.8506299212597241 Td
+(Employee, Manager, Admin, or HR.) Tj
 ET
 BT
 /F2 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-51.0236220472441033 444.1892125984250015 Td
+51.0236220472441033 522.7088976377951894 Td
 (Department) Tj
 ET
 BT
 /F1 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-181.4173228346456881 444.1892125984250015 Td
-(Required for Manager and Employee. Not required for Admin.) Tj
+181.4173228346456881 522.7088976377951894 Td
+(Required for Manager and Employee.) Tj
 ET
 BT
 /F2 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-51.0236220472441033 426.0474803149604668 Td
+51.0236220472441033 504.5671653543305979 Td
 (Assign manager) Tj
 ET
 BT
 /F1 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-181.4173228346456881 426.0474803149604668 Td
-(Only for Employee. Optional — pick a manager in the same department.) Tj
+181.4173228346456881 504.5671653543305979 Td
+(Optional for Employee — pick a manager in the same department.) Tj
 ET
 BT
 /F2 11.5 Tf
 13.2249999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 396.5671653543304842 Td
-(5.4 How to add an Employee) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.051 0.58 0.533 rg
-45.354330708661422 376.7246456692911352 Td
-(Step 1:) Tj
+45.354330708661422 475.0868503937006153 Td
+(5.3 After create) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-84.1236220472440976 376.7246456692911352 Td
-(Set System role to Employee.) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.051 0.58 0.533 rg
-45.354330708661422 357.1655905511808555 Td
-(Step 2:) Tj
+48.1889763779527627 455.2443307086612663 Td
+(•  They appear in People immediately.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-84.1236220472440976 357.1655905511808555 Td
-(Select their Department.) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.051 0.58 0.533 rg
-45.354330708661422 337.6065354330706327 Td
-(Step 3:) Tj
+48.1889763779527627 439.9372440944879941 Td
+(•  They enroll MFA, save backup codes, then open their dashboard.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-84.1236220472440976 337.6065354330706327 Td
-(Optionally select Assign manager \(managers in that department appear in the list\).) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.051 0.58 0.533 rg
-45.354330708661422 318.0474803149603531 Td
-(Step 4:) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 318.0474803149603531 Td
-( E n t e r   n a m e ,   e m a i l ,   p a s s w o r d  !’   c l i c k   R e g i s t e r   u s e r .) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.051 0.58 0.533 rg
-45.354330708661422 298.4884251968501303 Td
-(Step 5:) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 298.4884251968501303 Td
-(Tell the employee their email and temporary password so they can sign in.) Tj
-ET
-BT
-/F2 11.5 Tf
-13.2249999999999996 TL
-0.051 0.58 0.533 rg
-45.354330708661422 278.9293700787399075 Td
-(5.5 How to add a Manager) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.051 0.58 0.533 rg
-45.354330708661422 259.0868503937005016 Td
-(Step 1:) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 259.0868503937005016 Td
-(Set System role to Manager.) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.051 0.58 0.533 rg
-45.354330708661422 239.5277952755902788 Td
-(Step 2:) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 239.5277952755902788 Td
-(Select Assign department to manager \(required\).) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.051 0.58 0.533 rg
-45.354330708661422 219.9687401574799424 Td
-(Step 3:) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 219.9687401574799424 Td
-( E n t e r   n a m e ,   e m a i l ,   p a s s w o r d  !’   R e g i s t e r   u s e r .) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.051 0.58 0.533 rg
-45.354330708661422 200.4096850393697196 Td
-(Step 4:) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 200.4096850393697196 Td
-(Later, when adding employees in that department, select this manager as their reporting manager.) Tj
-ET
-BT
-/F2 11.5 Tf
-13.2249999999999996 TL
-0.051 0.58 0.533 rg
-45.354330708661422 180.8506299212594968 Td
-(5.6 How to add another Admin) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.051 0.58 0.533 rg
-45.354330708661422 161.0081102362200909 Td
-(Step 1:) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 161.0081102362200909 Td
-(Set System role to Admin.) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.051 0.58 0.533 rg
-45.354330708661422 141.4490551181098681 Td
-(Step 2:) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 141.4490551181098681 Td
-(Department is not required for admins.) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.051 0.58 0.533 rg
-45.354330708661422 121.8899999999996453 Td
-(Step 3:) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 121.8899999999996453 Td
-( E n t e r   n a m e ,   e m a i l ,   p a s s w o r d  !’   R e g i s t e r   u s e r .) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.051 0.58 0.533 rg
-45.354330708661422 102.3309448818894225 Td
-(Step 4:) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 102.3309448818894225 Td
-(The new admin can sign in and manage the full organization.) Tj
+48.1889763779527627 424.6301574803147787 Td
+(•  Use Reset password or Reset authenticator when someone is locked out.) Tj
 ET
 0.94 0.99 0.98 rg
 0.05 0.58 0.53 RG
 1.1338582677165356 w
+49.6062992125984294 417.8270078740155213 m
+545.6692913385827524 417.8270078740155213 l
+548.0175887000680177 417.8270078740155213 549.9212598425197029 415.9233367315637793 549.9212598425197029 413.5750393700785139 c
+549.9212598425197029 389.7640157480312837 l
+549.9212598425197029 387.4157183865460183 547.5729624810344376 385.5120472440942763 545.6692913385827524 385.5120472440942763 c
+49.6062992125984294 385.5120472440942763 l
+47.2580018511131641 385.5120472440942763 45.354330708661422 387.8603446055794848 45.354330708661422 389.7640157480312837 c
+45.354330708661422 413.5750393700785139 l
+45.354330708661422 415.9233367315637793 47.7026280701466874 417.8270078740155213 49.6062992125984294 417.8270078740155213 c
+h
+B
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.059 0.463 0.431 rg
+56.6929133858267775 403.6537795275588678 Td
+(Demo admin cannot add real company users. Sign out and use your company Admin account.) Tj
+ET
 BT
 /F1 8 Tf
 9.1999999999999993 TL
@@ -1875,7 +1459,7 @@ BT
 9.1999999999999993 TL
 0.58 0.639 0.722 rg
 45.354330708661422 28.3466929133857093 Td
-(© Walfia · Project Guideline) Tj
+(© Walfia · Scorr) Tj
 ET
 endstream
 endobj
@@ -1889,7 +1473,7 @@ endobj
 endobj
 18 0 obj
 <<
-/Length 3022
+/Length 3170
 >>
 stream
 1.1338582677165356 w
@@ -1913,7 +1497,7 @@ BT
 9.1999999999999993 TL
 0.392 0.455 0.545 rg
 96.3779527559055254 816.3781889763779418 Td
-(Project Guideline) Tj
+(User Guide) Tj
 ET
 BT
 /F1 8 Tf
@@ -1922,79 +1506,136 @@ BT
 501.2812598425197166 816.3781889763779418 Td
 (scorr.walfia.ai) Tj
 ET
-49.6062992125984294 788.0317322834645211 m
-545.6692913385827524 788.0317322834645211 l
-548.0175887000680177 788.0317322834645211 549.9212598425197029 786.1280611410128358 549.9212598425197029 783.7797637795275705 c
-549.9212598425197029 744.6616535433070112 l
-549.9212598425197029 742.3133561818218595 547.5729624810344376 740.4096850393700606 545.6692913385827524 740.4096850393700606 c
-49.6062992125984294 740.4096850393700606 l
-47.2580018511131641 740.4096850393700606 45.354330708661422 742.757982400855326 45.354330708661422 744.6616535433070112 c
-45.354330708661422 783.7797637795275705 l
-45.354330708661422 786.1280611410128358 47.7026280701466874 788.0317322834645211 49.6062992125984294 788.0317322834645211 c
-h
-B
 BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.059 0.463 0.431 rg
-56.6929133858267775 773.8585039370078675 Td
-(Demo accounts: If you are signed in as the public demo admin, you cannot add real company users. Sign out) Tj
+/F2 15 Tf
+17.25 TL
+0.059 0.09 0.165 rg
+45.354330708661422 779.5277952755905062 Td
+(6. First-time admin checklist) Tj
 ET
+0.05 0.58 0.53 RG
+1.7007874015748032 w
+45.354330708661422 756.8506299212598378 m
+147.4015748031496287 756.8506299212598378 l
+S
 BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.059 0.463 0.431 rg
-56.6929133858267775 758.5514173228345953 Td
-(and use your production company admin account instead.) Tj
-ET
-BT
-/F2 11.5 Tf
-13.2249999999999996 TL
+/F2 10 Tf
+11.5 TL
 0.051 0.58 0.533 rg
-45.354330708661422 720.5671653543306547 Td
-(5.7 After a user is created) Tj
+45.354330708661422 737.0081102362204319 Td
+(Step 1:) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 700.7246456692912489 Td
-(•  They appear immediately in the Users directory.) Tj
+84.1236220472440976 737.0081102362204319 Td
+(Sign in as Admin.) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.051 0.58 0.533 rg
+45.354330708661422 717.4490551181102092 Td
+(Step 2:) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 685.4175590551180903 Td
-(•  They sign in at scorr.walfia.ai with the email/password you set.) Tj
+84.1236220472440976 717.4490551181102092 Td
+(Departments — create departments. Add KPI metrics on each board if needed \(library totals may exceed) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 670.1104724409449318 Td
-(•  They enroll authenticator MFA, save backup codes, then Scorr opens the correct dashboard \(Admin / Manager) Tj
+84.1236220472440976 702.1419685039370506 Td
+(100%\).) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.051 0.58 0.533 rg
+45.354330708661422 682.5829133858267141 Td
+(Step 3:) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 654.8033858267716596 Td
-(/ Employee / HR\).) Tj
+84.1236220472440976 682.5829133858267141 Td
+(People — add Managers, then Employees.) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.051 0.58 0.533 rg
+45.354330708661422 663.0238582677164914 Td
+(Step 4:) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 639.4962992125983874 Td
-(•  You can change an employee/manager’s department from the Users table.) Tj
+84.1236220472440976 663.0238582677164914 Td
+(Office GPS — add sites if you use GPS attendance.) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.051 0.58 0.533 rg
+45.354330708661422 643.4648031496062686 Td
+(Step 5:) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 624.1892125984251152 Td
-(•  Use Reset password or Reset authenticator on a user card when they are locked out.) Tj
+84.1236220472440976 643.4648031496062686 Td
+(Settings — company name, logo, colors.) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.051 0.58 0.533 rg
+45.354330708661422 623.9057480314960458 Td
+(Step 6:) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+84.1236220472440976 623.9057480314960458 Td
+( A s s i g n   T a s k   —   d e p a r t m e n t  !’   p e r s o n  !’   K P I ,   w e i g h t a g e ,   d a t e s .) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.051 0.58 0.533 rg
+45.354330708661422 604.346692913385823 Td
+(Step 7:) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+84.1236220472440976 604.346692913385823 Td
+(Rewards — review the catalog and gift rules.) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.051 0.58 0.533 rg
+45.354330708661422 584.7876377952754865 Td
+(Step 8:) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+84.1236220472440976 584.7876377952754865 Td
+(Ask every staff member to enroll MFA and allow location if you use GPS.) Tj
 ET
 BT
 /F1 8 Tf
@@ -2008,7 +1649,7 @@ BT
 9.1999999999999993 TL
 0.58 0.639 0.722 rg
 45.354330708661422 28.3466929133857093 Td
-(© Walfia · Project Guideline) Tj
+(© Walfia · Scorr) Tj
 ET
 endstream
 endobj
@@ -2022,11 +1663,11 @@ endobj
 endobj
 20 0 obj
 <<
-/Length 3832
+/Length 3416
 >>
 stream
-1.1338582677165356 w
-0.89 0.91 0.94 RG
+1.7007874015748032 w
+0.05 0.58 0.53 RG
 0.97 0.98 0.99 rg
 0. 841.8899999999999864 595.2755905511811534 -39.6850393700787407 re
 f
@@ -2046,7 +1687,7 @@ BT
 9.1999999999999993 TL
 0.392 0.455 0.545 rg
 96.3779527559055254 816.3781889763779418 Td
-(Project Guideline) Tj
+(User Guide) Tj
 ET
 BT
 /F1 8 Tf
@@ -2060,7 +1701,7 @@ BT
 17.25 TL
 0.059 0.09 0.165 rg
 45.354330708661422 779.5277952755905062 Td
-(6. First-Time Admin Setup Checklist) Tj
+(7. Manager menu) Tj
 ET
 0.05 0.58 0.53 RG
 1.7007874015748032 w
@@ -2072,147 +1713,119 @@ BT
 11.5 TL
 0.2 0.255 0.333 rg
 45.354330708661422 737.0081102362204319 Td
-(After your company is approved, complete these steps in order for a smooth launch:) Tj
+(Managers work with their team and their own KPIs. There is no Branding tab.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
-0.051 0.58 0.533 rg
+0.059 0.09 0.165 rg
 45.354330708661422 716.0317322834645211 Td
-(Step 1:) Tj
+(Assign Task) Tj
 ET
 BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 716.0317322834645211 Td
-(Sign in as Admin.) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.051 0.58 0.533 rg
-45.354330708661422 696.4726771653542983 Td
-(Step 2:) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 696.4726771653542983 Td
-(Departments — create your departments. Add KPI metrics on each board \(library totals may exceed) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 681.1655905511811397 Td
-(100%\).) Tj
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.278 0.333 0.412 rg
+53.8582677165354369 700.4411811023621794 Td
+(Assign KPIs in the manager’s department. Completions notify the assigner and reporting manager.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
-0.051 0.58 0.533 rg
-45.354330708661422 661.6065354330708033 Td
-(Step 3:) Tj
+0.059 0.09 0.165 rg
+45.354330708661422 676.6301574803148924 Td
+(Team / People) Tj
 ET
 BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 661.6065354330708033 Td
-(Users — add Managers for each department.) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.051 0.58 0.533 rg
-45.354330708661422 642.0474803149605805 Td
-(Step 4:) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 642.0474803149605805 Td
-(Users — add Employees and assign each to a department and manager.) Tj
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.278 0.333 0.412 rg
+53.8582677165354369 661.0396062992125508 Td
+(Team ranking. Open a person for a read-only scoreboard.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
-0.051 0.58 0.533 rg
-45.354330708661422 622.4884251968503577 Td
-(Step 5:) Tj
+0.059 0.09 0.165 rg
+45.354330708661422 637.2285826771653774 Td
+(My KPIs) Tj
 ET
 BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 622.4884251968503577 Td
-(Office GPS — add your office locations if you use GPS attendance.) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.051 0.58 0.533 rg
-45.354330708661422 602.9293700787400212 Td
-(Step 6:) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 602.9293700787400212 Td
-(Settings — set company name, logo, and colors \(branding\).) Tj
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.278 0.333 0.412 rg
+53.8582677165354369 621.6380314960629221 Td
+(Manager’s own tasks and weightage scoreboard.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
-0.051 0.58 0.533 rg
-45.354330708661422 583.3703149606299121 Td
-(Step 7:) Tj
+0.059 0.09 0.165 rg
+45.354330708661422 597.827007874015635 Td
+(Attendance) Tj
 ET
 BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 583.3703149606299121 Td
-( A s s i g n   T a s k   —   d e p a r t m e n t  !’   p e r s o n  !’   K P I   c a t e g o r y ,   w e i g h t a g e ,   s c o r e ,   d a t e s .) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.051 0.58 0.533 rg
-45.354330708661422 563.8112598425195756 Td
-(Step 8:) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 563.8112598425195756 Td
-(Rewards — review the catalog.) Tj
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.278 0.333 0.412 rg
+53.8582677165354369 582.2364566929132934 Td
+(Team leave, check-in, shifts, and live tracking.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
+0.059 0.09 0.165 rg
+45.354330708661422 558.42543307086612 Td
+(Rewards) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.278 0.333 0.412 rg
+53.8582677165354369 542.8348818897636647 Td
+(Approve, reject, or mark delivered for team gift requests. Reject returns weightage. Personal redeem uses Current or) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.278 0.333 0.412 rg
+53.8582677165354369 527.5277952755905062 Td
+(Banked.) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.059 0.09 0.165 rg
+45.354330708661422 503.7167716535431623 Td
+(Settings) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.278 0.333 0.412 rg
+53.8582677165354369 488.1262204724408207 Td
+(Password, Account Security, daily work report.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 544.2522047244092391 Td
-(Step 9:) Tj
+45.354330708661422 464.3151968503935905 Td
+(Managers cannot) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-84.1236220472440976 544.2522047244092391 Td
-(Ask every staff member to enroll authenticator MFA, save backup codes, and allow location on the phone) Tj
+48.1889763779527627 444.4726771653542414 Td
+(•  Create company users, departments, or branding.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-84.1236220472440976 528.9451181102360806 Td
-(if you use GPS attendance.) Tj
+48.1889763779527627 429.1655905511809692 Td
+(•  See unrelated departments or other companies.) Tj
 ET
 BT
 /F1 8 Tf
@@ -2226,7 +1839,7 @@ BT
 9.1999999999999993 TL
 0.58 0.639 0.722 rg
 45.354330708661422 28.3466929133857093 Td
-(© Walfia · Project Guideline) Tj
+(© Walfia · Scorr) Tj
 ET
 endstream
 endobj
@@ -2240,7 +1853,7 @@ endobj
 endobj
 22 0 obj
 <<
-/Length 4156
+/Length 2635
 >>
 stream
 1.7007874015748032 w
@@ -2264,7 +1877,7 @@ BT
 9.1999999999999993 TL
 0.392 0.455 0.545 rg
 96.3779527559055254 816.3781889763779418 Td
-(Project Guideline) Tj
+(User Guide) Tj
 ET
 BT
 /F1 8 Tf
@@ -2278,7 +1891,7 @@ BT
 17.25 TL
 0.059 0.09 0.165 rg
 45.354330708661422 779.5277952755905062 Td
-(7. Manager tabs \(complete\)) Tj
+(8. Employee menu) Tj
 ET
 0.05 0.58 0.53 RG
 1.7007874015748032 w
@@ -2286,144 +1899,74 @@ ET
 147.4015748031496287 756.8506299212598378 l
 S
 BT
-/F1 10 Tf
+/F2 10 Tf
 11.5 TL
-0.2 0.255 0.333 rg
+0.059 0.09 0.165 rg
 45.354330708661422 737.0081102362204319 Td
-(Managers do not see the whole company. They work with people who report to them, plus their own KPIs. There is) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-45.354330708661422 721.7010236220471597 Td
-(no Branding tab.) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.059 0.09 0.165 rg
-45.354330708661422 700.7246456692912489 Td
-(Assign Task) Tj
-ET
-BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.278 0.333 0.412 rg
-53.8582677165354369 685.1340944881890209 Td
-(Create a KPI \(category, name, weightage, score, dates, optional note\) and assign it to someone in the manager’s) Tj
-ET
-BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.278 0.333 0.412 rg
-53.8582677165354369 669.8270078740157487 Td
-(department. When that person marks Complete, you \(as assigner\) and their reporting manager receive email + in-app) Tj
-ET
-BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.278 0.333 0.412 rg
-53.8582677165354369 654.5199212598424765 Td
-(alerts.) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.059 0.09 0.165 rg
-45.354330708661422 630.7088976377951894 Td
-(Team / People) Tj
-ET
-BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.278 0.333 0.412 rg
-53.8582677165354369 615.1183464566928478 Td
-(Team ranking and points. Tap a person for read-only My KPIs / scoreboard.) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.059 0.09 0.165 rg
-45.354330708661422 591.3073228346456744 Td
 (My KPIs) Tj
 ET
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 575.7167716535432191 Td
-(Tasks assigned to the manager. Full Weightage / Score scoreboard \(Overall / Month / Year\). Mark Complete to notify) Tj
+53.8582677165354369 721.4175590551180903 Td
+(Weightage scoreboard: Total, Assigned, Earned, Current, Used, Banked \(for the current month\), Unassigned. Switch) Tj
 ET
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 560.4096850393700606 Td
-(your manager and the assigner.) Tj
+53.8582677165354369 706.1104724409448181 Td
+(Overall / Month / Year. Mark Complete to notify manager and assigner.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.059 0.09 0.165 rg
-45.354330708661422 536.5986614173227736 Td
+45.354330708661422 682.2994488188976447 Td
 (Attendance) Tj
 ET
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 521.0081102362203183 Td
-(Team leave, check-in, shifts \(including overnight\), and live tracking for the team map.) Tj
+53.8582677165354369 666.7088976377951894 Td
+(GPS check-in/out, shift, leave requests, personal history. Shift end auto clock-out closes open visits.) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.059 0.09 0.165 rg
-45.354330708661422 497.197086614173088 Td
+45.354330708661422 642.8978740157480161 Td
 (Rewards) Tj
 ET
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 481.6065354330707464 Td
-(Approve team redemptions and see team point balances. Personal points are not shown here.) Tj
+53.8582677165354369 627.3073228346456744 Td
+(Company gifts and catalog. Redeem with Current when this month qualifies, or Redeem with Banked when Banked) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.278 0.333 0.412 rg
+53.8582677165354369 612.0002362204724022 Td
+(covers the gift cost. Track request status \(pending / approved / delivered / rejected\).) Tj
 ET
 BT
 /F2 10 Tf
 11.5 TL
 0.059 0.09 0.165 rg
-45.354330708661422 457.7955118110235162 Td
+45.354330708661422 588.1892125984251152 Td
 (Settings) Tj
 ET
 BT
 /F1 9.5 Tf
 10.9249999999999989 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 442.2049606299211177 Td
-(Change password, Account Security \(backup codes / recovery email\), and daily work report. No logo/theme editor.) Tj
-ET
-BT
-/F2 11.5 Tf
-13.2249999999999996 TL
-0.051 0.58 0.533 rg
-45.354330708661422 418.3939370078738875 Td
-(Managers cannot) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 398.5514173228344816 Td
-(•  Create company users, departments, or branding.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 383.2443307086612663 Td
-(•  See other companies or unrelated departments’ staff.) Tj
+53.8582677165354369 572.5986614173227736 Td
+(Password, Account Security, daily report.) Tj
 ET
 BT
 /F1 8 Tf
@@ -2437,7 +1980,7 @@ BT
 9.1999999999999993 TL
 0.58 0.639 0.722 rg
 45.354330708661422 28.3466929133857093 Td
-(© Walfia · Project Guideline) Tj
+(© Walfia · Scorr) Tj
 ET
 endstream
 endobj
@@ -2451,7 +1994,7 @@ endobj
 endobj
 24 0 obj
 <<
-/Length 3274
+/Length 1233
 >>
 stream
 1.7007874015748032 w
@@ -2475,169 +2018,7 @@ BT
 9.1999999999999993 TL
 0.392 0.455 0.545 rg
 96.3779527559055254 816.3781889763779418 Td
-(Project Guideline) Tj
-ET
-BT
-/F1 8 Tf
-9.1999999999999993 TL
-0.392 0.455 0.545 rg
-501.2812598425197166 816.3781889763779418 Td
-(scorr.walfia.ai) Tj
-ET
-BT
-/F2 15 Tf
-17.25 TL
-0.059 0.09 0.165 rg
-45.354330708661422 779.5277952755905062 Td
-(8. Employee tabs \(complete\)) Tj
-ET
-0.05 0.58 0.53 RG
-1.7007874015748032 w
-45.354330708661422 756.8506299212598378 m
-147.4015748031496287 756.8506299212598378 l
-S
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-45.354330708661422 737.0081102362204319 Td
-(Employees only see their own records. There is no Branding tab and no Assign Task.) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.059 0.09 0.165 rg
-45.354330708661422 716.0317322834645211 Td
-(My KPIs) Tj
-ET
-BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.278 0.333 0.412 rg
-53.8582677165354369 700.4411811023621794 Td
-(Weightage block \(Total / Assigned / Achieved / Unassigned / Pending / Completed\) and Score block \(score index,) Tj
-ET
-BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.278 0.333 0.412 rg
-53.8582677165354369 685.1340944881890209 Td
-(points awarded, reward points not redeemed / redeemed, performance label\). Switch Overall, Month, or Year — they) Tj
-ET
-BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.278 0.333 0.412 rg
-53.8582677165354369 669.8270078740157487 Td
-(do not share the same KPI set. Task cards show weightage; long descriptions open via View task. Mark Complete to) Tj
-ET
-BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.278 0.333 0.412 rg
-53.8582677165354369 654.5199212598424765 Td
-(email your manager and whoever assigned the KPI.) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.059 0.09 0.165 rg
-45.354330708661422 630.7088976377951894 Td
-(Attendance) Tj
-ET
-BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.278 0.333 0.412 rg
-53.8582677165354369 615.1183464566928478 Td
-(GPS check-in/out, assigned shift \(day or overnight\), multi-visit days, leave requests, personal history. Shift end auto) Tj
-ET
-BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.278 0.333 0.412 rg
-53.8582677165354369 599.8112598425195756 Td
-(clock-out closes the day so admin does not see “still working” after hours.) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.059 0.09 0.165 rg
-45.354330708661422 576.0002362204722886 Td
-(Rewards) Tj
-ET
-BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.278 0.333 0.412 rg
-53.8582677165354369 560.4096850393700606 Td
-(Balance, catalog, redeem, pending/approved/fulfilled.) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.059 0.09 0.165 rg
-45.354330708661422 536.5986614173227736 Td
-(Settings) Tj
-ET
-BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.278 0.333 0.412 rg
-53.8582677165354369 521.0081102362203183 Td
-(Change password, Account Security \(authenticator backup codes, recovery email\), and daily report.) Tj
-ET
-BT
-/F1 8 Tf
-9.1999999999999993 TL
-0.58 0.639 0.722 rg
-282.8777952755905858 28.3466929133857093 Td
-(Page 11) Tj
-ET
-BT
-/F1 8 Tf
-9.1999999999999993 TL
-0.58 0.639 0.722 rg
-45.354330708661422 28.3466929133857093 Td
-(© Walfia · Project Guideline) Tj
-ET
-endstream
-endobj
-25 0 obj
-<</Type /Page
-/Parent 1 0 R
-/Resources 2 0 R
-/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
-/Contents 26 0 R
->>
-endobj
-26 0 obj
-<<
-/Length 1462
->>
-stream
-1.7007874015748032 w
-0.05 0.58 0.53 RG
-0.97 0.98 0.99 rg
-0. 841.8899999999999864 595.2755905511811534 -39.6850393700787407 re
-f
-0.89 0.91 0.94 RG
-0. 802.2049606299211746 m
-595.2755905511811534 802.2049606299211746 l
-S
-BT
-/F2 8 Tf
-9.1999999999999993 TL
-0.051 0.58 0.533 rg
-45.354330708661422 816.3781889763779418 Td
-(SCORR) Tj
-ET
-BT
-/F1 8 Tf
-9.1999999999999993 TL
-0.392 0.455 0.545 rg
-96.3779527559055254 816.3781889763779418 Td
-(Project Guideline) Tj
+(User Guide) Tj
 ET
 BT
 /F1 8 Tf
@@ -2663,14 +2044,218 @@ BT
 11.5 TL
 0.2 0.255 0.333 rg
 45.354330708661422 737.0081102362204319 Td
-(HR is a dedicated role for shift assignment and rewards operations without full Admin powers \(no People directory,) Tj
+(HR supports shifts and rewards operations without full Admin powers \(no People directory, no branding\).) Tj
+ET
+BT
+/F1 8 Tf
+9.1999999999999993 TL
+0.58 0.639 0.722 rg
+282.8777952755905858 28.3466929133857093 Td
+(Page 11) Tj
+ET
+BT
+/F1 8 Tf
+9.1999999999999993 TL
+0.58 0.639 0.722 rg
+45.354330708661422 28.3466929133857093 Td
+(© Walfia · Scorr) Tj
+ET
+endstream
+endobj
+25 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 26 0 R
+>>
+endobj
+26 0 obj
+<<
+/Length 4178
+>>
+stream
+1.7007874015748032 w
+0.05 0.58 0.53 RG
+0.97 0.98 0.99 rg
+0. 841.8899999999999864 595.2755905511811534 -39.6850393700787407 re
+f
+0.89 0.91 0.94 RG
+0. 802.2049606299211746 m
+595.2755905511811534 802.2049606299211746 l
+S
+BT
+/F2 8 Tf
+9.1999999999999993 TL
+0.051 0.58 0.533 rg
+45.354330708661422 816.3781889763779418 Td
+(SCORR) Tj
+ET
+BT
+/F1 8 Tf
+9.1999999999999993 TL
+0.392 0.455 0.545 rg
+96.3779527559055254 816.3781889763779418 Td
+(User Guide) Tj
+ET
+BT
+/F1 8 Tf
+9.1999999999999993 TL
+0.392 0.455 0.545 rg
+501.2812598425197166 816.3781889763779418 Td
+(scorr.walfia.ai) Tj
+ET
+BT
+/F2 15 Tf
+17.25 TL
+0.059 0.09 0.165 rg
+45.354330708661422 779.5277952755905062 Td
+(10. Departments & KPI weightage) Tj
+ET
+0.05 0.58 0.53 RG
+1.7007874015748032 w
+45.354330708661422 756.8506299212598378 m
+147.4015748031496287 756.8506299212598378 l
+S
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+45.354330708661422 737.0081102362204319 Td
+(Departments group people and managers. They are not a second scoring engine.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-45.354330708661422 721.7010236220471597 Td
-(no branding, no company-wide KPI assign unless also given those tools\). HR uses Shifts and Rewards screens.) Tj
+48.1889763779527627 716.0317322834645211 Td
+(•  Each employee/manager belongs to a department so Assign Task can list them.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 700.7246456692912489 Td
+(•  Pending/active KPI weight for one person cannot exceed 100%. Other people have their own 100% budgets.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 685.4175590551180903 Td
+(•  Department KPI libraries may list many metrics; assignment still respects the per-person 100% cap.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 670.1104724409449318 Td
+(•  Removing a department does not delete historical scores already saved on people.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.051 0.58 0.533 rg
+45.354330708661422 654.8033858267716596 Td
+(10.1 Weightage on the scoreboard) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 634.9608661417322537 Td
+(•  Earned — completed KPI weightage this month \(0–100%\).) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 619.6537795275589815 Td
+(•  Current — remaining available this month after gift use / banking.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 604.346692913385823 Td
+(•  Used — weightage spent on monthly gifts this month \(cannot exceed Earned\).) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 589.0396062992125508 Td
+(•  Banked — leftover weightage saved across months after monthly gift redemptions.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 573.7325196850392786 Td
+(•  Overall / Month / Year filters are independent.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.051 0.58 0.533 rg
+45.354330708661422 558.4254330708660063 Td
+(10.2 Assign & complete) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.051 0.58 0.533 rg
+45.354330708661422 538.5829133858267141 Td
+(Step 1:) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+84.1236220472440976 538.5829133858267141 Td
+(Admin or Manager opens Assign Task.) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.051 0.58 0.533 rg
+45.354330708661422 519.0238582677163777 Td
+(Step 2:) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+84.1236220472440976 519.0238582677163777 Td
+( D e p a r t m e n t  !’   p e r s o n  !’   c a t e g o r y   /   K P I  !’   w e i g h t a g e  !’   d a t e s  !’   A s s i g n .) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.051 0.58 0.533 rg
+45.354330708661422 499.4648031496061549 Td
+(Step 3:) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+84.1236220472440976 499.4648031496061549 Td
+(Person marks Complete. Email + in-app alerts go to reporting manager and assigner.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 479.9057480314958752 Td
+(•  Performance labels: 95–100 Outstanding · 90–94 Excellent · 80–89 Good · 70–79 Needs Improvement · below) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 464.5986614173226599 Td
+(70 Unsatisfactory.) Tj
 ET
 BT
 /F1 8 Tf
@@ -2684,7 +2269,7 @@ BT
 9.1999999999999993 TL
 0.58 0.639 0.722 rg
 45.354330708661422 28.3466929133857093 Td
-(© Walfia · Project Guideline) Tj
+(© Walfia · Scorr) Tj
 ET
 endstream
 endobj
@@ -2698,7 +2283,7 @@ endobj
 endobj
 28 0 obj
 <<
-/Length 2029
+/Length 7486
 >>
 stream
 1.7007874015748032 w
@@ -2722,7 +2307,7 @@ BT
 9.1999999999999993 TL
 0.392 0.455 0.545 rg
 96.3779527559055254 816.3781889763779418 Td
-(Project Guideline) Tj
+(User Guide) Tj
 ET
 BT
 /F1 8 Tf
@@ -2736,7 +2321,7 @@ BT
 17.25 TL
 0.059 0.09 0.165 rg
 45.354330708661422 779.5277952755905062 Td
-(10. Departments) Tj
+(11. Rewards \(weightage, Banked, gifts\)) Tj
 ET
 0.05 0.58 0.53 RG
 1.7007874015748032 w
@@ -2748,35 +2333,283 @@ BT
 11.5 TL
 0.2 0.255 0.333 rg
 45.354330708661422 737.0081102362204319 Td
-(Departments are folders for people \(and which manager owns which team\). They are not a second scoring engine.) Tj
+(Scorr rewards use monthly weightage \(0–100%\), not a separate points balance that never expires. Gifts are) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 716.0317322834645211 Td
-(•  Admin creates names such as Sales or Operations.) Tj
+45.354330708661422 721.7010236220471597 Td
+(arranged by managers or admins after someone redeems.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.051 0.58 0.533 rg
+45.354330708661422 700.7246456692912489 Td
+(11.1 Balance terms) Tj
+ET
+0.95 0.96 0.98 rg
+45.354330708661422 692.220708661417234 504.5669291338583093 -19.8425196850393704 re
+f
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.118 0.161 0.231 rg
+51.0236220472441033 680.8821259842519567 Td
+(Term) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.118 0.161 0.231 rg
+181.4173228346456881 680.8821259842519567 Td
+(Meaning) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.2 0.255 0.333 rg
+51.0236220472441033 661.0396062992125508 Td
+(Earned) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.2 0.255 0.333 rg
+181.4173228346456881 661.0396062992125508 Td
+(This month’s completed KPI weightage.) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.2 0.255 0.333 rg
+51.0236220472441033 642.8978740157480161 Td
+(Current) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.2 0.255 0.333 rg
+181.4173228346456881 642.8978740157480161 Td
+(What is still available this month.) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.2 0.255 0.333 rg
+51.0236220472441033 624.7561417322833677 Td
+(Used) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.2 0.255 0.333 rg
+181.4173228346456881 624.7561417322833677 Td
+(Gift cost charged this month \(never shown above Earned\).) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.2 0.255 0.333 rg
+51.0236220472441033 606.614409448818833 Td
+(Banked) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.2 0.255 0.333 rg
+181.4173228346456881 606.614409448818833 Td
+(Leftovers after monthly gifts, summed across months.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.051 0.58 0.533 rg
+45.354330708661422 577.1340944881889072 Td
+(11.2 Monthly gifts \(dinner or catalog\)) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 700.7246456692912489 Td
-(•  Each employee/manager should belong to a department so Assign Task can list them.) Tj
+48.1889763779527627 557.2915748031495013 Td
+(•  One monthly gift per person per month — either dinner voucher or one catalog item.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 685.4175590551180903 Td
-( •     K P I   w e i g h t   c a p   i s   p e r   p e r s o n   \( p e n d i n g   w e i g h t a g e  "d   1 0 0 % \) ,   n o t   p e r   d e p a r t m e n t   t o t a l .) Tj
+48.1889763779527627 541.9844881889762291 Td
+(•  Cost is the gift requirement only \(for example dinner minimum %, or catalog weightage required\) — not all of) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 670.1104724409449318 Td
-(•  Removing a department does not delete historical KPI scores already saved on people.) Tj
+48.1889763779527627 526.6774015748030706 Td
+(Current.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 511.3703149606297416 Td
+(•  This month’s Current must meet the gift requirement to redeem with Current.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 496.0632283464565262 Td
+(•  After paying, leftover Current moves into Banked.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 480.756141732283254 Td
+(•  Reject \(manager/admin\) returns the spent weightage and undoes that redeem’s bank moves.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.051 0.58 0.533 rg
+45.354330708661422 465.4490551181100955 Td
+(11.3 Redeem with Banked) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 445.6065354330706896 Td
+(•  When Banked is high enough to cover a dinner or catalog cost, use Redeem with Banked.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 430.2994488188974742 Td
+(•  Banked pays the gift fully; this month’s Current is not required to be in-band for that path.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 414.992362204724202 Td
+(•  Still one monthly gift per month.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 399.6852755905509866 Td
+(•  Streak gifts \(movie / surprise\) do not spend Current or Banked.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.051 0.58 0.533 rg
+45.354330708661422 384.3781889763777144 Td
+(11.4 Streak gifts) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 364.5356692913383654 Td
+(•  Movie tickets — keep earned weightage in the 90–95% band for 3 months in a row.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 349.2285826771650932 Td
+(•  Surprise gift — keep 90–95% for 6 months in a row.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 333.9214960629918778 Td
+(•  A streak gift can be redeemed in the same month as one monthly gift.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.051 0.58 0.533 rg
+45.354330708661422 318.6144094488186056 Td
+(11.5 Approval flow) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.051 0.58 0.533 rg
+45.354330708661422 298.7718897637791997 Td
+(Step 1:) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+84.1236220472440976 298.7718897637791997 Td
+(Employee or manager redeems \(Current or Banked\).) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.051 0.58 0.533 rg
+45.354330708661422 279.2128346456689769 Td
+(Step 2:) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+84.1236220472440976 279.2128346456689769 Td
+(Manager or Admin approves, rejects, or marks delivered.) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.051 0.58 0.533 rg
+45.354330708661422 259.6537795275587541 Td
+(Step 3:) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+84.1236220472440976 259.6537795275587541 Td
+(Rejected requests refund weightage; the person can redeem again that month if rules allow.) Tj
+ET
+0.94 0.99 0.98 rg
+0.05 0.58 0.53 RG
+1.1338582677165356 w
+49.6062992125984294 248.5986614173224609 m
+545.6692913385827524 248.5986614173224609 l
+548.0175887000680177 248.5986614173224609 549.9212598425197029 246.6949902748707188 549.9212598425197029 244.3466929133854535 c
+549.9212598425197029 205.2285826771649511 l
+549.9212598425197029 202.8802853156797141 547.5729624810344376 200.9766141732279436 545.6692913385827524 200.9766141732279436 c
+49.6062992125984294 200.9766141732279436 l
+47.2580018511131641 200.9766141732279436 45.354330708661422 203.324911534713209 45.354330708661422 205.2285826771649511 c
+45.354330708661422 244.3466929133854535 l
+45.354330708661422 246.6949902748707188 47.7026280701466874 248.5986614173224609 49.6062992125984294 248.5986614173224609 c
+h
+B
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.059 0.463 0.431 rg
+56.6929133858267775 234.425433070865779 Td
+(Catalog items show the weightage they require. Dinner uses your company’s configured minimum \(typically) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.059 0.463 0.431 rg
+56.6929133858267775 219.1183464566925068 Td
+(95%\).) Tj
 ET
 BT
 /F1 8 Tf
@@ -2790,7 +2623,7 @@ BT
 9.1999999999999993 TL
 0.58 0.639 0.722 rg
 45.354330708661422 28.3466929133857093 Td
-(© Walfia · Project Guideline) Tj
+(© Walfia · Scorr) Tj
 ET
 endstream
 endobj
@@ -2804,10 +2637,10 @@ endobj
 endobj
 30 0 obj
 <<
-/Length 6674
+/Length 3941
 >>
 stream
-1.7007874015748032 w
+1.1338582677165356 w
 0.05 0.58 0.53 RG
 0.97 0.98 0.99 rg
 0. 841.8899999999999864 595.2755905511811534 -39.6850393700787407 re
@@ -2828,7 +2661,7 @@ BT
 9.1999999999999993 TL
 0.392 0.455 0.545 rg
 96.3779527559055254 816.3781889763779418 Td
-(Project Guideline) Tj
+(User Guide) Tj
 ET
 BT
 /F1 8 Tf
@@ -2842,323 +2675,7 @@ BT
 17.25 TL
 0.059 0.09 0.165 rg
 45.354330708661422 779.5277952755905062 Td
-(11. KPI weightage, score & notifications) Tj
-ET
-0.05 0.58 0.53 RG
-1.7007874015748032 w
-45.354330708661422 756.8506299212598378 m
-147.4015748031496287 756.8506299212598378 l
-S
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-45.354330708661422 737.0081102362204319 Td
-(Each assigned KPI has Weightage \(%\) and Score \(points\). Weightage is the person’s capacity pool \(pending) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-45.354330708661422 721.7010236220471597 Td
-( a s s i g n m e n t s  "d   1 0 0 % \) .   S c o r e   i s   t h e   p o i n t s   t h a t   t a s k   c a n   a w a r d   —   o f t e n   e q u a l   t o   w e i g h t a g e ,   b u t   i t   c a n   b e   s e t   h i g h e r) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-45.354330708661422 706.3939370078740012 Td
-(so people can over-deliver.) Tj
-ET
-BT
-/F2 11.5 Tf
-13.2249999999999996 TL
-0.051 0.58 0.533 rg
-45.354330708661422 685.4175590551180903 Td
-(11.1 Weightage vs Score \(do not confuse them\)) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 665.5750393700786844 Td
-(•  Weightage — share of the person’s 0–100% pool. The scoreboard never shows weight fields above 100%.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 650.2679527559055259 Td
-(•  Score \(on a task\) — points available if completed on time. Can be greater than that task’s weightage.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 634.9608661417322537 Td
-(•  Score index \(on the board\) — \(points awarded ÷ weightage assigned\) × 100. This is a points index, not a) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 619.6537795275589815 Td
-(second “% pool.” It can exceed 100 when awarded points exceed assigned weightage.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 604.346692913385823 Td
-(•  Overall / Month / Year — independent filters. Month score is only KPIs in that month; it does not fall back to) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 589.0396062992125508 Td
-(all-time overall.) Tj
-ET
-BT
-/F2 11.5 Tf
-13.2249999999999996 TL
-0.051 0.58 0.533 rg
-45.354330708661422 573.7325196850392786 Td
-(11.2 Categories and progress) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 553.8899999999998727 Td
-(•  KPIs are grouped by category on the dashboard \(e.g. Monthly Goal, Quality, Behaviour, Urgent\).) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 538.5829133858267141 Td
-(•  The person marks Started or Complete. Completing awards the task’s Score \(minus late penalty if configured\).) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 523.2758267716533283 Td
-(•  Optional late penalty: after the due date \(and optional grace days\), only a share of the score is kept \(e.g. 50%\).) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 507.9687401574801697 Td
-(•  Long task descriptions open with View task so the list stays readable.) Tj
-ET
-BT
-/F2 11.5 Tf
-13.2249999999999996 TL
-0.051 0.58 0.533 rg
-45.354330708661422 492.6616535433068975 Td
-(11.3 Assign process) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.051 0.58 0.533 rg
-45.354330708661422 472.8191338582675485 Td
-(Step 1:) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 472.8191338582675485 Td
-(Admin or Manager opens Assign Task.) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.051 0.58 0.533 rg
-45.354330708661422 453.2600787401572688 Td
-(Step 2:) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 453.2600787401572688 Td
-(Choose department, then the person in that department.) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.051 0.58 0.533 rg
-45.354330708661422 433.701023622047046 Td
-(Step 3:) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 433.701023622047046 Td
-(Choose category and KPI, set weightage \(1–100%\), score \(points\), start and end dates, optional late) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 418.3939370078737738 Td
-(penalty, optional note.) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.051 0.58 0.533 rg
-45.354330708661422 398.834881889763551 Td
-(Step 4:) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 398.834881889763551 Td
-(Assign. Scorr stores who assigned it. The person is notified. Pending weightage for that one person) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 383.5277952755902788 Td
-(cannot exceed 100%.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 363.9687401574799992 Td
-(•  Other people have their own 100% weightage budgets.) Tj
-ET
-BT
-/F2 11.5 Tf
-13.2249999999999996 TL
-0.051 0.58 0.533 rg
-45.354330708661422 348.6616535433067838 Td
-(11.4 Completion emails) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-45.354330708661422 328.8191338582673779 Td
-(When someone marks Complete, Scorr sends email + in-app alerts to:) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 307.8427559055114671 Td
-(•  Their reporting manager; and) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 292.5356692913381949 Td
-(•  The person who assigned the KPI \(if different from the manager\).) Tj
-ET
-BT
-/F2 11.5 Tf
-13.2249999999999996 TL
-0.051 0.58 0.533 rg
-45.354330708661422 277.2285826771650363 Td
-(11.5 Performance label) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 257.3860629921256304 Td
-(•  95–100 Outstanding · 90–94 Excellent · 80–89 Good · 70–79 Needs Improvement · below 70 Unsatisfactory.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 242.0789763779523582 Td
-(•  Incomplete tasks contribute 0 awarded points but still count in assigned weightage, so the index stays honest) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 226.771889763779086 Td
-(until they are completed.) Tj
-ET
-BT
-/F1 8 Tf
-9.1999999999999993 TL
-0.58 0.639 0.722 rg
-282.8777952755905858 28.3466929133857093 Td
-(Page 14) Tj
-ET
-BT
-/F1 8 Tf
-9.1999999999999993 TL
-0.58 0.639 0.722 rg
-45.354330708661422 28.3466929133857093 Td
-(© Walfia · Project Guideline) Tj
-ET
-endstream
-endobj
-31 0 obj
-<</Type /Page
-/Parent 1 0 R
-/Resources 2 0 R
-/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
-/Contents 32 0 R
->>
-endobj
-32 0 obj
-<<
-/Length 5326
->>
-stream
-1.7007874015748032 w
-0.05 0.58 0.53 RG
-0.97 0.98 0.99 rg
-0. 841.8899999999999864 595.2755905511811534 -39.6850393700787407 re
-f
-0.89 0.91 0.94 RG
-0. 802.2049606299211746 m
-595.2755905511811534 802.2049606299211746 l
-S
-BT
-/F2 8 Tf
-9.1999999999999993 TL
-0.051 0.58 0.533 rg
-45.354330708661422 816.3781889763779418 Td
-(SCORR) Tj
-ET
-BT
-/F1 8 Tf
-9.1999999999999993 TL
-0.392 0.455 0.545 rg
-96.3779527559055254 816.3781889763779418 Td
-(Project Guideline) Tj
-ET
-BT
-/F1 8 Tf
-9.1999999999999993 TL
-0.392 0.455 0.545 rg
-501.2812598425197166 816.3781889763779418 Td
-(scorr.walfia.ai) Tj
-ET
-BT
-/F2 15 Tf
-17.25 TL
-0.059 0.09 0.165 rg
-45.354330708661422 779.5277952755905062 Td
-(12. Attendance, leave, shifts and GPS) Tj
+(12. Attendance, leave, shifts & GPS) Tj
 ET
 0.05 0.58 0.53 RG
 1.7007874015748032 w
@@ -3212,7 +2729,7 @@ BT
 11.5 TL
 0.2 0.255 0.333 rg
 84.1236220472440976 678.0474803149605805 Td
-(Assign the site to people \(everyone or selected staff\).) Tj
+(Assign the site to people.) Tj
 ET
 BT
 /F1 10 Tf
@@ -3226,140 +2743,305 @@ BT
 13.2249999999999996 TL
 0.051 0.58 0.533 rg
 45.354330708661422 643.1813385826771992 Td
-(12.2 How check-in works) Tj
+(12.2 Check-in) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 623.3388188976377933 Td
-(•  Staff allow location. When they are inside the radius during the assigned shift, Scorr can clock them in.) Tj
+(•  Staff allow location. Inside the radius during the shift, Scorr can clock them in.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 608.0317322834645211 Td
-(•  Leaving the radius can clock them out. Checkout is GPS-based, not a fake button from another city.) Tj
+(•  Leaving the radius can clock them out.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 592.7246456692912489 Td
-(•  On Android, a background location service can keep sending pings while a session is open so the live map) Tj
+(•  Android can keep sending pings while a session is open for the live map.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 577.4175590551180903 Td
-(stays current.) Tj
+(•  Remote/hybrid modes can allow check-in without the office pin when enabled for that person.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 562.1104724409448181 Td
-(•  Remote/hybrid work modes can allow check-in without the office pin when the company enables that for the) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 546.8033858267715459 Td
-(person.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 531.4962992125982737 Td
-(•  A person can have multiple visits in one day \(clock out for lunch, clock in again\).) Tj
+(•  Multiple visits in one day are supported.) Tj
 ET
 BT
 /F2 11.5 Tf
 13.2249999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 516.1892125984250015 Td
-(12.3 Overnight shifts and auto clock-out) Tj
+45.354330708661422 546.8033858267715459 Td
+(12.3 Overnight shifts & auto clock-out) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 526.96086614173214 Td
+(•  Shifts may cross midnight.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 511.6537795275589247 Td
+(•  When the shift ends, Scorr auto clock-out closes open visits.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 496.3466929133856524 Td
-( •     S h i f t s   c a n   c r o s s   m i d n i g h t   \( e . g .   e v e n i n g   s t a r t  !’   e a r l y   m o r n i n g   e n d \) .   L i v e   t r a c k i n g   a n d   d u r a t i o n   f o l l o w   t h e) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 481.0396062992124371 Td
-(overnight window.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 465.7325196850391649 Td
-(•  When the shift ends, Scorr auto clock-out closes open visits so admin/manager screens do not keep showing) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 450.4254330708659495 Td
-(“still working.”) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 435.1183464566926773 Td
-(•  Opening Attendance or Live Tracking also reconciles ended shifts if any record was left open.) Tj
+(•  Opening Attendance or Live Tracking also reconciles ended shifts.) Tj
 ET
 BT
 /F2 11.5 Tf
 13.2249999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 419.8112598425194619 Td
-(12.4 Leave) Tj
+45.354330708661422 481.0396062992124371 Td
+(12.4 Leave & shifts) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 399.968740157480056 Td
-(•  Employee requests type \(including Other\) and dates.) Tj
+48.1889763779527627 461.197086614173088 Td
+(•  Employee requests leave; Manager or Admin approves or rejects.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 384.6616535433068407 Td
-(•  Manager \(team\) or Admin approves or rejects. Emails go out on status change.) Tj
+48.1889763779527627 445.8899999999998158 Td
+(•  Managers/HR/Admin set shift start/end and working days.) Tj
 ET
 BT
-/F2 11.5 Tf
-13.2249999999999996 TL
+/F1 8 Tf
+9.1999999999999993 TL
+0.58 0.639 0.722 rg
+282.8777952755905858 28.3466929133857093 Td
+(Page 14) Tj
+ET
+BT
+/F1 8 Tf
+9.1999999999999993 TL
+0.58 0.639 0.722 rg
+45.354330708661422 28.3466929133857093 Td
+(© Walfia · Scorr) Tj
+ET
+endstream
+endobj
+31 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 32 0 R
+>>
+endobj
+32 0 obj
+<<
+/Length 4517
+>>
+stream
+1.7007874015748032 w
+0.05 0.58 0.53 RG
+0.97 0.98 0.99 rg
+0. 841.8899999999999864 595.2755905511811534 -39.6850393700787407 re
+f
+0.89 0.91 0.94 RG
+0. 802.2049606299211746 m
+595.2755905511811534 802.2049606299211746 l
+S
+BT
+/F2 8 Tf
+9.1999999999999993 TL
 0.051 0.58 0.533 rg
-45.354330708661422 369.3545669291335685 Td
-(12.5 Shifts) Tj
+45.354330708661422 816.3781889763779418 Td
+(SCORR) Tj
+ET
+BT
+/F1 8 Tf
+9.1999999999999993 TL
+0.392 0.455 0.545 rg
+96.3779527559055254 816.3781889763779418 Td
+(User Guide) Tj
+ET
+BT
+/F1 8 Tf
+9.1999999999999993 TL
+0.392 0.455 0.545 rg
+501.2812598425197166 816.3781889763779418 Td
+(scorr.walfia.ai) Tj
+ET
+BT
+/F2 15 Tf
+17.25 TL
+0.059 0.09 0.165 rg
+45.354330708661422 779.5277952755905062 Td
+(13. Device permissions) Tj
+ET
+0.05 0.58 0.53 RG
+1.7007874015748032 w
+45.354330708661422 756.8506299212598378 m
+147.4015748031496287 756.8506299212598378 l
+S
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+45.354330708661422 737.0081102362204319 Td
+(Scorr only asks for permissions the feature needs.) Tj
+ET
+0.95 0.96 0.98 rg
+45.354330708661422 727.3703149606299121 504.5669291338583093 -19.8425196850393704 re
+f
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.118 0.161 0.231 rg
+51.0236220472441033 716.0317322834645211 Td
+(Permission) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.118 0.161 0.231 rg
+181.4173228346456881 716.0317322834645211 Td
+(Why) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.2 0.255 0.333 rg
+51.0236220472441033 696.1892125984252289 Td
+(Internet) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.2 0.255 0.333 rg
+181.4173228346456881 696.1892125984252289 Td
+(Sign-in, KPIs, attendance, server mail.) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.2 0.255 0.333 rg
+51.0236220472441033 678.0474803149605805 Td
+(Location \(precise\)) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.2 0.255 0.333 rg
+181.4173228346456881 678.0474803149605805 Td
+(Clock in/out at the geofence; live tracking while checked in.) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.2 0.255 0.333 rg
+51.0236220472441033 659.9057480314960458 Td
+(Location \(background\)) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.2 0.255 0.333 rg
+181.4173228346456881 659.9057480314960458 Td
+(Android: attendance pings if the app is in the background during a shift.) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.2 0.255 0.333 rg
+51.0236220472441033 641.7640157480315111 Td
+(Foreground service) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.2 0.255 0.333 rg
+181.4173228346456881 641.7640157480315111 Td
+(Android notification while attendance tracking is active.) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.2 0.255 0.333 rg
+51.0236220472441033 623.6222834645668627 Td
+(Notifications) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.2 0.255 0.333 rg
+181.4173228346456881 623.6222834645668627 Td
+(Optional shift/attendance reminders.) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.2 0.255 0.333 rg
+51.0236220472441033 605.480551181102328 Td
+(Camera) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.2 0.255 0.333 rg
+181.4173228346456881 605.480551181102328 Td
+(Not used by Scorr. Authenticator apps may use camera to scan the MFA QR.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 349.5120472440942194 Td
-(•  Managers/HR/Admin set start/end and working days. Employees see My Shift on Attendance.) Tj
+48.1889763779527627 576.0002362204722886 Td
+(•  Scorr does not need contacts, photos, microphone, SMS, or call logs.) Tj
+ET
+0.94 0.99 0.98 rg
+0.05 0.58 0.53 RG
+1.1338582677165356 w
+49.6062992125984294 569.1970866141731449 m
+545.6692913385827524 569.1970866141731449 l
+548.0175887000680177 569.1970866141731449 549.9212598425197029 567.293415471721346 549.9212598425197029 564.9451181102360806 c
+549.9212598425197029 525.827007874015635 l
+549.9212598425197029 523.4787105125303697 547.5729624810344376 521.5750393700786844 545.6692913385827524 521.5750393700786844 c
+49.6062992125984294 521.5750393700786844 l
+47.2580018511131641 521.5750393700786844 45.354330708661422 523.9233367315638361 45.354330708661422 525.827007874015635 c
+45.354330708661422 564.9451181102360806 l
+45.354330708661422 567.293415471721346 47.7026280701466874 569.1970866141731449 49.6062992125984294 569.1970866141731449 c
+h
+B
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.059 0.463 0.431 rg
+56.6929133858267775 555.0238582677163777 Td
+(Location is stored as attendance for your company admins and managers — not sold, and not shown to other) Tj
 ET
 BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 334.2049606299209472 Td
-(•  Entry/exit can store the location used at clock events.) Tj
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.059 0.463 0.431 rg
+56.6929133858267775 539.7167716535432191 Td
+(companies.) Tj
 ET
 BT
 /F1 8 Tf
@@ -3373,7 +3055,7 @@ BT
 9.1999999999999993 TL
 0.58 0.639 0.722 rg
 45.354330708661422 28.3466929133857093 Td
-(© Walfia · Project Guideline) Tj
+(© Walfia · Scorr) Tj
 ET
 endstream
 endobj
@@ -3387,10 +3069,10 @@ endobj
 endobj
 34 0 obj
 <<
-/Length 5497
+/Length 3230
 >>
 stream
-1.7007874015748032 w
+1.1338582677165356 w
 0.05 0.58 0.53 RG
 0.97 0.98 0.99 rg
 0. 841.8899999999999864 595.2755905511811534 -39.6850393700787407 re
@@ -3411,7 +3093,7 @@ BT
 9.1999999999999993 TL
 0.392 0.455 0.545 rg
 96.3779527559055254 816.3781889763779418 Td
-(Project Guideline) Tj
+(User Guide) Tj
 ET
 BT
 /F1 8 Tf
@@ -3425,606 +3107,7 @@ BT
 17.25 TL
 0.059 0.09 0.165 rg
 45.354330708661422 779.5277952755905062 Td
-(13. What the app needs from the device) Tj
-ET
-0.05 0.58 0.53 RG
-1.7007874015748032 w
-45.354330708661422 756.8506299212598378 m
-147.4015748031496287 756.8506299212598378 l
-S
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-45.354330708661422 737.0081102362204319 Td
-(Scorr only asks for permissions that the feature needs. You can refuse; GPS attendance will not work without) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-45.354330708661422 721.7010236220471597 Td
-(location.) Tj
-ET
-0.95 0.96 0.98 rg
-45.354330708661422 712.0632283464566399 504.5669291338583093 -19.8425196850393704 re
-f
-BT
-/F2 9 Tf
-10.3499999999999996 TL
-0.118 0.161 0.231 rg
-51.0236220472441033 700.7246456692912489 Td
-(Permission) Tj
-ET
-BT
-/F2 9 Tf
-10.3499999999999996 TL
-0.118 0.161 0.231 rg
-181.4173228346456881 700.7246456692912489 Td
-(Why) Tj
-ET
-BT
-/F2 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-51.0236220472441033 680.8821259842519567 Td
-(Internet) Tj
-ET
-BT
-/F1 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 680.8821259842519567 Td
-(Sign-in, load KPIs, save attendance, send mail via the server.) Tj
-ET
-BT
-/F2 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-51.0236220472441033 662.7403937007874219 Td
-(Location \(precise\)) Tj
-ET
-BT
-/F1 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 662.7403937007874219 Td
-(Clock in/out at the office geofence; live tracking while checked in.) Tj
-ET
-BT
-/F2 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-51.0236220472441033 644.5986614173227736 Td
-(Location \(background\)) Tj
-ET
-BT
-/F1 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 644.5986614173227736 Td
-(Android: continue attendance pings if you leave the app during a shift. iOS asks for) Tj
-ET
-BT
-/F1 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 629.291574803149615 Td
-(Always if you use automatic attendance.) Tj
-ET
-BT
-/F2 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-51.0236220472441033 611.1498425196849666 Td
-(Foreground service) Tj
-ET
-BT
-/F1 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 611.1498425196849666 Td
-(Android notification while attendance tracking is active — required by the OS, not) Tj
-ET
-BT
-/F1 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 595.8427559055116944 Td
-(ads.) Tj
-ET
-BT
-/F2 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-51.0236220472441033 577.7010236220471597 Td
-(Notifications) Tj
-ET
-BT
-/F1 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 577.7010236220471597 Td
-(Optional: shift/attendance reminders on Android 13+.) Tj
-ET
-BT
-/F2 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-51.0236220472441033 559.559291338582625 Td
-(Camera) Tj
-ET
-BT
-/F1 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 559.559291338582625 Td
-(Not used by Scorr itself. Authenticator apps use the camera only to scan the MFA) Tj
-ET
-BT
-/F1 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 544.2522047244092391 Td
-(QR on another screen.) Tj
-ET
-BT
-/F2 11.5 Tf
-13.2249999999999996 TL
-0.051 0.58 0.533 rg
-45.354330708661422 514.7718897637794271 Td
-(What we do not need) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 494.9293700787400212 Td
-(•  Contacts, photos, microphone, SMS, or call logs.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 479.622283464566749 Td
-(•  Root/jailbreak. Do not install Scorr on a compromised phone.) Tj
-ET
-0.94 0.99 0.98 rg
-0.05 0.58 0.53 RG
-1.1338582677165356 w
-49.6062992125984294 472.8191338582675485 m
-545.6692913385827524 472.8191338582675485 l
-548.0175887000680177 472.8191338582675485 549.9212598425197029 470.9154627158157496 549.9212598425197029 468.567165354330541 c
-549.9212598425197029 429.4490551181099818 l
-549.9212598425197029 427.1007577566247733 547.5729624810344376 425.1970866141729744 545.6692913385827524 425.1970866141729744 c
-49.6062992125984294 425.1970866141729744 l
-47.2580018511131641 425.1970866141729744 45.354330708661422 427.5453839756582397 45.354330708661422 429.4490551181099818 c
-45.354330708661422 468.567165354330541 l
-45.354330708661422 470.9154627158157496 47.7026280701466874 472.8191338582675485 49.6062992125984294 472.8191338582675485 c
-h
-B
-BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.059 0.463 0.431 rg
-56.6929133858267775 458.6459055118108381 Td
-(Location is stored as attendance pings and check-in/out coordinates for your company administrators and) Tj
-ET
-BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.059 0.463 0.431 rg
-56.6929133858267775 443.3388188976376227 Td
-(managers — not sold, and not shown to other companies.) Tj
-ET
-BT
-/F1 8 Tf
-9.1999999999999993 TL
-0.58 0.639 0.722 rg
-282.8777952755905858 28.3466929133857093 Td
-(Page 16) Tj
-ET
-BT
-/F1 8 Tf
-9.1999999999999993 TL
-0.58 0.639 0.722 rg
-45.354330708661422 28.3466929133857093 Td
-(© Walfia · Project Guideline) Tj
-ET
-endstream
-endobj
-35 0 obj
-<</Type /Page
-/Parent 1 0 R
-/Resources 2 0 R
-/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
-/Contents 36 0 R
->>
-endobj
-36 0 obj
-<<
-/Length 4841
->>
-stream
-1.1338582677165356 w
-0.05 0.58 0.53 RG
-0.97 0.98 0.99 rg
-0. 841.8899999999999864 595.2755905511811534 -39.6850393700787407 re
-f
-0.89 0.91 0.94 RG
-0. 802.2049606299211746 m
-595.2755905511811534 802.2049606299211746 l
-S
-BT
-/F2 8 Tf
-9.1999999999999993 TL
-0.051 0.58 0.533 rg
-45.354330708661422 816.3781889763779418 Td
-(SCORR) Tj
-ET
-BT
-/F1 8 Tf
-9.1999999999999993 TL
-0.392 0.455 0.545 rg
-96.3779527559055254 816.3781889763779418 Td
-(Project Guideline) Tj
-ET
-BT
-/F1 8 Tf
-9.1999999999999993 TL
-0.392 0.455 0.545 rg
-501.2812598425197166 816.3781889763779418 Td
-(scorr.walfia.ai) Tj
-ET
-BT
-/F2 15 Tf
-17.25 TL
-0.059 0.09 0.165 rg
-45.354330708661422 779.5277952755905062 Td
-(14. Rewards and reports) Tj
-ET
-0.05 0.58 0.53 RG
-1.7007874015748032 w
-45.354330708661422 756.8506299212598378 m
-147.4015748031496287 756.8506299212598378 l
-S
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-45.354330708661422 737.0081102362204319 Td
-(Reward points never expire. After the monthly job, the person’s Month score \(score index for that month\) maps to) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-45.354330708661422 721.7010236220471597 Td
-(reward points:) Tj
-ET
-0.95 0.96 0.98 rg
-45.354330708661422 712.0632283464566399 504.5669291338583093 -19.8425196850393704 re
-f
-BT
-/F2 9 Tf
-10.3499999999999996 TL
-0.118 0.161 0.231 rg
-51.0236220472441033 700.7246456692912489 Td
-(Month score \(index\)) Tj
-ET
-BT
-/F2 9 Tf
-10.3499999999999996 TL
-0.118 0.161 0.231 rg
-181.4173228346456881 700.7246456692912489 Td
-(Reward points) Tj
-ET
-BT
-/F2 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-51.0236220472441033 680.8821259842519567 Td
-(90 or higher) Tj
-ET
-BT
-/F1 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 680.8821259842519567 Td
-(1,000 points) Tj
-ET
-BT
-/F2 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-51.0236220472441033 662.7403937007874219 Td
-(80 – 89) Tj
-ET
-BT
-/F1 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 662.7403937007874219 Td
-(500 points) Tj
-ET
-BT
-/F2 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-51.0236220472441033 644.5986614173227736 Td
-(70 – 79) Tj
-ET
-BT
-/F1 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 644.5986614173227736 Td
-(250 points) Tj
-ET
-BT
-/F2 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-51.0236220472441033 626.4569291338582389 Td
-(Below 70) Tj
-ET
-BT
-/F1 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 626.4569291338582389 Td
-(0 points) Tj
-ET
-0.94 0.99 0.98 rg
-0.05 0.58 0.53 RG
-1.1338582677165356 w
-49.6062992125984294 605.480551181102328 m
-545.6692913385827524 605.480551181102328 l
-548.0175887000680177 605.480551181102328 549.9212598425197029 603.5768800386505291 549.9212598425197029 601.2285826771652637 c
-549.9212598425197029 562.1104724409448181 l
-549.9212598425197029 559.7621750794595528 547.5729624810344376 557.8585039370078675 545.6692913385827524 557.8585039370078675 c
-49.6062992125984294 557.8585039370078675 l
-47.2580018511131641 557.8585039370078675 45.354330708661422 560.2068012984930192 45.354330708661422 562.1104724409448181 c
-45.354330708661422 601.2285826771652637 l
-45.354330708661422 603.5768800386505291 47.7026280701466874 605.480551181102328 49.6062992125984294 605.480551181102328 c
-h
-B
-BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.059 0.463 0.431 rg
-56.6929133858267775 591.3073228346456744 Td
-(Month score is the scoreboard index for that calendar month — not the same as all-time Overall Score on the People) Tj
-ET
-BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.059 0.463 0.431 rg
-56.6929133858267775 576.0002362204722886 Td
-(board.) Tj
-ET
-BT
-/F2 11.5 Tf
-13.2249999999999996 TL
-0.051 0.58 0.533 rg
-45.354330708661422 538.0159842519684616 Td
-(Redemption flow) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.051 0.58 0.533 rg
-45.354330708661422 518.1734645669290558 Td
-(Step 1:) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 518.1734645669290558 Td
-(Admin maintains the catalog \(name, cost in points, description\).) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.051 0.58 0.533 rg
-45.354330708661422 498.614409448818833 Td
-(Step 2:) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 498.614409448818833 Td
-(Employee redeems an item.) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.051 0.58 0.533 rg
-45.354330708661422 479.0553543307086102 Td
-(Step 3:) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 479.0553543307086102 Td
-(Manager or Admin approves.) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.051 0.58 0.533 rg
-45.354330708661422 459.4962992125983305 Td
-(Step 4:) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 459.4962992125983305 Td
-(Item is marked fulfilled when delivered.) Tj
-ET
-BT
-/F1 8 Tf
-9.1999999999999993 TL
-0.58 0.639 0.722 rg
-282.8777952755905858 28.3466929133857093 Td
-(Page 17) Tj
-ET
-BT
-/F1 8 Tf
-9.1999999999999993 TL
-0.58 0.639 0.722 rg
-45.354330708661422 28.3466929133857093 Td
-(© Walfia · Project Guideline) Tj
-ET
-endstream
-endobj
-37 0 obj
-<</Type /Page
-/Parent 1 0 R
-/Resources 2 0 R
-/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
-/Contents 38 0 R
->>
-endobj
-38 0 obj
-<<
-/Length 1554
->>
-stream
-1.1338582677165356 w
-0.05 0.58 0.53 RG
-0.97 0.98 0.99 rg
-0. 841.8899999999999864 595.2755905511811534 -39.6850393700787407 re
-f
-0.89 0.91 0.94 RG
-0. 802.2049606299211746 m
-595.2755905511811534 802.2049606299211746 l
-S
-BT
-/F2 8 Tf
-9.1999999999999993 TL
-0.051 0.58 0.533 rg
-45.354330708661422 816.3781889763779418 Td
-(SCORR) Tj
-ET
-BT
-/F1 8 Tf
-9.1999999999999993 TL
-0.392 0.455 0.545 rg
-96.3779527559055254 816.3781889763779418 Td
-(Project Guideline) Tj
-ET
-BT
-/F1 8 Tf
-9.1999999999999993 TL
-0.392 0.455 0.545 rg
-501.2812598425197166 816.3781889763779418 Td
-(scorr.walfia.ai) Tj
-ET
-BT
-/F2 11.5 Tf
-13.2249999999999996 TL
-0.051 0.58 0.533 rg
-45.354330708661422 779.5277952755905062 Td
-(14.1 Reports) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 759.6852755905511003 Td
-(•  Admin Reports — monthly/quarterly Excel, PDF, CSV.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 744.3781889763779418 Td
-(•  Admin Analytics — charts, attainment, and Weightage / Score scoreboards.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 729.0711023622046696 Td
-(•  Personal export — My KPIs PDF/Excel.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 713.7640157480315111 Td
-(•  Admin Daily Reports — text logs from Settings on staff dashboards.) Tj
-ET
-BT
-/F1 8 Tf
-9.1999999999999993 TL
-0.58 0.639 0.722 rg
-282.8777952755905858 28.3466929133857093 Td
-(Page 18) Tj
-ET
-BT
-/F1 8 Tf
-9.1999999999999993 TL
-0.58 0.639 0.722 rg
-45.354330708661422 28.3466929133857093 Td
-(© Walfia · Project Guideline) Tj
-ET
-endstream
-endobj
-39 0 obj
-<</Type /Page
-/Parent 1 0 R
-/Resources 2 0 R
-/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
-/Contents 40 0 R
->>
-endobj
-40 0 obj
-<<
-/Length 3504
->>
-stream
-1.1338582677165356 w
-0.89 0.91 0.94 RG
-0.97 0.98 0.99 rg
-0. 841.8899999999999864 595.2755905511811534 -39.6850393700787407 re
-f
-0.89 0.91 0.94 RG
-0. 802.2049606299211746 m
-595.2755905511811534 802.2049606299211746 l
-S
-BT
-/F2 8 Tf
-9.1999999999999993 TL
-0.051 0.58 0.533 rg
-45.354330708661422 816.3781889763779418 Td
-(SCORR) Tj
-ET
-BT
-/F1 8 Tf
-9.1999999999999993 TL
-0.392 0.455 0.545 rg
-96.3779527559055254 816.3781889763779418 Td
-(Project Guideline) Tj
-ET
-BT
-/F1 8 Tf
-9.1999999999999993 TL
-0.392 0.455 0.545 rg
-501.2812598425197166 816.3781889763779418 Td
-(scorr.walfia.ai) Tj
-ET
-BT
-/F2 15 Tf
-17.25 TL
-0.059 0.09 0.165 rg
-45.354330708661422 779.5277952755905062 Td
-(15. Mobile apps) Tj
+(14. Mobile apps) Tj
 ET
 0.05 0.58 0.53 RG
 1.7007874015748032 w
@@ -4036,7 +3119,7 @@ BT
 13.2249999999999996 TL
 0.051 0.58 0.533 rg
 45.354330708661422 737.0081102362204319 Td
-(15.1 Android) Tj
+(14.1 Android) Tj
 ET
 BT
 /F2 10 Tf
@@ -4064,7 +3147,7 @@ BT
 11.5 TL
 0.2 0.255 0.333 rg
 84.1236220472440976 697.6065354330708033 Td
-(Go to the Mobile App / Download section.) Tj
+(Open the Mobile App / Download section.) Tj
 ET
 BT
 /F2 10 Tf
@@ -4092,21 +3175,21 @@ BT
 11.5 TL
 0.2 0.255 0.333 rg
 84.1236220472440976 658.4884251968503577 Td
-(Open the app and sign in with your Scorr email and password.) Tj
+(Sign in with your Scorr email and password.) Tj
 ET
 BT
 /F2 11.5 Tf
 13.2249999999999996 TL
 0.051 0.58 0.533 rg
 45.354330708661422 638.9293700787401349 Td
-(15.2 iPhone / iPad) Tj
+(14.2 iPhone / iPad) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 45.354330708661422 619.086850393700729 Td
-(A native App Store IPA is not required for daily use. Install as a Home Screen app:) Tj
+(Install as a Home Screen app \(Safari\):) Tj
 ET
 BT
 /F2 10 Tf
@@ -4120,7 +3203,7 @@ BT
 11.5 TL
 0.2 0.255 0.333 rg
 84.1236220472440976 598.1104724409448181 Td
-(Open Safari and go to https://scorr.walfia.ai) Tj
+(Open https://scorr.walfia.ai in Safari.) Tj
 ET
 BT
 /F2 10 Tf
@@ -4134,7 +3217,7 @@ BT
 11.5 TL
 0.2 0.255 0.333 rg
 84.1236220472440976 578.5514173228345953 Td
-(Tap the Share button.) Tj
+( S h a r e  !’   A d d   t o   H o m e   S c r e e n .) Tj
 ET
 BT
 /F2 10 Tf
@@ -4148,56 +3231,42 @@ BT
 11.5 TL
 0.2 0.255 0.333 rg
 84.1236220472440976 558.9923622047242588 Td
-(Tap Add to Home Screen.) Tj
-ET
-BT
-/F2 10 Tf
-11.5 TL
-0.051 0.58 0.533 rg
-45.354330708661422 539.4333070866141497 Td
-(Step 4:) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-84.1236220472440976 539.4333070866141497 Td
 (Open the Scorr icon and sign in.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 519.8742519685038133 Td
-(•  Enable Location when prompted so GPS attendance works.) Tj
+48.1889763779527627 539.4333070866141497 Td
+(•  Enable Location when prompted for GPS attendance.) Tj
 ET
 BT
 /F1 8 Tf
 9.1999999999999993 TL
 0.58 0.639 0.722 rg
 282.8777952755905858 28.3466929133857093 Td
-(Page 19) Tj
+(Page 16) Tj
 ET
 BT
 /F1 8 Tf
 9.1999999999999993 TL
 0.58 0.639 0.722 rg
 45.354330708661422 28.3466929133857093 Td
-(© Walfia · Project Guideline) Tj
+(© Walfia · Scorr) Tj
 ET
 endstream
 endobj
-41 0 obj
+35 0 obj
 <</Type /Page
 /Parent 1 0 R
 /Resources 2 0 R
 /MediaBox [0 0 595.2799999999999727 841.8899999999999864]
-/Contents 42 0 R
+/Contents 36 0 R
 >>
 endobj
-42 0 obj
+36 0 obj
 <<
-/Length 6393
+/Length 3715
 >>
 stream
 1.7007874015748032 w
@@ -4221,7 +3290,7 @@ BT
 9.1999999999999993 TL
 0.392 0.455 0.545 rg
 96.3779527559055254 816.3781889763779418 Td
-(Project Guideline) Tj
+(User Guide) Tj
 ET
 BT
 /F1 8 Tf
@@ -4235,7 +3304,7 @@ BT
 17.25 TL
 0.059 0.09 0.165 rg
 45.354330708661422 779.5277952755905062 Td
-(16. Security credentials \(MFA & recovery\)) Tj
+(15. Security \(MFA & recovery\)) Tj
 ET
 0.05 0.58 0.53 RG
 1.7007874015748032 w
@@ -4247,245 +3316,147 @@ BT
 11.5 TL
 0.2 0.255 0.333 rg
 45.354330708661422 737.0081102362204319 Td
-(Scorr is built so ordinary users never hold database master keys. The browser and the Android app only use a) Tj
+(The browser and Android app use a public key plus your personal login. Privileged actions run as checked server) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 45.354330708661422 721.7010236220471597 Td
-(public “anon” key plus your personal login token. Privileged actions run on the server as checked functions.) Tj
+(functions.) Tj
 ET
 BT
 /F2 11.5 Tf
 13.2249999999999996 TL
 0.051 0.58 0.533 rg
 45.354330708661422 700.7246456692912489 Td
-(16.1 Transport and hosting) Tj
+(15.1 Accounts) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 680.8821259842519567 Td
-(•  https://scorr.walfia.ai uses TLS \(HTTPS\) on Vercel. The API is https://*.supabase.co with TLS.) Tj
+(•  Passwords are hashed by Supabase Auth — never stored readable.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 665.5750393700786844 Td
-(•  Data at rest is stored in Supabase/PostgreSQL on AWS \(Asia\), with platform disk encryption.) Tj
+(•  Failed logins are rate-limited.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 650.2679527559055259 Td
-(•  Email is sent from noreply@scorr.walfia.ai through Resend; templates are server-side.) Tj
+(•  Idle sessions sign out after inactivity.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 634.9608661417322537 Td
+(•  Company signup requires email OTP.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 619.6537795275589815 Td
+(•  Admins, managers, HR, and employees enroll TOTP authenticator MFA.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 604.346692913385823 Td
+(•  Save one-time backup codes. Each works once.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 589.0396062992125508 Td
+( •     L o s t   a u t h e n t i c a t o r :   e m a i l   O T P   o n   t h e   M F A   s c r e e n ,   t h e n   r e - e n r o l l   —   o r   a s k   A d m i n  !’   P e o p l e  !’   R e s e t) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 573.7325196850392786 Td
+(authenticator.) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 558.4254330708660063 Td
+( •     S e t t i n g s  !’   A c c o u n t   S e c u r i t y :   r e g e n e r a t e   b a c k u p   c o d e s   a n d   r e v i e w   r e c o v e r y .) Tj
 ET
 BT
 /F2 11.5 Tf
 13.2249999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 634.9608661417322537 Td
-(16.2 Accounts and MFA) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 615.1183464566928478 Td
-(•  Passwords are stored by Supabase Auth \(hashed\). Scorr never stores a readable password.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 599.8112598425195756 Td
-(•  Too many failed logins on an email are rate-limited \(about 15 minutes\).) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 584.5041732283464171 Td
-(•  Forgot password does not tell attackers whether an email exists. Reset is time-limited.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 569.1970866141731449 Td
-(•  Company signup requires an email OTP before the account is created.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 553.8899999999998727 Td
-(•  Idle sessions sign out after 20 minutes of no activity.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 538.5829133858267141 Td
-(•  Admins, managers, HR, and employees enroll TOTP \(authenticator app\). Sensitive admin actions \(e.g.) Tj
+45.354330708661422 543.1183464566927341 Td
+(15.2 Isolation) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 523.2758267716533283 Td
-(resetting someone else’s authenticator\) require a fresh MFA-verified session \(AAL2\).) Tj
+(•  Every record is tied to a company. Role checks decide who can read or write.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 507.9687401574801697 Td
-(•  After MFA setup, save one-time backup codes. Each code works once if the phone is unavailable.) Tj
+(•  Employees cannot create users or change branding.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 492.6616535433068975 Td
-(•  Lost authenticator and no backup codes? On the MFA screen, verify with a code sent to the login email \(OTP\),) Tj
+(•  Managers cannot assign KPIs outside their allowed team.) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 477.3545669291336822 Td
-(then re-enroll MFA and save new backup codes.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 462.0474803149604099 Td
-(•  Account Security \(Settings\) lets people regenerate backup codes, set a recovery email, and review recovery) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 446.7403937007871946 Td
-(activity.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 431.4333070866139224 Td
-(•  A company admin can also reset authenticators from People so old 6-digit codes stop working. Phone apps do) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 416.1262204724406502 Td
-(not allow Scorr to delete the old icon — remove the old Scorr entry yourself.) Tj
-ET
-BT
-/F2 11.5 Tf
-13.2249999999999996 TL
-0.051 0.58 0.533 rg
-45.354330708661422 400.8191338582674348 Td
-(16.3 Isolation and permissions) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 380.9766141732280857 Td
-(•  Every business record is tied to a company. Row Level Security and role checks \(employee / manager / admin /) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 365.6695275590548135 Td
-(HR / platform owner\) decide who can read or write.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 350.3624409448815413 Td
-(•  Employees cannot call admin user-create or branding save.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 335.055354330708326 Td
-(•  Managers cannot assign KPIs outside the allowed department/team.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 319.7482677165351106 Td
-(•  GPS pings are written as the signed-in user, not as an arbitrary other employee id from the phone.) Tj
-ET
-BT
-/F2 11.5 Tf
-13.2249999999999996 TL
-0.051 0.58 0.533 rg
-45.354330708661422 304.4411811023618384 Td
-(16.4 Policy and audit) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 284.5986614173224325 Td
-(•  Sign-in records that the user accepted location/KPI monitoring.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 269.2915748031491603 Td
-(•  Admins can reset passwords and authenticators with an audit trail in notifications/email.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 253.9844881889760018 Td
-(•  Deleting a company \(platform owner\) removes that tenant’s workspace.) Tj
+(•  GPS pings are written as the signed-in user only.) Tj
 ET
 BT
 /F1 8 Tf
 9.1999999999999993 TL
 0.58 0.639 0.722 rg
 282.8777952755905858 28.3466929133857093 Td
-(Page 20) Tj
+(Page 17) Tj
 ET
 BT
 /F1 8 Tf
 9.1999999999999993 TL
 0.58 0.639 0.722 rg
 45.354330708661422 28.3466929133857093 Td
-(© Walfia · Project Guideline) Tj
+(© Walfia · Scorr) Tj
 ET
 endstream
 endobj
-43 0 obj
+37 0 obj
 <</Type /Page
 /Parent 1 0 R
 /Resources 2 0 R
 /MediaBox [0 0 595.2799999999999727 841.8899999999999864]
-/Contents 44 0 R
+/Contents 38 0 R
 >>
 endobj
-44 0 obj
+38 0 obj
 <<
-/Length 4746
+/Length 6410
 >>
 stream
 1.7007874015748032 w
@@ -4509,7 +3480,7 @@ BT
 9.1999999999999993 TL
 0.392 0.455 0.545 rg
 96.3779527559055254 816.3781889763779418 Td
-(Project Guideline) Tj
+(User Guide) Tj
 ET
 BT
 /F1 8 Tf
@@ -4523,362 +3494,7 @@ BT
 17.25 TL
 0.059 0.09 0.165 rg
 45.354330708661422 779.5277952755905062 Td
-(17. What “secure” means \(honest guarantee\)) Tj
-ET
-0.05 0.58 0.53 RG
-1.7007874015748032 w
-45.354330708661422 756.8506299212598378 m
-147.4015748031496287 756.8506299212598378 l
-S
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-45.354330708661422 737.0081102362204319 Td
-(No cloud HR product can truthfully promise that it is “totally secure forever.” Attackers, stolen phones, and weak) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-45.354330708661422 721.7010236220471597 Td
-(passwords exist in every industry. What Scorr does guarantee as a product design is the following:) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 700.7246456692912489 Td
-(•  Your company data is not mixed into another company’s screens.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 685.4175590551180903 Td
-(•  Traffic to Scorr and the database is encrypted in transit \(HTTPS\).) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 670.1104724409449318 Td
-(•  Staff passwords are not stored in plain text.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 654.8033858267716596 Td
-(•  Privileged and staff logins need an authenticator \(or backup code / email OTP recovery\), not password alone.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 639.4962992125983874 Td
-(•  Location is used for attendance you enabled, not for silent advertising.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-45.354330708661422 624.1892125984251152 Td
-(Your side of the guarantee: unique passwords, do not share authenticator screenshots or backup codes, keep) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-45.354330708661422 608.882125984251843 Td
-(phones updated, only install the APK from scorr.walfia.ai, and use email OTP recovery or ask Admin to reset MFA) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-45.354330708661422 593.5750393700786844 Td
-(if a device is lost.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-45.354330708661422 572.5986614173227736 Td
-(Walfia’s side: keep hosting on reputable providers \(Vercel, Supabase/AWS\), restrict service keys to the server,) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-45.354330708661422 557.2915748031493877 Td
-(and keep improving database rules. Independent penetration tests and certifications \(SOC 2 / ISO 27001\) are a) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-45.354330708661422 541.9844881889762291 Td
-(separate commercial engagement — they are not claimed as already issued in this guide.) Tj
-ET
-0.94 0.99 0.98 rg
-0.05 0.58 0.53 RG
-1.1338582677165356 w
-49.6062992125984294 529.5120472440943331 m
-545.6692913385827524 529.5120472440943331 l
-548.0175887000680177 529.5120472440943331 549.9212598425197029 527.6083761016425342 549.9212598425197029 525.2600787401572688 c
-549.9212598425197029 470.8348818897636079 l
-549.9212598425197029 468.4865845282783425 547.5729624810344376 466.5829133858266005 545.6692913385827524 466.5829133858266005 c
-49.6062992125984294 466.5829133858266005 l
-47.2580018511131641 466.5829133858266005 45.354330708661422 468.9312107473118658 45.354330708661422 470.8348818897636079 c
-45.354330708661422 525.2600787401572688 l
-45.354330708661422 527.6083761016426479 47.7026280701466874 529.5120472440943331 49.6062992125984294 529.5120472440943331 c
-h
-B
-BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.059 0.463 0.431 rg
-56.6929133858267775 515.3388188976375659 Td
-(If you need a formal DPA, data-residency letter, or pentest report for procurement, contact Walfia) Tj
-ET
-BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.059 0.463 0.431 rg
-56.6929133858267775 500.0317322834643505 Td
-(\(info@walfia.ai\) so the legal pack matches your contract — this PDF is an operational guide, not a legal) Tj
-ET
-BT
-/F1 9.5 Tf
-10.9249999999999989 TL
-0.059 0.463 0.431 rg
-56.6929133858267775 484.7246456692911352 Td
-(warranty.) Tj
-ET
-BT
-/F1 8 Tf
-9.1999999999999993 TL
-0.58 0.639 0.722 rg
-282.8777952755905858 28.3466929133857093 Td
-(Page 21) Tj
-ET
-BT
-/F1 8 Tf
-9.1999999999999993 TL
-0.58 0.639 0.722 rg
-45.354330708661422 28.3466929133857093 Td
-(© Walfia · Project Guideline) Tj
-ET
-endstream
-endobj
-45 0 obj
-<</Type /Page
-/Parent 1 0 R
-/Resources 2 0 R
-/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
-/Contents 46 0 R
->>
-endobj
-46 0 obj
-<<
-/Length 2699
->>
-stream
-1.1338582677165356 w
-0.05 0.58 0.53 RG
-0.97 0.98 0.99 rg
-0. 841.8899999999999864 595.2755905511811534 -39.6850393700787407 re
-f
-0.89 0.91 0.94 RG
-0. 802.2049606299211746 m
-595.2755905511811534 802.2049606299211746 l
-S
-BT
-/F2 8 Tf
-9.1999999999999993 TL
-0.051 0.58 0.533 rg
-45.354330708661422 816.3781889763779418 Td
-(SCORR) Tj
-ET
-BT
-/F1 8 Tf
-9.1999999999999993 TL
-0.392 0.455 0.545 rg
-96.3779527559055254 816.3781889763779418 Td
-(Project Guideline) Tj
-ET
-BT
-/F1 8 Tf
-9.1999999999999993 TL
-0.392 0.455 0.545 rg
-501.2812598425197166 816.3781889763779418 Td
-(scorr.walfia.ai) Tj
-ET
-BT
-/F2 15 Tf
-17.25 TL
-0.059 0.09 0.165 rg
-45.354330708661422 779.5277952755905062 Td
-(18. How the platform is built) Tj
-ET
-0.05 0.58 0.53 RG
-1.7007874015748032 w
-45.354330708661422 756.8506299212598378 m
-147.4015748031496287 756.8506299212598378 l
-S
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-45.354330708661422 737.0081102362204319 Td
-(Scorr is the live product at https://scorr.walfia.ai.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 716.0317322834645211 Td
-(•  Website: React application on Vercel.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 700.7246456692912489 Td
-(•  Login and data: Supabase Auth + PostgreSQL.) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 685.4175590551180903 Td
-(•  Mail: Resend.) Tj
-ET
-0.95 0.96 0.98 rg
-45.354330708661422 681.4490551181102092 504.5669291338583093 -19.8425196850393704 re
-f
-BT
-/F2 9 Tf
-10.3499999999999996 TL
-0.118 0.161 0.231 rg
-51.0236220472441033 670.1104724409449318 Td
-(Item) Tj
-ET
-BT
-/F2 9 Tf
-10.3499999999999996 TL
-0.118 0.161 0.231 rg
-181.4173228346456881 670.1104724409449318 Td
-(Value) Tj
-ET
-BT
-/F2 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-51.0236220472441033 650.2679527559055259 Td
-(App) Tj
-ET
-BT
-/F1 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 650.2679527559055259 Td
-(https://scorr.walfia.ai) Tj
-ET
-BT
-/F2 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-51.0236220472441033 632.1262204724408775 Td
-(This PDF) Tj
-ET
-BT
-/F1 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 632.1262204724408775 Td
-(https://scorr.walfia.ai/downloads/Scorr-Client-Feature-Guide.pdf) Tj
-ET
-BT
-/F2 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-51.0236220472441033 613.9844881889763428 Td
-(Hosting) Tj
-ET
-BT
-/F1 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 613.9844881889763428 Td
-(Vercel \(HTTPS\)) Tj
-ET
-BT
-/F1 8 Tf
-9.1999999999999993 TL
-0.58 0.639 0.722 rg
-282.8777952755905858 28.3466929133857093 Td
-(Page 22) Tj
-ET
-BT
-/F1 8 Tf
-9.1999999999999993 TL
-0.58 0.639 0.722 rg
-45.354330708661422 28.3466929133857093 Td
-(© Walfia · Project Guideline) Tj
-ET
-endstream
-endobj
-47 0 obj
-<</Type /Page
-/Parent 1 0 R
-/Resources 2 0 R
-/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
-/Contents 48 0 R
->>
-endobj
-48 0 obj
-<<
-/Length 9312
->>
-stream
-1.7007874015748032 w
-0.05 0.58 0.53 RG
-0.97 0.98 0.99 rg
-0. 841.8899999999999864 595.2755905511811534 -39.6850393700787407 re
-f
-0.89 0.91 0.94 RG
-0. 802.2049606299211746 m
-595.2755905511811534 802.2049606299211746 l
-S
-BT
-/F2 8 Tf
-9.1999999999999993 TL
-0.051 0.58 0.533 rg
-45.354330708661422 816.3781889763779418 Td
-(SCORR) Tj
-ET
-BT
-/F1 8 Tf
-9.1999999999999993 TL
-0.392 0.455 0.545 rg
-96.3779527559055254 816.3781889763779418 Td
-(Project Guideline) Tj
-ET
-BT
-/F1 8 Tf
-9.1999999999999993 TL
-0.392 0.455 0.545 rg
-501.2812598425197166 816.3781889763779418 Td
-(scorr.walfia.ai) Tj
-ET
-BT
-/F2 15 Tf
-17.25 TL
-0.059 0.09 0.165 rg
-45.354330708661422 779.5277952755905062 Td
-(19. Troubleshooting) Tj
+(16. Troubleshooting) Tj
 ET
 0.05 0.58 0.53 RG
 1.7007874015748032 w
@@ -4914,35 +3530,35 @@ BT
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 717.1655905511811397 Td
-(If the email is registered: you will see “Incorrect password.” If the email is) Tj
+( R e g i s t e r e d   e m a i l   +   w r o n g   p a s s w o r d  !’   “ I n c o r r e c t   p a s s w o r d . ”   U n k n o w n   e m a i l  !’) Tj
 ET
 BT
 /F1 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 701.8585039370078675 Td
-(unknown: “Incorrect email and password.” After company registration, wait until) Tj
+(“Incorrect email and password.” Wait until the company is approved after) Tj
 ET
 BT
 /F1 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 686.5514173228345953 Td
-(the company is approved.) Tj
+(registration.) Tj
 ET
 BT
 /F2 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 668.4096850393700606 Td
-(Wrong dashboard opens) Tj
+(Wrong dashboard) Tj
 ET
 BT
 /F1 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 668.4096850393700606 Td
-(Your role is set incorrectly. Ask Admin to check role on Users tab.) Tj
+(Ask Admin to check role on People.) Tj
 ET
 BT
 /F2 9 Tf
@@ -4956,311 +3572,206 @@ BT
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 650.2679527559055259 Td
-(You must be Admin \(not Manager/Employee\). Demo admin cannot add real users.) Tj
+(Must be Admin. Demo admin cannot add real users.) Tj
 ET
 BT
 /F2 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 632.1262204724408775 Td
-(Manager list empty) Tj
+(Department required) Tj
 ET
 BT
 /F1 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 632.1262204724408775 Td
-(Create Manager accounts first, in the same department as the employee.) Tj
+(Create the department first, then assign Manager/Employee.) Tj
 ET
 BT
 /F2 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 613.9844881889763428 Td
-(Department required error) Tj
-ET
-BT
-/F1 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 613.9844881889763428 Td
-(Managers and employees need a department. Create one under Departments.) Tj
-ET
-BT
-/F2 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-51.0236220472441033 595.8427559055116944 Td
 (Authenticator lost) Tj
 ET
 BT
 /F1 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
+181.4173228346456881 613.9844881889763428 Td
+( M F A   s c r e e n  !’   e m a i l   O T P  !’   r e - e n r o l l ,   o r   A d m i n   r e s e t   a u t h e n t i c a t o r .) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.2 0.255 0.333 rg
+51.0236220472441033 595.8427559055116944 Td
+(Used looks higher than Earned) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.2 0.255 0.333 rg
 181.4173228346456881 595.8427559055116944 Td
-( P r e f e r :   M F A   s c r e e n  !’   e m a i l   O T P   t o   l o g i n   a d d r e s s  !’   r e - e n r o l l   a n d   s a v e   n e w   b a c k u p) Tj
+(Used is gift cost this month and is capped at Earned. Refresh; only one monthly) Tj
 ET
 BT
 /F1 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 580.5356692913385359 Td
-( c o d e s .   O r   A d m i n  !’   P e o p l e  !’  "î  !’   R e s e t   a u t h e n t i c a t o r ,   t h e n   s c a n   t h e   n e w   Q R .   D e l e t e) Tj
-ET
-BT
-/F1 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 565.2285826771652637 Td
-(the old Scorr row in the authenticator app yourself.) Tj
+(gift should apply.) Tj
 ET
 BT
 /F2 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-51.0236220472441033 547.0868503937006153 Td
-(No backup codes left) Tj
+51.0236220472441033 562.3939370078738875 Td
+(Cannot redeem gift) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.2 0.255 0.333 rg
+181.4173228346456881 562.3939370078738875 Td
+(Need Current in range for Redeem, or enough Banked for Redeem with Banked.) Tj
 ET
 BT
 /F1 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 547.0868503937006153 Td
-(Use email OTP recovery, or ask Admin to reset authenticator. Then regenerate) Tj
-ET
-BT
-/F1 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 531.7797637795274568 Td
-( b a c k u p   c o d e s   u n d e r   S e t t i n g s  !’   A c c o u n t   S e c u r i t y .) Tj
+(Only one monthly gift per month.) Tj
 ET
 BT
 /F2 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-51.0236220472441033 513.6380314960628084 Td
-(Score vs Month score differ) Tj
+51.0236220472441033 528.9451181102360806 Td
+(Still working after shift) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.2 0.255 0.333 rg
+181.4173228346456881 528.9451181102360806 Td
+(Open Attendance or Live Tracking to reconcile. Auto clock-out should close visits) Tj
 ET
 BT
 /F1 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 513.6380314960628084 Td
-(Expected. People board Score is all-time; Month score is only the current month.) Tj
-ET
-BT
-/F1 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 498.330944881889593 Td
-(Overall / Month / Year on the scoreboard are independent.) Tj
+(at shift end.) Tj
 ET
 BT
 /F2 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-51.0236220472441033 480.1892125984250015 Td
-(Still working after shift end) Tj
-ET
-BT
-/F1 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 480.1892125984250015 Td
-(Open Attendance or Live Tracking — Scorr reconciles ended shifts. Auto clock-out) Tj
-ET
-BT
-/F1 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 464.8821259842517293 Td
-(should close visits at shift end; refresh if a stale row remains.) Tj
-ET
-BT
-/F2 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-51.0236220472441033 446.7403937007871946 Td
-(No completion email) Tj
-ET
-BT
-/F1 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 446.7403937007871946 Td
-(Check that the person has a reporting manager and that Assign Task recorded an) Tj
-ET
-BT
-/F1 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 431.4333070866139224 Td
-(assigner. Spam folder; also check in-app notifications.) Tj
-ET
-BT
-/F2 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-51.0236220472441033 413.2915748031493308 Td
+51.0236220472441033 495.4962992125982737 Td
 (GPS check-in fails) Tj
 ET
 BT
 /F1 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-181.4173228346456881 413.2915748031493308 Td
-(Enable location \(and background on Android\); confirm Office GPS site is assigned;) Tj
-ET
-BT
-/F1 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 397.9844881889761155 Td
-(confirm the person is inside radius during the shift \(including overnight windows\).) Tj
+181.4173228346456881 495.4962992125982737 Td
+(Enable location; confirm site assignment; be inside radius during the shift.) Tj
 ET
 BT
 /F2 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-51.0236220472441033 379.8427559055115239 Td
-(No daily reports visible) Tj
-ET
-BT
-/F1 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 379.8427559055115239 Td
-(Only Admin sees others’ reports. Staff must submit from Daily Report tab.) Tj
-ET
-BT
-/F2 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-51.0236220472441033 361.7010236220469324 Td
+51.0236220472441033 477.3545669291336822 Td
 (Cannot assign KPIs) Tj
 ET
 BT
 /F1 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-181.4173228346456881 361.7010236220469324 Td
-(Admin: select department first, then a person in that department, then KPI\(s\), then) Tj
+181.4173228346456881 477.3545669291336822 Td
+(Pick department first, then person. That person’s pending weightage cannot) Tj
 ET
 BT
 /F1 9 Tf
 10.3499999999999996 TL
 0.2 0.255 0.333 rg
-181.4173228346456881 346.3939370078736601 Td
-(dates. The person list is empty until a department is chosen. That person’s pending) Tj
-ET
-BT
-/F1 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 331.0868503937004448 Td
-(weightage cannot exceed 100%.) Tj
-ET
-BT
-/F2 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-51.0236220472441033 312.9451181102358532 Td
-(Assignment rejected at 110%) Tj
-ET
-BT
-/F1 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 312.9451181102358532 Td
-(That employee already has too much pending weightage. Pick a smaller KPI or) Tj
-ET
-BT
-/F1 9 Tf
-10.3499999999999996 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 297.638031496062581 Td
-(complete/remove an existing assignment. Other employees are not counted.) Tj
+181.4173228346456881 462.0474803149604099 Td
+(exceed 100%.) Tj
 ET
 BT
 /F2 11.5 Tf
 13.2249999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 268.1577165354326553 Td
+45.354330708661422 432.5671653543304842 Td
 (Need help?) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-45.354330708661422 248.3151968503932494 Td
+45.354330708661422 412.7246456692910783 Td
 (Website: https://scorr.walfia.ai) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 227.3388188976373385 Td
-( •     R e g i s t e r :   H o m e   p a g e  !’   R e g i s t e r   C o m p a n y) Tj
+48.1889763779527627 391.7482677165351674 Td
+( •     R e g i s t e r :   H o m e  !’   R e g i s t e r   C o m p a n y) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 212.0317322834640663 Td
-( •     S i g n   i n :   H o m e   p a g e  !’   S i g n   I n) Tj
+48.1889763779527627 376.4411811023619521 Td
+( •     S i g n   i n :   H o m e  !’   S i g n   I n) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 196.7246456692909078 Td
-( •     D o w n l o a d   a p p s :   H o m e   p a g e  !’   M o b i l e   A p p   s e c t i o n) Tj
+48.1889763779527627 361.1340944881886799 Td
+( •     A n d r o i d   A P K :   H o m e  !’   M o b i l e   A p p) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 181.4175590551176356 Td
-(•  This guide: /downloads/Scorr-Client-Feature-Guide.pdf) Tj
+48.1889763779527627 345.8270078740154645 Td
+(•  This guide: https://scorr.walfia.ai/downloads/Scorr-Client-Feature-Guide.pdf) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.2 0.255 0.333 rg
-45.354330708661422 154.7718897637789723 Td
-(Thank you for using Scorr. With clear roles, Weightage and Score scoreboards, shift-aware attendance, and) Tj
-ET
-BT
-/F1 10 Tf
-11.5 TL
-0.2 0.255 0.333 rg
-45.354330708661422 139.4648031496058138 Td
-(authenticator-secured logins, your organization can run performance, attendance, and rewards together.) Tj
+45.354330708661422 319.1813385826768581 Td
+(Thank you for using Scorr — KPIs, attendance, and weightage-based rewards in one company workspace.) Tj
 ET
 BT
 /F1 8 Tf
 9.1999999999999993 TL
 0.58 0.639 0.722 rg
 282.8777952755905858 28.3466929133857093 Td
-(Page 23) Tj
+(Page 18) Tj
 ET
 BT
 /F1 8 Tf
 9.1999999999999993 TL
 0.58 0.639 0.722 rg
 45.354330708661422 28.3466929133857093 Td
-(© Walfia · Project Guideline) Tj
+(© Walfia · Scorr) Tj
 ET
 endstream
 endobj
 1 0 obj
 <</Type /Pages
-/Kids [3 0 R 5 0 R 7 0 R 9 0 R 11 0 R 13 0 R 15 0 R 17 0 R 19 0 R 21 0 R 23 0 R 25 0 R 27 0 R 29 0 R 31 0 R 33 0 R 35 0 R 37 0 R 39 0 R 41 0 R 43 0 R 45 0 R 47 0 R ]
-/Count 23
+/Kids [3 0 R 5 0 R 7 0 R 9 0 R 11 0 R 13 0 R 15 0 R 17 0 R 19 0 R 21 0 R 23 0 R 25 0 R 27 0 R 29 0 R 31 0 R 33 0 R 35 0 R 37 0 R ]
+/Count 18
 >>
 endobj
-49 0 obj
+39 0 obj
 <<
 /Type /Font
 /BaseFont /Helvetica
@@ -5270,7 +3781,7 @@ endobj
 /LastChar 255
 >>
 endobj
-50 0 obj
+40 0 obj
 <<
 /Type /Font
 /BaseFont /Helvetica-Bold
@@ -5280,7 +3791,7 @@ endobj
 /LastChar 255
 >>
 endobj
-51 0 obj
+41 0 obj
 <<
 /Type /Font
 /BaseFont /Helvetica-Oblique
@@ -5290,7 +3801,7 @@ endobj
 /LastChar 255
 >>
 endobj
-52 0 obj
+42 0 obj
 <<
 /Type /Font
 /BaseFont /Helvetica-BoldOblique
@@ -5300,7 +3811,7 @@ endobj
 /LastChar 255
 >>
 endobj
-53 0 obj
+43 0 obj
 <<
 /Type /Font
 /BaseFont /Courier
@@ -5310,7 +3821,7 @@ endobj
 /LastChar 255
 >>
 endobj
-54 0 obj
+44 0 obj
 <<
 /Type /Font
 /BaseFont /Courier-Bold
@@ -5320,7 +3831,7 @@ endobj
 /LastChar 255
 >>
 endobj
-55 0 obj
+45 0 obj
 <<
 /Type /Font
 /BaseFont /Courier-Oblique
@@ -5330,7 +3841,7 @@ endobj
 /LastChar 255
 >>
 endobj
-56 0 obj
+46 0 obj
 <<
 /Type /Font
 /BaseFont /Courier-BoldOblique
@@ -5340,7 +3851,7 @@ endobj
 /LastChar 255
 >>
 endobj
-57 0 obj
+47 0 obj
 <<
 /Type /Font
 /BaseFont /Times-Roman
@@ -5350,7 +3861,7 @@ endobj
 /LastChar 255
 >>
 endobj
-58 0 obj
+48 0 obj
 <<
 /Type /Font
 /BaseFont /Times-Bold
@@ -5360,7 +3871,7 @@ endobj
 /LastChar 255
 >>
 endobj
-59 0 obj
+49 0 obj
 <<
 /Type /Font
 /BaseFont /Times-Italic
@@ -5370,7 +3881,7 @@ endobj
 /LastChar 255
 >>
 endobj
-60 0 obj
+50 0 obj
 <<
 /Type /Font
 /BaseFont /Times-BoldItalic
@@ -5380,7 +3891,7 @@ endobj
 /LastChar 255
 >>
 endobj
-61 0 obj
+51 0 obj
 <<
 /Type /Font
 /BaseFont /ZapfDingbats
@@ -5389,7 +3900,7 @@ endobj
 /LastChar 255
 >>
 endobj
-62 0 obj
+52 0 obj
 <<
 /Type /Font
 /BaseFont /Symbol
@@ -5402,32 +3913,32 @@ endobj
 <<
 /ProcSet [/PDF /Text /ImageB /ImageC /ImageI]
 /Font <<
-/F1 49 0 R
-/F2 50 0 R
-/F3 51 0 R
-/F4 52 0 R
-/F5 53 0 R
-/F6 54 0 R
-/F7 55 0 R
-/F8 56 0 R
-/F9 57 0 R
-/F10 58 0 R
-/F11 59 0 R
-/F12 60 0 R
-/F13 61 0 R
-/F14 62 0 R
+/F1 39 0 R
+/F2 40 0 R
+/F3 41 0 R
+/F4 42 0 R
+/F5 43 0 R
+/F6 44 0 R
+/F7 45 0 R
+/F8 46 0 R
+/F9 47 0 R
+/F10 48 0 R
+/F11 49 0 R
+/F12 50 0 R
+/F13 51 0 R
+/F14 52 0 R
 >>
 /XObject <<
 >>
 >>
 endobj
-63 0 obj
+53 0 obj
 <<
 /Producer (jsPDF 4.2.1)
-/CreationDate (D:20260909190837+05'00')
+/CreationDate (D:20260924184325+05'00')
 >>
 endobj
-64 0 obj
+54 0 obj
 <<
 /Type /Catalog
 /Pages 1 0 R
@@ -5436,79 +3947,69 @@ endobj
 >>
 endobj
 xref
-0 65
+0 55
 0000000000 65535 f 
-0000110536 00000 n 
-0000112510 00000 n 
+0000075542 00000 n 
+0000077481 00000 n 
 0000000015 00000 n 
 0000000152 00000 n 
-0000001687 00000 n 
-0000001824 00000 n 
-0000005235 00000 n 
-0000005372 00000 n 
-0000010063 00000 n 
-0000010201 00000 n 
-0000018814 00000 n 
-0000018953 00000 n 
-0000023381 00000 n 
-0000023520 00000 n 
-0000030032 00000 n 
-0000030171 00000 n 
-0000039143 00000 n 
-0000039282 00000 n 
-0000042357 00000 n 
-0000042496 00000 n 
-0000046381 00000 n 
-0000046520 00000 n 
-0000050729 00000 n 
-0000050868 00000 n 
-0000054195 00000 n 
-0000054334 00000 n 
-0000055849 00000 n 
-0000055988 00000 n 
-0000058070 00000 n 
-0000058209 00000 n 
-0000064936 00000 n 
-0000065075 00000 n 
-0000070454 00000 n 
-0000070593 00000 n 
-0000076143 00000 n 
-0000076282 00000 n 
-0000081176 00000 n 
-0000081315 00000 n 
-0000082922 00000 n 
-0000083061 00000 n 
-0000086618 00000 n 
-0000086757 00000 n 
-0000093203 00000 n 
-0000093342 00000 n 
-0000098141 00000 n 
-0000098280 00000 n 
-0000101032 00000 n 
-0000101171 00000 n 
-0000110745 00000 n 
-0000110871 00000 n 
-0000111002 00000 n 
-0000111136 00000 n 
-0000111274 00000 n 
-0000111398 00000 n 
-0000111527 00000 n 
-0000111659 00000 n 
-0000111795 00000 n 
-0000111923 00000 n 
-0000112050 00000 n 
-0000112179 00000 n 
-0000112312 00000 n 
-0000112414 00000 n 
-0000112763 00000 n 
-0000112849 00000 n 
+0000001652 00000 n 
+0000001789 00000 n 
+0000004724 00000 n 
+0000004861 00000 n 
+0000008722 00000 n 
+0000008860 00000 n 
+0000014898 00000 n 
+0000015037 00000 n 
+0000018490 00000 n 
+0000018629 00000 n 
+0000023811 00000 n 
+0000023950 00000 n 
+0000029499 00000 n 
+0000029638 00000 n 
+0000032861 00000 n 
+0000033000 00000 n 
+0000036469 00000 n 
+0000036608 00000 n 
+0000039296 00000 n 
+0000039435 00000 n 
+0000040721 00000 n 
+0000040860 00000 n 
+0000045091 00000 n 
+0000045230 00000 n 
+0000052769 00000 n 
+0000052908 00000 n 
+0000056902 00000 n 
+0000057041 00000 n 
+0000061611 00000 n 
+0000061750 00000 n 
+0000065033 00000 n 
+0000065172 00000 n 
+0000068940 00000 n 
+0000069079 00000 n 
+0000075716 00000 n 
+0000075842 00000 n 
+0000075973 00000 n 
+0000076107 00000 n 
+0000076245 00000 n 
+0000076369 00000 n 
+0000076498 00000 n 
+0000076630 00000 n 
+0000076766 00000 n 
+0000076894 00000 n 
+0000077021 00000 n 
+0000077150 00000 n 
+0000077283 00000 n 
+0000077385 00000 n 
+0000077734 00000 n 
+0000077820 00000 n 
 trailer
 <<
-/Size 65
-/Root 64 0 R
-/Info 63 0 R
-/ID [ <52E21D7E3583A31B43C532C7E044BA5F> <52E21D7E3583A31B43C532C7E044BA5F> ]
+/Size 55
+/Root 54 0 R
+/Info 53 0 R
+/ID [ <1B3BB40A40105C2F53CE480E44E9370A> <1B3BB40A40105C2F53CE480E44E9370A> ]
 >>
 startxref
-112953
+77924
 %%EOF

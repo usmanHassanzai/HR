@@ -346,8 +346,8 @@ export default function MobileAppDownload() {
         <div className="landing-guide-strip__copy">
           <h3>Scorr user guide (PDF)</h3>
           <p>
-            Step-by-step: register your organization, understand Admin / Manager / Employee roles,
-            and add new users.
+            Roles, KPIs, weightage rewards (Current / Used / Banked), attendance, mobile apps,
+            and MFA — Scorr-only, step by step.
           </p>
         </div>
         <a
