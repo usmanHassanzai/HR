@@ -755,9 +755,24 @@ export default function ManagerKpiConfig({
   };
 
   const handleDeleteAssigned = async (kpiId: string) => {
-    if (!confirm('Remove this assigned KPI?')) return;
-    await supabase.from('kpis').delete().eq('id', kpiId);
-    await refreshOpenKpis();
+    if (!confirm('Remove this assigned KPI? Its weightage will be cleared from that person’s dashboard.')) return;
+    setError('');
+    setSuccess('');
+    try {
+      // Go through the authorized RPC instead of a raw table delete: a raw
+      // `.delete()` is subject to RLS (direct-reports only) while assignment
+      // allows same-department managers, so the delete could silently match
+      // zero rows and leave the KPI's weight still counting on dashboards.
+      const { data, error: rpcErr } = await supabase.rpc('delete_assigned_kpi', { p_kpi_id: kpiId });
+      if (rpcErr) throw rpcErr;
+      await refreshOpenKpis();
+      const deleted = data && typeof data === 'object' && (data as { deleted?: boolean }).deleted !== false;
+      setSuccess(deleted
+        ? 'Assigned KPI removed. Weightage no longer counts for that person.'
+        : 'That KPI was already removed.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Could not remove this KPI.');
+    }
   };
 
   if (loading) {

@@ -181,6 +181,7 @@ const MIGRATIONS = [
   'reward_multi_redeem_no_month_cap.sql',
   'kpi_earned_cap_to_task_weight.sql',
   'backfill_weightage_rule_cancel_ineligible_gifts.sql',
+  'delete_assigned_kpi_rpc.sql',
 ];
 
 async function runMigration(filename) {
