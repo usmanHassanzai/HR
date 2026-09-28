@@ -167,16 +167,17 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
 
   useEffect(() => {
     const openTab = (e: Event) => {
-      const detail = (e as CustomEvent<{ tab?: string }>).detail;
-      if (detail?.tab === 'dailyReports') {
-        setActiveTab('dailyReports');
-        setNavOpen(false);
-        void markDailyReportNotificationsRead();
-      } else if (detail?.tab) {
-        const next = detail.tab === 'branding' ? 'settings' : detail.tab;
-        setActiveTab(next as typeof activeTab);
-        setNavOpen(false);
+      const detail = (e as CustomEvent<{ tab?: string; search?: string }>).detail;
+      if (!detail?.tab) return;
+      const next = detail.tab === 'branding' ? 'settings' : detail.tab;
+      if (!ADMIN_TABS.includes(next as AdminTab) && next !== 'settings') return;
+      if (detail.search && next === 'dailyReports') {
+        setReportsNavState({ search: detail.search });
       }
+      setViewTasksUser(null);
+      setActiveTab(next as AdminTab);
+      setNavOpen(false);
+      if (next === 'dailyReports') void markDailyReportNotificationsRead();
     };
     window.addEventListener('scorr-open-admin-tab', openTab);
     return () => window.removeEventListener('scorr-open-admin-tab', openTab);

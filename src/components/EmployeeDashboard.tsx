@@ -69,10 +69,6 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
   const [filterMonth, setFilterMonth] = useState(initialYm.monthIndex);
   const [kpiSearch, setKpiSearch] = useState('');
   const [listMode, setListMode] = useState<'open' | 'history'>('open');
-
-  useEffect(() => {
-    if (!isReadOnly) writeSessionString(EMPLOYEE_TAB_KEY, activeTab);
-  }, [activeTab, isReadOnly]);
   const [rewardsSummary, setRewardsSummary] = useState<RewardsSummary | null>(null);
   const [redemptions, setRedemptions] = useState<{
     id: string;
@@ -81,6 +77,23 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
     redeemed_at: string;
     rewards_catalog?: { name: string } | null;
   }[]>([]);
+
+  useEffect(() => {
+    if (!isReadOnly) writeSessionString(EMPLOYEE_TAB_KEY, activeTab);
+  }, [activeTab, isReadOnly]);
+
+  useEffect(() => {
+    if (isReadOnly) return;
+    const openTab = (e: Event) => {
+      const detail = (e as CustomEvent<{ tab?: string }>).detail;
+      const next = detail?.tab;
+      if (!next || !EMPLOYEE_TABS.includes(next as EmployeeTab)) return;
+      setActiveTab(next as EmployeeTab);
+      setNavOpen(false);
+    };
+    window.addEventListener('scorr-open-employee-tab', openTab);
+    return () => window.removeEventListener('scorr-open-employee-tab', openTab);
+  }, [isReadOnly]);
 
   const fetchRewardsMeta = async () => {
     try {

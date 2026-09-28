@@ -1,20 +1,24 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type MouseEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabase';
-import { Notification } from '../utils/kpiHelpers';
+import { Notification, type UserRole } from '../utils/kpiHelpers';
 import { markNotificationsRead } from '../utils/notificationHelpers';
-import { Bell, AlertCircle, Info, Calendar, Flame, Check } from 'lucide-react';
+import { dispatchNotificationNav, resolveNotificationNav } from '../utils/notificationNavigation';
+import { Bell, AlertCircle, Info, Calendar, Flame, Check, ChevronRight } from 'lucide-react';
 
 interface NotificationCenterProps {
   userId: string;
+  role?: UserRole | string | null;
 }
 
-export default function NotificationCenter({ userId }: NotificationCenterProps) {
+export default function NotificationCenter({ userId, role }: NotificationCenterProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0, left: undefined as number | undefined, mobile: false });
   const buttonRef = useRef<HTMLButtonElement>(null);
   const seenInsertIds = useRef<Set<string>>(new Set());
+  const roleRef = useRef(role);
+  roleRef.current = role;
 
   const updateDropdownPosition = () => {
     if (!buttonRef.current) return;
@@ -50,7 +54,7 @@ export default function NotificationCenter({ userId }: NotificationCenterProps) 
 
   useEffect(() => {
     if (!isOpen) return;
-    function handleClick(e: MouseEvent) {
+    function handleClick(e: globalThis.MouseEvent) {
       if (buttonRef.current && !buttonRef.current.contains(e.target as Node)) {
         const portal = document.getElementById('notification-portal');
         if (portal && !portal.contains(e.target as Node)) {
@@ -72,6 +76,26 @@ export default function NotificationCenter({ userId }: NotificationCenterProps) 
     setNotifications(data || []);
   };
 
+  const markRead = async (id: string, e?: MouseEvent) => {
+    e?.stopPropagation();
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
+    await markNotificationsRead([id]);
+  };
+
+  const openNotification = (n: Pick<Notification, 'id' | 'title' | 'message'>) => {
+    void markRead(n.id);
+    const target = resolveNotificationNav(n, roleRef.current);
+    if (target) {
+      dispatchNotificationNav(target);
+      setIsOpen(false);
+      try {
+        window.focus();
+      } catch {
+        /* ignore */
+      }
+    }
+  };
+
   useEffect(() => {
     void fetchNotifications();
     const sub = supabase
@@ -88,7 +112,11 @@ export default function NotificationCenter({ userId }: NotificationCenterProps) 
           setNotifications((prev) => (prev.some((n) => n.id === newRow.id) ? prev : [newRow, ...prev]));
           if (!newRow.is_read && 'Notification' in window && window.Notification.permission === 'granted') {
             try {
-              new window.Notification(newRow.title, { body: newRow.message, tag: newRow.id });
+              const desk = new window.Notification(newRow.title, { body: newRow.message, tag: newRow.id });
+              desk.onclick = () => {
+                openNotification(newRow);
+                desk.close();
+              };
             } catch {
               /* ignore */
             }
@@ -109,12 +137,6 @@ export default function NotificationCenter({ userId }: NotificationCenterProps) 
       window.removeEventListener('scorr-notifications-read', onMarked);
     };
   }, [userId]);
-
-  const markRead = async (id: string, e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
-    await markNotificationsRead([id]);
-  };
 
   const markAllRead = async () => {
     const ids = notifications.filter((n) => !n.is_read).map((n) => n.id);
@@ -157,52 +179,56 @@ export default function NotificationCenter({ userId }: NotificationCenterProps) 
         {notifications.length === 0 ? (
           <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem', padding: '1.5rem 0' }}>No notifications yet.</p>
         ) : (
-          notifications.map((n) => (
-            <div
-              key={n.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => {
-                void markRead(n.id);
-                if ((n.title || '').toLowerCase().includes('daily report')) {
-                  window.dispatchEvent(new CustomEvent('scorr-open-admin-tab', { detail: { tab: 'dailyReports' } }));
-                  setIsOpen(false);
-                }
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  (e.currentTarget as HTMLDivElement).click();
-                }
-              }}
-              style={{
-                padding: '0.75rem',
-                borderRadius: 'var(--border-radius-sm)',
-                background: n.is_read ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.06)',
-                borderLeft: `3px solid ${n.is_read ? 'transparent' : 'var(--accent-primary)'}`,
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '0.5rem',
-                cursor: 'pointer',
-              }}
-            >
-              <div style={{ marginTop: 2 }}>{getIcon(n.type)}</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '0.85rem', fontWeight: n.is_read ? 500 : 700, color: n.is_read ? 'var(--text-secondary)' : 'var(--text-primary)' }}>
-                  {n.title}
+          notifications.map((n) => {
+            const dest = resolveNotificationNav(n, role);
+            return (
+              <div
+                key={n.id}
+                role="button"
+                tabIndex={0}
+                className="notification-item"
+                title={dest ? 'Open related page' : undefined}
+                onClick={() => openNotification(n)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    openNotification(n);
+                  }
+                }}
+                style={{
+                  padding: '0.75rem',
+                  borderRadius: 'var(--border-radius-sm)',
+                  background: n.is_read ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.06)',
+                  borderLeft: `3px solid ${n.is_read ? 'transparent' : 'var(--accent-primary)'}`,
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '0.5rem',
+                  cursor: 'pointer',
+                }}
+              >
+                <div style={{ marginTop: 2 }}>{getIcon(n.type)}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: n.is_read ? 500 : 700, color: n.is_read ? 'var(--text-secondary)' : 'var(--text-primary)' }}>
+                    {n.title}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>{n.message}</div>
+                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 4, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <span>{new Date(n.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                    {dest ? (
+                      <span style={{ color: 'var(--accent-primary)', fontWeight: 650, display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                        Open <ChevronRight size={12} />
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>{n.message}</div>
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                  {new Date(n.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                </div>
+                {!n.is_read && (
+                  <button type="button" onClick={(e) => void markRead(n.id, e)} title="Mark as read" style={{ background: 'none', border: 'none', color: 'var(--color-success)', cursor: 'pointer', padding: 2 }}>
+                    <Check size={14} />
+                  </button>
+                )}
               </div>
-              {!n.is_read && (
-                <button type="button" onClick={(e) => void markRead(n.id, e)} title="Mark as read" style={{ background: 'none', border: 'none', color: 'var(--color-success)', cursor: 'pointer', padding: 2 }}>
-                  <Check size={14} />
-                </button>
-              )}
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

@@ -65,6 +65,19 @@ export default function ManagerDashboard({ profile, organizationName }: ManagerD
   }, [activeTab]);
 
   useEffect(() => {
+    const openTab = (e: Event) => {
+      const detail = (e as CustomEvent<{ tab?: string }>).detail;
+      const next = detail?.tab;
+      if (!next || !MANAGER_TABS.includes(next as ManagerTab)) return;
+      setSelectedEmployee(null);
+      setActiveTab(next as ManagerTab);
+      setNavOpen(false);
+    };
+    window.addEventListener('scorr-open-manager-tab', openTab);
+    return () => window.removeEventListener('scorr-open-manager-tab', openTab);
+  }, []);
+
+  useEffect(() => {
     const fetchAlerts = async () => {
       runOverdueKpiCheckOnce();
       const { count } = await supabase

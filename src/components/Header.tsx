@@ -128,7 +128,7 @@ export default function Header({ profile, organizationName, onLogout, onNavigate
   const toolbar = (
     <div className="app-header__toolbar">
       <ThemeToggle compact />
-      <NotificationCenter userId={profile.id} />
+      <NotificationCenter userId={profile.id} role={profile.role} />
       <button
         type="button"
         className="app-header__icon-btn app-header__icon-btn--logout"
