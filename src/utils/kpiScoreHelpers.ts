@@ -239,7 +239,12 @@ export function employeeKpiBoardBreakdown(kpis: Kpi[]) {
   const weightAchievedRaw = roundKpiScore(
     kpis
       .filter((k) => k.completion_status === 'completed')
-      .reduce((s, k) => s + Number(k.assigned_score ?? k.weight ?? 0), 0),
+      .reduce((s, k) => {
+        const weight = Math.max(0, Number(k.weight || 0));
+        const awarded = Math.max(0, Number(k.assigned_score ?? k.weight ?? 0));
+        // Earned for the month cannot exceed the weight that was assigned on the task.
+        return s + Math.min(awarded, weight);
+      }, 0),
   );
   const weightPendingRaw = roundKpiScore(
     kpis

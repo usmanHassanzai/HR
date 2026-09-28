@@ -14,7 +14,8 @@ export default function ReviewKpiCompletionPanel({
   onUpdated: () => void;
 }) {
   const awaiting = isKpiAwaitingReview(kpi);
-  const defaultScore = kpiAssignedScore(kpi) || Number(kpi.weight || 0);
+  const taskWeight = Math.max(0, Number(kpi.weight || 0));
+  const defaultScore = Math.min(kpiAssignedScore(kpi) || taskWeight, taskWeight);
   const [score, setScore] = useState(String(defaultScore));
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
@@ -27,8 +28,8 @@ export default function ReviewKpiCompletionPanel({
     setError('');
     try {
       const finalScore = Number(score);
-      if (approve && (!Number.isFinite(finalScore) || finalScore < 0 || finalScore > 100)) {
-        throw new Error('Enter a score between 0 and 100.');
+      if (approve && (!Number.isFinite(finalScore) || finalScore < 0 || finalScore > taskWeight)) {
+        throw new Error(`Enter a score between 0 and ${formatKpiWeight(taskWeight)} (this task's weight).`);
       }
       const { error: rpcErr } = await supabase.rpc('review_kpi_completion', {
         p_kpi_id: kpi.id,
@@ -52,18 +53,18 @@ export default function ReviewKpiCompletionPanel({
         <div>
           <strong>Review completion</strong>
           <p>
-            They marked this complete. Set the weightage to award (target {formatKpiWeight(kpi.weight)}).
-            You can increase or decrease it based on performance.
+            They marked this complete. Award up to this task&apos;s weight ({formatKpiWeight(taskWeight)}).
+            You can give less based on performance — not more than was assigned.
           </p>
         </div>
       </div>
 
       <label className="kpi-review-panel__field">
-        <span>Final weightage / score (%)</span>
+        <span>Weightage to award (max {formatKpiWeight(taskWeight)})</span>
         <input
           type="number"
           min={0}
-          max={100}
+          max={taskWeight || 100}
           step={0.01}
           value={score}
           onChange={(e) => setScore(e.target.value)}
