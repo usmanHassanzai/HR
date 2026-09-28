@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Gift, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { formatAwardWeightage } from '../utils/kpiAwardHelpers';
@@ -25,17 +25,14 @@ export default function WeightageRewardCatalog({
   userId,
   monthWeightage,
   bankedWeightage = 0,
-  monthGiftClaimed = false,
   title = 'Reward catalog',
-  intro = 'One monthly catalog gift per month (not with dinner). Use Current when this month qualifies, or Redeem with Banked when banked covers the cost.',
+  intro = 'Redeem any catalog gift when Current or Banked covers its cost. Leftover after a Current redeem moves to Banked.',
   onRedeemed,
 }: {
   userId: string;
   monthWeightage: number | null;
   /** Cross-month banked leftover weightage. */
   bankedWeightage?: number;
-  /** True if this person already claimed a monthly gift (dinner or catalog) this month. */
-  monthGiftClaimed?: boolean;
   title?: string;
   intro?: string;
   onRedeemed?: () => void;
@@ -72,25 +69,8 @@ export default function WeightageRewardCatalog({
     void load();
   }, [load]);
 
-  const anyCatalogThisMonth = useMemo(() => {
-    const key = new Date().toISOString().slice(0, 7);
-    return mine.some((r) => String(r.redeemed_at).slice(0, 7) === key && r.status !== 'rejected');
-  }, [mine]);
-
-  const blockedForMonth = monthGiftClaimed || anyCatalogThisMonth;
-
   const openOrPending = (rewardId: string) =>
     mine.find((r) => r.reward_id === rewardId && (r.status === 'pending' || r.status === 'approved'));
-
-  const redeemedThisMonth = (rewardId: string) => {
-    const key = new Date().toISOString().slice(0, 7);
-    return mine.find(
-      (r) =>
-        r.reward_id === rewardId &&
-        String(r.redeemed_at).slice(0, 7) === key &&
-        r.status !== 'rejected',
-    );
-  };
 
   const handleRedeem = async (item: WeightageCatalogItem, useBanked: boolean) => {
     setRedeemingId(item.id);
@@ -158,16 +138,14 @@ export default function WeightageRewardCatalog({
           const meetsCurrent = have != null && have >= need;
           const meetsBanked = banked >= need;
           const pending = openOrPending(item.id);
-          const doneMonth = redeemedThisMonth(item.id);
-          const monthBlocked = blockedForMonth && !pending && !doneMonth;
           const busy = redeemingId === item.id;
-          const canCurrent = meetsCurrent && !pending && !doneMonth && !monthBlocked;
-          const canBanked = meetsBanked && !pending && !doneMonth && !monthBlocked;
+          const canCurrent = meetsCurrent && !pending;
+          const canBanked = meetsBanked && !pending;
           const ready = canCurrent || canBanked;
           return (
             <article
               key={item.id}
-              className={`emp-rewards-catalog-item${ready ? ' emp-rewards-catalog-item--ready' : ''}${!ready && !pending && !doneMonth ? ' emp-rewards-catalog-item--locked' : ''}`}
+              className={`emp-rewards-catalog-item${ready ? ' emp-rewards-catalog-item--ready' : ''}${!ready && !pending ? ' emp-rewards-catalog-item--locked' : ''}`}
             >
               <div className="emp-rewards-catalog-item__icon">
                 <RewardCatalogIcon icon={item.icon} size={32} />
@@ -175,30 +153,22 @@ export default function WeightageRewardCatalog({
               <div className="emp-rewards-catalog-item__body">
                 <strong>{item.name}</strong>
                 <span>{item.description || 'Company catalog reward'}</span>
-                {!meetsCurrent && !meetsBanked && !monthBlocked && (
+                {!meetsCurrent && !meetsBanked && !pending && (
                   <span className="emp-rewards-catalog-item__need">
                     Need {formatAwardWeightage(need)}
                     {have != null ? ` · current ${formatAwardWeightage(have)}` : ''}
                     {` · banked ${formatAwardWeightage(banked)}`}
                   </span>
                 )}
-                {!meetsCurrent && meetsBanked && !monthBlocked && (
+                {!meetsCurrent && meetsBanked && !pending && (
                   <span className="emp-rewards-catalog-item__need">
                     Current is short — you can redeem with banked ({formatAwardWeightage(banked)})
-                  </span>
-                )}
-                {monthBlocked && (
-                  <span className="emp-rewards-catalog-item__need">
-                    You already redeemed a monthly gift this month
                   </span>
                 )}
                 {pending && (
                   <span className="emp-rewards-catalog-item__need">
                     Requested — {pending.status === 'approved' ? 'approved, arranging' : 'pending approval'}
                   </span>
-                )}
-                {doneMonth && !pending && (
-                  <span className="emp-rewards-catalog-item__need">Already redeemed this month</span>
                 )}
               </div>
               <div className="emp-rewards-catalog-item__foot">
@@ -232,7 +202,7 @@ export default function WeightageRewardCatalog({
                   ) : null}
                   {!canCurrent && !canBanked ? (
                     <button type="button" className="btn btn-primary btn-sm" disabled>
-                      {pending ? 'Requested' : doneMonth || monthBlocked ? 'Unavailable' : 'Redeem'}
+                      {pending ? 'Requested' : 'Redeem'}
                     </button>
                   ) : null}
                 </div>

@@ -245,7 +245,7 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
           <div>
             <h2 className="mgr-rewards-header__title">Company rewards</h2>
             <p className="mgr-rewards-header__subtitle">
-              One monthly gift per person uses the gift cost; leftover goes to Banked. Movie and surprise can be redeemed in the same month and do not spend weightage.
+              Redeem gifts whenever Current or Banked still covers the cost — no one-gift-per-month limit. Leftover after a Current redeem goes to Banked. Movie and surprise streak gifts do not spend weightage.
             </p>
           </div>
         </div>
@@ -295,7 +295,7 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
         monthWeightage={myWeightage}
         bankedWeightage={myBalance.banked}
         title="Reward catalog"
-        intro="One monthly catalog gift per month. Redeem with Current or with Banked when banked covers the cost."
+        intro="Redeem any catalog gift when Current or Banked covers its cost. Leftover after a Current redeem moves to Banked."
         onRedeemed={() => void load()}
       />
 

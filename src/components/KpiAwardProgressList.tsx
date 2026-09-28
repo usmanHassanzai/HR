@@ -54,10 +54,9 @@ function RuleIcon({ rule }: { rule: string }) {
 export default function KpiAwardProgressList({
   rows,
   title = 'How you earn rewards',
-  intro = 'These gifts come from your monthly weightage (completed KPI weight out of 100%).',
+  intro = 'These gifts come from your monthly weightage (completed KPI weight out of 100%). Redeem again whenever remaining Current or Banked covers the cost.',
   monthWeightage = null,
   bankedWeightage = 0,
-  monthGiftClaimed = false,
   claimedKeys,
   onRedeem,
   redeemingKey = null,
@@ -68,8 +67,6 @@ export default function KpiAwardProgressList({
   /** Client-computed this-month weightage (0–100); used when RPC still returns score points. */
   monthWeightage?: number | null;
   bankedWeightage?: number;
-  /** True when dinner or catalog already claimed this month. */
-  monthGiftClaimed?: boolean;
   claimedKeys?: Set<string> | ReadonlySet<string>;
   onRedeem?: (ruleKey: KpiAwardRuleKey, opts?: { useBanked?: boolean }) => void | Promise<void>;
   redeemingKey?: KpiAwardRuleKey | null;
@@ -88,13 +85,12 @@ export default function KpiAwardProgressList({
           const needed = Number(row?.required_months || (rule.key === 'dinner_voucher' ? 1 : rule.key === 'movie_tickets' ? 3 : 6));
           const claimed = Boolean(claimedKeys?.has(rule.key));
           const canRedeemCurrent =
-            isAwardRedeemable(row, monthWeightage ?? null) && !claimed && !monthGiftClaimed && Boolean(onRedeem);
+            isAwardRedeemable(row, monthWeightage ?? null) && !claimed && Boolean(onRedeem);
           const dinnerCost = Number(row?.min_pct ?? 95);
           const canBanked =
             rule.key === 'dinner_voucher' &&
             banked >= dinnerCost &&
             !claimed &&
-            !monthGiftClaimed &&
             Boolean(onRedeem);
           const canRedeem = canRedeemCurrent || canBanked;
           const ready = canRedeem || claimed;

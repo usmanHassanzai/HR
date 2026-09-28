@@ -64,7 +64,6 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
   });
   const [redeemingKey, setRedeemingKey] = useState<KpiAwardRuleKey | null>(null);
   const [actionMsg, setActionMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
-  const [catalogClaimedThisMonth, setCatalogClaimedThisMonth] = useState(false);
 
   const clientMonthWeightage = useMemo(() => {
     if (!kpis.length) return null;
@@ -76,7 +75,7 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    const [awardRes, mileRes, bal, catRes] = await Promise.all([
+    const [awardRes, mileRes, bal] = await Promise.all([
       supabase.rpc('get_kpi_award_progress', { p_user_id: userId }),
       supabase
         .from('kpi_award_qualifications')
@@ -84,27 +83,11 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
         .eq('employee_id', userId)
         .order('created_at', { ascending: false }),
       fetchMonthWeightageBalance(userId),
-      supabase
-        .from('reward_redemptions')
-        .select('redeemed_at, status')
-        .eq('employee_id', userId)
-        .order('redeemed_at', { ascending: false })
-        .limit(20),
     ]);
     const progress = (awardRes.data || []) as KpiAwardProgress[];
     if (awardRes.data) setAwardProgress(progress);
     if (mileRes.data) setMilestones(mileRes.data as MilestoneRow[]);
     setBalance(bal);
-    const { year, monthIndex } = karachiYearMonth();
-    const thisKey = `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
-    const cats = (catRes.data || []) as { redeemed_at: string; status: string }[];
-    setCatalogClaimedThisMonth(
-      cats.some(
-        (r) =>
-          String(r.redeemed_at).slice(0, 7) === thisKey &&
-          r.status !== 'rejected',
-      ),
-    );
     setLoading(false);
   }, [userId]);
 
@@ -123,13 +106,12 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
     const thisKey = `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
     const keys = new Set<string>();
     for (const m of milestones) {
-      if (m.status === 'dismissed' || m.status === 'rejected') continue;
+      // Only open requests block re-redeem; finished gifts do not lock the month.
+      if (!['pending', 'approved', 'pending_fulfillment'].includes(m.status)) continue;
       if (periodEndMonthKey(m.period_end) === thisKey) keys.add(m.rule_key);
     }
     return keys;
   }, [milestones]);
-
-  const monthMonthlyGiftClaimed = claimedKeys.has('dinner_voucher') || catalogClaimedThisMonth;
 
   const handleRedeem = useCallback(async (ruleKey: KpiAwardRuleKey, opts?: { useBanked?: boolean }) => {
     setRedeemingKey(ruleKey);
@@ -172,9 +154,8 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
           <div>
             <h2 className="emp-rewards-header__title">Company rewards</h2>
             <p className="emp-rewards-header__subtitle">
-              Complete tasks to earn weightage. One monthly gift (dinner or catalog) per month uses the gift cost;
-              leftover goes to Banked. When Banked covers a gift&apos;s cost, use Redeem with Banked.
-              Movie needs 90–95% for 3 months in a row; surprise needs 90–95% for 6 months in a row.
+              Complete tasks to earn weightage. Redeem any gift when Current or Banked still covers its cost — there is no one-gift-per-month limit.
+              Leftover after a Current redeem moves to Banked. Movie needs 90–95% for 3 months in a row; surprise needs 90–95% for 6 months in a row.
             </p>
           </div>
         </div>
@@ -210,7 +191,6 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
         rows={awardProgress}
         monthWeightage={availableWeightage}
         bankedWeightage={balance.banked}
-        monthGiftClaimed={monthMonthlyGiftClaimed}
         claimedKeys={claimedKeys}
         onRedeem={handleRedeem}
         redeemingKey={redeemingKey}
@@ -220,9 +200,8 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
         userId={userId}
         monthWeightage={availableWeightage}
         bankedWeightage={balance.banked}
-        monthGiftClaimed={monthMonthlyGiftClaimed}
         onRedeemed={() => void fetchAll()}
-        intro="One monthly catalog or dinner gift per month. Redeem with Current when you qualify this month, or Redeem with Banked when banked covers the cost."
+        intro="Redeem any catalog gift when Current or Banked covers its cost. After a Current redeem, leftover moves to Banked for later gifts."
       />
 
       {milestones.length > 0 && (
@@ -230,7 +209,7 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
           <h3>
             <Gift size={18} /> Your gifts
           </h3>
-          <p>When you redeem a monthly gift, its weightage moves to Used immediately. Your manager or admin then arranges delivery.</p>
+          <p>When you redeem a gift, its weightage cost moves to Used immediately. Your manager or admin then arranges delivery.</p>
           <div className="emp-rewards-redemption-list">
             {milestones.map((m) => (
               <article key={m.id} className="emp-rewards-redemption">
