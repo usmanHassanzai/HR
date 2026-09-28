@@ -245,25 +245,26 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
           <div>
             <h2 className="mgr-rewards-header__title">Company rewards</h2>
             <p className="mgr-rewards-header__subtitle">
-              Redeem gifts whenever Current or Banked still covers the cost — no one-gift-per-month limit. Leftover after a Current redeem goes to Banked. Movie and surprise streak gifts do not spend weightage.
+              Redeem gifts whenever you still have enough left to use or saved for later — no one-gift-per-month limit.
+              Extra after a gift is saved for later. Movie and surprise streak gifts do not use weightage.
             </p>
           </div>
         </div>
         <div className="mgr-rewards-stats">
           <div className="mgr-rewards-stat">
-            <span className="mgr-rewards-stat__label">Earned</span>
+            <span className="mgr-rewards-stat__label">Earned this month</span>
             <strong>{formatAwardWeightage(myBalance.earned ?? myWeightage)}</strong>
           </div>
           <div className="mgr-rewards-stat mgr-rewards-stat--accent">
-            <span className="mgr-rewards-stat__label">Current</span>
+            <span className="mgr-rewards-stat__label">Left to use</span>
             <strong>{formatAwardWeightage(myWeightage)}</strong>
           </div>
           <div className="mgr-rewards-stat">
-            <span className="mgr-rewards-stat__label">Used</span>
+            <span className="mgr-rewards-stat__label">Used on gifts</span>
             <strong>{formatAwardWeightage(myBalance.deducted)}</strong>
           </div>
           <div className="mgr-rewards-stat">
-            <span className="mgr-rewards-stat__label">Banked</span>
+            <span className="mgr-rewards-stat__label">Saved for later</span>
             <strong>{formatAwardWeightage(myBalance.banked)}</strong>
           </div>
           <div className="mgr-rewards-stat mgr-rewards-stat--gold">

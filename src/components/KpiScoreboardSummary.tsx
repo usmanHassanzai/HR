@@ -59,6 +59,7 @@ export default function KpiScoreboardSummary({
   const [giftUsed, setGiftUsed] = useState(0);
   const [giftAvailable, setGiftAvailable] = useState<number | null>(null);
   const [giftBanked, setGiftBanked] = useState(0);
+  const [giftEarned, setGiftEarned] = useState<number | null>(null);
 
   const controlled = period != null;
   const periodMode = controlled ? period.mode : internalMode;
@@ -92,6 +93,7 @@ export default function KpiScoreboardSummary({
       setGiftUsed(0);
       setGiftAvailable(null);
       setGiftBanked(0);
+      setGiftEarned(null);
       return;
     }
     let cancelled = false;
@@ -101,6 +103,7 @@ export default function KpiScoreboardSummary({
       setGiftUsed(bal.deducted);
       setGiftAvailable(bal.available);
       setGiftBanked(bal.banked);
+      setGiftEarned(bal.earned);
     })();
     return () => {
       cancelled = true;
@@ -118,24 +121,31 @@ export default function KpiScoreboardSummary({
 
   const active = periodMode === 'overall' ? overallSummary : periodSummary;
   const activeEmpty = periodMode === 'overall' ? overallKpis.length === 0 : periodKpis.length === 0;
-  const rating = performanceRatingForScore(active.weightAchieved);
-  const ratingColor = performanceRatingColor(rating);
   const has = !activeEmpty && active.kpiCount > 0;
   const showGiftSplit = Boolean(isCurrentMonthView && userId && has);
-  const currentWeightage =
-    showGiftSplit && giftAvailable != null ? giftAvailable : active.weightAchieved;
+
+  const earnedWeightage =
+    showGiftSplit && giftEarned != null ? giftEarned : active.weightAchieved;
   const usedWeightage = showGiftSplit ? giftUsed : 0;
+  const currentWeightage =
+    showGiftSplit && giftAvailable != null
+      ? giftAvailable
+      : Math.max(0, earnedWeightage - usedWeightage);
+  const bankedWeightage = showGiftSplit ? giftBanked : 0;
+
+  const rating = performanceRatingForScore(earnedWeightage);
+  const ratingColor = performanceRatingColor(rating);
 
   return (
     <section className="emp-kpi-summary emp-kpi-summary--shared">
       {!compact && (
         <div className="emp-kpi-summary__head">
           <div>
-            <span className="emp-kpi-summary__eyebrow">Performance overview</span>
+            <span className="emp-kpi-summary__eyebrow">Your weightage at a glance</span>
             <h2 className="emp-kpi-summary__title">{title}</h2>
             <p className="emp-kpi-summary__formula">
-              Use Overall, Month, or Year to switch views. Earned weightage comes from completed KPIs (0–{KPI_WEIGHT_CAP}%).
-              Monthly gifts use the gift cost; leftover moves to Banked and can help pay later gifts when that month still qualifies.
+              Finish tasks to earn weightage (up to {KPI_WEIGHT_CAP}% each month). Redeem gifts from what you have left.
+              Extra after a gift is saved for later. Pick Overall, Month, or Year to change the view.
             </p>
           </div>
           {toolbar ? <div className="emp-kpi-toolbar">{toolbar}</div> : null}
@@ -207,84 +217,102 @@ export default function KpiScoreboardSummary({
         <article className="emp-kpi-month emp-kpi-month--current">
           <header className="emp-kpi-month__header">
             <span>
-              {periodMode === 'overall' ? 'Overall' : periodMode === 'year' ? 'Selected year' : 'Selected month'}
+              {periodMode === 'overall' ? 'Overall' : periodMode === 'year' ? 'Selected year' : 'This month'}
             </span>
             <strong>
-              {periodMode === 'overall' ? 'All assigned KPIs' : selectedLabel}
+              {periodMode === 'overall' ? 'All your tasks' : selectedLabel}
             </strong>
           </header>
           <p className="emp-kpi-month__scope">
             {periodMode === 'overall'
-              ? `All-time · ${overallKpis.length} task${overallKpis.length === 1 ? '' : 's'} across every month.`
+              ? `Everything you have been given · ${overallKpis.length} task${overallKpis.length === 1 ? '' : 's'}.`
               : periodMode === 'year'
-                ? `Only KPIs that overlap ${filterYear}. Switch to Overall for all-time results.`
-                : `Only KPIs that overlap ${selectedLabel}. Switch to Overall for all-time results.`}
+                ? `Tasks in ${filterYear}. Switch to Month for gift balance details.`
+                : `Tasks in ${selectedLabel}. The big number is what you still have left to use on gifts.`}
           </p>
 
-          <section className="emp-kpi-block emp-kpi-block--weight" aria-label="Weightage">
+          <section className="emp-kpi-block emp-kpi-block--weight" aria-label="Your weightage">
             <div className="emp-kpi-block__head">
-              <h4 className="emp-kpi-block__title">Weightage</h4>
-              <span className="emp-kpi-block__badge">0–{KPI_WEIGHT_CAP}%</span>
+              <h4 className="emp-kpi-block__title">Your weightage</h4>
+              <span className="emp-kpi-block__badge">Max {KPI_WEIGHT_CAP}%</span>
             </div>
             <div className="emp-kpi-month__score">
               <div className="emp-kpi-month__score-main">
                 <span className="emp-kpi-month__score-label">
-                  {showGiftSplit ? 'Current' : 'Achieved'}
+                  {showGiftSplit || periodMode === 'month' ? 'Left to use now' : 'You earned'}
                 </span>
                 <span className="emp-kpi-month__pct" style={{ color: has ? ratingColor : undefined }}>
-                  {has ? formatKpiWeight(currentWeightage) : '—'}
+                  {has ? formatKpiWeight(showGiftSplit || periodMode === 'month' ? currentWeightage : earnedWeightage) : '—'}
                 </span>
+                {has && (showGiftSplit || periodMode === 'month') ? (
+                  <span className="emp-kpi-month__score-hint">
+                    What you can still spend on gifts
+                  </span>
+                ) : null}
               </div>
               {has ? (
                 <span className="emp-kpi-month__rating" style={{ color: ratingColor }}>
                   {rating}
                 </span>
               ) : (
-                <span className="emp-kpi-month__rating emp-kpi-month__rating--muted">No tasks</span>
+                <span className="emp-kpi-month__rating emp-kpi-month__rating--muted">No tasks yet</span>
               )}
             </div>
-            <dl className="emp-kpi-month__stats emp-kpi-month__stats--weight">
+
+            <dl className="emp-kpi-month__stats emp-kpi-month__stats--weight emp-kpi-month__stats--plain">
               <div>
-                <dt>Total</dt>
+                <dt>Month limit</dt>
                 <dd>{has ? formatKpiWeight(active.totalWeight) : '—'}</dd>
+                <span className="emp-kpi-stat-note">Highest you can earn</span>
               </div>
               <div>
-                <dt>Assigned</dt>
+                <dt>Earned this month</dt>
+                <dd>{has ? formatKpiWeight(earnedWeightage) : '—'}</dd>
+                <span className="emp-kpi-stat-note">From finished tasks</span>
+              </div>
+              <div>
+                <dt>Used on gifts</dt>
+                <dd>{has ? formatKpiWeight(usedWeightage) : '—'}</dd>
+                <span className="emp-kpi-stat-note">Already spent</span>
+              </div>
+              <div className="emp-kpi-stat--highlight">
+                <dt>Left to use</dt>
+                <dd>{has ? formatKpiWeight(currentWeightage) : '—'}</dd>
+                <span className="emp-kpi-stat-note">Current remaining</span>
+              </div>
+              <div>
+                <dt>Saved for later</dt>
+                <dd>{has ? formatKpiWeight(bankedWeightage) : '—'}</dd>
+                <span className="emp-kpi-stat-note">Banked leftover</span>
+              </div>
+              <div>
+                <dt>In your tasks</dt>
                 <dd>{has ? formatKpiWeight(active.weightAssigned) : '—'}</dd>
+                <span className="emp-kpi-stat-note">Total task weight</span>
               </div>
               <div>
-                <dt>Earned</dt>
-                <dd>{has ? formatKpiWeight(active.weightAchieved) : '—'}</dd>
-              </div>
-              {showGiftSplit ? (
-                <>
-                  <div>
-                    <dt>Current</dt>
-                    <dd>{formatKpiWeight(currentWeightage)}</dd>
-                  </div>
-                  <div>
-                    <dt>Used</dt>
-                    <dd>{formatKpiWeight(usedWeightage)}</dd>
-                  </div>
-                  <div>
-                    <dt>Banked</dt>
-                    <dd>{formatKpiWeight(giftBanked)}</dd>
-                  </div>
-                </>
-              ) : null}
-              <div>
-                <dt>Unassigned</dt>
-                <dd>{has ? formatKpiWeight(active.weightUnassigned) : '—'}</dd>
-              </div>
-              <div>
-                <dt>Pending</dt>
+                <dt>Still open</dt>
                 <dd>{has ? formatKpiWeight(active.weightPending) : '—'}</dd>
+                <span className="emp-kpi-stat-note">Not finished yet</span>
               </div>
               <div>
-                <dt>Done</dt>
-                <dd>{has ? `${active.completed}/${active.kpiCount}` : '—'}</dd>
+                <dt>Finished tasks</dt>
+                <dd>{has ? `${active.completed} of ${active.kpiCount}` : '—'}</dd>
+                <span className="emp-kpi-stat-note">Approved or done</span>
+              </div>
+              <div>
+                <dt>Not given yet</dt>
+                <dd>{has ? formatKpiWeight(active.weightUnassigned) : '—'}</dd>
+                <span className="emp-kpi-stat-note">Room left to assign</span>
               </div>
             </dl>
+
+            {showGiftSplit ? (
+              <p className="emp-kpi-weight-guide">
+                Simple rule: <strong>Earned</strong> − <strong>Used on gifts</strong> = <strong>Left to use</strong>.
+                Extra after a gift goes to <strong>Saved for later</strong>.
+              </p>
+            ) : null}
           </section>
         </article>
       </div>

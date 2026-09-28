@@ -167,7 +167,7 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
           </div>
           <div className="emp-rewards-stat emp-rewards-stat--accent">
             <Gift size={16} />
-            <span className="emp-rewards-stat__label">Current</span>
+            <span className="emp-rewards-stat__label">Left to use</span>
             <strong>{formatAwardWeightage(availableWeightage)}</strong>
           </div>
           <div className="emp-rewards-stat">
@@ -175,7 +175,7 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
             <strong>{formatAwardWeightage(balance.deducted)}</strong>
           </div>
           <div className="emp-rewards-stat">
-            <span className="emp-rewards-stat__label">Banked</span>
+            <span className="emp-rewards-stat__label">Saved for later</span>
             <strong>{formatAwardWeightage(balance.banked)}</strong>
           </div>
         </div>

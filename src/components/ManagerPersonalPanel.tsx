@@ -62,7 +62,7 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
   const [kpis, setKpis] = useState<Kpi[]>([]);
   const [loading, setLoading] = useState(true);
   const [rewardsSummary, setRewardsSummary] = useState<RewardsSummary | null>(null);
-  const [periodMode, setPeriodMode] = useState<KpiPeriodMode>('overall');
+  const [periodMode, setPeriodMode] = useState<KpiPeriodMode>('month');
   const [filterMonth, setFilterMonth] = useState(now.monthIndex);
   const [filterYear, setFilterYear] = useState(now.year);
   const [listMode, setListMode] = useState<'open' | 'history'>('open');
@@ -132,8 +132,8 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
   }, [load, profile.full_name, profile.id]);
 
   const periodKpis = useMemo(
-    () => kpisForPeriod(kpis, periodMode, filterMonth, filterYear),
-    [kpis, periodMode, filterMonth, filterYear],
+    () => kpisForPeriod(kpis, periodMode, filterYear, filterMonth),
+    [kpis, periodMode, filterYear, filterMonth],
   );
 
   const visibleKpis = useMemo(() => {
