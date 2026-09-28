@@ -119,7 +119,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
         .from('kpis')
         .select('*')
         .eq('user_id', activeUser.id)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching KPIs:', error);
@@ -221,7 +221,10 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
   }, [periodKpis, kpiSearch]);
 
   const openKpis = useMemo(
-    () => visibleKpis.filter((k) => k.completion_status !== 'completed'),
+    () =>
+      [...visibleKpis.filter((k) => k.completion_status !== 'completed')].sort((a, b) =>
+        (b.created_at || '').localeCompare(a.created_at || ''),
+      ),
     [visibleKpis],
   );
   const historyKpis = useMemo(

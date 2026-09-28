@@ -32,7 +32,7 @@ const MANAGER_TABS: ManagerTab[] = ['mine', 'employees', 'kpis', 'attendance', '
 function initialManagerTab(): ManagerTab {
   const raw = readSessionString(MANAGER_TAB_KEY);
   if (raw && MANAGER_TABS.includes(raw as ManagerTab)) return raw as ManagerTab;
-  return 'kpis';
+  return 'mine';
 }
 
 interface ManagerDashboardProps {
@@ -103,9 +103,9 @@ export default function ManagerDashboard({ profile, organizationName }: ManagerD
     {
       label: 'Menu',
       items: [
-        { id: 'employees', label: 'People', icon: <Users size={16} />, badge: alertCount },
-        { id: 'kpis', label: 'Assign Task', icon: <ClipboardList size={16} /> },
         { id: 'mine', label: 'My KPIs', icon: <BarChart2 size={16} /> },
+        { id: 'kpis', label: 'Assign Task', icon: <ClipboardList size={16} /> },
+        { id: 'employees', label: 'People', icon: <Users size={16} />, badge: alertCount },
         { id: 'attendance', label: 'Attendance', icon: <CalendarCheck size={16} /> },
         { id: 'rewards', label: 'Rewards', icon: <Trophy size={16} /> },
         { id: 'dailyReport', label: 'Daily report', icon: <FileText size={16} /> },
@@ -113,7 +113,6 @@ export default function ManagerDashboard({ profile, organizationName }: ManagerD
       ],
     },
   ], [alertCount]);
-
   const pageMeta = getManagerNavMeta(activeTab);
   const pageIcon = findAdminNavIcon(navGroups, activeTab);
 

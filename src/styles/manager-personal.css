@@ -6,6 +6,147 @@
   gap: 1.15rem;
 }
 
+.mgr-my-kpis-hero {
+  padding: 1.35rem 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 1.25rem 1.5rem;
+  background:
+    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--accent-primary) 12%, transparent), transparent 55%),
+    linear-gradient(180deg, color-mix(in srgb, var(--dash-card-bg) 92%, #fff) 0%, var(--dash-card-bg) 100%);
+  border: 1px solid var(--dash-card-border);
+}
+
+.mgr-my-kpis-hero__main {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  min-width: min(100%, 18rem);
+  flex: 1 1 16rem;
+}
+
+.mgr-my-kpis-hero__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.85rem;
+  height: 2.85rem;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
+  color: var(--accent-primary);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 22%, transparent);
+  flex-shrink: 0;
+}
+
+.mgr-my-kpis-hero__eyebrow {
+  margin: 0 0 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.mgr-my-kpis-hero__title {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 2.4vw, 1.7rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+}
+
+.mgr-my-kpis-hero__subtitle {
+  margin: 0;
+  max-width: 38rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.mgr-my-kpis-hero__stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+  flex: 1 1 18rem;
+  min-width: min(100%, 17rem);
+  max-width: 28rem;
+}
+
+.mgr-my-kpis-stat {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-muted, #f8fafc) 88%, #fff);
+  border: 1px solid var(--border-color);
+}
+
+.mgr-my-kpis-stat__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.mgr-my-kpis-stat__icon--open {
+  background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
+  color: var(--accent-primary);
+}
+
+.mgr-my-kpis-stat__icon--review {
+  background: color-mix(in srgb, #d97706 16%, transparent);
+  color: #b45309;
+}
+
+.mgr-my-kpis-stat__icon--done {
+  background: color-mix(in srgb, var(--color-success) 16%, transparent);
+  color: var(--color-success);
+}
+
+.mgr-my-kpis-stat__label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.1rem;
+}
+
+.mgr-my-kpis-stat strong {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.mgr-my-kpis-list {
+  margin-top: 0.15rem;
+}
+
+.mgr-my-kpi-card {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mgr-my-kpi-card:hover {
+  border-color: color-mix(in srgb, var(--accent-primary) 28%, var(--border-color));
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--text-primary) 6%, transparent);
+}
+
+.emp-kpi-item--review {
+  border-color: color-mix(in srgb, #d97706 45%, var(--border-color));
+  background: color-mix(in srgb, #fffbeb 55%, var(--dash-card-bg, #fff));
+}
+
 .mgr-personal-header {
   padding: 1.25rem 1.4rem;
   display: flex;
@@ -414,8 +555,13 @@
   align-items: center;
   text-align: center;
   gap: 0.5rem;
-  padding: 2.5rem 1rem;
+  padding: 2.75rem 1.25rem;
   color: var(--text-muted);
+  border: 1px solid var(--dash-card-border);
+}
+
+.mgr-personal-empty--compact {
+  padding: 1.75rem 1rem;
 }
 
 .mgr-personal-empty h4 {
@@ -427,7 +573,8 @@
 .mgr-personal-empty p {
   margin: 0;
   font-size: 0.85rem;
-  max-width: 22rem;
+  max-width: 26rem;
+  line-height: 1.5;
 }
 
 @media (max-width: 960px) {
@@ -438,9 +585,21 @@
   .mgr-personal-bottom-grid {
     grid-template-columns: 1fr;
   }
+
+  .mgr-my-kpis-hero__stats {
+    max-width: none;
+  }
 }
 
 @media (max-width: 640px) {
+  .mgr-my-kpis-hero {
+    padding: 1.1rem 1.15rem;
+  }
+
+  .mgr-my-kpis-hero__stats {
+    grid-template-columns: 1fr;
+  }
+
   .mgr-personal-header {
     padding: 1rem 1.1rem;
   }

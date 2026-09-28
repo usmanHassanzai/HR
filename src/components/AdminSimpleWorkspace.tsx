@@ -101,7 +101,7 @@ export default function AdminSimpleWorkspace({
         .from('kpis')
         .select('*')
         .eq('user_id', selected.id)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: false });
       if (cancelled) return;
       if (error) {
         setKpis([]);
