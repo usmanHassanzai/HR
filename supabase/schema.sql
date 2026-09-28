@@ -5,7 +5,7 @@
 CREATE TYPE user_role AS ENUM ('employee', 'manager', 'admin');
 CREATE TYPE kpi_status_type AS ENUM ('on_track', 'at_risk', 'off_track');
 CREATE TYPE task_status_type AS ENUM ('pending', 'in_progress', 'done');
-CREATE TYPE kpi_completion_status AS ENUM ('pending', 'completed');
+CREATE TYPE kpi_completion_status AS ENUM ('pending', 'pending_review', 'completed');
 
 -- 2. Create Core Tables
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, Building2, CheckCircle2, ChevronLeft, ClipboardList, Loader2, Pencil, Plus, Search, Send, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Profile, Kpi, displayRoleLabel } from '../utils/kpiHelpers';
@@ -7,6 +7,7 @@ import { hydrateKpiLastEdits } from '../utils/kpiAssignmentEdits';
 import { emailKpiAssigned } from '../utils/kpiEmail';
 import { formatKpiWeight, KPI_WEIGHT_CAP, remainingKpiWeightBudget, sumEmployeeKpiWeights } from '../utils/kpiWeightHelpers';
 import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
+import { readSessionJson, writeSessionJson } from '../utils/persistedUiState';
 import EmployeeKpiWeightMeter from './EmployeeKpiWeightMeter';
 import AssignedKpiCard from './AssignedKpiCard';
 import EmployeeKpiBoardSummary from './EmployeeKpiBoardSummary';
@@ -25,6 +26,39 @@ import '../styles/manager-kpi-tasks.css';
 import '../styles/admin-dashboard.css';
 
 type Desk = 'library' | 'assign' | 'board';
+
+const DESKS: Desk[] = ['library', 'assign', 'board'];
+
+type KpiStudioDraft = {
+  desk: Desk;
+  assignUserId: string;
+  assignDeptId: string;
+  boardUserId: string;
+  boardDeptId: string;
+  assignKpiId: string;
+  assignNotes: string;
+  assignStartDate: string;
+  assignEndDate: string;
+  assignWeight: string;
+  pauseOngoingOnUrgent: boolean;
+  boardSearch: string;
+  libOpen: boolean;
+  libName: string;
+  libCategory: KpiCategoryId;
+  libDescription: string;
+  libWeight: string;
+  libPenaltyEnabled: boolean;
+  libPenaltyValue: string;
+  libGraceDays: string;
+};
+
+function kpiDraftKey(assignerId: string) {
+  return `scorr-kpi-studio-draft:${assignerId}`;
+}
+
+function readKpiDraft(assignerId: string): Partial<KpiStudioDraft> | null {
+  return readSessionJson<Partial<KpiStudioDraft>>(kpiDraftKey(assignerId));
+}
 
 type KpiTemplate = {
   id: string;
@@ -154,20 +188,28 @@ export default function ManagerKpiConfig({
   initialUserId,
   initialDeptId,
 }: ManagerKpiConfigProps) {
-  const [desk, setDesk] = useState<Desk>(initialDesk || 'assign');
+  const draft = useMemo(() => readKpiDraft(assignerId), [assignerId]);
+  const dates0 = useMemo(() => defaultKpiDates(), []);
+  const skipWeightSyncRef = useRef(Boolean(draft?.assignWeight && draft?.assignKpiId));
+
+  const [desk, setDesk] = useState<Desk>(() => {
+    if (initialDesk && DESKS.includes(initialDesk)) return initialDesk;
+    if (draft?.desk && DESKS.includes(draft.desk)) return draft.desk;
+    return 'assign';
+  });
   const [templates, setTemplates] = useState<KpiTemplate[]>([]);
   const [reports, setReports] = useState<Profile[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [assignUserId, setAssignUserId] = useState(initialUserId || '');
-  const [assignDeptId, setAssignDeptId] = useState(initialDeptId || '');
-  const [boardUserId, setBoardUserId] = useState(initialUserId || '');
-  const [boardDeptId, setBoardDeptId] = useState(initialDeptId || '');
+  const [assignUserId, setAssignUserId] = useState(() => initialUserId || draft?.assignUserId || '');
+  const [assignDeptId, setAssignDeptId] = useState(() => initialDeptId || draft?.assignDeptId || '');
+  const [boardUserId, setBoardUserId] = useState(() => initialUserId || draft?.boardUserId || '');
+  const [boardDeptId, setBoardDeptId] = useState(() => initialDeptId || draft?.boardDeptId || '');
   const [assignKpis, setAssignKpis] = useState<Kpi[]>([]);
   const [boardKpis, setBoardKpis] = useState<Kpi[]>([]);
   const [peopleWithKpis, setPeopleWithKpis] = useState<Set<string>>(() => new Set());
   const [boardRosterLoading, setBoardRosterLoading] = useState(true);
   const [boardKpisLoading, setBoardKpisLoading] = useState(false);
-  const [assignKpiId, setAssignKpiId] = useState('');
+  const [assignKpiId, setAssignKpiId] = useState(() => draft?.assignKpiId || '');
   const [loading, setLoading] = useState(true);
   const [formLoading, setFormLoading] = useState(false);
   const [error, setError] = useState('');
@@ -179,23 +221,31 @@ export default function ManagerKpiConfig({
     employeeEmail?: string;
   } | null>(null);
   const [editingTemplate, setEditingTemplate] = useState<KpiTemplate | null>(null);
-  const [libOpen, setLibOpen] = useState(false);
+  const [libOpen, setLibOpen] = useState(() => Boolean(draft?.libOpen));
   const [libQuery, setLibQuery] = useState('');
 
-  const [libName, setLibName] = useState('');
-  const [libCategory, setLibCategory] = useState<KpiCategoryId>('monthly_goal');
-  const [libDescription, setLibDescription] = useState('');
-  const [libWeight, setLibWeight] = useState('10');
+  const [libName, setLibName] = useState(() => draft?.libName || '');
+  const [libCategory, setLibCategory] = useState<KpiCategoryId>(() => draft?.libCategory || 'monthly_goal');
+  const [libDescription, setLibDescription] = useState(() => draft?.libDescription || '');
+  const [libWeight, setLibWeight] = useState(() => draft?.libWeight || '10');
 
-  const [assignNotes, setAssignNotes] = useState('');
-  const [assignStartDate, setAssignStartDate] = useState(() => defaultKpiDates().start);
-  const [assignEndDate, setAssignEndDate] = useState(() => defaultKpiDates().end);
-  const [assignWeight, setAssignWeight] = useState('');
-  const [boardSearch, setBoardSearch] = useState('');
-  const [pauseOngoingOnUrgent, setPauseOngoingOnUrgent] = useState(true);
-  const [libPenaltyEnabled, setLibPenaltyEnabled] = useState(DEFAULT_KPI_SCORING_RULE.penaltyEnabled);
-  const [libPenaltyValue, setLibPenaltyValue] = useState(String(DEFAULT_KPI_SCORING_RULE.penaltyValue));
-  const [libGraceDays, setLibGraceDays] = useState(String(DEFAULT_KPI_SCORING_RULE.gracePeriodDays));
+  const [assignNotes, setAssignNotes] = useState(() => draft?.assignNotes || '');
+  const [assignStartDate, setAssignStartDate] = useState(() => draft?.assignStartDate || dates0.start);
+  const [assignEndDate, setAssignEndDate] = useState(() => draft?.assignEndDate || dates0.end);
+  const [assignWeight, setAssignWeight] = useState(() => draft?.assignWeight || '');
+  const [boardSearch, setBoardSearch] = useState(() => draft?.boardSearch || '');
+  const [pauseOngoingOnUrgent, setPauseOngoingOnUrgent] = useState(() =>
+    typeof draft?.pauseOngoingOnUrgent === 'boolean' ? draft.pauseOngoingOnUrgent : true,
+  );
+  const [libPenaltyEnabled, setLibPenaltyEnabled] = useState(() =>
+    typeof draft?.libPenaltyEnabled === 'boolean' ? draft.libPenaltyEnabled : DEFAULT_KPI_SCORING_RULE.penaltyEnabled,
+  );
+  const [libPenaltyValue, setLibPenaltyValue] = useState(() =>
+    draft?.libPenaltyValue || String(DEFAULT_KPI_SCORING_RULE.penaltyValue),
+  );
+  const [libGraceDays, setLibGraceDays] = useState(() =>
+    draft?.libGraceDays || String(DEFAULT_KPI_SCORING_RULE.gracePeriodDays),
+  );
 
   const assignPerson = reports.find((r) => r.id === assignUserId) || null;
   const boardPerson = reports.find((r) => r.id === boardUserId) || null;
@@ -206,11 +256,63 @@ export default function ManagerKpiConfig({
 
   useEffect(() => {
     if (!selectedTemplate) {
-      setAssignWeight('');
+      // Don't clear weight while templates are still loading / draft kpi id not resolved yet.
+      if (!assignKpiId) setAssignWeight('');
       return;
     }
+    if (skipWeightSyncRef.current) {
+      skipWeightSyncRef.current = false;
+      if (assignWeight) return;
+    }
     setAssignWeight(String(selectedTemplate.weight));
-  }, [selectedTemplate?.id]);
+  }, [selectedTemplate?.id, assignKpiId]);
+
+  useEffect(() => {
+    writeSessionJson(kpiDraftKey(assignerId), {
+      desk,
+      assignUserId,
+      assignDeptId,
+      boardUserId,
+      boardDeptId,
+      assignKpiId,
+      assignNotes,
+      assignStartDate,
+      assignEndDate,
+      assignWeight,
+      pauseOngoingOnUrgent,
+      boardSearch,
+      libOpen,
+      libName,
+      libCategory,
+      libDescription,
+      libWeight,
+      libPenaltyEnabled,
+      libPenaltyValue,
+      libGraceDays,
+    } satisfies KpiStudioDraft);
+  }, [
+    assignerId,
+    desk,
+    assignUserId,
+    assignDeptId,
+    boardUserId,
+    boardDeptId,
+    assignKpiId,
+    assignNotes,
+    assignStartDate,
+    assignEndDate,
+    assignWeight,
+    pauseOngoingOnUrgent,
+    boardSearch,
+    libOpen,
+    libName,
+    libCategory,
+    libDescription,
+    libWeight,
+    libPenaltyEnabled,
+    libPenaltyValue,
+    libGraceDays,
+  ]);
 
   const loadTemplates = async () => {
     const { data, error: err } = await supabase.rpc('list_kpi_templates', { p_include_inactive: false });

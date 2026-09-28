@@ -1,10 +1,11 @@
-import { useMemo, useState, lazy, Suspense } from 'react';
+import { useEffect, useMemo, useState, lazy, Suspense } from 'react';
 import { CalendarClock, Gift, KeyRound, Settings } from 'lucide-react';
 import { Profile } from '../utils/kpiHelpers';
 import TabFallback from './TabFallback';
 import ChangePasswordModal from './ChangePasswordModal';
 import AdminSidebarNav, { findAdminNavIcon, type AdminNavGroup } from './AdminSidebarNav';
 import AdminHamburgerButton from './AdminHamburgerButton';
+import { readSessionString, writeSessionString } from '../utils/persistedUiState';
 import '../styles/admin-dashboard.css';
 import '../styles/admin-attendance.css';
 import '../styles/hr-dashboard.css';
@@ -16,6 +17,15 @@ const AccountSecurityPanel = lazy(() => import('./AccountSecurityPanel'));
 const BackupCodesLowBanner = lazy(() => import('./BackupCodesLowBanner'));
 
 type HrTab = 'attendance' | 'rewards' | 'settings';
+
+const HR_TAB_KEY = 'scorr-hr-active-tab';
+const HR_TABS: HrTab[] = ['attendance', 'rewards', 'settings'];
+
+function initialHrTab(): HrTab {
+  const raw = readSessionString(HR_TAB_KEY);
+  if (raw && HR_TABS.includes(raw as HrTab)) return raw as HrTab;
+  return 'attendance';
+}
 
 interface HrDashboardProps {
   profile: Profile;
@@ -41,9 +51,13 @@ function getHrNavMeta(id: string): { label: string; description: string } {
 }
 
 export default function HrDashboard({ profile, organizationName }: HrDashboardProps) {
-  const [activeTab, setActiveTab] = useState<HrTab>('attendance');
+  const [activeTab, setActiveTab] = useState<HrTab>(() => initialHrTab());
   const [navOpen, setNavOpen] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
+
+  useEffect(() => {
+    writeSessionString(HR_TAB_KEY, activeTab);
+  }, [activeTab]);
 
   const navGroups = useMemo<AdminNavGroup[]>(
     () => [

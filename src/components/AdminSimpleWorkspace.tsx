@@ -16,6 +16,7 @@ import {
 import KpiAssignmentDetails from './KpiAssignmentDetails';
 import KpiViewedBadge from './KpiViewedBadge';
 import EditAssignedKpiModal from './EditAssignedKpiModal';
+import ReviewKpiCompletionPanel from './ReviewKpiCompletionPanel';
 import '../styles/admin-simple.css';
 
 interface AdminSimpleWorkspaceProps {
@@ -226,14 +227,22 @@ export default function AdminSimpleWorkspace({
                   <p className="kpi-score-line">
                     Weightage {formatKpiWeight(kpi.weight)}
                     {kpi.completion_status === 'completed'
-                      ? ` · Achieved ${formatKpiWeight(kpi.weight)}`
-                      : ' · Not complete yet'}
+                      ? ` · Awarded ${formatKpiWeight(Number(kpi.assigned_score ?? kpi.weight ?? 0))}`
+                      : kpi.completion_status === 'pending_review'
+                        ? ' · Awaiting review'
+                        : ' · Not complete yet'}
                   </p>
                   <div className="kpi-dates">{fmtDate(kpi.start_date)} → {fmtDate(kpi.end_date)}</div>
                   {isKpiPastDeadline(kpi) && (
                     <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--color-warning)', marginTop: '0.35rem' }}>
                       Past deadline
                     </span>
+                  )}
+                  {kpi.completion_status === 'pending_review' && (
+                    <ReviewKpiCompletionPanel
+                      kpi={kpi}
+                      onUpdated={() => setKpiTick((n) => n + 1)}
+                    />
                   )}
                   <button
                     type="button"

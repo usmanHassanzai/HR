@@ -16,6 +16,7 @@ import { markNotificationsRead } from '../utils/notificationHelpers';
 import TabFallback from './TabFallback';
 import AdminSimpleWorkspace from './AdminSimpleWorkspace';
 import AdminUsersPage from './AdminUsersPage';
+import { readSessionString, writeSessionString } from '../utils/persistedUiState';
 
 const AdminDailyWorkReports = lazy(() => import('./AdminDailyWorkReports'));
 const Analytics = lazy(() => import('./Analytics'));
@@ -31,6 +32,36 @@ const DepartmentsAdminPanel = lazy(() => import('./DepartmentsAdminPanel'));
 const ManagerKpiConfig = lazy(() => import('./ManagerKpiConfig'));
 const PlatformCompaniesConsole = lazy(() => import('./PlatformCompaniesConsole'));
 
+type AdminTab =
+  | 'users'
+  | 'kpis'
+  | 'export'
+  | 'analytics'
+  | 'settings'
+  | 'rewards'
+  | 'kpiPoints'
+  | 'attendance'
+  | 'office'
+  | 'tracking'
+  | 'departments'
+  | 'companies'
+  | 'dailyReports';
+
+const ADMIN_TAB_KEY = 'scorr-admin-active-tab';
+const ADMIN_TABS: AdminTab[] = [
+  'users', 'kpis', 'export', 'analytics', 'settings', 'rewards', 'kpiPoints',
+  'attendance', 'office', 'tracking', 'departments', 'companies', 'dailyReports',
+];
+
+function initialAdminTab(isHr: boolean, platformOwner: boolean): AdminTab {
+  const raw = readSessionString(ADMIN_TAB_KEY);
+  if (raw && ADMIN_TABS.includes(raw as AdminTab)) {
+    if (raw === 'companies' && !platformOwner) return isHr ? 'attendance' : 'users';
+    return raw as AdminTab;
+  }
+  return isHr ? 'attendance' : 'users';
+}
+
 interface AdminDashboardProps {
   profile: Profile;
   organizationName?: string | null;
@@ -42,7 +73,7 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
   const { isOwner: platformOwner, checking: platformOwnerChecking } = usePlatformOwnerAccess(profile);
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'users' | 'kpis' | 'export' | 'analytics' | 'settings' | 'rewards' | 'kpiPoints' | 'attendance' | 'office' | 'tracking' | 'departments' | 'companies' | 'dailyReports'>('users');
+  const [activeTab, setActiveTab] = useState<AdminTab>(() => initialAdminTab(isHr, false));
   const [departments, setDepartments] = useState<Department[]>([]);
   const [resetPasswordUser, setResetPasswordUser] = useState<{ id: string; name: string } | null>(null);
   const [editUser, setEditUser] = useState<Profile | null>(null);
@@ -55,6 +86,17 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
   const [reportsNavState, setReportsNavState] = useState<{ search?: string; deptId?: string } | null>(null);
   const [attendanceNavState, setAttendanceNavState] = useState<{ adminTab?: 'leave' | 'remote' | 'shifts' | 'history'; userId?: string } | null>(null);
   const [analyticsNavState, setAnalyticsNavState] = useState<{ userId?: string; deptId?: string } | null>(null);
+
+  useEffect(() => {
+    writeSessionString(ADMIN_TAB_KEY, activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (platformOwnerChecking) return;
+    if (activeTab === 'companies' && !platformOwner) {
+      setActiveTab(isHr ? 'attendance' : 'users');
+    }
+  }, [platformOwnerChecking, platformOwner, activeTab, isHr]);
 
   const markDailyReportNotificationsRead = useCallback(async () => {
     const { data } = await supabase

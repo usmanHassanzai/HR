@@ -22,6 +22,7 @@ import AdminKpiAwardsPanel from './AdminKpiAwardsPanel';
 import AdminRewardHistoryPanel from './AdminRewardHistoryPanel';
 import RewardCatalogIcon from './RewardCatalogIcon';
 import { fileToRewardIconDataUrl, REWARD_EMOJI_PRESETS } from '../utils/rewardIconHelpers';
+import { readSessionString, writeSessionString } from '../utils/persistedUiState';
 import '../styles/admin-rewards.css';
 import '../styles/employee-kpis.css';
 
@@ -50,16 +51,30 @@ function isAlertError(message: string): boolean {
   return /^error|failed|cannot|must/i.test(message);
 }
 
+type RewardsTab = 'board' | 'redemptions' | 'catalog' | 'awards' | 'history';
+const REWARDS_TAB_KEY = 'scorr-admin-rewards-tab';
+const REWARDS_TABS: RewardsTab[] = ['board', 'redemptions', 'catalog', 'awards', 'history'];
+
+function initialRewardsTab(): RewardsTab {
+  const raw = readSessionString(REWARDS_TAB_KEY);
+  if (raw && REWARDS_TABS.includes(raw as RewardsTab)) return raw as RewardsTab;
+  return 'awards';
+}
+
 export default function AdminRewards() {
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
   const [redemptions, setRedemptions] = useState<Redemption[]>([]);
   const [orgUserCount, setOrgUserCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState('');
-  const [activeTab, setActiveTab] = useState<'board' | 'redemptions' | 'catalog' | 'awards' | 'history'>('awards');
+  const [activeTab, setActiveTab] = useState<RewardsTab>(() => initialRewardsTab());
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: '', description: '', icon: '🎁', weightage_required: 80 });
   const [iconUploading, setIconUploading] = useState(false);
+
+  useEffect(() => {
+    writeSessionString(REWARDS_TAB_KEY, activeTab);
+  }, [activeTab]);
 
   const showMsg = useCallback((text: string) => {
     setMsg(text);

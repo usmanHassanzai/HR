@@ -176,6 +176,8 @@ const MIGRATIONS = [
   'reward_weightage_bank.sql',
   'reward_fix_used_cap.sql',
   'reward_redeem_with_banked.sql',
+  'kpi_completion_review_enum.sql',
+  'kpi_completion_review.sql',
 ];
 
 async function runMigration(filename) {

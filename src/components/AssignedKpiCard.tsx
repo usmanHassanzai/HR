@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { Pencil, Trash2, Pause, Play, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { Kpi, kpiHealthLabel, kpiProgressBadge, kpiWorkStage, isKpiPaused, kpiPauseLabel } from '../utils/kpiHelpers';
+import { Kpi, kpiHealthLabel, kpiProgressBadge, kpiWorkStage, isKpiPaused, kpiPauseLabel, isKpiAwaitingReview } from '../utils/kpiHelpers';
 import { kpiCategoryMeta } from '../utils/kpiCategories';
 import { formatKpiWeight } from '../utils/kpiWeightHelpers';
-import { isKpiLatePenaltyApplied } from '../utils/kpiScoreHelpers';
+import { isKpiLatePenaltyApplied, kpiAssignedScore } from '../utils/kpiScoreHelpers';
 import { formatLatePenaltyLabel, kpiScoringRule } from '../utils/kpiScoringRules';
 import KpiAssignmentEditNote from './KpiAssignmentEditNote';
 import KpiViewedBadge from './KpiViewedBadge';
 import KpiTaskBrief from './KpiTaskBrief';
+import ReviewKpiCompletionPanel from './ReviewKpiCompletionPanel';
 
 function fmtDate(d?: string | null): string {
   if (!d) return '—';
@@ -44,29 +45,28 @@ export default function AssignedKpiCard({
   const paused = isKpiPaused(kpi);
   const pauseInfo = kpiPauseLabel(kpi);
   const isCompleted = kpi.completion_status === 'completed';
+  const awaitingReview = isKpiAwaitingReview(kpi);
   const latePenalized = isKpiLatePenaltyApplied(kpi);
 
   const progress = isCompleted
     ? (latePenalized
-      ? `Completed after the due date — late penalty applied (${scoring.penaltyValue}% of score)`
-      : 'Completed on time — full score')
-    : paused
-      ? (pauseInfo || 'Paused — due date will move forward when resumed')
-      : stage === 'in_progress'
-        ? 'They opened this in Scorr — in progress'
-        : 'Not started yet (email does not start it)';
+      ? `Approved after the due date — late penalty applied (${scoring.penaltyValue}% of score)`
+      : `Approved — awarded ${formatKpiWeight(kpiAssignedScore(kpi))}`)
+    : awaitingReview
+      ? 'They marked Complete — set the final weightage below to approve'
+      : paused
+        ? (pauseInfo || 'Paused — due date will move forward when resumed')
+        : stage === 'in_progress'
+          ? 'They opened this in Scorr — in progress'
+          : 'Not started yet (email does not start it)';
 
   const handleTogglePause = async () => {
     setBusy(true);
     setPauseErr('');
     try {
       if (paused) {
-        const { data, error } = await supabase.rpc('resume_assigned_kpi', { p_kpi_id: kpi.id });
+        const { error } = await supabase.rpc('resume_assigned_kpi', { p_kpi_id: kpi.id });
         if (error) throw error;
-        const res = (data || {}) as { added_days?: number };
-        if ((res.added_days || 0) > 0) {
-          // toast or update
-        }
       } else {
         const { error } = await supabase.rpc('pause_assigned_kpi', { p_kpi_id: kpi.id });
         if (error) throw error;
@@ -80,17 +80,18 @@ export default function AssignedKpiCard({
   };
 
   return (
-    <article className={`assigned-kpi-card${paused ? ' assigned-kpi-card--paused' : ''}`}>
+    <article className={`assigned-kpi-card${paused ? ' assigned-kpi-card--paused' : ''}${awaitingReview ? ' assigned-kpi-card--review' : ''}`}>
       <header className="assigned-kpi-card__head">
         <div>
           <div className="assigned-kpi-card__tags">
             <span className="studio-tag">{category.label}</span>
+            {awaitingReview ? <span className="studio-tag studio-tag--warn">Needs review</span> : null}
             {penaltyLabel ? <span className="studio-tag studio-tag--warn">{penaltyLabel}</span> : null}
           </div>
           <h3>{kpi.name}</h3>
         </div>
         <div className="studio-kpi__actions">
-          {!isCompleted && (
+          {!isCompleted && !awaitingReview && (
             <button
               type="button"
               className={`studio-action${paused ? ' studio-action--resume' : ''}`}
@@ -144,7 +145,13 @@ export default function AssignedKpiCard({
         </div>
         <div>
           <dt>Achieved</dt>
-          <dd>{isCompleted ? formatKpiWeight(kpi.weight) : 'Open'}</dd>
+          <dd>
+            {isCompleted
+              ? formatKpiWeight(kpiAssignedScore(kpi))
+              : awaitingReview
+                ? 'Awaiting review'
+                : 'Open'}
+          </dd>
         </div>
       </dl>
 
@@ -168,6 +175,7 @@ export default function AssignedKpiCard({
       ) : null}
 
       <p className="assigned-kpi-card__progress">{progress}</p>
+      <ReviewKpiCompletionPanel kpi={kpi} onUpdated={onUpdated} />
       <KpiViewedBadge kpi={kpi} />
       <KpiAssignmentEditNote kpi={kpi} />
     </article>

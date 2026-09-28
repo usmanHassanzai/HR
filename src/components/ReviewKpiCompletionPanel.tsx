@@ -1,0 +1,108 @@
+import { useState } from 'react';
+import { CheckCircle2, Loader2, RotateCcw } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { isKpiAwaitingReview, type Kpi } from '../utils/kpiHelpers';
+import { formatKpiWeight } from '../utils/kpiWeightHelpers';
+import { kpiAssignedScore } from '../utils/kpiScoreHelpers';
+
+/** Manager / admin / HR: set final weightage for a task waiting on review. */
+export default function ReviewKpiCompletionPanel({
+  kpi,
+  onUpdated,
+}: {
+  kpi: Kpi;
+  onUpdated: () => void;
+}) {
+  const awaiting = isKpiAwaitingReview(kpi);
+  const defaultScore = kpiAssignedScore(kpi) || Number(kpi.weight || 0);
+  const [score, setScore] = useState(String(defaultScore));
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  if (!awaiting) return null;
+
+  const runReview = async (approve: boolean) => {
+    setBusy(true);
+    setError('');
+    try {
+      const finalScore = Number(score);
+      if (approve && (!Number.isFinite(finalScore) || finalScore < 0 || finalScore > 100)) {
+        throw new Error('Enter a score between 0 and 100.');
+      }
+      const { error: rpcErr } = await supabase.rpc('review_kpi_completion', {
+        p_kpi_id: kpi.id,
+        p_final_score: approve ? finalScore : defaultScore,
+        p_approve: approve,
+        p_note: note.trim() || null,
+      });
+      if (rpcErr) throw rpcErr;
+      onUpdated();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Could not save review.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="kpi-review-panel">
+      <div className="kpi-review-panel__head">
+        <CheckCircle2 size={16} />
+        <div>
+          <strong>Review completion</strong>
+          <p>
+            They marked this complete. Set the weightage to award (target {formatKpiWeight(kpi.weight)}).
+            You can increase or decrease it based on performance.
+          </p>
+        </div>
+      </div>
+
+      <label className="kpi-review-panel__field">
+        <span>Final weightage / score (%)</span>
+        <input
+          type="number"
+          min={0}
+          max={100}
+          step={0.01}
+          value={score}
+          onChange={(e) => setScore(e.target.value)}
+          disabled={busy}
+        />
+      </label>
+
+      <label className="kpi-review-panel__field">
+        <span>Note (optional)</span>
+        <textarea
+          rows={2}
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Feedback for the person"
+          disabled={busy}
+        />
+      </label>
+
+      <div className="kpi-review-panel__actions">
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={busy}
+          onClick={() => void runReview(true)}
+        >
+          {busy ? <Loader2 size={14} className="spin-icon" /> : <CheckCircle2 size={14} />}
+          Approve &amp; award
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          disabled={busy}
+          onClick={() => void runReview(false)}
+        >
+          <RotateCcw size={14} />
+          Send back
+        </button>
+      </div>
+      {error ? <p className="kpi-review-panel__err">{error}</p> : null}
+    </div>
+  );
+}

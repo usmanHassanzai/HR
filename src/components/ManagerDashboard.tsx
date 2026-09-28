@@ -10,6 +10,7 @@ import AdminSidebarNav, { findAdminNavIcon, type AdminNavGroup } from './AdminSi
 import AdminHamburgerButton from './AdminHamburgerButton';
 import TabFallback from './TabFallback';
 import KpiWorkspace from './KpiWorkspace';
+import { readSessionString, writeSessionString } from '../utils/persistedUiState';
 import '../styles/admin-dashboard.css';
 import '../styles/manager-mobile.css';
 
@@ -24,6 +25,15 @@ const AccountSecurityPanel = lazy(() => import('./AccountSecurityPanel'));
 const BackupCodesLowBanner = lazy(() => import('./BackupCodesLowBanner'));
 
 type ManagerTab = 'mine' | 'employees' | 'kpis' | 'attendance' | 'rewards' | 'dailyReport' | 'settings';
+
+const MANAGER_TAB_KEY = 'scorr-manager-active-tab';
+const MANAGER_TABS: ManagerTab[] = ['mine', 'employees', 'kpis', 'attendance', 'rewards', 'dailyReport', 'settings'];
+
+function initialManagerTab(): ManagerTab {
+  const raw = readSessionString(MANAGER_TAB_KEY);
+  if (raw && MANAGER_TABS.includes(raw as ManagerTab)) return raw as ManagerTab;
+  return 'kpis';
+}
 
 interface ManagerDashboardProps {
   profile: Profile;
@@ -45,10 +55,14 @@ function getManagerNavMeta(id: string): { label: string; description: string } {
 
 export default function ManagerDashboard({ profile, organizationName }: ManagerDashboardProps) {
   const [selectedEmployee, setSelectedEmployee] = useState<Profile | null>(null);
-  const [activeTab, setActiveTab] = useState<ManagerTab>('kpis');
+  const [activeTab, setActiveTab] = useState<ManagerTab>(() => initialManagerTab());
   const [alertCount, setAlertCount] = useState(0);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
+
+  useEffect(() => {
+    writeSessionString(MANAGER_TAB_KEY, activeTab);
+  }, [activeTab]);
 
   useEffect(() => {
     const fetchAlerts = async () => {

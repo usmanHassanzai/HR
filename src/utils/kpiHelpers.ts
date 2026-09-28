@@ -73,7 +73,7 @@ export interface Kpi {
   indicator_id?: string | null;
   start_date?: string | null;
   end_date?: string | null;
-  completion_status?: 'pending' | 'completed';
+  completion_status?: 'pending' | 'pending_review' | 'completed';
   supervisor_score_pct?: number | null;
   last_edited_by_name?: string | null;
   last_edited_by_role?: string | null;
@@ -150,7 +150,12 @@ export function isKpiPaused(kpi: Pick<Kpi, 'paused_at' | 'completion_status'>): 
   return Boolean(kpi.paused_at) && kpi.completion_status !== 'completed';
 }
 
-export type KpiWorkStage = 'not_started' | 'in_progress' | 'complete';
+export function isKpiAwaitingReview(kpi: Pick<Kpi, 'completion_status' | 'employee_progress'>): boolean {
+  return kpi.completion_status === 'pending_review'
+    || (kpi.employee_progress === 'completed' && kpi.completion_status === 'pending');
+}
+
+export type KpiWorkStage = 'not_started' | 'in_progress' | 'awaiting_review' | 'complete';
 
 function karachiYmd(value: Date | string): string {
   const d = typeof value === 'string' ? new Date(value) : value;
@@ -191,7 +196,8 @@ export function kpiPauseLabel(kpi: Pick<Kpi, 'pause_days' | 'paused_at' | 'end_d
 export function kpiWorkStage(
   kpi: Pick<Kpi, 'user_id' | 'viewed_at' | 'viewed_by' | 'employee_progress' | 'completion_status' | 'paused_at'>,
 ): KpiWorkStage {
-  if (kpi.completion_status === 'completed' || kpi.employee_progress === 'completed') return 'complete';
+  if (kpi.completion_status === 'completed') return 'complete';
+  if (isKpiAwaitingReview(kpi)) return 'awaiting_review';
   if (kpi.paused_at) return 'in_progress';
   if (kpi.employee_progress === 'started' || isKpiViewedByAssignee(kpi)) return 'in_progress';
   return 'not_started';
@@ -199,6 +205,7 @@ export function kpiWorkStage(
 
 export function kpiWorkStageLabel(stage: KpiWorkStage): string {
   if (stage === 'complete') return 'Complete';
+  if (stage === 'awaiting_review') return 'Pending review';
   if (stage === 'in_progress') return 'In progress';
   return 'Not started';
 }
@@ -213,11 +220,12 @@ export function kpiProgressBadge(kpi: Pick<Kpi, 'user_id' | 'viewed_at' | 'viewe
   light: 'green' | 'yellow' | 'red' | 'gray';
   label: string;
 } {
-  if (kpi.paused_at && kpi.completion_status !== 'completed') {
+  if (kpi.paused_at && kpi.completion_status !== 'completed' && kpi.completion_status !== 'pending_review') {
     return { light: 'yellow', label: 'Paused' };
   }
   const stage = kpiWorkStage(kpi);
-  if (stage === 'complete') return { light: 'green', label: 'Complete' };
+  if (stage === 'complete') return { light: 'green', label: 'Approved' };
+  if (stage === 'awaiting_review') return { light: 'yellow', label: 'Pending review' };
   if (stage === 'not_started') return { light: 'gray', label: 'Not started' };
   const light = kpi.status === 'on_track' ? 'green' : kpi.status === 'at_risk' ? 'yellow' : 'red';
   return { light, label: `In progress · ${kpiHealthLabel(kpi.status)}` };

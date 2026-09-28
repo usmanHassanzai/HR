@@ -8,12 +8,6 @@ import { clearGeoHold } from './attendanceBackgroundSession';
 export const PORTAL_IDLE_MS = 20 * 60 * 1000;
 
 const LAST_ACTIVITY_KEY = 'scorr-last-activity';
-const TABS_KEY = 'scorr-open-tabs';
-const TAB_ID_KEY = 'scorr-tab-id';
-const CONTINUING_TAB_KEY = 'scorr-web-tab';
-const LAST_UNLOAD_KEY = 'scorr-last-tab-unload';
-const TAB_TTL_MS = 75_000;
-const TAB_HEARTBEAT_MS = 20_000;
 
 const ACTIVITY_EVENTS: (keyof WindowEventMap)[] = [
   'pointerdown',
@@ -24,10 +18,7 @@ const ACTIVITY_EVENTS: (keyof WindowEventMap)[] = [
   'scroll',
 ];
 
-type TabRecord = { id: string; seen: number };
-
 let lockingSession = false;
-let thisTabId: string | null = null;
 
 function clearAuthStorageSync() {
   try {
@@ -35,10 +26,10 @@ function clearAuthStorageSync() {
     sessionStorage.removeItem(LAST_ACTIVITY_KEY);
     sessionStorage.removeItem('scorr-browser-epoch');
     localStorage.removeItem('scorr-browser-epoch');
-    localStorage.removeItem(TABS_KEY);
-    localStorage.removeItem(LAST_UNLOAD_KEY);
-    sessionStorage.removeItem(CONTINUING_TAB_KEY);
-    sessionStorage.removeItem(TAB_ID_KEY);
+    localStorage.removeItem('scorr-open-tabs');
+    localStorage.removeItem('scorr-last-tab-unload');
+    sessionStorage.removeItem('scorr-web-tab');
+    sessionStorage.removeItem('scorr-tab-id');
   } catch {
     /* ignore */
   }
@@ -55,94 +46,6 @@ function clearAuthStorageSync() {
     }
   } catch {
     /* ignore */
-  }
-}
-
-function readTabs(): TabRecord[] {
-  try {
-    const raw = localStorage.getItem(TABS_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as TabRecord[];
-    if (!Array.isArray(parsed)) return [];
-    const now = Date.now();
-    return parsed.filter((t) => t && typeof t.id === 'string' && now - t.seen < TAB_TTL_MS);
-  } catch {
-    return [];
-  }
-}
-
-function writeTabs(tabs: TabRecord[]) {
-  try {
-    localStorage.setItem(TABS_KEY, JSON.stringify(tabs));
-  } catch {
-    /* ignore */
-  }
-}
-
-function hasLiveTabs(exceptId?: string | null): boolean {
-  return readTabs().some((t) => t.id !== exceptId);
-}
-
-function ensureTabId(): string {
-  if (thisTabId) return thisTabId;
-  thisTabId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  return thisTabId;
-}
-
-function markContinuingTab() {
-  try {
-    sessionStorage.setItem(CONTINUING_TAB_KEY, '1');
-    sessionStorage.setItem(TAB_ID_KEY, ensureTabId());
-  } catch {
-    /* ignore */
-  }
-}
-
-function isContinuingTab(): boolean {
-  try {
-    return sessionStorage.getItem(CONTINUING_TAB_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function registerOpenTab() {
-  if (isNativeApp()) return;
-  const id = ensureTabId();
-  markContinuingTab();
-  const now = Date.now();
-  const others = readTabs().filter((t) => t.id !== id);
-  writeTabs([...others, { id, seen: now }]);
-  try {
-    localStorage.removeItem(LAST_UNLOAD_KEY);
-  } catch {
-    /* ignore */
-  }
-}
-
-function unregisterOpenTab() {
-  if (isNativeApp()) return;
-  const id = thisTabId ?? ensureTabId();
-  const remaining = readTabs().filter((t) => t.id !== id);
-  writeTabs(remaining);
-  if (remaining.length === 0) {
-    try {
-      localStorage.setItem(LAST_UNLOAD_KEY, String(Date.now()));
-    } catch {
-      /* ignore */
-    }
-  }
-}
-
-/** True when the last Scorr browser tab was closed (not a refresh or tab switch). */
-function shouldLogoutAfterClosedTabs(): boolean {
-  if (typeof window === 'undefined' || isNativeApp()) return false;
-  if (isContinuingTab()) return false;
-  if (hasLiveTabs()) return false;
-  try {
-    return Boolean(localStorage.getItem(LAST_UNLOAD_KEY));
-  } catch {
-    return false;
   }
 }
 
@@ -166,19 +69,6 @@ export async function lockPortalSession(_options?: { force?: boolean }) {
   }
 }
 
-function logoutAfterClosedTabsSync() {
-  if (!shouldLogoutAfterClosedTabs()) return;
-  clearGeoHold();
-  clearAuthStorageSync();
-  void supabase.auth.signOut({ scope: 'local' }).catch(() => {
-    /* ignore */
-  });
-}
-
-if (typeof window !== 'undefined') {
-  logoutAfterClosedTabsSync();
-}
-
 function readLastActivity(): number {
   try {
     const raw = localStorage.getItem(LAST_ACTIVITY_KEY);
@@ -200,9 +90,22 @@ function writeLastActivity(ts = Date.now()) {
   }
 }
 
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  const tag = target.tagName;
+  if (tag === 'TEXTAREA' || tag === 'SELECT') return true;
+  if (tag === 'INPUT') {
+    const type = (target as HTMLInputElement).type || 'text';
+    return !['button', 'submit', 'checkbox', 'radio', 'file', 'reset', 'image', 'range', 'color'].includes(type);
+  }
+  return Boolean(target.closest('input, textarea, select, [contenteditable="true"]'));
+}
+
 /**
- * Stay signed in while switching browser tabs or in-app tabs.
- * Sign out after 20 minutes idle, or when the last Scorr web tab is closed.
+ * Stay signed in while switching browser tabs or working in another window.
+ * Sign out only after true idle (no input for PORTAL_IDLE_MS).
+ * Do not treat Chrome tab switches / Memory Saver as logout.
  */
 export function usePortalSessionGuard(enabled: boolean, options?: { idle?: boolean }) {
   const enabledRef = useRef(enabled);
@@ -214,8 +117,6 @@ export function usePortalSessionGuard(enabled: boolean, options?: { idle?: boole
 
   useEffect(() => {
     if (!enabled) return;
-
-    registerOpenTab();
 
     const clearTimer = () => {
       if (timerRef.current != null) {
@@ -258,7 +159,17 @@ export function usePortalSessionGuard(enabled: boolean, options?: { idle?: boole
       armIdleTimer();
     };
 
-    if (idleEnabled) expireIfIdle();
+    // Block Backspace from navigating browser history when focus is not in a field
+    // (avoids wiping the current Assign Task / form page).
+    const onBackspaceNav = (e: KeyboardEvent) => {
+      if (e.key !== 'Backspace' && e.key !== 'BrowserBack') return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (isEditableTarget(e.target)) return;
+      e.preventDefault();
+    };
+
+    writeLastActivity();
+    if (idleEnabled) armIdleTimer();
 
     for (const ev of ACTIVITY_EVENTS) {
       window.addEventListener(ev, onActivity, { passive: true });
@@ -266,33 +177,17 @@ export function usePortalSessionGuard(enabled: boolean, options?: { idle?: boole
 
     const onVisible = () => {
       if (document.visibilityState !== 'visible') return;
-      registerOpenTab();
+      // Coming back to the tab is not idle by itself — only expire if timer already elapsed.
       expireIfIdle();
     };
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', expireIfIdle);
+    window.addEventListener('keydown', onBackspaceNav, true);
 
     const onStorage = (e: StorageEvent) => {
       if (e.key === LAST_ACTIVITY_KEY) armIdleTimer();
     };
     window.addEventListener('storage', onStorage);
-
-    const onPageHide = (event: PageTransitionEvent) => {
-      if (event.persisted) return;
-      unregisterOpenTab();
-    };
-    const onPageShow = (event: PageTransitionEvent) => {
-      if (event.persisted) registerOpenTab();
-    };
-    window.addEventListener('pagehide', onPageHide);
-    window.addEventListener('pageshow', onPageShow);
-
-    let heartbeat: number | null = null;
-    if (!isNativeApp()) {
-      heartbeat = window.setInterval(() => {
-        if (enabledRef.current) registerOpenTab();
-      }, TAB_HEARTBEAT_MS);
-    }
 
     let appStateHandle: { remove: () => Promise<void> } | null = null;
     if (isNativeApp()) {
@@ -305,15 +200,13 @@ export function usePortalSessionGuard(enabled: boolean, options?: { idle?: boole
 
     return () => {
       clearTimer();
-      if (heartbeat != null) window.clearInterval(heartbeat);
       for (const ev of ACTIVITY_EVENTS) {
         window.removeEventListener(ev, onActivity);
       }
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('focus', expireIfIdle);
+      window.removeEventListener('keydown', onBackspaceNav, true);
       window.removeEventListener('storage', onStorage);
-      window.removeEventListener('pagehide', onPageHide);
-      window.removeEventListener('pageshow', onPageShow);
       void appStateHandle?.remove();
     };
   }, [enabled, idleEnabled]);

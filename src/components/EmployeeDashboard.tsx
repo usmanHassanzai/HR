@@ -29,12 +29,23 @@ import KpiEvaluationBlock from './KpiEvaluationBlock';
 import KpiScoreboardSummary from './KpiScoreboardSummary';
 import '../styles/employee-mobile.css';
 import '../styles/employee-kpis.css';
+import { readSessionString, writeSessionString } from '../utils/persistedUiState';
 
 const EmployeeRewardsPanel = lazy(() => import('./EmployeeRewardsPanel'));
 const AttendanceLeavePanel = lazy(() => import('./AttendanceLeavePanel'));
 const DailyWorkReportPanel = lazy(() => import('./DailyWorkReportPanel'));
 const AccountSecurityPanel = lazy(() => import('./AccountSecurityPanel'));
 const BackupCodesLowBanner = lazy(() => import('./BackupCodesLowBanner'));
+
+type EmployeeTab = 'kpis' | 'attendance' | 'rewards' | 'dailyReport' | 'settings';
+const EMPLOYEE_TAB_KEY = 'scorr-employee-active-tab';
+const EMPLOYEE_TABS: EmployeeTab[] = ['kpis', 'attendance', 'rewards', 'dailyReport', 'settings'];
+
+function initialEmployeeTab(): EmployeeTab {
+  const raw = readSessionString(EMPLOYEE_TAB_KEY);
+  if (raw && EMPLOYEE_TABS.includes(raw as EmployeeTab)) return raw as EmployeeTab;
+  return 'kpis';
+}
 
 interface EmployeeDashboardProps {
   profile: Profile;
@@ -49,7 +60,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
 
   const [kpis, setKpis] = useState<Kpi[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'kpis' | 'attendance' | 'rewards' | 'dailyReport' | 'settings'>('kpis');
+  const [activeTab, setActiveTab] = useState<EmployeeTab>(() => (isReadOnly ? 'kpis' : initialEmployeeTab()));
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const initialYm = useMemo(() => karachiYearMonth(), []);
@@ -58,6 +69,10 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
   const [filterMonth, setFilterMonth] = useState(initialYm.monthIndex);
   const [kpiSearch, setKpiSearch] = useState('');
   const [listMode, setListMode] = useState<'open' | 'history'>('open');
+
+  useEffect(() => {
+    if (!isReadOnly) writeSessionString(EMPLOYEE_TAB_KEY, activeTab);
+  }, [activeTab, isReadOnly]);
   const [rewardsSummary, setRewardsSummary] = useState<RewardsSummary | null>(null);
   const [redemptions, setRedemptions] = useState<{
     id: string;
@@ -387,13 +402,14 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
           ) : (
             listedKpis.map((kpi) => {
             const badge = kpiProgressBadge(kpi);
-            const paused = Boolean(kpi.paused_at) && kpi.completion_status !== 'completed';
+            const paused = Boolean(kpi.paused_at) && kpi.completion_status !== 'completed' && kpi.completion_status !== 'pending_review';
             const complete = kpi.completion_status === 'completed';
+            const awaitingReview = kpi.completion_status === 'pending_review';
             const latePenalized = isKpiLatePenaltyApplied(kpi);
             const penaltyLabel = formatLatePenaltyLabel(kpiScoringRule(kpi));
             const historyDate = kpi.completed_at || kpi.end_date;
             return (
-              <article key={kpi.id} className={`emp-kpi-item kpi-card--${badge.light}${paused ? ' emp-kpi-item--paused' : ''}${complete ? ' emp-kpi-item--history' : ''}`}>
+              <article key={kpi.id} className={`emp-kpi-item kpi-card--${badge.light}${paused ? ' emp-kpi-item--paused' : ''}${complete ? ' emp-kpi-item--history' : ''}${awaitingReview ? ' emp-kpi-item--review' : ''}`}>
                 <div className="emp-kpi-item__top">
                   <div className="emp-kpi-item__tags">
                     <span className="emp-kpi-item__cat">{kpiCategoryMeta(kpi.kpi_category).label}</span>
@@ -415,7 +431,13 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
                   </div>
                   <div>
                     <dt>Achieved</dt>
-                    <dd>{complete ? formatKpiWeight(kpi.weight) : '—'}</dd>
+                    <dd>
+                      {complete
+                        ? formatKpiWeight(Number(kpi.assigned_score ?? kpi.weight ?? 0))
+                        : awaitingReview
+                          ? 'Awaiting review'
+                          : '—'}
+                    </dd>
                   </div>
                   <div>
                     <dt>{complete ? 'Completed' : 'Dates'}</dt>

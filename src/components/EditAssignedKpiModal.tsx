@@ -24,7 +24,9 @@ function statusLabel(status: string): string {
 }
 
 function completionLabel(value: string): string {
-  return value === 'completed' ? 'Complete' : 'Not finished';
+  if (value === 'completed') return 'Approved (weightage awarded)';
+  if (value === 'pending_review') return 'Pending review';
+  return 'Not finished';
 }
 
 export default function EditAssignedKpiModal({
@@ -38,7 +40,13 @@ export default function EditAssignedKpiModal({
   const [weight, setWeight] = useState(String(kpi.weight ?? ''));
   const [endDate, setEndDate] = useState(kpi.end_date || '');
   const [status, setStatus] = useState(kpi.status);
-  const [completion, setCompletion] = useState<'pending' | 'completed'>(kpi.completion_status === 'completed' ? 'completed' : 'pending');
+  const [completion, setCompletion] = useState<'pending' | 'pending_review' | 'completed'>(
+    kpi.completion_status === 'completed'
+      ? 'completed'
+      : kpi.completion_status === 'pending_review'
+        ? 'pending_review'
+        : 'pending',
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [history, setHistory] = useState<{ created_at: string; editor_name?: string; editor_role?: string; changes: Record<string, { from: unknown; to: unknown }> }[]>([]);
@@ -104,7 +112,12 @@ export default function EditAssignedKpiModal({
     if (status !== kpi.status) {
       lines.push(`Status: ${statusLabel(kpi.status)} → ${statusLabel(status)}`);
     }
-    const prevCompletion = kpi.completion_status === 'completed' ? 'completed' : 'pending';
+    const prevCompletion =
+      kpi.completion_status === 'completed'
+        ? 'completed'
+        : kpi.completion_status === 'pending_review'
+          ? 'pending_review'
+          : 'pending';
     if (completion !== prevCompletion) {
       lines.push(`Completion: ${completionLabel(prevCompletion)} → ${completionLabel(completion)}`);
     }
@@ -244,14 +257,18 @@ export default function EditAssignedKpiModal({
             </label>
             <label className="kpi-edit-field kpi-edit-field--wide">
               <span>Completion</span>
-              <select value={completion} onChange={(e) => setCompletion(e.target.value as 'pending' | 'completed')}>
+              <select
+                value={completion}
+                onChange={(e) => setCompletion(e.target.value as 'pending' | 'pending_review' | 'completed')}
+              >
                 <option value="pending">Not finished</option>
-                <option value="completed">Complete</option>
+                <option value="pending_review">Pending review</option>
+                <option value="completed">Approved (award weightage)</option>
               </select>
             </label>
           </div>
           <p className="studio-muted" style={{ marginTop: '0.35rem' }}>
-            Completing this task counts its full weightage toward monthly rewards.
+            Weightage is awarded only when status is Approved. Prefer the review panel on the task card to set the final score.
           </p>
 
           <div className="kpi-edit-score">

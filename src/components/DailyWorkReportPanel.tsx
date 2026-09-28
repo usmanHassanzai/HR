@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import {
   FileText,
   Send,
@@ -18,6 +18,7 @@ import {
   submitDailyWorkReport,
   todayIsoDate,
 } from '../utils/dailyWorkReportHelpers';
+import { readSessionJson, writeSessionJson, removeSessionKey } from '../utils/persistedUiState';
 import '../styles/daily-work-reports.css';
 
 interface DailyWorkReportPanelProps {
@@ -27,10 +28,17 @@ interface DailyWorkReportPanelProps {
 const MIN_CHARS = 20;
 const MAX_CHARS = 8000;
 
+type DwrDraft = { reportDate: string; content: string };
+
+function dwrDraftKey(userId: string) {
+  return `scorr-dwr-draft:${userId}`;
+}
+
 export default function DailyWorkReportPanel({ profile }: DailyWorkReportPanelProps) {
   const today = todayIsoDate();
-  const [content, setContent] = useState('');
-  const [reportDate, setReportDate] = useState(today);
+  const draft = useMemo(() => readSessionJson<DwrDraft>(dwrDraftKey(profile.id)), [profile.id]);
+  const [content, setContent] = useState(() => draft?.content || '');
+  const [reportDate, setReportDate] = useState(() => draft?.reportDate || today);
   const [history, setHistory] = useState<DailyWorkReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -57,11 +65,35 @@ export default function DailyWorkReportPanel({ profile }: DailyWorkReportPanelPr
     () => history.find((r) => r.report_date === reportDate) ?? null,
     [history, reportDate],
   );
+  const lastReportDateRef = useRef(reportDate);
 
   useEffect(() => {
-    if (existingForDate) setContent(existingForDate.content);
-    else setContent('');
-  }, [existingForDate, reportDate]);
+    if (loading) return;
+    const dateChanged = lastReportDateRef.current !== reportDate;
+    lastReportDateRef.current = reportDate;
+
+    if (existingForDate) {
+      setContent(existingForDate.content);
+      removeSessionKey(dwrDraftKey(profile.id));
+      return;
+    }
+    if (dateChanged) {
+      const saved = readSessionJson<DwrDraft>(dwrDraftKey(profile.id));
+      setContent(saved?.reportDate === reportDate && saved.content ? saved.content : '');
+      return;
+    }
+    setContent((prev) => {
+      if (prev.trim()) return prev;
+      const saved = readSessionJson<DwrDraft>(dwrDraftKey(profile.id));
+      if (saved?.reportDate === reportDate && saved.content) return saved.content;
+      return '';
+    });
+  }, [existingForDate?.id, reportDate, loading, profile.id]);
+
+  useEffect(() => {
+    if (existingForDate) return;
+    writeSessionJson(dwrDraftKey(profile.id), { reportDate, content } satisfies DwrDraft);
+  }, [profile.id, reportDate, content, existingForDate]);
 
   const trimmedLen = content.trim().length;
   const canSubmit = trimmedLen >= MIN_CHARS && trimmedLen <= MAX_CHARS && !saving;
@@ -73,6 +105,7 @@ export default function DailyWorkReportPanel({ profile }: DailyWorkReportPanelPr
     setMessage(null);
     try {
       await submitDailyWorkReport(content, reportDate);
+      removeSessionKey(dwrDraftKey(profile.id));
       setMessage({
         type: 'success',
         text: existingForDate

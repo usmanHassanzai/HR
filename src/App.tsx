@@ -55,6 +55,29 @@ function App() {
   usePortalSessionGuard(Boolean(session), { idle: Boolean(session) && !geoHold });
 
   useEffect(() => {
+    if (!session?.user?.id) {
+      setPrivilegedMfaOk(false);
+      return;
+    }
+    try {
+      if (sessionStorage.getItem('scorr-mfa-ok') === session.user.id) {
+        setPrivilegedMfaOk(true);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    if (!session?.user?.id || !privilegedMfaOk) return;
+    try {
+      sessionStorage.setItem('scorr-mfa-ok', session.user.id);
+    } catch {
+      /* ignore */
+    }
+  }, [session?.user?.id, privilegedMfaOk]);
+
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const action = params.get('mfa_action');
     const token = params.get('token');
@@ -196,7 +219,13 @@ function App() {
         if (event === 'SIGNED_IN') {
           clearGeoHold();
           setGeoHold(false);
-          setPrivilegedMfaOk(false);
+          // Tab restore / soft reload can re-fire SIGNED_IN — keep MFA if this
+          // browser tab already completed it; fresh login has no scorr-mfa-ok.
+          try {
+            setPrivilegedMfaOk(sessionStorage.getItem('scorr-mfa-ok') === activeSession.user.id);
+          } catch {
+            setPrivilegedMfaOk(false);
+          }
           void fetchUserProfile(activeSession.user.id);
         } else if (event === 'USER_UPDATED') {
           void fetchUserProfile(activeSession.user.id);
@@ -206,6 +235,11 @@ function App() {
         setCompany(null);
         setPrivilegedMfaOk(false);
         setLoading(false);
+        try {
+          sessionStorage.removeItem('scorr-mfa-ok');
+        } catch {
+          /* ignore */
+        }
       }
     });
 
@@ -261,6 +295,11 @@ function App() {
     setProfile(null);
     setCompany(null);
     setPrivilegedMfaOk(false);
+    try {
+      sessionStorage.removeItem('scorr-mfa-ok');
+    } catch {
+      /* ignore */
+    }
     applyBranding(loadBranding(false));
   };
 

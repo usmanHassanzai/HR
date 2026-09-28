@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Kpi, isKpiPaused, kpiPauseLabel } from '../utils/kpiHelpers';
+import { isKpiAwaitingReview, isKpiPaused, kpiPauseLabel, type Kpi } from '../utils/kpiHelpers';
 import {
   EMPLOYEE_PROGRESS_OPTIONS,
   kpiCategoryMeta,
 } from '../utils/kpiCategories';
-import { isKpiLatePenaltyApplied } from '../utils/kpiScoreHelpers';
+import { isKpiLatePenaltyApplied, kpiAssignedScore } from '../utils/kpiScoreHelpers';
 import { formatKpiWeight } from '../utils/kpiWeightHelpers';
 import { formatLatePenaltyLabel, kpiScoringRule } from '../utils/kpiScoringRules';
 import { emailKpiCompleted } from '../utils/kpiEmail';
@@ -37,7 +37,8 @@ export default function KpiEvaluationBlock({
   const meta = kpiCategoryMeta(kpi.kpi_category);
   const scoring = kpiScoringRule(kpi);
   const penaltyLabel = formatLatePenaltyLabel(scoring);
-  const complete = kpi.completion_status === 'completed';
+  const approved = kpi.completion_status === 'completed';
+  const awaitingReview = isKpiAwaitingReview(kpi);
   const paused = isKpiPaused(kpi);
   const pauseText = kpiPauseLabel(kpi);
   const latePenalized = isKpiLatePenaltyApplied(kpi);
@@ -45,6 +46,10 @@ export default function KpiEvaluationBlock({
   const setProgress = async (id: string) => {
     if (paused) {
       setError('This task is currently paused. Resume it to update progress.');
+      return;
+    }
+    if (approved) {
+      setError('This task is already approved. Weightage has been awarded.');
       return;
     }
     setBusy(true);
@@ -57,8 +62,8 @@ export default function KpiEvaluationBlock({
       if (rpcErr) throw rpcErr;
       onUpdated?.({
         employee_progress: id === 'completed' ? 'completed' : 'started',
-        completion_status: id === 'completed' ? 'completed' : 'pending',
-        completed_at: id === 'completed' ? new Date().toISOString() : null,
+        completion_status: id === 'completed' ? 'pending_review' : 'pending',
+        completed_at: id === 'completed' ? (kpi.completed_at || new Date().toISOString()) : null,
       });
 
       if (id === 'completed') {
@@ -88,11 +93,15 @@ export default function KpiEvaluationBlock({
 
   const timing = paused
     ? (pauseText || 'Paused — due date will extend on resume')
-    : !complete
-      ? (pauseText ? `${pauseText} · Weightage when marked Complete` : 'Weightage when marked Complete')
-      : latePenalized
-        ? `Achieved ${formatKpiWeight(kpi.weight)} (late)`
-        : `Achieved ${formatKpiWeight(kpi.weight)} (on time)`;
+    : approved
+      ? (latePenalized
+        ? `Awarded ${formatKpiWeight(kpiAssignedScore(kpi))} (late)`
+        : `Awarded ${formatKpiWeight(kpiAssignedScore(kpi))} (approved)`)
+      : awaitingReview
+        ? 'Submitted — waiting for manager, admin, or HR to review and award weightage'
+        : (pauseText
+          ? `${pauseText} · Weightage after manager/admin/HR review`
+          : 'Mark Complete to submit for review — weightage is awarded after approval');
 
   return (
     <div className={`kpi-eval${compact ? ' kpi-eval--compact' : ''}`}>
@@ -104,15 +113,24 @@ export default function KpiEvaluationBlock({
           <span>Paused for an urgent task. Due date will extend by the paused days when resumed.</span>
         </div>
       )}
-      {mode === 'employee' && (
+      {mode === 'employee' && !approved && (
         <KpiOptionPicker
           legend={compact ? 'Status' : 'Your status'}
           name={`emp-${kpi.id}`}
           options={EMPLOYEE_PROGRESS_OPTIONS}
-          value={kpi.employee_progress === 'completed' ? 'completed' : kpi.employee_progress ? 'started' : ''}
+          value={
+            awaitingReview || kpi.employee_progress === 'completed'
+              ? 'completed'
+              : kpi.employee_progress
+                ? 'started'
+                : ''
+          }
           onChange={(id) => void setProgress(id)}
-          disabled={busy || paused}
+          disabled={busy || paused || awaitingReview}
         />
+      )}
+      {mode === 'employee' && awaitingReview && (
+        <p className="kpi-eval__pending">Awaiting review — no weightage yet</p>
       )}
       <p className="kpi-eval__hint">{timing}</p>
       {error && <p className="kpi-eval__err">{error}</p>}

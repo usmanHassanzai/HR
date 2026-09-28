@@ -36,8 +36,10 @@ export default function EmployeeKpiBoardSummary({ kpis, employeeName, userId }: 
         <div className="kpi-score-cards" aria-label="KPI task breakdown">
           {rows.map((row) => {
             const achieved = row.kpi.completion_status === 'completed'
-              ? formatKpiWeight(row.weight)
-              : null;
+              ? formatKpiWeight(Number(row.kpi.assigned_score ?? row.weight))
+              : row.kpi.completion_status === 'pending_review'
+                ? 'Awaiting review'
+                : null;
             const editNote = formatKpiAssignmentChange(row.kpi);
             return (
               <article key={row.kpi.id} className="kpi-score-card">
@@ -95,8 +97,10 @@ export default function EmployeeKpiBoardSummary({ kpis, employeeName, userId }: 
                   <td>{formatKpiWeight(row.weight)}</td>
                   <td>
                     {row.kpi.completion_status === 'completed'
-                      ? formatKpiWeight(row.weight)
-                      : '—'}
+                      ? formatKpiWeight(Number(row.kpi.assigned_score ?? row.weight))
+                      : row.kpi.completion_status === 'pending_review'
+                        ? 'Awaiting review'
+                        : '—'}
                   </td>
                 </tr>
               ))}

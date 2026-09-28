@@ -132,12 +132,13 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
           <div className="emp-kpi-list__head" style={{ marginBottom: '0.75rem' }}>
             <div>
               <h3>Your assigned tasks</h3>
-              <p>Each card shows KPI weightage (0–100%). Complete tasks to achieve weightage toward rewards.</p>
+              <p>Each card shows KPI weightage (0–100%). Mark Complete to submit for review — weightage is awarded after manager, admin, or HR approval.</p>
             </div>
           </div>
           {kpis.map((kpi) => {
             const badge = kpiProgressBadge(kpi);
             const complete = kpi.completion_status === 'completed';
+            const awaitingReview = kpi.completion_status === 'pending_review';
             const latePenalized = isKpiLatePenaltyApplied(kpi);
             const penaltyLabel = formatLatePenaltyLabel(kpiScoringRule(kpi));
             return (
@@ -158,7 +159,13 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
                   </div>
                   <div>
                     <dt>Achieved</dt>
-                    <dd>{complete ? formatKpiWeight(kpi.weight) : '—'}</dd>
+                    <dd>
+                      {complete
+                        ? formatKpiWeight(Number(kpi.assigned_score ?? kpi.weight ?? 0))
+                        : awaitingReview
+                          ? 'Awaiting review'
+                          : '—'}
+                    </dd>
                   </div>
                   <div>
                     <dt>Dates</dt>
