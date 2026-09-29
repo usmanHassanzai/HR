@@ -12,7 +12,6 @@ import { readSessionJson, writeSessionJson } from '../utils/persistedUiState';
 import EmployeeKpiWeightMeter from './EmployeeKpiWeightMeter';
 import AssignedKpiCard from './AssignedKpiCard';
 import AssignedTaskHistory from './AssignedTaskHistory';
-import EmployeeKpiBoardSummary from './EmployeeKpiBoardSummary';
 import { KPI_CATEGORIES, kpiCategoryMeta, type KpiCategoryId } from '../utils/kpiCategories';
 import {
   DEFAULT_KPI_SCORING_RULE,
@@ -595,11 +594,15 @@ export default function ManagerKpiConfig({
     ? (!libDeptId ? 1 : !libPerson ? 2 : 3)
     : (!libPerson ? 1 : 2);
 
+  /** Current = assigned and not finished (excludes review queue + approved). */
   const boardProgressKpis = useMemo(
     () =>
-      [...boardKpis.filter((k) => k.completion_status !== 'completed' && !isKpiAwaitingReview(k))].sort((a, b) =>
-        (b.created_at || '').localeCompare(a.created_at || ''),
-      ),
+      [...boardKpis.filter((k) => {
+        const status = k.completion_status || 'pending';
+        if (status === 'completed' || status === 'pending_review') return false;
+        if (isKpiAwaitingReview(k)) return false;
+        return true;
+      })].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')),
     [boardKpis],
   );
   const boardReviewKpis = useMemo(
@@ -626,23 +629,6 @@ export default function ManagerKpiConfig({
   useEffect(() => {
     setBoardTaskView('progress');
   }, [boardUserId]);
-
-  // After KPIs load for a person, land on the first non-empty queue once.
-  useEffect(() => {
-    if (!boardUserId || boardKpisLoading || boardKpis.length === 0) return;
-    if (boardTaskView !== 'progress') return;
-    if (boardProgressKpis.length > 0) return;
-    if (boardReviewKpis.length > 0) setBoardTaskView('review');
-    else if (boardCompletedKpis.length > 0) setBoardTaskView('completed');
-  }, [
-    boardUserId,
-    boardKpisLoading,
-    boardKpis.length,
-    boardTaskView,
-    boardProgressKpis.length,
-    boardReviewKpis.length,
-    boardCompletedKpis.length,
-  ]);
 
   useEffect(() => {
     if (isAdmin) return;
@@ -1520,13 +1506,6 @@ export default function ManagerKpiConfig({
                     <>
                   <div className="studio-board-stack">
                   <EmployeeKpiWeightMeter kpis={boardKpis} compact />
-                  {boardKpis.length > 0 && (
-                    <EmployeeKpiBoardSummary
-                      kpis={boardKpis}
-                      employeeName={boardPerson.full_name}
-                      userId={boardPerson.id}
-                    />
-                  )}
                   {boardKpis.length === 0 ? (
                     <div className="studio-empty studio-empty--compact studio-empty--board">
                       <h3>No assigned tasks</h3>
@@ -1545,7 +1524,7 @@ export default function ManagerKpiConfig({
                           <Timer size={16} strokeWidth={2.25} />
                           <span className="studio-board-filter__copy">
                             <strong>Current</strong>
-                            <em>In progress</em>
+                            <em>Not completed yet</em>
                           </span>
                           <span className="studio-board-filter__count">{boardProgressKpis.length}</span>
                         </button>
@@ -1586,7 +1565,7 @@ export default function ManagerKpiConfig({
                               <p className="studio-board-section__kicker">Current board</p>
                               <h4>In progress &amp; open</h4>
                               <p className="studio-board-section__desc">
-                                Active work not yet submitted for review. Edit, pause, or remove if assigned by mistake.
+                                Only assigned tasks that are not completed yet. If none are open, this list stays empty.
                               </p>
                             </div>
                             <span className="studio-board-section__count">{boardProgressKpis.length}</span>
@@ -1594,7 +1573,7 @@ export default function ManagerKpiConfig({
                           {boardProgressKpis.length === 0 ? (
                             <div className="studio-empty studio-empty--compact studio-empty--board">
                               <h3>No current tasks</h3>
-                              <p>Nothing in progress. Check Review or Completed.</p>
+                              <p>No open assigned tasks for this person. Incomplete work will show here.</p>
                             </div>
                           ) : (
                             <ul className="studio-assigned studio-assigned--board">
