@@ -226,7 +226,7 @@ export default function PrivilegedMfaGate({ onSatisfied, onCancel, fullName }: P
   const submitTotp = async () => {
     const trimmed = code.replace(/\s/g, '');
     if (trimmed.length < 6) {
-      setError('Enter the 6-digit code from your authenticator app.');
+      setError('Enter the 6-digit code from Google Authenticator or Microsoft Authenticator.');
       return;
     }
     if (!factorId) {
@@ -379,7 +379,7 @@ export default function PrivilegedMfaGate({ onSatisfied, onCancel, fullName }: P
           <div>
             <h2 className="mfa-gate__title">Authenticator required</h2>
             <p className="mfa-gate__subtitle">
-              Secure your Scorr account with an authenticator app, backup codes, or email recovery.
+              Secure your Scorr account with Google Authenticator or Microsoft Authenticator, backup codes, or email recovery.
             </p>
           </div>
         </div>
@@ -395,11 +395,22 @@ export default function PrivilegedMfaGate({ onSatisfied, onCancel, fullName }: P
         {phase === 'enroll' && qr && mode === 'totp' && (
           <div className="mfa-gate__enroll">
             <p className="mfa-gate__enroll-copy">
-              Install an authenticator app, scan this QR, then enter the 6-digit code. After setup you will receive backup codes — save them.
+              Install <strong>Google Authenticator</strong> or <strong>Microsoft Authenticator</strong>,
+              scan this QR (or enter the manual key), then type the 6-digit code.
+              After setup you will receive backup codes — save them.
             </p>
-            <img src={qr} alt="Authenticator QR code" className="mfa-gate__qr" />
+            <ul className="mfa-gate__apps" aria-label="Supported authenticator apps">
+              <li className="mfa-gate__app-chip">Google Authenticator</li>
+              <li className="mfa-gate__app-chip">Microsoft Authenticator</li>
+            </ul>
+            <ol className="mfa-gate__enroll-steps">
+              <li>Open Google Authenticator or Microsoft Authenticator</li>
+              <li>Choose Add account / Scan QR code</li>
+              <li>Scan the code below, then enter the 6-digit code</li>
+            </ol>
+            <img src={qr} alt="Authenticator QR code for Google or Microsoft Authenticator" className="mfa-gate__qr" />
             <p className="mfa-gate__secret">
-              Manual key: <code>{secret}</code>
+              Manual key (if you cannot scan): <code>{secret}</code>
             </p>
             <label className="form-label mfa-gate__field-gap" htmlFor="mfa-enroll-pw" style={{ textAlign: 'left', display: 'block' }}>
               Account password <span style={{ color: 'var(--color-danger)' }}>*</span>
@@ -420,7 +431,7 @@ export default function PrivilegedMfaGate({ onSatisfied, onCancel, fullName }: P
 
         {phase === 'verify' && mode === 'totp' && (
           <p className="mfa-gate__copy">
-            Open your authenticator app and type the current 6-digit code.
+            Open <strong>Google Authenticator</strong> or <strong>Microsoft Authenticator</strong> and type the current 6-digit code.
           </p>
         )}
 

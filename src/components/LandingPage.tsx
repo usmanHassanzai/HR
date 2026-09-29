@@ -49,7 +49,7 @@ const FEATURES = [
   {
     icon: KeyRound,
     title: 'Authenticator & Backup Codes',
-    desc: 'Privileged roles enroll an authenticator app, save one-time backup codes, and can recover with login-email OTP if the device is lost.',
+    desc: 'Privileged roles enroll Google Authenticator or Microsoft Authenticator, save one-time backup codes, and can recover with login-email OTP if the device is lost.',
     color: '#0d9488',
   },
   {
@@ -76,7 +76,7 @@ const SECURITY_POINTS = [
   {
     icon: Smartphone,
     title: 'Authenticator app (TOTP)',
-    desc: 'Admins, managers, HR, and employees enroll a time-based authenticator after sign-in. Every privileged session requires a fresh 6-digit code.',
+    desc: 'Admins, managers, HR, and employees enroll Google Authenticator or Microsoft Authenticator after sign-in. Every privileged session requires a fresh 6-digit code.',
   },
   {
     icon: KeyRound,

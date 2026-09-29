@@ -249,7 +249,7 @@ serve(async (req) => {
     await admin.rpc('create_system_notification', {
       p_user_id: target.id,
       p_title: 'Authenticator reset',
-      p_message: `${caller.full_name} reset your authenticator. Sign in and scan the new QR code in Google Authenticator or Authy.`,
+      p_message: `${caller.full_name} reset your authenticator. Sign in and scan the new QR code in Google Authenticator or Microsoft Authenticator.`,
       p_type: 'alert',
     });
 
@@ -262,7 +262,7 @@ serve(async (req) => {
           '',
           `${caller.full_name} reset your Scorr authenticator because the previous app could not be used.`,
           '',
-          'Sign in at https://scorr.walfia.ai with your password. You will see a new QR code. Add it in Google Authenticator or Authy, then enter the 6-digit code.',
+          'Sign in at https://scorr.walfia.ai with your password. You will see a new QR code. Add it in Google Authenticator or Microsoft Authenticator, then enter the 6-digit code.',
           '',
           'If you did not expect this, contact your administrator.',
           '',

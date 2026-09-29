@@ -99,6 +99,16 @@ export default function AccountSecurityPanel({ fullName }: AccountSecurityPanelP
 
       <div className="app-settings-block" style={{ marginBottom: '1rem' }}>
         <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', margin: '0 0 0.5rem' }}>
+          <Shield size={18} /> Authenticator apps
+        </h3>
+        <p style={{ margin: '0 0 0.75rem', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+          Scorr works with <strong>Google Authenticator</strong> and <strong>Microsoft Authenticator</strong>.
+          Scan the same QR code in either app to get your 6-digit login codes.
+        </p>
+      </div>
+
+      <div className="app-settings-block" style={{ marginBottom: '1rem' }}>
+        <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', margin: '0 0 0.5rem' }}>
           <KeyRound size={18} /> Backup codes
         </h3>
         <p style={{ margin: '0 0 0.75rem', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>

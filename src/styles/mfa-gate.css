@@ -76,6 +76,42 @@
   line-height: 1.5;
 }
 
+.mfa-gate__apps {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0 0 0.85rem;
+  padding: 0;
+  justify-content: flex-start;
+}
+
+.mfa-gate__app-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 28%, transparent);
+}
+
+.mfa-gate__enroll-steps {
+  margin: 0 0 1rem;
+  padding: 0 0 0 1.15rem;
+  text-align: left;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.mfa-gate__enroll-steps li + li {
+  margin-top: 0.25rem;
+}
+
 .mfa-gate__qr {
   width: min(200px, 58vw);
   height: auto;
