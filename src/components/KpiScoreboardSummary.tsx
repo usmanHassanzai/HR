@@ -242,7 +242,7 @@ export default function KpiScoreboardSummary({
                   {showGiftSplit || periodMode === 'month' ? 'Left to use now' : 'You earned'}
                 </span>
                 <span className="emp-kpi-month__pct" style={{ color: has ? ratingColor : undefined }}>
-                  {has ? formatKpiWeight(showGiftSplit || periodMode === 'month' ? currentWeightage : earnedWeightage) : '—'}
+                  {formatKpiWeight(showGiftSplit || periodMode === 'month' ? currentWeightage : earnedWeightage)}
                 </span>
                 {has && (showGiftSplit || periodMode === 'month') ? (
                   <span className="emp-kpi-month__score-hint">
@@ -262,47 +262,47 @@ export default function KpiScoreboardSummary({
             <dl className="emp-kpi-month__stats emp-kpi-month__stats--weight emp-kpi-month__stats--plain">
               <div>
                 <dt>Month limit</dt>
-                <dd>{has ? formatKpiWeight(active.totalWeight) : '—'}</dd>
+                <dd>{formatKpiWeight(has ? active.totalWeight : KPI_WEIGHT_CAP)}</dd>
                 <span className="emp-kpi-stat-note">Highest you can earn</span>
               </div>
               <div>
                 <dt>Earned this month</dt>
-                <dd>{has ? formatKpiWeight(earnedWeightage) : '—'}</dd>
+                <dd>{formatKpiWeight(earnedWeightage)}</dd>
                 <span className="emp-kpi-stat-note">From finished tasks</span>
               </div>
               <div>
                 <dt>Used on gifts</dt>
-                <dd>{has ? formatKpiWeight(usedWeightage) : '—'}</dd>
+                <dd>{formatKpiWeight(usedWeightage)}</dd>
                 <span className="emp-kpi-stat-note">Already spent</span>
               </div>
               <div className="emp-kpi-stat--highlight">
                 <dt>Left to use</dt>
-                <dd>{has ? formatKpiWeight(currentWeightage) : '—'}</dd>
+                <dd>{formatKpiWeight(currentWeightage)}</dd>
                 <span className="emp-kpi-stat-note">Current remaining</span>
               </div>
               <div>
                 <dt>Saved for later</dt>
-                <dd>{has ? formatKpiWeight(bankedWeightage) : '—'}</dd>
+                <dd>{formatKpiWeight(bankedWeightage)}</dd>
                 <span className="emp-kpi-stat-note">Banked leftover</span>
               </div>
               <div>
                 <dt>In your tasks</dt>
-                <dd>{has ? formatKpiWeight(active.weightAssigned) : '—'}</dd>
+                <dd>{formatKpiWeight(active.weightAssigned)}</dd>
                 <span className="emp-kpi-stat-note">Total task weight</span>
               </div>
               <div>
                 <dt>Still open</dt>
-                <dd>{has ? formatKpiWeight(active.weightPending) : '—'}</dd>
+                <dd>{formatKpiWeight(active.weightPending)}</dd>
                 <span className="emp-kpi-stat-note">Not finished yet</span>
               </div>
               <div>
                 <dt>Finished tasks</dt>
-                <dd>{has ? `${active.completed} of ${active.kpiCount}` : '—'}</dd>
+                <dd>{`${active.completed} of ${active.kpiCount}`}</dd>
                 <span className="emp-kpi-stat-note">Approved or done</span>
               </div>
               <div>
                 <dt>Not given yet</dt>
-                <dd>{has ? formatKpiWeight(active.weightUnassigned) : '—'}</dd>
+                <dd>{formatKpiWeight(has ? active.weightUnassigned : KPI_WEIGHT_CAP)}</dd>
                 <span className="emp-kpi-stat-note">Room left to assign</span>
               </div>
             </dl>

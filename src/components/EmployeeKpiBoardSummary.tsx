@@ -39,7 +39,7 @@ export default function EmployeeKpiBoardSummary({ kpis, employeeName, userId }: 
               ? formatKpiWeight(Number(row.kpi.assigned_score ?? row.weight))
               : row.kpi.completion_status === 'pending_review'
                 ? 'Awaiting review'
-                : null;
+                : formatKpiWeight(0);
             const editNote = formatKpiAssignmentChange(row.kpi);
             return (
               <article key={row.kpi.id} className="kpi-score-card">
@@ -55,7 +55,7 @@ export default function EmployeeKpiBoardSummary({ kpis, employeeName, userId }: 
                   </div>
                   <div>
                     <span>Achieved</span>
-                    <strong>{achieved ?? '—'}</strong>
+                    <strong>{achieved}</strong>
                   </div>
                 </div>
               </article>
@@ -100,7 +100,7 @@ export default function EmployeeKpiBoardSummary({ kpis, employeeName, userId }: 
                       ? formatKpiWeight(Number(row.kpi.assigned_score ?? row.weight))
                       : row.kpi.completion_status === 'pending_review'
                         ? 'Awaiting review'
-                        : '—'}
+                        : formatKpiWeight(0)}
                   </td>
                 </tr>
               ))}
