@@ -1796,6 +1796,17 @@
   display: flex;
   align-items: center;
   gap: 0.8rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.studio-person-head > div {
+  flex: 1;
+  min-width: 12rem;
+}
+
+.studio-person-head > .btn {
+  margin-left: auto;
 }
 
 .studio-person-head h3 {
@@ -2091,6 +2102,106 @@
   flex: 0 0 auto;
 }
 
+.studio-assign-callout__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+}
+
+.studio-assign-source {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0 0 1rem;
+  padding: 0.28rem;
+  border-radius: 12px;
+  border: 1px solid var(--dash-card-border);
+  background: color-mix(in srgb, var(--surface-muted) 55%, var(--dash-card-bg));
+}
+
+.studio-assign-source button {
+  flex: 1 1 10rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 2.45rem;
+  padding: 0.45rem 0.85rem;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.studio-assign-source button:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--dash-card-bg) 80%, transparent);
+}
+
+.studio-assign-source button.is-on {
+  color: var(--text-primary);
+  background: var(--dash-card-bg);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--text-primary) 10%, transparent);
+}
+
+.studio-assign-source button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.studio-assign-personal {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 0.95rem 1.05rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 18%, var(--dash-card-border));
+  background: color-mix(in srgb, var(--accent-primary) 4%, var(--dash-card-bg));
+}
+
+.studio-assign-personal__note {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.studio-assign-personal .studio-cats,
+.studio-assign-personal .studio-scoring {
+  margin: 0;
+}
+
+.studio-assign-form .studio-assign-personal input,
+.studio-assign-form .studio-assign-personal textarea {
+  width: 100%;
+  margin-top: 0.35rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 10px;
+  border: 1px solid var(--dash-card-border);
+  background: var(--dash-card-bg);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.studio-assign-form .studio-assign-personal textarea {
+  resize: vertical;
+  min-height: 4rem;
+}
+
+.studio-assign-form .studio-assign-personal input:focus,
+.studio-assign-form .studio-assign-personal textarea:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent-primary) 40%, transparent);
+  outline-offset: 1px;
+  border-color: var(--accent-primary);
+}
+
 .studio-assign-kpi-preview {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -2159,6 +2270,26 @@
   font-size: 0.82rem;
   color: var(--text-secondary);
   line-height: 1.4;
+}
+
+.studio-assign-person__personal {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.55rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-primary);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 650;
+  cursor: pointer;
+  text-align: left;
+}
+
+.studio-assign-person__personal:hover {
+  text-decoration: underline;
 }
 
 .studio-assign-person .mgr-kpi-weight-meter {

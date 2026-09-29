@@ -178,12 +178,79 @@ export function periodLabel(mode: KpiPeriodMode, year: number, monthIndex = 0): 
   return monthLabel(year, monthIndex);
 }
 
+/** Completion calendar day in Asia/Karachi (YYYY-MM-DD). */
+export function kpiCompletionYmd(
+  kpi: Pick<Kpi, 'completed_at' | 'end_date' | 'updated_at'>,
+): string | null {
+  const raw = kpi.completed_at || kpi.end_date || kpi.updated_at;
+  if (!raw) return null;
+  return karachiYmd(String(raw));
+}
+
+/** Completed / approved assigned KPIs for a period, keyed by completion date (not task span). */
+export function completedKpisForPeriod(
+  kpis: Kpi[],
+  mode: KpiPeriodMode,
+  year: number,
+  monthIndex = 0,
+): Kpi[] {
+  const completed = kpis.filter((k) => k.completion_status === 'completed');
+  if (mode === 'overall') return completed;
+  return completed.filter((k) => {
+    const ymd = kpiCompletionYmd(k);
+    if (!ymd) return false;
+    const y = Number(ymd.slice(0, 4));
+    const m = Number(ymd.slice(5, 7));
+    if (mode === 'year') return y === year;
+    return y === year && m === monthIndex + 1;
+  });
+}
+
+export type CompletedKpiMonthGroup = {
+  key: string;
+  year: number;
+  monthIndex: number;
+  label: string;
+  kpis: Kpi[];
+};
+
+/** Group completed KPIs by Asia/Karachi year-month (newest first). */
+export function groupCompletedKpisByMonth(kpis: Kpi[]): CompletedKpiMonthGroup[] {
+  const byKey = new Map<string, Kpi[]>();
+  for (const kpi of kpis) {
+    if (kpi.completion_status !== 'completed') continue;
+    const ymd = kpiCompletionYmd(kpi);
+    if (!ymd) continue;
+    const key = ymd.slice(0, 7);
+    if (!byKey.has(key)) byKey.set(key, []);
+    byKey.get(key)!.push(kpi);
+  }
+  return Array.from(byKey.entries())
+    .sort(([a], [b]) => b.localeCompare(a))
+    .map(([key, group]) => {
+      const y = Number(key.slice(0, 4));
+      const m = Number(key.slice(5, 7));
+      const sorted = [...group].sort((a, b) => {
+        const aKey = a.completed_at || a.end_date || '';
+        const bKey = b.completed_at || b.end_date || '';
+        return bKey.localeCompare(aKey);
+      });
+      return {
+        key,
+        year: y,
+        monthIndex: m - 1,
+        label: monthLabel(y, m - 1),
+        kpis: sorted,
+      };
+    });
+}
+
 /** Years available from KPI dates plus the current Karachi year. */
 export function availableKpiYears(kpis: Kpi[], now = new Date()): number[] {
   const { year: current } = karachiYearMonth(now);
   const years = new Set<number>([current, current - 1]);
   for (const kpi of kpis) {
-    for (const raw of [kpi.start_date, kpi.end_date, kpi.created_at]) {
+    for (const raw of [kpi.start_date, kpi.end_date, kpi.created_at, kpi.completed_at]) {
       if (!raw) continue;
       const y = Number(String(raw).slice(0, 4));
       if (Number.isFinite(y) && y >= 2000 && y <= current + 1) years.add(y);

@@ -224,6 +224,54 @@
   color: #fff;
 }
 
+.emp-kpi-history {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.emp-kpi-history__month {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.emp-kpi-history__month-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0 0.15rem;
+}
+
+.emp-kpi-history__month-head h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 750;
+  color: var(--text-primary);
+}
+
+.emp-kpi-history__month-head span {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.emp-kpi-history__scoreboard {
+  margin-top: 0;
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-muted);
+}
+
+.emp-kpi-history__cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
 .emp-kpi-history-meta {
   display: grid;
   grid-template-columns: auto 1fr;

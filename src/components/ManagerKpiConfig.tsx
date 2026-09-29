@@ -21,6 +21,7 @@ import {
 } from '../utils/kpiScoringRules';
 import EditAssignedKpiModal from './EditAssignedKpiModal';
 import KpiTaskBrief from './KpiTaskBrief';
+import { scrollNavTarget } from '../utils/notificationDeepLink';
 import '../styles/assign-tasks.css';
 import '../styles/manager-kpi-tasks.css';
 import '../styles/admin-dashboard.css';
@@ -35,6 +36,8 @@ type KpiStudioDraft = {
   assignDeptId: string;
   boardUserId: string;
   boardDeptId: string;
+  libUserId: string;
+  libDeptId: string;
   assignKpiId: string;
   assignNotes: string;
   assignStartDate: string;
@@ -42,6 +45,7 @@ type KpiStudioDraft = {
   assignWeight: string;
   pauseOngoingOnUrgent: boolean;
   boardSearch: string;
+  libSearch: string;
   libOpen: boolean;
   libName: string;
   libCategory: KpiCategoryId;
@@ -67,6 +71,7 @@ type KpiTemplate = {
   kpi_category: string;
   weight: number;
   active: boolean;
+  owner_user_id?: string | null;
   late_penalty_enabled?: boolean | null;
   late_penalty_type?: string | null;
   late_penalty_value?: number | null;
@@ -178,6 +183,7 @@ interface ManagerKpiConfigProps {
   initialDesk?: Desk;
   initialUserId?: string;
   initialDeptId?: string;
+  initialKpiId?: string;
 }
 
 export default function ManagerKpiConfig({
@@ -187,6 +193,7 @@ export default function ManagerKpiConfig({
   initialDesk,
   initialUserId,
   initialDeptId,
+  initialKpiId,
 }: ManagerKpiConfigProps) {
   const draft = useMemo(() => readKpiDraft(assignerId), [assignerId]);
   const dates0 = useMemo(() => defaultKpiDates(), []);
@@ -197,13 +204,18 @@ export default function ManagerKpiConfig({
     if (draft?.desk && DESKS.includes(draft.desk)) return draft.desk;
     return 'assign';
   });
-  const [templates, setTemplates] = useState<KpiTemplate[]>([]);
+  const [personTemplates, setPersonTemplates] = useState<KpiTemplate[]>([]);
+  const [personTemplatesLoading, setPersonTemplatesLoading] = useState(false);
+  const [libPersonTemplates, setLibPersonTemplates] = useState<KpiTemplate[]>([]);
+  const [libPersonTemplatesLoading, setLibPersonTemplatesLoading] = useState(false);
   const [reports, setReports] = useState<Profile[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [assignUserId, setAssignUserId] = useState(() => initialUserId || draft?.assignUserId || '');
   const [assignDeptId, setAssignDeptId] = useState(() => initialDeptId || draft?.assignDeptId || '');
   const [boardUserId, setBoardUserId] = useState(() => initialUserId || draft?.boardUserId || '');
   const [boardDeptId, setBoardDeptId] = useState(() => initialDeptId || draft?.boardDeptId || '');
+  const [libUserId, setLibUserId] = useState(() => initialUserId || draft?.libUserId || '');
+  const [libDeptId, setLibDeptId] = useState(() => initialDeptId || draft?.libDeptId || '');
   const [assignKpis, setAssignKpis] = useState<Kpi[]>([]);
   const [boardKpis, setBoardKpis] = useState<Kpi[]>([]);
   const [peopleWithKpis, setPeopleWithKpis] = useState<Set<string>>(() => new Set());
@@ -222,21 +234,12 @@ export default function ManagerKpiConfig({
   } | null>(null);
   const [editingTemplate, setEditingTemplate] = useState<KpiTemplate | null>(null);
   const [libOpen, setLibOpen] = useState(() => Boolean(draft?.libOpen));
-  const [libQuery, setLibQuery] = useState('');
+  const [libSearch, setLibSearch] = useState(() => draft?.libSearch || '');
 
   const [libName, setLibName] = useState(() => draft?.libName || '');
   const [libCategory, setLibCategory] = useState<KpiCategoryId>(() => draft?.libCategory || 'monthly_goal');
   const [libDescription, setLibDescription] = useState(() => draft?.libDescription || '');
   const [libWeight, setLibWeight] = useState(() => draft?.libWeight || '10');
-
-  const [assignNotes, setAssignNotes] = useState(() => draft?.assignNotes || '');
-  const [assignStartDate, setAssignStartDate] = useState(() => draft?.assignStartDate || dates0.start);
-  const [assignEndDate, setAssignEndDate] = useState(() => draft?.assignEndDate || dates0.end);
-  const [assignWeight, setAssignWeight] = useState(() => draft?.assignWeight || '');
-  const [boardSearch, setBoardSearch] = useState(() => draft?.boardSearch || '');
-  const [pauseOngoingOnUrgent, setPauseOngoingOnUrgent] = useState(() =>
-    typeof draft?.pauseOngoingOnUrgent === 'boolean' ? draft.pauseOngoingOnUrgent : true,
-  );
   const [libPenaltyEnabled, setLibPenaltyEnabled] = useState(() =>
     typeof draft?.libPenaltyEnabled === 'boolean' ? draft.libPenaltyEnabled : DEFAULT_KPI_SCORING_RULE.penaltyEnabled,
   );
@@ -247,16 +250,26 @@ export default function ManagerKpiConfig({
     draft?.libGraceDays || String(DEFAULT_KPI_SCORING_RULE.gracePeriodDays),
   );
 
+  const [assignNotes, setAssignNotes] = useState(() => draft?.assignNotes || '');
+  const [assignStartDate, setAssignStartDate] = useState(() => draft?.assignStartDate || dates0.start);
+  const [assignEndDate, setAssignEndDate] = useState(() => draft?.assignEndDate || dates0.end);
+  const [assignWeight, setAssignWeight] = useState(() => draft?.assignWeight || '');
+  const [boardSearch, setBoardSearch] = useState(() => draft?.boardSearch || '');
+  const [pauseOngoingOnUrgent, setPauseOngoingOnUrgent] = useState(() =>
+    typeof draft?.pauseOngoingOnUrgent === 'boolean' ? draft.pauseOngoingOnUrgent : true,
+  );
+
   const assignPerson = reports.find((r) => r.id === assignUserId) || null;
   const boardPerson = reports.find((r) => r.id === boardUserId) || null;
+  const libPerson = reports.find((r) => r.id === libUserId) || null;
   const remaining = remainingKpiWeightBudget(assignKpis);
-  const selectedTemplate = templates.find((t) => t.id === assignKpiId) || null;
+  const selectedTemplate = personTemplates.find((t) => t.id === assignKpiId) || null;
   const selectedWeight = Number(assignWeight || selectedTemplate?.weight || 0);
   const selectedScore = selectedWeight;
+  const assignReady = Boolean(assignUserId && assignKpiId && selectedTemplate);
 
   useEffect(() => {
     if (!selectedTemplate) {
-      // Don't clear weight while templates are still loading / draft kpi id not resolved yet.
       if (!assignKpiId) setAssignWeight('');
       return;
     }
@@ -274,6 +287,8 @@ export default function ManagerKpiConfig({
       assignDeptId,
       boardUserId,
       boardDeptId,
+      libUserId,
+      libDeptId,
       assignKpiId,
       assignNotes,
       assignStartDate,
@@ -281,6 +296,7 @@ export default function ManagerKpiConfig({
       assignWeight,
       pauseOngoingOnUrgent,
       boardSearch,
+      libSearch,
       libOpen,
       libName,
       libCategory,
@@ -297,6 +313,8 @@ export default function ManagerKpiConfig({
     assignDeptId,
     boardUserId,
     boardDeptId,
+    libUserId,
+    libDeptId,
     assignKpiId,
     assignNotes,
     assignStartDate,
@@ -304,6 +322,7 @@ export default function ManagerKpiConfig({
     assignWeight,
     pauseOngoingOnUrgent,
     boardSearch,
+    libSearch,
     libOpen,
     libName,
     libCategory,
@@ -314,15 +333,40 @@ export default function ManagerKpiConfig({
     libGraceDays,
   ]);
 
-  const loadTemplates = async () => {
-    const { data, error: err } = await supabase.rpc('list_kpi_templates', { p_include_inactive: false });
-    if (err) {
-      setError(err.message);
-      setTemplates([]);
-      return;
+  const loadPersonTemplatesFor = async (
+    userId: string,
+    setList: (list: KpiTemplate[]) => void,
+    setBusy: (busy: boolean) => void,
+  ): Promise<KpiTemplate[]> => {
+    if (!userId) {
+      setList([]);
+      setBusy(false);
+      return [];
     }
-    setTemplates(((data as KpiTemplate[]) || []).filter((t) => t.active !== false));
+    setBusy(true);
+    try {
+      const { data, error: err } = await supabase.rpc('list_person_kpi_templates', {
+        p_owner_user_id: userId,
+        p_include_inactive: false,
+      });
+      if (err) {
+        setError(err.message);
+        setList([]);
+        return [];
+      }
+      const list = ((data as KpiTemplate[]) || []).filter((t) => t.active !== false);
+      setList(list);
+      return list;
+    } finally {
+      setBusy(false);
+    }
   };
+
+  const loadPersonTemplates = (userId: string) =>
+    loadPersonTemplatesFor(userId, setPersonTemplates, setPersonTemplatesLoading);
+
+  const loadLibPersonTemplates = (userId: string) =>
+    loadPersonTemplatesFor(userId, setLibPersonTemplates, setLibPersonTemplatesLoading);
 
   const loadPeople = async () => {
     const { data, error: rpcErr } = await supabase.rpc('get_assignable_kpi_people');
@@ -410,18 +454,27 @@ export default function ManagerKpiConfig({
     if (initialUserId) {
       setAssignUserId(initialUserId);
       setBoardUserId(initialUserId);
+      setLibUserId(initialUserId);
     }
   }, [initialUserId]);
+
+  useEffect(() => {
+    if (!initialKpiId) return;
+    if (initialDesk !== 'library') setDesk(initialDesk || 'board');
+    scrollNavTarget(initialKpiId);
+  }, [initialKpiId, initialDesk, boardKpis]);
 
   useEffect(() => {
     if (initialDeptId) {
       setAssignDeptId(initialDeptId);
       setBoardDeptId(initialDeptId);
+      setLibDeptId(initialDeptId);
     } else if (initialUserId && reports.length > 0) {
       const found = reports.find((r) => r.id === initialUserId);
       if (found?.department_id) {
         setAssignDeptId(found.department_id);
         setBoardDeptId(found.department_id);
+        setLibDeptId(found.department_id);
       }
     }
   }, [initialDeptId, initialUserId, reports]);
@@ -430,7 +483,7 @@ export default function ManagerKpiConfig({
     const boot = async () => {
       setLoading(true);
       setBoardRosterLoading(true);
-      const people = await Promise.all([loadTemplates(), loadPeople(), loadDepartments()]).then(([, list]) => list);
+      const people = await Promise.all([loadPeople(), loadDepartments()]).then(([list]) => list);
       setLoading(false);
       void loadPeopleWithKpis(people || []);
     };
@@ -440,7 +493,7 @@ export default function ManagerKpiConfig({
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const list = await fetchKpis(assignUserId);
+      const [list] = await Promise.all([fetchKpis(assignUserId), loadPersonTemplates(assignUserId)]);
       if (!cancelled) {
         setAssignKpis(list);
         setAssignKpiId('');
@@ -448,6 +501,15 @@ export default function ManagerKpiConfig({
     })();
     return () => { cancelled = true; };
   }, [assignUserId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      await loadLibPersonTemplates(libUserId);
+      if (cancelled) return;
+    })();
+    return () => { cancelled = true; };
+  }, [libUserId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -472,13 +534,18 @@ export default function ManagerKpiConfig({
     return () => { cancelled = true; };
   }, [boardUserId]);
 
-  useSupabaseRealtime('kpi-library-assign', [{ table: 'kpis' }, { table: 'users' }, { table: 'departments' }], () => {
+  useSupabaseRealtime('kpi-library-assign', [{ table: 'kpis' }, { table: 'users' }, { table: 'departments' }, { table: 'kpi_templates' }], () => {
     void (async () => {
-      void loadTemplates();
       void loadDepartments();
       const people = await loadPeople();
       void loadPeopleWithKpis(people);
-      if (assignUserId) void fetchKpis(assignUserId).then(setAssignKpis);
+      if (assignUserId) {
+        void fetchKpis(assignUserId).then(setAssignKpis);
+        void loadPersonTemplates(assignUserId);
+      }
+      if (libUserId) {
+        void loadLibPersonTemplates(libUserId);
+      }
       if (boardUserId) {
         void fetchKpis(boardUserId, setBoardKpis).then(setBoardKpis);
       }
@@ -499,13 +566,18 @@ export default function ManagerKpiConfig({
     };
   }, [libOpen]);
 
-  const assignGroups = useMemo(() => groupPeopleByDepartment(reports, departments), [reports, departments]);
+  const peopleGroups = useMemo(() => groupPeopleByDepartment(reports, departments), [reports, departments]);
   const boardPeople = useMemo(() => reports.filter((p) => peopleWithKpis.has(p.id)), [reports, peopleWithKpis]);
   const boardGroups = useMemo(() => groupPeopleByDepartment(boardPeople, departments), [boardPeople, departments]);
 
-  const assignDept = assignGroups.find((g) => g.id === assignDeptId) || null;
+  const assignDept = peopleGroups.find((g) => g.id === assignDeptId) || null;
   const boardDept = boardGroups.find((g) => g.id === boardDeptId) || null;
+  const libDept = peopleGroups.find((g) => g.id === libDeptId) || null;
   const peopleInAssignDept = isAdmin ? assignDept?.people || [] : reports;
+  const peopleInLibDept = useMemo(
+    () => (isAdmin ? libDept?.people || [] : reports).filter((p) => matchPerson(p, libSearch)),
+    [isAdmin, libDept, reports, libSearch],
+  );
   const peopleInBoardDept = useMemo(
     () => (isAdmin ? boardDept?.people || [] : boardPeople).filter((p) => matchPerson(p, boardSearch)),
     [isAdmin, boardDept, boardPeople, boardSearch],
@@ -515,13 +587,17 @@ export default function ManagerKpiConfig({
   const boardStep = isAdmin
     ? (!boardDeptId ? 1 : !boardPerson ? 2 : 3)
     : (!boardPerson ? 1 : 2);
+  const libStep = isAdmin
+    ? (!libDeptId ? 1 : !libPerson ? 2 : 3)
+    : (!libPerson ? 1 : 2);
 
   useEffect(() => {
     if (isAdmin) return;
     if (!managerDepartmentId) return;
-    if (!assignDeptId && assignGroups.some((g) => g.id === managerDepartmentId)) setAssignDeptId(managerDepartmentId);
+    if (!assignDeptId && peopleGroups.some((g) => g.id === managerDepartmentId)) setAssignDeptId(managerDepartmentId);
     if (!boardDeptId && boardGroups.some((g) => g.id === managerDepartmentId)) setBoardDeptId(managerDepartmentId);
-  }, [isAdmin, managerDepartmentId, assignDeptId, boardDeptId, assignGroups, boardGroups]);
+    if (!libDeptId && peopleGroups.some((g) => g.id === managerDepartmentId)) setLibDeptId(managerDepartmentId);
+  }, [isAdmin, managerDepartmentId, assignDeptId, boardDeptId, libDeptId, peopleGroups, boardGroups]);
 
   useEffect(() => {
     if (boardUserId && !peopleWithKpis.has(boardUserId)) {
@@ -530,18 +606,10 @@ export default function ManagerKpiConfig({
     }
   }, [boardUserId, peopleWithKpis]);
 
-  const visibleTemplates = useMemo(() => {
-    const q = libQuery.trim().toLowerCase();
-    if (!q) return templates;
-    return templates.filter(
-      (t) => t.name.toLowerCase().includes(q) || (t.description || '').toLowerCase().includes(q) || kpiCategoryMeta(t.kpi_category).label.toLowerCase().includes(q),
-    );
-  }, [templates, libQuery]);
-
   const whoHint = isAdmin
-    ? 'Select the department and person, choose a KPI, then set dates and an optional note.'
+    ? 'Select the department and person, then pick one of their KPIs to assign.'
     : managerDepartmentId
-      ? 'Select the employee, choose a KPI, then set dates and an optional note.'
+      ? 'Select the employee, then pick one of their KPIs to assign.'
       : 'Ask an admin to set your department before you can assign KPIs.';
 
   const resetLibraryForm = () => {
@@ -556,6 +624,10 @@ export default function ManagerKpiConfig({
   };
 
   const openCreate = () => {
+    if (!libUserId) {
+      setError('Select a person first, then create their KPI.');
+      return;
+    }
     resetLibraryForm();
     setError('');
     setLibOpen(true);
@@ -579,6 +651,10 @@ export default function ManagerKpiConfig({
     e.preventDefault();
     setError('');
     setSuccess('');
+    if (!libUserId) {
+      setError('Select a person first.');
+      return;
+    }
     const weight = Number(libWeight);
     const penaltyValue = Number(libPenaltyValue);
     const graceDays = Number(libGraceDays);
@@ -607,10 +683,11 @@ export default function ManagerKpiConfig({
       gracePeriodDays: libPenaltyEnabled ? Math.floor(graceDays) : 0,
     };
     const scoringParams = scoringRuleToDbParams(scoring);
+    const who = libPerson?.full_name || 'this person';
     setFormLoading(true);
     try {
       if (editingTemplate) {
-        const { error: err } = await supabase.rpc('update_kpi_template', {
+        const { error: err } = await supabase.rpc('update_person_kpi_template', {
           p_id: editingTemplate.id,
           p_name: libName.trim(),
           p_description: libDescription.trim() || null,
@@ -620,9 +697,10 @@ export default function ManagerKpiConfig({
           ...scoringParams,
         });
         if (err) throw err;
-        setSuccess('KPI updated.');
+        setSuccess(`Updated ${who}’s KPI.`);
       } else {
-        const { error: err } = await supabase.rpc('create_kpi_template', {
+        const { error: err } = await supabase.rpc('create_person_kpi_template', {
+          p_owner_user_id: libUserId,
           p_name: libName.trim(),
           p_description: libDescription.trim() || null,
           p_category: libCategory,
@@ -630,11 +708,12 @@ export default function ManagerKpiConfig({
           ...scoringParams,
         });
         if (err) throw err;
-        setSuccess('KPI saved to the library. Assign it from Assign Task.');
+        setSuccess(`Created KPI for ${who}. Use Assign Task to schedule it.`);
       }
       resetLibraryForm();
       setLibOpen(false);
-      await loadTemplates();
+      await loadLibPersonTemplates(libUserId);
+      if (assignUserId === libUserId) await loadPersonTemplates(libUserId);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Could not save this KPI.');
     } finally {
@@ -643,8 +722,8 @@ export default function ManagerKpiConfig({
   };
 
   const handleArchiveTemplate = async (tpl: KpiTemplate) => {
-    if (!confirm(`Remove “${tpl.name}” from the library? Existing assignments stay.`)) return;
-    const { error: err } = await supabase.rpc('update_kpi_template', {
+    if (!confirm(`Remove “${tpl.name}” from ${libPerson?.full_name || 'this person'}’s KPIs? Existing assignments stay.`)) return;
+    const { error: err } = await supabase.rpc('update_person_kpi_template', {
       p_id: tpl.id,
       p_name: tpl.name,
       p_description: tpl.description,
@@ -655,8 +734,12 @@ export default function ManagerKpiConfig({
     });
     if (err) setError(err.message);
     else {
-      setSuccess('KPI removed from the library.');
-      await loadTemplates();
+      setSuccess('KPI removed from this person’s list.');
+      await loadLibPersonTemplates(libUserId);
+      if (assignUserId === libUserId) {
+        await loadPersonTemplates(libUserId);
+        if (assignKpiId === tpl.id) setAssignKpiId('');
+      }
     }
   };
 
@@ -673,7 +756,7 @@ export default function ManagerKpiConfig({
       return;
     }
     if (!selectedTemplate) {
-      setError('Select a KPI from the library.');
+      setError('Select one of this person’s KPIs.');
       return;
     }
     if (!assignStartDate || !assignEndDate) {
@@ -684,10 +767,6 @@ export default function ManagerKpiConfig({
       setError('Due date must be on or after start date.');
       return;
     }
-    if (sumEmployeeKpiWeights(assignKpis) + selectedWeight > KPI_WEIGHT_CAP + 0.05) {
-      setError(`Open weights for this person cannot exceed 100% (${formatKpiWeight(remaining)} remaining, selected ${formatKpiWeight(selectedWeight)}).`);
-      return;
-    }
     if (!Number.isFinite(selectedWeight) || selectedWeight < 1 || selectedWeight > 100) {
       setError('Weight must be between 1% and 100%.');
       return;
@@ -696,17 +775,25 @@ export default function ManagerKpiConfig({
       setError('Weightage cannot be negative.');
       return;
     }
+    if (sumEmployeeKpiWeights(assignKpis) + selectedWeight > KPI_WEIGHT_CAP + 0.05) {
+      setError(`Open weights for this person cannot exceed 100% (${formatKpiWeight(remaining)} remaining, selected ${formatKpiWeight(selectedWeight)}).`);
+      return;
+    }
+
+    const kpiName = selectedTemplate.name;
+    const kpiCategory = (selectedTemplate.kpi_category as KpiCategoryId) || 'monthly_goal';
+    const kpiDescription = (selectedTemplate.description || '').trim();
+
     setFormLoading(true);
     try {
-      const tpl = selectedTemplate;
-      const isUrgent = tpl.kpi_category === 'urgent_tasks';
+      const isUrgent = kpiCategory === 'urgent_tasks';
       const ongoingIds = assignKpis
         .filter((k) => k.completion_status !== 'completed' && !k.paused_at)
         .map((k) => k.id);
 
       const { data, error: rpcErr } = await supabase.rpc('assign_kpi_from_template', {
         p_employee_id: assignUserId,
-        p_template_id: tpl.id,
+        p_template_id: selectedTemplate.id,
         p_start_date: assignStartDate,
         p_end_date: assignEndDate,
         p_notes: assignNotes.trim() || null,
@@ -724,16 +811,20 @@ export default function ManagerKpiConfig({
         await emailKpiAssigned(
           row.employee_email,
           row.employee_name,
-          row.kpi_name || tpl.name,
+          row.kpi_name || kpiName,
           assignEndDate,
-          assignNotes.trim() || tpl.description || '',
+          assignNotes.trim() || kpiDescription || '',
         );
       }
+
+      const who = assignPerson?.full_name || 'this person';
+      const paused = isUrgent && pauseOngoingOnUrgent && ongoingIds.length > 0;
       setSuccess(
-        isUrgent && pauseOngoingOnUrgent && ongoingIds.length > 0
-          ? `Assigned urgent task ${tpl.name} to ${assignPerson?.full_name || 'this person'} and paused ${ongoingIds.length} ongoing task(s).`
-          : `Assigned ${tpl.name} to ${assignPerson?.full_name || 'this person'}.`
+        paused
+          ? `Assigned “${kpiName}” to ${who} and paused ${ongoingIds.length} ongoing task(s).`
+          : `Assigned ${kpiName} to ${who}.`,
       );
+
       setAssignKpiId('');
       setAssignNotes('');
       const dates = defaultKpiDates();
@@ -755,14 +846,18 @@ export default function ManagerKpiConfig({
   };
 
   const handleDeleteAssigned = async (kpiId: string) => {
-    if (!confirm('Remove this assigned KPI? Its weightage will be cleared from that person’s dashboard.')) return;
+    const target =
+      boardKpis.find((k) => k.id === kpiId) ||
+      assignKpis.find((k) => k.id === kpiId);
+    const status = target?.completion_status || 'pending';
+    if (status === 'completed' || status === 'pending_review') {
+      setError('Completed or submitted tasks cannot be deleted. They stay in history.');
+      return;
+    }
+    if (!confirm('Remove this open assigned KPI? Its weightage will be cleared from that person’s dashboard.')) return;
     setError('');
     setSuccess('');
     try {
-      // Go through the authorized RPC instead of a raw table delete: a raw
-      // `.delete()` is subject to RLS (direct-reports only) while assignment
-      // allows same-department managers, so the delete could silently match
-      // zero rows and leave the KPI's weight still counting on dashboards.
       const { data, error: rpcErr } = await supabase.rpc('delete_assigned_kpi', { p_kpi_id: kpiId });
       if (rpcErr) throw rpcErr;
       await refreshOpenKpis();
@@ -773,6 +868,16 @@ export default function ManagerKpiConfig({
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Could not remove this KPI.');
     }
+  };
+
+  const goCreateKpiForAssignPerson = () => {
+    if (!assignUserId) return;
+    setLibUserId(assignUserId);
+    if (assignDeptId) setLibDeptId(assignDeptId);
+    else if (assignPerson?.department_id) setLibDeptId(assignPerson.department_id);
+    setDesk('library');
+    setError('');
+    setSuccess('');
   };
 
   if (loading) {
@@ -791,7 +896,7 @@ export default function ManagerKpiConfig({
           Assign Task
         </button>
         <button type="button" role="tab" aria-selected={desk === 'library'} className={desk === 'library' ? 'is-on' : undefined} onClick={() => { setDesk('library'); setError(''); setSuccess(''); }}>
-          KPI's
+          KPI&apos;s
         </button>
         <button type="button" role="tab" aria-selected={desk === 'board'} className={desk === 'board' ? 'is-on' : undefined} onClick={() => { setDesk('board'); setError(''); setSuccess(''); }}>
           Assigned Task
@@ -813,86 +918,186 @@ export default function ManagerKpiConfig({
         <>
           <div className="studio-hero">
             <div>
-              <p className="studio-kicker">Library</p>
-              <h2>Company KPIs</h2>
+              <p className="studio-kicker">Individual KPIs</p>
+              <h2>KPI&apos;s</h2>
               <p>
-                Create the KPI once. Category is only for dashboard grouping.
-                Set scoring rules (like late penalties) explicitly — they are no longer implied by the category name.
+                {isAdmin
+                  ? 'Pick a department, then a person, and manage KPIs that belong only to them.'
+                  : 'Select an employee and manage KPIs that belong only to them.'}
               </p>
             </div>
-            <button type="button" className="btn btn-primary" onClick={openCreate}>
-              <Plus size={16} /> New KPI
-            </button>
+            {libPerson && (
+              <button type="button" className="btn btn-primary" onClick={openCreate}>
+                <Plus size={16} /> New KPI
+              </button>
+            )}
           </div>
+          <StudioSteps
+            step={libStep}
+            labels={isAdmin ? ['Department', 'Person', 'Their KPIs'] : ['Person', 'Their KPIs']}
+          />
+          <div className="studio-flow">
+            {isAdmin && libStep === 1 && (
+              peopleGroups.length === 0 ? (
+                <div className="studio-empty studio-empty--panel">
+                  <Building2 size={36} strokeWidth={1.5} />
+                  <h3>No departments with people</h3>
+                  <p>Add people to a department first.</p>
+                </div>
+              ) : (
+                <div className="studio-choice-grid">
+                  {peopleGroups.map((g) => {
+                    const managers = g.people.filter((p) => p.role === 'manager').length;
+                    const employees = g.people.filter((p) => p.role === 'employee').length;
+                    return (
+                      <button
+                        key={g.id}
+                        type="button"
+                        className="studio-choice"
+                        onClick={() => { setLibDeptId(g.id); setLibUserId(''); setLibSearch(''); setLibPersonTemplates([]); }}
+                      >
+                        <Building2 size={22} strokeWidth={1.75} />
+                        <strong>{g.name}</strong>
+                        <em>
+                          {g.people.length} people
+                          {managers ? ` · ${managers} manager${managers === 1 ? '' : 's'}` : ''}
+                          {employees ? ` · ${employees} employee${employees === 1 ? '' : 's'}` : ''}
+                        </em>
+                      </button>
+                    );
+                  })}
+                </div>
+              )
+            )}
 
-          <div className="studio-toolbar">
-            <div className="studio-search">
-              <Search size={16} />
-              <input type="search" value={libQuery} onChange={(e) => setLibQuery(e.target.value)} placeholder="Search KPIs" aria-label="Search KPIs" />
-            </div>
-            <span className="studio-count">{visibleTemplates.length} in library</span>
-          </div>
-
-          {visibleTemplates.length === 0 ? (
-            <div className="studio-empty">
-              <ClipboardList size={40} strokeWidth={1.25} />
-              <h3>{templates.length === 0 ? 'Start with your first KPI' : 'No matches'}</h3>
-              <p>
-                {templates.length === 0
-                  ? 'Name it, pick a category for grouping, set scoring rules and weight, then assign it from Assign Task.'
-                  : 'Try a different search.'}
-              </p>
-              {templates.length === 0 && (
-                <button type="button" className="btn btn-primary" onClick={openCreate}>
-                  <Plus size={16} /> New KPI
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="studio-grid">
-              {visibleTemplates.map((tpl) => (
-                <article key={tpl.id} className="studio-kpi">
-                  <div className="studio-kpi__pct" aria-label={`${formatKpiWeight(Number(tpl.weight))} weight`}>
-                    <strong>{formatKpiWeight(Number(tpl.weight))}</strong>
-                  </div>
-                  <div className="studio-kpi__body">
-                    <h3>{tpl.name}</h3>
-                    <span className="studio-tag">{kpiCategoryMeta(tpl.kpi_category).label}</span>
-                    {formatLatePenaltyLabel(kpiScoringRule(tpl)) ? (
-                      <span className="studio-tag studio-tag--warn">{formatLatePenaltyLabel(kpiScoringRule(tpl))}</span>
-                    ) : null}
-                    {tpl.description?.trim() ? (
-                      <KpiTaskBrief
-                        kpi={{
-                          name: tpl.name,
-                          description: tpl.description,
-                          kpi_category: tpl.kpi_category,
-                          weight: Number(tpl.weight || 0),
-                          start_date: null,
-                          end_date: null,
-                        }}
-                        hideName
-                        compact={false}
+            {((isAdmin && libStep === 2 && libDept) || (!isAdmin && libStep === 1)) && (
+              (isAdmin ? false : reports.length === 0) ? (
+                <div className="studio-empty studio-empty--panel">
+                  <Building2 size={36} strokeWidth={1.5} />
+                  <h3>No employees yet</h3>
+                  <p>No department employees yet.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="studio-flow__bar">
+                    {isAdmin && (
+                      <button type="button" className="studio-back" onClick={() => { setLibDeptId(''); setLibUserId(''); setLibSearch(''); setLibPersonTemplates([]); }}>
+                        <ChevronLeft size={16} /> Departments
+                      </button>
+                    )}
+                    <h3>{isAdmin ? libDept?.name : 'Your team'}</h3>
+                    <div className="studio-search">
+                      <Search size={16} />
+                      <input
+                        type="search"
+                        value={libSearch}
+                        onChange={(e) => setLibSearch(e.target.value)}
+                        placeholder={isAdmin ? 'Search this department' : 'Search employees'}
+                        aria-label="Search people"
                       />
-                    ) : null}
-                    <div className="studio-bar" aria-hidden>
-                      <i style={{ width: `${Math.min(100, Number(tpl.weight))}%` }} />
                     </div>
                   </div>
-                  <div className="studio-kpi__actions">
-                    <button type="button" className="studio-action" onClick={() => openEditTemplate(tpl)}>
-                      <Pencil size={14} strokeWidth={2.25} />
-                      Edit
-                    </button>
-                    <button type="button" className="studio-action studio-action--danger" onClick={() => void handleArchiveTemplate(tpl)}>
-                      <Trash2 size={14} strokeWidth={2.25} />
-                      Remove
+                  {peopleInLibDept.length === 0 ? (
+                    <p className="studio-muted">{isAdmin ? 'No matches in this department.' : 'No matches.'}</p>
+                  ) : (
+                    <div className="studio-choice-grid studio-choice-grid--people">
+                      {peopleInLibDept.map((p) => (
+                        <button key={p.id} type="button" className="studio-choice studio-choice--person" onClick={() => setLibUserId(p.id)}>
+                          <span className={`studio-av studio-av--lg studio-av--${p.role}`} aria-hidden>{initials(p.full_name)}</span>
+                          <strong>{p.full_name}</strong>
+                          <em>{displayRoleLabel(p.role)}</em>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )
+            )}
+
+            {((isAdmin && libStep === 3) || (!isAdmin && libStep === 2)) && libPerson && (
+              <div className="studio-main__scroll">
+                <div className="studio-flow__bar">
+                  <button type="button" className="studio-back" onClick={() => { setLibUserId(''); setLibSearch(''); setLibPersonTemplates([]); }}>
+                    <ChevronLeft size={16} /> {isAdmin ? (libDept?.name || 'People') : 'Employees'}
+                  </button>
+                </div>
+                <header className="studio-person-head">
+                  <span className={`studio-av studio-av--lg studio-av--${libPerson.role}`} aria-hidden>{initials(libPerson.full_name)}</span>
+                  <div>
+                    <h3>{libPerson.full_name}</h3>
+                    <p>
+                      {libPerson.email} · {displayRoleLabel(libPerson.role)} · {deptNameOf(libPerson.department_id)}
+                      {' · '}
+                      {libPersonTemplatesLoading ? '…' : `${libPersonTemplates.length} KPI${libPersonTemplates.length === 1 ? '' : 's'}`}
+                    </p>
+                  </div>
+                  <button type="button" className="btn btn-primary" onClick={openCreate}>
+                    <Plus size={16} /> New KPI
+                  </button>
+                </header>
+
+                {libPersonTemplatesLoading ? (
+                  <div className="studio-empty studio-empty--compact">
+                    <Loader2 size={22} className="spin-icon" />
+                    <p>Loading {libPerson.full_name.split(' ')[0]}’s KPIs…</p>
+                  </div>
+                ) : libPersonTemplates.length === 0 ? (
+                  <div className="studio-empty studio-empty--compact">
+                    <ClipboardList size={36} strokeWidth={1.25} />
+                    <h3>No KPIs for {libPerson.full_name.split(' ')[0]} yet</h3>
+                    <p>Create an individual KPI that belongs only to them. Then use Assign Task to set a due date.</p>
+                    <button type="button" className="btn btn-primary" onClick={openCreate}>
+                      <Plus size={16} /> New KPI
                     </button>
                   </div>
-                </article>
-              ))}
-            </div>
-          )}
+                ) : (
+                  <div className="studio-grid">
+                    {libPersonTemplates.map((tpl) => (
+                      <article key={tpl.id} className="studio-kpi">
+                        <div className="studio-kpi__pct" aria-label={`${formatKpiWeight(Number(tpl.weight))} weight`}>
+                          <strong>{formatKpiWeight(Number(tpl.weight))}</strong>
+                        </div>
+                        <div className="studio-kpi__body">
+                          <h3>{tpl.name}</h3>
+                          <span className="studio-tag">{kpiCategoryMeta(tpl.kpi_category).label}</span>
+                          {formatLatePenaltyLabel(kpiScoringRule(tpl)) ? (
+                            <span className="studio-tag studio-tag--warn">{formatLatePenaltyLabel(kpiScoringRule(tpl))}</span>
+                          ) : null}
+                          {tpl.description?.trim() ? (
+                            <KpiTaskBrief
+                              kpi={{
+                                name: tpl.name,
+                                description: tpl.description,
+                                kpi_category: tpl.kpi_category,
+                                weight: Number(tpl.weight || 0),
+                                start_date: null,
+                                end_date: null,
+                              }}
+                              hideName
+                              compact={false}
+                            />
+                          ) : null}
+                          <div className="studio-bar" aria-hidden>
+                            <i style={{ width: `${Math.min(100, Number(tpl.weight))}%` }} />
+                          </div>
+                        </div>
+                        <div className="studio-kpi__actions">
+                          <button type="button" className="studio-action" onClick={() => openEditTemplate(tpl)}>
+                            <Pencil size={14} strokeWidth={2.25} />
+                            Edit
+                          </button>
+                          <button type="button" className="studio-action studio-action--danger" onClick={() => void handleArchiveTemplate(tpl)}>
+                            <Trash2 size={14} strokeWidth={2.25} />
+                            Remove
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </>
       ) : desk === 'assign' ? (
         <>
@@ -903,7 +1108,7 @@ export default function ManagerKpiConfig({
               <p>{whoHint}</p>
             </div>
           </div>
-          {(isAdmin ? assignGroups.length === 0 : reports.length === 0) ? (
+          {(isAdmin ? peopleGroups.length === 0 : reports.length === 0) ? (
             <div className="studio-empty studio-empty--panel">
               <Building2 size={36} strokeWidth={1.5} />
               <h3>{isAdmin ? 'No departments with people' : 'No employees yet'}</h3>
@@ -934,7 +1139,7 @@ export default function ManagerKpiConfig({
                         required
                       >
                         <option value="">Select department</option>
-                        {assignGroups.map((g) => (
+                        {peopleGroups.map((g) => (
                           <option key={g.id} value={g.id}>
                             {g.name} ({g.people.length})
                           </option>
@@ -991,29 +1196,36 @@ export default function ManagerKpiConfig({
                   <span className="studio-assign-section__step" aria-hidden>2</span>
                   <div>
                     <h3>What</h3>
-                    <p>Choose a KPI from the company library and set its weight.</p>
+                    <p>
+                      {assignPerson
+                        ? `Only ${assignPerson.full_name.split(' ')[0]}’s individual KPIs — create new ones under KPI’s.`
+                        : 'Choose a person first, then pick one of their KPIs.'}
+                    </p>
                   </div>
                 </header>
 
-                {templates.length === 0 ? (
+                {!assignUserId ? (
+                  <p className="studio-muted">Select who this is for to see their individual KPIs.</p>
+                ) : personTemplatesLoading ? (
+                  <p className="studio-muted">
+                    <Loader2 size={16} className="spin-icon" /> Loading {assignPerson?.full_name.split(' ')[0]}’s KPIs…
+                  </p>
+                ) : personTemplates.length === 0 ? (
                   <div className="studio-assign-callout">
                     <div className="studio-assign-callout__icon" aria-hidden>
                       <ClipboardList size={20} strokeWidth={1.75} />
                     </div>
                     <div className="studio-assign-callout__body">
-                      <strong>No KPIs in the library yet</strong>
-                      <p>Create one under KPI&apos;s, then return here to assign it.</p>
+                      <strong>No KPIs for {assignPerson?.full_name.split(' ')[0]} yet</strong>
+                      <p>
+                        Create their individual KPI under KPI&apos;s first, then come back here to assign a due date.
+                      </p>
                     </div>
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      onClick={() => {
-                        setDesk('library');
-                        openCreate();
-                      }}
-                    >
-                      <Plus size={16} /> New KPI
-                    </button>
+                    <div className="studio-assign-callout__actions">
+                      <button type="button" className="btn btn-primary" onClick={goCreateKpiForAssignPerson}>
+                        <Plus size={16} /> Create KPI for {assignPerson?.full_name.split(' ')[0]}
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <>
@@ -1022,11 +1234,10 @@ export default function ManagerKpiConfig({
                       <select
                         value={assignKpiId}
                         onChange={(e) => setAssignKpiId(e.target.value)}
-                        disabled={!assignUserId}
                         required
                       >
-                        <option value="">{assignUserId ? 'Select KPI' : 'Select a person first'}</option>
-                        {templates.map((tpl) => (
+                        <option value="">Select KPI</option>
+                        {personTemplates.map((tpl) => (
                           <option key={tpl.id} value={tpl.id}>
                             {tpl.name} · {kpiCategoryMeta(tpl.kpi_category).label} · {formatKpiWeight(Number(tpl.weight))}
                           </option>
@@ -1121,13 +1332,13 @@ export default function ManagerKpiConfig({
 
               <div className="studio-assign-bar">
                 <p>
-                  {!assignUserId || !assignKpiId
+                  {!assignReady
                     ? 'Complete Who and What above, then assign.'
                     : `Ready: ${selectedTemplate?.name || 'KPI'} (${formatKpiWeight(selectedWeight)}) · ${formatKpiWeight(Math.max(0, remaining - selectedWeight))} weight left after`}
                 </p>
-                <button type="submit" className="btn btn-primary" disabled={formLoading || !assignUserId || !assignKpiId}>
+                <button type="submit" className="btn btn-primary" disabled={formLoading || !assignReady}>
                   {formLoading ? <Loader2 size={18} className="spin-icon" /> : <Send size={18} />}
-                  Assign KPI{assignPerson ? ` to ${assignPerson.full_name.split(' ')[0]}` : ''}
+                  {`Assign KPI${assignPerson ? ` to ${assignPerson.full_name.split(' ')[0]}` : ''}`}
                 </button>
               </div>
             </form>
@@ -1260,7 +1471,15 @@ export default function ManagerKpiConfig({
                     </div>
                   ) : (
                     <ul className="studio-assigned studio-assigned--board">
-                      {boardKpis.map((kpi) => (
+                      {[...boardKpis]
+                        .sort((a, b) => {
+                          const rank = (k: typeof a) =>
+                            k.completion_status === 'completed' ? 2
+                              : k.completion_status === 'pending_review' ? 1
+                                : 0;
+                          return rank(a) - rank(b);
+                        })
+                        .map((kpi) => (
                         <li key={kpi.id}>
                           <AssignedKpiCard
                             kpi={kpi}
@@ -1286,14 +1505,18 @@ export default function ManagerKpiConfig({
         </>
       )}
 
-      {libOpen && (
+      {libOpen && libPerson && (
         <>
           <div className="studio-drawer__dim" onClick={() => setLibOpen(false)} />
           <aside className="studio-drawer" role="dialog" aria-labelledby="kpi-drawer-title">
             <header>
               <div>
                 <h3 id="kpi-drawer-title">{editingTemplate ? 'Edit KPI' : 'New KPI'}</h3>
-                <p>This is saved to the library. Assign it later from Assign Task.</p>
+                <p>
+                  {editingTemplate
+                    ? `Updates ${libPerson.full_name}’s individual KPI.`
+                    : `Creates a KPI that belongs only to ${libPerson.full_name}.`}
+                </p>
               </div>
               <button type="button" className="scorr-dialog-close" onClick={() => setLibOpen(false)} aria-label="Close" title="Close">
                 ×
@@ -1302,7 +1525,7 @@ export default function ManagerKpiConfig({
             <form onSubmit={handleSaveTemplate} className="studio-drawer__form">
               <label>
                 Name
-                <input value={libName} onChange={(e) => setLibName(e.target.value)} placeholder="e.g. Monthly sales target" required autoFocus />
+                <input value={libName} onChange={(e) => setLibName(e.target.value)} placeholder="e.g. Finish Q3 client report" required autoFocus />
               </label>
               <fieldset className="studio-cats">
                 <legend>Category</legend>
@@ -1373,7 +1596,7 @@ export default function ManagerKpiConfig({
               </label>
               <label>
                 Description <span>(optional)</span>
-                <textarea rows={3} value={libDescription} onChange={(e) => setLibDescription(e.target.value)} placeholder="What this KPI measures" />
+                <textarea rows={3} value={libDescription} onChange={(e) => setLibDescription(e.target.value)} placeholder="What this person should deliver" />
               </label>
               <div className="studio-drawer__foot">
                 <button type="button" className="btn btn-secondary" onClick={() => setLibOpen(false)}>Cancel</button>

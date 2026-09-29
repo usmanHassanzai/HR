@@ -111,6 +111,8 @@ export interface Notification {
   type: NotificationType;
   is_read: boolean;
   created_at: string;
+  /** Deep-link payload from create_system_notification (kpiId, leaveId, etc.). */
+  meta?: Record<string, unknown> | null;
 }
 
 const KPI_EDIT_TIMEZONE = 'Asia/Karachi';

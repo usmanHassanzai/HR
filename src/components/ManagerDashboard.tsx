@@ -59,6 +59,18 @@ export default function ManagerDashboard({ profile, organizationName }: ManagerD
   const [alertCount, setAlertCount] = useState(0);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
+  const [kpiNavState, setKpiNavState] = useState<{
+    desk?: 'assign' | 'library' | 'board';
+    userId?: string;
+    kpiId?: string;
+  } | null>(null);
+  const [mineFocusKpiId, setMineFocusKpiId] = useState<string | null>(null);
+  const [attendanceNavState, setAttendanceNavState] = useState<{ leaveId?: string; userId?: string } | null>(null);
+  const [rewardsNavState, setRewardsNavState] = useState<{
+    awardId?: string;
+    redemptionId?: string;
+    search?: string;
+  } | null>(null);
 
   useEffect(() => {
     writeSessionString(MANAGER_TAB_KEY, activeTab);
@@ -66,9 +78,38 @@ export default function ManagerDashboard({ profile, organizationName }: ManagerD
 
   useEffect(() => {
     const openTab = (e: Event) => {
-      const detail = (e as CustomEvent<{ tab?: string }>).detail;
+      const detail = (e as CustomEvent<{
+        tab?: string;
+        search?: string;
+        kpiId?: string;
+        userId?: string;
+        leaveId?: string;
+        awardId?: string;
+        redemptionId?: string;
+        desk?: 'assign' | 'library' | 'board';
+      }>).detail;
       const next = detail?.tab;
       if (!next || !MANAGER_TABS.includes(next as ManagerTab)) return;
+      if (next === 'kpis') {
+        setKpiNavState({
+          desk: detail.desk || (detail.kpiId || detail.userId ? 'board' : 'assign'),
+          userId: detail.userId,
+          kpiId: detail.kpiId,
+        });
+      }
+      if (next === 'mine' && detail.kpiId) {
+        setMineFocusKpiId(detail.kpiId);
+      }
+      if (next === 'attendance') {
+        setAttendanceNavState({ leaveId: detail.leaveId, userId: detail.userId });
+      }
+      if (next === 'rewards') {
+        setRewardsNavState({
+          awardId: detail.awardId,
+          redemptionId: detail.redemptionId,
+          search: detail.search,
+        });
+      }
       setSelectedEmployee(null);
       setActiveTab(next as ManagerTab);
       setNavOpen(false);
@@ -187,21 +228,45 @@ export default function ManagerDashboard({ profile, organizationName }: ManagerD
           <div className="admin-shell__panel">
         <Suspense fallback={<TabFallback />}>
         {activeTab === 'mine' ? (
-          <ManagerPersonalPanel profile={profile} />
+          <ManagerPersonalPanel profile={profile} focusKpiId={mineFocusKpiId} />
         ) : activeTab === 'employees' ? (
           <Leaderboard managerId={profile.id} onSelectEmployee={handleSelectEmployee} />
         ) : activeTab === 'kpis' ? (
           <KpiWorkspace
             panes={[
-              { id: 'tasks', label: 'Tasks', hint: 'Create a KPI, then assign it to someone in your department.', content: <ManagerKpiConfig assignerId={profile.id} managerDepartmentId={profile.department_id} hideChrome /> },
+              {
+                id: 'tasks',
+                label: 'Tasks',
+                hint: 'Create a KPI, then assign it to someone in your department.',
+                content: (
+                  <ManagerKpiConfig
+                    assignerId={profile.id}
+                    managerDepartmentId={profile.department_id}
+                    hideChrome
+                    initialDesk={kpiNavState?.desk}
+                    initialUserId={kpiNavState?.userId}
+                    initialKpiId={kpiNavState?.kpiId}
+                  />
+                ),
+              },
               { id: 'points', label: 'People', hint: 'Weightage and KPI scores for each person.', content: <AdminOrgKpiPointsBoard variant="manager" managerProfile={profile} /> },
             ]}
           />
         ) : activeTab === 'rewards' ? (
-          <ManagerRewardsPanel managerId={profile.id} />
+          <ManagerRewardsPanel
+            managerId={profile.id}
+            initialAwardId={rewardsNavState?.awardId}
+            initialRedemptionId={rewardsNavState?.redemptionId}
+            initialSearch={rewardsNavState?.search}
+          />
         ) : activeTab === 'attendance' ? (
           <div className="app-page-stack">
-            <AttendanceLeavePanel profile={profile} mode="manager" />
+            <AttendanceLeavePanel
+              profile={profile}
+              mode="manager"
+              initialLeaveId={attendanceNavState?.leaveId}
+              initialUserId={attendanceNavState?.userId}
+            />
             <details className="app-settings-block">
               <summary>Live tracking</summary>
               <AdminLiveTracking mode="manager" profile={profile} />

@@ -464,6 +464,26 @@ input:focus, select:focus, textarea:focus {
   }
 }
 
+@keyframes scorrNavPulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-primary) 45%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+/* Deep-link highlight when opening a notification's specific item */
+.scorr-nav-target {
+  outline: 2px solid var(--accent-primary) !important;
+  outline-offset: 3px;
+  animation: scorrNavPulse 1.1s ease-out 3;
+  scroll-margin-block: 5rem;
+}
+
 .animate-fade-in {
   /* Do not fade logged-in screens on live data sync / remount */
   animation: none;

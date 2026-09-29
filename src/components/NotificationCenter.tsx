@@ -82,7 +82,7 @@ export default function NotificationCenter({ userId, role }: NotificationCenterP
     await markNotificationsRead([id]);
   };
 
-  const openNotification = (n: Pick<Notification, 'id' | 'title' | 'message'>) => {
+  const openNotification = (n: Pick<Notification, 'id' | 'title' | 'message' | 'meta'>) => {
     void markRead(n.id);
     const target = resolveNotificationNav(n, roleRef.current);
     if (target) {

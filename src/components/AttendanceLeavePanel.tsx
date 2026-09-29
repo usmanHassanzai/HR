@@ -26,6 +26,7 @@ import { Department } from '../utils/departmentHelpers';
 import { canMarkRemoteAttendance, workModeLabel } from '../utils/workModeHelpers';
 import { GEO_CLOCK_EVENT, localYmd } from '../utils/geoAttendance';
 import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
+import { scrollNavTarget } from '../utils/notificationDeepLink';
 import {
   Loader2, CheckCircle, XCircle, Palmtree, LogOut,
   UserCheck, Users, Inbox, History, ClipboardList, CalendarClock,
@@ -41,6 +42,7 @@ interface AttendanceLeavePanelProps {
   mode: 'employee' | 'manager' | 'admin' | 'hr';
   initialAdminTab?: AdminTab;
   initialUserId?: string;
+  initialLeaveId?: string;
 }
 
 type EmployeeTab = 'today' | 'leave' | 'history';
@@ -68,7 +70,13 @@ function ApprovalActions({
   );
 }
 
-export default function AttendanceLeavePanel({ profile, mode, initialAdminTab, initialUserId }: AttendanceLeavePanelProps) {
+export default function AttendanceLeavePanel({
+  profile,
+  mode,
+  initialAdminTab,
+  initialUserId,
+  initialLeaveId,
+}: AttendanceLeavePanelProps) {
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState('');
   const [balance, setBalance] = useState<LeaveBalance | null>(null);
@@ -88,6 +96,14 @@ export default function AttendanceLeavePanel({ profile, mode, initialAdminTab, i
   useEffect(() => {
     if (initialAdminTab) setAdminTab(initialAdminTab);
   }, [initialAdminTab]);
+
+  useEffect(() => {
+    if (initialLeaveId && (mode === 'manager' || mode === 'admin' || mode === 'hr')) {
+      if (mode === 'manager') setManagerTab('approvals');
+      else setAdminTab('leave');
+      scrollNavTarget(initialLeaveId);
+    }
+  }, [initialLeaveId, mode, pendingLeaves]);
   const [employeeTab, setEmployeeTab] = useState<EmployeeTab>('today');
 
   const [leaveType, setLeaveType] = useState<LeaveType>('annual');
@@ -723,7 +739,7 @@ export default function AttendanceLeavePanel({ profile, mode, initialAdminTab, i
     ) : (
       <div className="attendance-approval-list">
         {pendingLeaves.map((r) => (
-          <div key={r.id} className="attendance-approval-item">
+          <div key={r.id} data-nav-id={r.id} className="attendance-approval-item">
             <div className="attendance-approval-item__main">
               <span className="attendance-approval-item__name">
                 {r.employee_name}
@@ -1041,7 +1057,7 @@ export default function AttendanceLeavePanel({ profile, mode, initialAdminTab, i
             ) : (
               <div className="mgr-attendance-approval-list">
                 {pendingLeaves.map((r) => (
-                  <div key={r.id} className="attendance-approval-item">
+                  <div key={r.id} data-nav-id={r.id} className="attendance-approval-item">
                     <div className="attendance-approval-item__main">
                       <span className="attendance-approval-item__name">Leave · {r.employee_name}</span>
                       <span className="attendance-approval-item__meta">

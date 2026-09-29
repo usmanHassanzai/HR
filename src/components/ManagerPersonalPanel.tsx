@@ -5,8 +5,11 @@ import { hydrateKpiLastEdits } from '../utils/kpiAssignmentEdits';
 import { markAssignedKpisViewed } from '../utils/kpiViewed';
 import { formatKpiWeight, KPI_WEIGHT_CAP } from '../utils/kpiWeightHelpers';
 import {
+  completedKpisForPeriod,
+  groupCompletedKpisByMonth,
   isKpiLatePenaltyApplied,
   kpisForPeriod,
+  periodLabel,
   type KpiPeriodMode,
 } from '../utils/kpiScoreHelpers';
 import { emailKpiOverdue } from '../utils/kpiEmail';
@@ -15,6 +18,7 @@ import KpiAssignmentDetails from './KpiAssignmentDetails';
 import KpiViewedBadge from './KpiViewedBadge';
 import KpiEvaluationBlock from './KpiEvaluationBlock';
 import KpiScoreboardSummary from './KpiScoreboardSummary';
+import AssignedTaskHistory from './AssignedTaskHistory';
 import { karachiYearMonth, kpiCategoryMeta } from '../utils/kpiCategories';
 import { formatLatePenaltyLabel, kpiScoringRule } from '../utils/kpiScoringRules';
 import { fetchRewardsSummary, type RewardsSummary } from '../utils/rewardsHelpers';
@@ -29,9 +33,11 @@ import {
 } from 'lucide-react';
 import '../styles/manager-personal.css';
 import '../styles/employee-kpis.css';
+import { scrollNavTarget } from '../utils/notificationDeepLink';
 
 interface ManagerPersonalPanelProps {
   profile: Profile;
+  focusKpiId?: string | null;
 }
 
 function fmtDate(d?: string | null): string {
@@ -57,7 +63,7 @@ function dateRange(start?: string | null, end?: string | null): string {
   return `${a} – ${b}`;
 }
 
-export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelProps) {
+export default function ManagerPersonalPanel({ profile, focusKpiId }: ManagerPersonalPanelProps) {
   const now = karachiYearMonth();
   const [kpis, setKpis] = useState<Kpi[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,6 +73,15 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
   const [filterYear, setFilterYear] = useState(now.year);
   const [listMode, setListMode] = useState<'open' | 'history'>('open');
   const [kpiSearch, setKpiSearch] = useState('');
+
+  useEffect(() => {
+    if (!focusKpiId || !kpis.length) return;
+    const hit = kpis.find((k) => k.id === focusKpiId);
+    if (!hit) return;
+    setListMode(hit.completion_status === 'completed' ? 'history' : 'open');
+    setPeriodMode('overall');
+    scrollNavTarget(focusKpiId);
+  }, [focusKpiId, kpis]);
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
@@ -135,6 +150,7 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
     () => kpisForPeriod(kpis, periodMode, filterYear, filterMonth),
     [kpis, periodMode, filterYear, filterMonth],
   );
+  const selectedLabel = periodLabel(periodMode, filterYear, filterMonth);
 
   const visibleKpis = useMemo(() => {
     const q = kpiSearch.trim().toLowerCase();
@@ -152,15 +168,22 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
       ),
     [visibleKpis],
   );
-  const historyKpis = useMemo(
-    () =>
-      [...visibleKpis.filter((k) => k.completion_status === 'completed')].sort((a, b) => {
-        const aKey = a.completed_at || a.end_date || '';
-        const bKey = b.completed_at || b.end_date || '';
-        return bKey.localeCompare(aKey);
-      }),
-    [visibleKpis],
-  );
+  const historyKpis = useMemo(() => {
+    const q = kpiSearch.trim().toLowerCase();
+    let list = completedKpisForPeriod(kpis, periodMode, filterYear, filterMonth);
+    if (q) {
+      list = list.filter((k) => {
+        const hay = `${k.name} ${k.description || ''} ${kpiCategoryMeta(k.kpi_category).label}`.toLowerCase();
+        return hay.includes(q);
+      });
+    }
+    return [...list].sort((a, b) => {
+      const aKey = a.completed_at || a.end_date || '';
+      const bKey = b.completed_at || b.end_date || '';
+      return bKey.localeCompare(aKey);
+    });
+  }, [kpis, periodMode, filterYear, filterMonth, kpiSearch]);
+  const historyGroups = useMemo(() => groupCompletedKpisByMonth(historyKpis), [historyKpis]);
   const listedKpis = listMode === 'history' ? historyKpis : openKpis;
   const awaitingCount = openKpis.filter((k) => k.completion_status === 'pending_review').length;
   const firstName = profile.full_name.trim().split(/\s+/)[0] || 'there';
@@ -265,7 +288,7 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
           <h4>No KPIs assigned to you yet</h4>
           <p>When an admin assigns you a task, it will appear here with weightage, dates, and progress controls.</p>
         </div>
-      ) : visibleKpis.length === 0 ? (
+      ) : listMode === 'open' && visibleKpis.length === 0 && historyKpis.length === 0 ? (
         <div className="mgr-personal-empty glass-panel">
           <Target size={36} strokeWidth={1.35} />
           <h4>No tasks in this view</h4>
@@ -275,10 +298,16 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
         <section className="mgr-my-kpis-list emp-kpi-list">
           <div className="emp-kpi-list__head">
             <div>
-              <h3>{listMode === 'history' ? 'Approved history' : 'Your assigned tasks'}</h3>
+              <h3>
+                {listMode === 'history'
+                  ? periodMode === 'overall'
+                    ? 'Assigned Task History'
+                    : `History · ${selectedLabel}`
+                  : 'Your assigned tasks'}
+              </h3>
               <p>
                 {listMode === 'history'
-                  ? 'Approved tasks with the weightage awarded after review.'
+                  ? 'Your approved tasks only, grouped by month. Use Overall / Month / Year above to filter.'
                   : `Mark Complete to submit for review. Weightage (0–${KPI_WEIGHT_CAP}%) is awarded after admin, HR, or your manager approves.`}
               </p>
             </div>
@@ -304,28 +333,83 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
             </div>
           </div>
 
-          {listedKpis.length === 0 ? (
+          {listMode === 'history' ? (
+            historyGroups.length === 0 ? (
+              <div className="mgr-personal-empty glass-panel mgr-personal-empty--compact">
+                <Target size={28} strokeWidth={1.35} />
+                <h4>No approved tasks yet</h4>
+                <p>
+                  After your completed work is reviewed and approved, it will show here by month.
+                  Try Overall or another month/year.
+                </p>
+              </div>
+            ) : (
+              <AssignedTaskHistory
+                groups={historyGroups}
+                renderTask={(kpi) => {
+                  const badge = kpiProgressBadge(kpi);
+                  const latePenalized = isKpiLatePenaltyApplied(kpi);
+                  const penaltyLabel = formatLatePenaltyLabel(kpiScoringRule(kpi));
+                  const historyDate = kpi.completed_at || kpi.end_date;
+                  return (
+                    <article
+                      key={kpi.id}
+                      data-nav-id={kpi.id}
+                      className={`emp-kpi-item mgr-my-kpi-card kpi-card--${badge.light} emp-kpi-item--history`}
+                    >
+                      <div className="emp-kpi-item__top">
+                        <div className="emp-kpi-item__tags">
+                          <span className="emp-kpi-item__cat">{kpiCategoryMeta(kpi.kpi_category).label}</span>
+                          {penaltyLabel ? <span className="emp-kpi-item__rule">{penaltyLabel}</span> : null}
+                        </div>
+                        <span className={`kpi-traffic kpi-traffic--${badge.light}`}>{badge.label}</span>
+                      </div>
+                      <h3>{kpi.name}</h3>
+                      <KpiViewedBadge kpi={kpi} />
+                      <dl className="emp-kpi-facts">
+                        <div>
+                          <dt>KPI weightage</dt>
+                          <dd>{formatKpiWeight(kpi.weight)}</dd>
+                        </div>
+                        <div>
+                          <dt>Achieved</dt>
+                          <dd>{formatKpiWeight(Number(kpi.assigned_score ?? kpi.weight ?? 0))}</dd>
+                        </div>
+                        <div>
+                          <dt>Approved</dt>
+                          <dd>{fmtFullDate(historyDate)}</dd>
+                        </div>
+                      </dl>
+                      <p className="kpi-score-line">
+                        Awarded {formatKpiWeight(Number(kpi.assigned_score ?? kpi.weight ?? 0))}
+                        {latePenalized ? ' (late)' : ''}
+                      </p>
+                      <KpiAssignmentDetails kpi={kpi} />
+                    </article>
+                  );
+                }}
+              />
+            )
+          ) : listedKpis.length === 0 ? (
             <div className="mgr-personal-empty glass-panel mgr-personal-empty--compact">
               <Target size={28} strokeWidth={1.35} />
-              <h4>{listMode === 'history' ? 'No approved tasks yet' : 'No open tasks'}</h4>
+              <h4>No open tasks</h4>
               <p>
-                {listMode === 'history'
-                  ? 'After your completed work is reviewed and approved, it will show here.'
+                {visibleKpis.length === 0
+                  ? 'Try another period, switch to Overall, or clear the search.'
                   : 'All tasks in this period are approved — open History to review them.'}
               </p>
             </div>
           ) : (
             listedKpis.map((kpi) => {
               const badge = kpiProgressBadge(kpi);
-              const complete = kpi.completion_status === 'completed';
               const awaitingReview = kpi.completion_status === 'pending_review';
-              const latePenalized = isKpiLatePenaltyApplied(kpi);
               const penaltyLabel = formatLatePenaltyLabel(kpiScoringRule(kpi));
-              const historyDate = kpi.completed_at || kpi.end_date;
               return (
                 <article
                   key={kpi.id}
-                  className={`emp-kpi-item mgr-my-kpi-card kpi-card--${badge.light}${complete ? ' emp-kpi-item--history' : ''}${awaitingReview ? ' emp-kpi-item--review' : ''}`}
+                  data-nav-id={kpi.id}
+                  className={`emp-kpi-item mgr-my-kpi-card kpi-card--${badge.light}${awaitingReview ? ' emp-kpi-item--review' : ''}`}
                 >
                   <div className="emp-kpi-item__top">
                     <div className="emp-kpi-item__tags">
@@ -344,36 +428,26 @@ export default function ManagerPersonalPanel({ profile }: ManagerPersonalPanelPr
                     </div>
                     <div>
                       <dt>Achieved</dt>
-                      <dd>
-                        {complete
-                          ? formatKpiWeight(Number(kpi.assigned_score ?? kpi.weight ?? 0))
-                          : awaitingReview
-                            ? 'Awaiting review'
-                            : '—'}
-                      </dd>
+                      <dd>{awaitingReview ? 'Awaiting review' : '—'}</dd>
                     </div>
                     <div>
-                      <dt>{complete ? 'Approved' : 'Dates'}</dt>
-                      <dd>{complete ? fmtFullDate(historyDate) : dateRange(kpi.start_date, kpi.end_date)}</dd>
+                      <dt>Dates</dt>
+                      <dd>{dateRange(kpi.start_date, kpi.end_date)}</dd>
                     </div>
                   </dl>
                   <p className="kpi-score-line">
-                    {complete
-                      ? `Awarded ${formatKpiWeight(Number(kpi.assigned_score ?? kpi.weight ?? 0))}${latePenalized ? ' (late)' : ''}`
-                      : awaitingReview
-                        ? 'Submitted — waiting for review before weightage is awarded'
-                        : 'Weightage is awarded after you mark Complete and a reviewer approves'}
+                    {awaitingReview
+                      ? 'Submitted — waiting for review before weightage is awarded'
+                      : 'Weightage is awarded after you mark Complete and a reviewer approves'}
                   </p>
                   <KpiAssignmentDetails kpi={kpi} />
-                  {!complete && (
-                    <KpiEvaluationBlock
-                      kpi={kpi}
-                      mode="employee"
-                      onUpdated={(patch) => {
-                        setKpis((prev) => prev.map((k) => (k.id === kpi.id ? { ...k, ...patch } : k)));
-                      }}
-                    />
-                  )}
+                  <KpiEvaluationBlock
+                    kpi={kpi}
+                    mode="employee"
+                    onUpdated={(patch) => {
+                      setKpis((prev) => prev.map((k) => (k.id === kpi.id ? { ...k, ...patch } : k)));
+                    }}
+                  />
                 </article>
               );
             })

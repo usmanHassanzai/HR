@@ -82,9 +82,24 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
   const [navOpen, setNavOpen] = useState(false);
   const [dailyReportUnread, setDailyReportUnread] = useState(0);
   const [viewTasksUser, setViewTasksUser] = useState<Profile | null>(null);
-  const [kpiNavState, setKpiNavState] = useState<{ desk?: 'assign' | 'library' | 'board'; userId?: string; deptId?: string } | null>(null);
+  const [kpiNavState, setKpiNavState] = useState<{
+    desk?: 'assign' | 'library' | 'board';
+    userId?: string;
+    deptId?: string;
+    kpiId?: string;
+  } | null>(null);
   const [reportsNavState, setReportsNavState] = useState<{ search?: string; deptId?: string } | null>(null);
-  const [attendanceNavState, setAttendanceNavState] = useState<{ adminTab?: 'leave' | 'remote' | 'shifts' | 'history'; userId?: string } | null>(null);
+  const [attendanceNavState, setAttendanceNavState] = useState<{
+    adminTab?: 'leave' | 'remote' | 'shifts' | 'history';
+    userId?: string;
+    leaveId?: string;
+  } | null>(null);
+  const [rewardsNavState, setRewardsNavState] = useState<{
+    tab?: 'board' | 'redemptions' | 'catalog' | 'awards' | 'history';
+    awardId?: string;
+    redemptionId?: string;
+    search?: string;
+  } | null>(null);
   const [analyticsNavState, setAnalyticsNavState] = useState<{ userId?: string; deptId?: string } | null>(null);
 
   useEffect(() => {
@@ -167,13 +182,48 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
 
   useEffect(() => {
     const openTab = (e: Event) => {
-      const detail = (e as CustomEvent<{ tab?: string; search?: string }>).detail;
+      const detail = (e as CustomEvent<{
+        tab?: string;
+        search?: string;
+        kpiId?: string;
+        userId?: string;
+        leaveId?: string;
+        awardId?: string;
+        redemptionId?: string;
+        desk?: 'assign' | 'library' | 'board';
+        adminTab?: 'leave' | 'remote' | 'shifts' | 'history';
+        rewardsTab?: 'board' | 'redemptions' | 'catalog' | 'awards' | 'history';
+      }>).detail;
       if (!detail?.tab) return;
       const next = detail.tab === 'branding' ? 'settings' : detail.tab;
       if (!ADMIN_TABS.includes(next as AdminTab) && next !== 'settings') return;
-      if (detail.search && next === 'dailyReports') {
-        setReportsNavState({ search: detail.search });
+
+      if (next === 'dailyReports') {
+        setReportsNavState({ search: detail.search || undefined });
       }
+      if (next === 'kpis') {
+        setKpiNavState({
+          desk: detail.desk || (detail.kpiId || detail.userId ? 'board' : 'assign'),
+          userId: detail.userId,
+          kpiId: detail.kpiId,
+        });
+      }
+      if (next === 'attendance') {
+        setAttendanceNavState({
+          adminTab: detail.adminTab || (detail.leaveId ? 'leave' : undefined),
+          userId: detail.userId,
+          leaveId: detail.leaveId,
+        });
+      }
+      if (next === 'rewards') {
+        setRewardsNavState({
+          tab: detail.rewardsTab || (detail.redemptionId ? 'redemptions' : detail.awardId ? 'awards' : undefined),
+          awardId: detail.awardId,
+          redemptionId: detail.redemptionId,
+          search: detail.search,
+        });
+      }
+
       setViewTasksUser(null);
       setActiveTab(next as AdminTab);
       setNavOpen(false);
@@ -487,13 +537,19 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
           </details>
         </div>
       ) : activeTab === 'rewards' ? (
-        <AdminRewards />
+        <AdminRewards
+          initialTab={rewardsNavState?.tab}
+          initialAwardId={rewardsNavState?.awardId}
+          initialRedemptionId={rewardsNavState?.redemptionId}
+          initialSearch={rewardsNavState?.search}
+        />
       ) : activeTab === 'attendance' ? (
         <AttendanceLeavePanel
           profile={profile}
           mode="admin"
           initialAdminTab={attendanceNavState?.adminTab}
           initialUserId={attendanceNavState?.userId}
+          initialLeaveId={attendanceNavState?.leaveId}
         />
       ) : activeTab === 'dailyReports' ? (
         <AdminDailyWorkReports
@@ -514,6 +570,7 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
           initialDesk={kpiNavState?.desk}
           initialUserId={kpiNavState?.userId}
           initialDeptId={kpiNavState?.deptId}
+          initialKpiId={kpiNavState?.kpiId}
         />
       ) : viewTasksUser ? (
         <AdminSimpleWorkspace

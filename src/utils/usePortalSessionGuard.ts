@@ -4,8 +4,8 @@ import { supabase } from '../lib/supabase';
 import { isNativeApp } from './nativePlatform';
 import { clearGeoHold } from './attendanceBackgroundSession';
 
-/** Idle time before the portal signs the user out. */
-export const PORTAL_IDLE_MS = 20 * 60 * 1000;
+/** Idle time before the portal signs the user out (5 minutes). */
+export const PORTAL_IDLE_MS = 5 * 60 * 1000;
 
 const LAST_ACTIVITY_KEY = 'scorr-last-activity';
 
@@ -30,6 +30,7 @@ function clearAuthStorageSync() {
     localStorage.removeItem('scorr-last-tab-unload');
     sessionStorage.removeItem('scorr-web-tab');
     sessionStorage.removeItem('scorr-tab-id');
+    sessionStorage.removeItem('scorr-mfa-ok');
   } catch {
     /* ignore */
   }
@@ -103,9 +104,11 @@ function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 /**
- * Stay signed in while switching browser tabs or working in another window.
- * Sign out only after true idle (no input for PORTAL_IDLE_MS).
- * Do not treat Chrome tab switches / Memory Saver as logout.
+ * Auto-logout:
+ * - After PORTAL_IDLE_MS with no input (default 5 minutes)
+ * - When the Scorr app / browser tab is closed (pagehide / native background)
+ *
+ * Switching Chrome tabs alone does not log out — only idle expiry or a real close does.
  */
 export function usePortalSessionGuard(enabled: boolean, options?: { idle?: boolean }) {
   const enabledRef = useRef(enabled);
@@ -168,6 +171,20 @@ export function usePortalSessionGuard(enabled: boolean, options?: { idle?: boole
       e.preventDefault();
     };
 
+    /** Close tab / leave page — clear auth immediately (async signOut may not finish). */
+    const onPageHide = (e: PageTransitionEvent) => {
+      if (!enabledRef.current) return;
+      // bfcache freeze (mobile back-forward) — do not treat as close.
+      if (e.persisted) return;
+      clearAuthStorageSync();
+      void lockPortalSession({ force: true });
+    };
+
+    const onBeforeUnload = () => {
+      if (!enabledRef.current) return;
+      clearAuthStorageSync();
+    };
+
     writeLastActivity();
     if (idleEnabled) armIdleTimer();
 
@@ -183,6 +200,8 @@ export function usePortalSessionGuard(enabled: boolean, options?: { idle?: boole
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', expireIfIdle);
     window.addEventListener('keydown', onBackspaceNav, true);
+    window.addEventListener('pagehide', onPageHide);
+    window.addEventListener('beforeunload', onBeforeUnload);
 
     const onStorage = (e: StorageEvent) => {
       if (e.key === LAST_ACTIVITY_KEY) armIdleTimer();
@@ -192,7 +211,14 @@ export function usePortalSessionGuard(enabled: boolean, options?: { idle?: boole
     let appStateHandle: { remove: () => Promise<void> } | null = null;
     if (isNativeApp()) {
       void CapApp.addListener('appStateChange', ({ isActive }) => {
-        if (isActive) expireIfIdle();
+        if (!enabledRef.current) return;
+        if (isActive) {
+          expireIfIdle();
+          return;
+        }
+        // Leaving the native app (home / switch app / close) → sign out.
+        clearAuthStorageSync();
+        void lockPortalSession({ force: true });
       }).then((h) => {
         appStateHandle = h;
       });
@@ -206,6 +232,8 @@ export function usePortalSessionGuard(enabled: boolean, options?: { idle?: boole
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('focus', expireIfIdle);
       window.removeEventListener('keydown', onBackspaceNav, true);
+      window.removeEventListener('pagehide', onPageHide);
+      window.removeEventListener('beforeunload', onBeforeUnload);
       window.removeEventListener('storage', onStorage);
       void appStateHandle?.remove();
     };

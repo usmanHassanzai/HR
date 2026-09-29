@@ -23,6 +23,7 @@ import AdminRewardHistoryPanel from './AdminRewardHistoryPanel';
 import RewardCatalogIcon from './RewardCatalogIcon';
 import { fileToRewardIconDataUrl, REWARD_EMOJI_PRESETS } from '../utils/rewardIconHelpers';
 import { readSessionString, writeSessionString } from '../utils/persistedUiState';
+import { scrollNavTarget } from '../utils/notificationDeepLink';
 import '../styles/admin-rewards.css';
 import '../styles/employee-kpis.css';
 
@@ -61,16 +62,30 @@ function initialRewardsTab(): RewardsTab {
   return 'awards';
 }
 
-export default function AdminRewards() {
+export default function AdminRewards({
+  initialTab,
+  initialAwardId,
+  initialRedemptionId,
+  initialSearch,
+}: {
+  initialTab?: RewardsTab;
+  initialAwardId?: string;
+  initialRedemptionId?: string;
+  initialSearch?: string;
+} = {}) {
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
   const [redemptions, setRedemptions] = useState<Redemption[]>([]);
   const [orgUserCount, setOrgUserCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState('');
-  const [activeTab, setActiveTab] = useState<RewardsTab>(() => initialRewardsTab());
+  const [activeTab, setActiveTab] = useState<RewardsTab>(() => initialTab || initialRewardsTab());
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: '', description: '', icon: '🎁', weightage_required: 80 });
   const [iconUploading, setIconUploading] = useState(false);
+
+  useEffect(() => {
+    if (initialTab && REWARDS_TABS.includes(initialTab)) setActiveTab(initialTab);
+  }, [initialTab]);
 
   useEffect(() => {
     writeSessionString(REWARDS_TAB_KEY, activeTab);
@@ -132,6 +147,24 @@ export default function AdminRewards() {
   useEffect(() => {
     void fetchAll();
   }, [fetchAll]);
+
+  useEffect(() => {
+    if (initialRedemptionId && activeTab === 'redemptions') {
+      scrollNavTarget(initialRedemptionId);
+    }
+  }, [initialRedemptionId, activeTab, redemptions]);
+
+  useEffect(() => {
+    if (initialAwardId && activeTab === 'awards') {
+      scrollNavTarget(initialAwardId);
+    }
+  }, [initialAwardId, activeTab]);
+
+  // Prefer awards tab when deep-linking to a gift request; redemptions for catalog.
+  useEffect(() => {
+    if (initialAwardId) setActiveTab('awards');
+    else if (initialRedemptionId) setActiveTab('redemptions');
+  }, [initialAwardId, initialRedemptionId]);
 
   const startEdit = (item?: CatalogItem) => {
     if (item) {
@@ -322,7 +355,7 @@ export default function AdminRewards() {
         </div>
       )}
 
-      {activeTab === 'awards' && <AdminKpiAwardsPanel />}
+      {activeTab === 'awards' && <AdminKpiAwardsPanel focusAwardId={initialAwardId} focusSearch={initialSearch} />}
 
       {activeTab === 'history' && <AdminRewardHistoryPanel />}
 
@@ -350,7 +383,11 @@ export default function AdminRewards() {
           ) : (
             <div className="admin-rewards-redemption-list">
               {pending.map((r) => (
-                <div key={r.id} className={`redemption-row redemption-row--${r.status}`}>
+                <div
+                  key={r.id}
+                  data-nav-id={r.id}
+                  className={`redemption-row redemption-row--${r.status}`}
+                >
                   <span className="redemption-icon">
                     <RewardCatalogIcon icon={r.rewards_catalog?.icon ?? '🎁'} size={22} />
                   </span>

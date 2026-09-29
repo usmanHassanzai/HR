@@ -182,6 +182,10 @@ const MIGRATIONS = [
   'kpi_earned_cap_to_task_weight.sql',
   'backfill_weightage_rule_cancel_ineligible_gifts.sql',
   'delete_assigned_kpi_rpc.sql',
+  'notification_deep_link_meta.sql',
+  'kpi_templates_owner_user.sql',
+  'update_person_kpi_template.sql',
+  'keep_completed_assigned_kpis.sql',
 ];
 
 async function runMigration(filename) {

@@ -20,12 +20,16 @@ import {
   fetchMonthWeightageBalance,
   type MonthWeightageBalance,
 } from '../utils/monthWeightageBalance';
+import { scrollNavTarget } from '../utils/notificationDeepLink';
 import '../styles/manager-rewards.css';
 import '../styles/employee-rewards.css';
 import '../styles/admin-rewards.css';
 
 interface ManagerRewardsPanelProps {
   managerId: string;
+  initialAwardId?: string;
+  initialRedemptionId?: string;
+  initialSearch?: string;
 }
 
 type TeamGiftRow = {
@@ -43,7 +47,12 @@ function statusLabel(status: string): string {
   return 'Pending';
 }
 
-export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelProps) {
+export default function ManagerRewardsPanel({
+  managerId,
+  initialAwardId,
+  initialRedemptionId,
+  initialSearch,
+}: ManagerRewardsPanelProps) {
   const [myProgress, setMyProgress] = useState<KpiAwardProgress[]>([]);
   const [team, setTeam] = useState<TeamGiftRow[]>([]);
   const [queue, setQueue] = useState<KpiAwardPipelineRow[]>([]);
@@ -65,6 +74,19 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
     available: null,
     banked: 0,
   });
+
+  useEffect(() => {
+    const id = initialAwardId || initialRedemptionId;
+    if (!id) return;
+    scrollNavTarget(id);
+  }, [initialAwardId, initialRedemptionId, queue, catalogQueue]);
+
+  useEffect(() => {
+    if (!initialSearch || !team.length) return;
+    const q = initialSearch.trim().toLowerCase();
+    const hit = team.find((m) => m.full_name.toLowerCase().includes(q));
+    if (hit) setSelected(hit);
+  }, [initialSearch, team]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -315,7 +337,11 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
         ) : (
           <div className="mgr-rewards-queue">
             {queue.map((r) => (
-              <article key={r.qualification_id || `${r.employee_id}-${r.rule_key}`} className="mgr-rewards-queue-item">
+              <article
+                key={r.qualification_id || `${r.employee_id}-${r.rule_key}`}
+                data-nav-id={r.qualification_id || undefined}
+                className="mgr-rewards-queue-item"
+              >
                 <div className="mgr-rewards-queue-item__body">
                   <strong>{r.full_name}</strong>
                   <span>{r.reward_name} · {statusLabel(r.status || 'pending')}</span>
@@ -348,7 +374,7 @@ export default function ManagerRewardsPanel({ managerId }: ManagerRewardsPanelPr
               </article>
             ))}
             {catalogQueue.map((r) => (
-              <article key={r.id} className="mgr-rewards-queue-item">
+              <article key={r.id} data-nav-id={r.id} className="mgr-rewards-queue-item">
                 <div className="mgr-rewards-queue-item__body">
                   <strong>{r.users?.full_name || 'Team member'}</strong>
                   <span>{r.rewards_catalog?.name || 'Catalog reward'} · {statusLabel(r.status)}</span>

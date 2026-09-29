@@ -10,8 +10,15 @@ import {
 } from 'lucide-react';
 import type { KpiAwardConfig, KpiAwardPipelineRow } from '../utils/kpiAwardHelpers';
 import { awardRuleLabel } from '../utils/kpiAwardHelpers';
+import { scrollNavTarget } from '../utils/notificationDeepLink';
 
-export default function AdminKpiAwardsPanel() {
+export default function AdminKpiAwardsPanel({
+  focusAwardId,
+  focusSearch,
+}: {
+  focusAwardId?: string;
+  focusSearch?: string;
+} = {}) {
   const [pipeline, setPipeline] = useState<KpiAwardPipelineRow[]>([]);
   const [config, setConfig] = useState<KpiAwardConfig | null>(null);
   const [form, setForm] = useState<Partial<KpiAwardConfig>>({});
@@ -19,6 +26,15 @@ export default function AdminKpiAwardsPanel() {
   const [running, setRunning] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
+  const [filter, setFilter] = useState(focusSearch || '');
+
+  useEffect(() => {
+    if (focusSearch) setFilter(focusSearch);
+  }, [focusSearch]);
+
+  useEffect(() => {
+    if (focusAwardId) scrollNavTarget(focusAwardId);
+  }, [focusAwardId, pipeline]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -102,7 +118,12 @@ export default function AdminKpiAwardsPanel() {
     }
   };
 
-  const eligible = pipeline.filter((r) => r.bucket === 'eligible');
+  const q = filter.trim().toLowerCase();
+  const eligible = pipeline.filter((r) => {
+    if (r.bucket !== 'eligible') return false;
+    if (!q) return true;
+    return `${r.full_name || ''} ${r.email || ''} ${r.reward_name || ''}`.toLowerCase().includes(q);
+  });
   const close = pipeline.filter((r) => r.bucket === 'close');
 
   if (loading && !config) {
@@ -156,7 +177,10 @@ export default function AdminKpiAwardsPanel() {
               </thead>
               <tbody>
                 {eligible.map((r) => (
-                  <tr key={r.qualification_id || `${r.employee_id}-${r.rule_key}`}>
+                  <tr
+                    key={r.qualification_id || `${r.employee_id}-${r.rule_key}`}
+                    data-nav-id={r.qualification_id || undefined}
+                  >
                     <td>
                       <strong>{r.full_name}</strong>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{r.email}</div>

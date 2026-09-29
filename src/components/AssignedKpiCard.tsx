@@ -80,7 +80,10 @@ export default function AssignedKpiCard({
   };
 
   return (
-    <article className={`assigned-kpi-card${paused ? ' assigned-kpi-card--paused' : ''}${awaitingReview ? ' assigned-kpi-card--review' : ''}`}>
+    <article
+      data-nav-id={kpi.id}
+      className={`assigned-kpi-card${paused ? ' assigned-kpi-card--paused' : ''}${awaitingReview ? ' assigned-kpi-card--review' : ''}`}
+    >
       <header className="assigned-kpi-card__head">
         <div>
           <div className="assigned-kpi-card__tags">
@@ -113,10 +116,12 @@ export default function AssignedKpiCard({
             <Pencil size={14} strokeWidth={2.25} />
             Edit
           </button>
-          <button type="button" className="studio-action studio-action--danger" onClick={onRemove}>
-            <Trash2 size={14} strokeWidth={2.25} />
-            Remove
-          </button>
+          {!isCompleted && !awaitingReview ? (
+            <button type="button" className="studio-action studio-action--danger" onClick={onRemove}>
+              <Trash2 size={14} strokeWidth={2.25} />
+              Remove
+            </button>
+          ) : null}
         </div>
       </header>
 
