@@ -652,8 +652,15 @@
 }
 
 .employee-kpi-board-summary {
-  padding: 1.25rem 1.5rem !important;
-  border-left: 5px solid var(--accent-primary) !important;
+  padding: 1.2rem 1.3rem !important;
+  border-left: 4px solid var(--accent-primary) !important;
+  border-radius: 16px !important;
+}
+
+.employee-kpi-board-summary__tasks {
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid color-mix(in srgb, var(--border-color) 88%, transparent);
 }
 
 .employee-kpi-board-summary__head {

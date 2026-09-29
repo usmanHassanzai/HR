@@ -27,7 +27,7 @@ export default function EmployeeKpiBoardSummary({ kpis, employeeName, userId }: 
         title={employeeName ? `${employeeName}'s KPI weightage` : 'KPI weightage'}
       />
 
-      <div className="kpi-score-list">
+      <div className="kpi-score-list employee-kpi-board-summary__tasks">
         <div className="kpi-score-list__head">
           <h4>Assigned tasks</h4>
           <span>{rows.length} task{rows.length === 1 ? '' : 's'}</span>

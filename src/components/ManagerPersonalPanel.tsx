@@ -298,6 +298,9 @@ export default function ManagerPersonalPanel({ profile, focusKpiId }: ManagerPer
         <section className="mgr-my-kpis-list emp-kpi-list">
           <div className="emp-kpi-list__head">
             <div>
+              <p className="emp-kpi-list__eyebrow">
+                {listMode === 'history' ? 'Archive' : 'Active'}
+              </p>
               <h3>
                 {listMode === 'history'
                   ? periodMode === 'overall'

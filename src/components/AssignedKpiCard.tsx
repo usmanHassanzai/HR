@@ -79,21 +79,35 @@ export default function AssignedKpiCard({
     }
   };
 
+  const progressTone = isCompleted
+    ? 'assigned-kpi-card__progress--done'
+    : awaitingReview
+      ? 'assigned-kpi-card__progress--review'
+      : paused
+        ? 'assigned-kpi-card__progress--paused'
+        : '';
+
   return (
     <article
       data-nav-id={kpi.id}
-      className={`assigned-kpi-card${paused ? ' assigned-kpi-card--paused' : ''}${awaitingReview ? ' assigned-kpi-card--review' : ''}`}
+      className={[
+        'assigned-kpi-card',
+        paused ? 'assigned-kpi-card--paused' : '',
+        awaitingReview ? 'assigned-kpi-card--review' : '',
+        isCompleted ? 'assigned-kpi-card--completed' : '',
+      ].filter(Boolean).join(' ')}
     >
       <header className="assigned-kpi-card__head">
-        <div>
+        <div className="assigned-kpi-card__title-block">
           <div className="assigned-kpi-card__tags">
             <span className="studio-tag">{category.label}</span>
             {awaitingReview ? <span className="studio-tag studio-tag--warn">Needs review</span> : null}
+            {isCompleted ? <span className="studio-tag studio-tag--ok">Approved</span> : null}
             {penaltyLabel ? <span className="studio-tag studio-tag--warn">{penaltyLabel}</span> : null}
           </div>
           <h3>{kpi.name}</h3>
         </div>
-        <div className="studio-kpi__actions">
+        <div className="studio-kpi__actions assigned-kpi-card__actions">
           {!isCompleted && !awaitingReview && (
             <button
               type="button"
@@ -132,7 +146,7 @@ export default function AssignedKpiCard({
 
       {pauseErr && <p className="assigned-kpi-card__error">{pauseErr}</p>}
 
-      <dl className="assigned-kpi-card__facts">
+      <dl className="assigned-kpi-card__facts" aria-label="Task metrics">
         <div>
           <dt>Weight</dt>
           <dd>{formatKpiWeight(Number(kpi.weight || 0))}</dd>
@@ -184,10 +198,12 @@ export default function AssignedKpiCard({
         </div>
       ) : null}
 
-      <p className="assigned-kpi-card__progress">{progress}</p>
+      <p className={`assigned-kpi-card__progress${progressTone ? ` ${progressTone}` : ''}`}>{progress}</p>
       <ReviewKpiCompletionPanel kpi={kpi} onUpdated={onUpdated} />
-      <KpiViewedBadge kpi={kpi} />
-      <KpiAssignmentEditNote kpi={kpi} />
+      <div className="assigned-kpi-card__meta-row">
+        <KpiViewedBadge kpi={kpi} />
+        <KpiAssignmentEditNote kpi={kpi} />
+      </div>
     </article>
   );
 }

@@ -17,7 +17,7 @@ function CompletedKpiScoreTable({ kpis }: { kpis: Kpi[] }) {
   return (
     <div className="kpi-score-list emp-kpi-history__scoreboard">
       <div className="kpi-score-list__head">
-        <h4>Assigned Task History</h4>
+        <h4>Month scoreboard</h4>
         <span>{rows.length} completed</span>
       </div>
 
@@ -108,8 +108,11 @@ export default function AssignedTaskHistory({ groups, renderTask }: AssignedTask
       {groups.map((group) => (
         <section key={group.key} className="emp-kpi-history__month" aria-label={group.label}>
           <header className="emp-kpi-history__month-head">
-            <h4>{group.label}</h4>
-            <span>
+            <div>
+              <p className="emp-kpi-history__eyebrow">Approved history</p>
+              <h4>{group.label}</h4>
+            </div>
+            <span className="emp-kpi-history__count">
               {group.kpis.length} task{group.kpis.length === 1 ? '' : 's'}
             </span>
           </header>

@@ -1494,6 +1494,7 @@ export default function ManagerKpiConfig({
                     </div>
                   ) : (
                     <>
+                  <div className="studio-board-stack">
                   <EmployeeKpiWeightMeter kpis={boardKpis} compact />
                   {boardKpis.length > 0 && (
                     <EmployeeKpiBoardSummary
@@ -1503,16 +1504,21 @@ export default function ManagerKpiConfig({
                     />
                   )}
                   {boardKpis.length === 0 ? (
-                    <div className="studio-empty studio-empty--compact">
-                      <p>This person no longer has assigned KPIs.</p>
+                    <div className="studio-empty studio-empty--compact studio-empty--board">
+                      <h3>No assigned tasks</h3>
+                      <p>This person no longer has assigned KPIs on their board.</p>
                     </div>
                   ) : (
                     <>
                       {boardOpenKpis.length > 0 ? (
                         <section className="studio-board-section" aria-label="Open assigned tasks">
                           <header className="studio-board-section__head">
-                            <h4>Open &amp; in review</h4>
-                            <span>{boardOpenKpis.length}</span>
+                            <div>
+                              <p className="studio-board-section__kicker">Active board</p>
+                              <h4>Open &amp; in review</h4>
+                              <p className="studio-board-section__desc">Tasks still on their dashboard — edit, pause, or remove incomplete ones.</p>
+                            </div>
+                            <span className="studio-board-section__count">{boardOpenKpis.length}</span>
                           </header>
                           <ul className="studio-assigned studio-assigned--board">
                             {boardOpenKpis.map((kpi) => (
@@ -1534,16 +1540,21 @@ export default function ManagerKpiConfig({
                           </ul>
                         </section>
                       ) : (
-                        <div className="studio-empty studio-empty--compact">
-                          <p>No open tasks — completed work is listed in history below.</p>
+                        <div className="studio-empty studio-empty--compact studio-empty--board">
+                          <h3>No open tasks</h3>
+                          <p>Completed and approved work is listed in history below.</p>
                         </div>
                       )}
 
                       {boardHistoryGroups.length > 0 ? (
                         <section className="studio-board-section studio-board-section--history" aria-label="Completed assigned task history">
                           <header className="studio-board-section__head">
-                            <h4>Completed &amp; approved history</h4>
-                            <span>{boardCompletedKpis.length}</span>
+                            <div>
+                              <p className="studio-board-section__kicker">Archive</p>
+                              <h4>Completed &amp; approved history</h4>
+                              <p className="studio-board-section__desc">Grouped by month. Approved tasks stay for audit — they cannot be removed.</p>
+                            </div>
+                            <span className="studio-board-section__count">{boardCompletedKpis.length}</span>
                           </header>
                           <AssignedTaskHistory
                             groups={boardHistoryGroups}
@@ -1566,6 +1577,7 @@ export default function ManagerKpiConfig({
                       ) : null}
                     </>
                   )}
+                  </div>
                     </>
                   )}
                 </div>
