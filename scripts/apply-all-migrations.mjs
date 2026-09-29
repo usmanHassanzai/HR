@@ -187,6 +187,7 @@ const MIGRATIONS = [
   'update_person_kpi_template.sql',
   'keep_completed_assigned_kpis.sql',
   'delete_incomplete_assigned_kpi.sql',
+  'notify_delete_assigned_kpi.sql',
 ];
 
 async function runMigration(filename) {

@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { Profile, Kpi, displayRoleLabel, isKpiAwaitingReview } from '../utils/kpiHelpers';
 import { Department } from '../utils/departmentHelpers';
 import { hydrateKpiLastEdits } from '../utils/kpiAssignmentEdits';
-import { emailKpiAssigned } from '../utils/kpiEmail';
+import { emailKpiAssigned, emailKpiRemoved } from '../utils/kpiEmail';
 import { formatKpiWeight, KPI_WEIGHT_CAP, remainingKpiWeightBudget, sumEmployeeKpiWeights } from '../utils/kpiWeightHelpers';
 import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
 import { readSessionJson, writeSessionJson } from '../utils/persistedUiState';
@@ -903,7 +903,7 @@ export default function ManagerKpiConfig({
     }
     const weightLabel = formatKpiWeight(Number(target?.weight || 0));
     if (!confirm(
-      `Remove this assigned KPI (${weightLabel})?\n\nIts weightage will be deducted from this person’s dashboard and will no longer count toward their assigned total.`,
+      `Remove this assigned KPI (${weightLabel})?\n\nIts weightage will be deducted from this person’s dashboard and will no longer count toward their assigned total.\n\nThey will get an email and an in-app notification.`,
     )) return;
     setError('');
     setSuccess('');
@@ -911,12 +911,33 @@ export default function ManagerKpiConfig({
       const { data, error: rpcErr } = await supabase.rpc('delete_assigned_kpi', { p_kpi_id: kpiId });
       if (rpcErr) throw rpcErr;
       await refreshOpenKpis();
-      const deleted = data && typeof data === 'object' && (data as { deleted?: boolean }).deleted !== false;
-      const removedWeight = data && typeof data === 'object'
-        ? Number((data as { weight?: number }).weight || target?.weight || 0)
-        : Number(target?.weight || 0);
+      const payload = (data && typeof data === 'object' ? data : {}) as {
+        deleted?: boolean;
+        weight?: number;
+        kpi_name?: string;
+        employee_email?: string;
+        employee_name?: string;
+        removed_by_name?: string;
+        removed_by_role?: string;
+      };
+      const deleted = payload.deleted !== false;
+      const removedWeight = Number(payload.weight ?? target?.weight ?? 0);
+      if (deleted && payload.employee_email) {
+        const roleLabel =
+          payload.removed_by_role === 'admin' ? 'Admin'
+            : payload.removed_by_role === 'hr' ? 'HR'
+              : 'Manager';
+        void emailKpiRemoved({
+          employeeEmail: payload.employee_email,
+          employeeName: payload.employee_name || 'there',
+          kpiName: payload.kpi_name || target?.name || 'KPI task',
+          removerName: payload.removed_by_name || '',
+          removerRole: roleLabel,
+          weightLabel: formatKpiWeight(removedWeight),
+        });
+      }
       setSuccess(deleted
-        ? `Removed. ${formatKpiWeight(removedWeight)} weightage was deducted from their assigned total.`
+        ? `Removed. ${formatKpiWeight(removedWeight)} weightage was deducted. The person was notified by email and in-app.`
         : 'That KPI was already removed.');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Could not remove this KPI.');

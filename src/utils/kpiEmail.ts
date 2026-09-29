@@ -67,3 +67,24 @@ export async function emailKpiAssignmentUpdated(opts: {
     `Hi ${employeeName},\n\nYour assigned task "${kpiName}" was updated by ${who}.\n\nWhat changed:\n${changes}\n\nOpen Scorr to review the updated task.`,
   );
 }
+
+export async function emailKpiRemoved(opts: {
+  employeeEmail: string;
+  employeeName: string;
+  kpiName: string;
+  removerName: string;
+  removerRole: string;
+  weightLabel?: string;
+}) {
+  const { employeeEmail, employeeName, kpiName, removerName, removerRole, weightLabel } = opts;
+  if (!employeeEmail) return;
+  const who = removerName.trim()
+    ? `${removerName.trim()} (${removerRole})`
+    : removerRole;
+  const weightLine = weightLabel ? `\nWeightage removed: ${weightLabel}` : '';
+  await sendKpiEmail(
+    employeeEmail,
+    `KPI removed: ${kpiName}`,
+    `Hi ${employeeName || 'there'},\n\nYour assigned task "${kpiName}" was removed by ${who}.${weightLine}\n\nIt no longer appears on your dashboard and its weightage no longer counts.\n\nOpen Scorr if you need details from your manager.`,
+  );
+}
