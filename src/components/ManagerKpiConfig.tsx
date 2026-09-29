@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, Building2, CheckCircle2, ChevronLeft, ClipboardList, Loader2, Pencil, Plus, Search, Send, Trash2 } from 'lucide-react';
+import { AlertCircle, Building2, CheckCircle2, ChevronLeft, ClipboardCheck, ClipboardList, Loader2, Pencil, Plus, Search, Send, Trash2, Timer } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { Profile, Kpi, displayRoleLabel } from '../utils/kpiHelpers';
+import { Profile, Kpi, displayRoleLabel, isKpiAwaitingReview } from '../utils/kpiHelpers';
 import { Department } from '../utils/departmentHelpers';
 import { hydrateKpiLastEdits } from '../utils/kpiAssignmentEdits';
 import { emailKpiAssigned } from '../utils/kpiEmail';
@@ -29,6 +29,7 @@ import '../styles/manager-kpi-tasks.css';
 import '../styles/admin-dashboard.css';
 
 type Desk = 'library' | 'assign' | 'board';
+type BoardTaskView = 'progress' | 'review' | 'completed';
 
 const DESKS: Desk[] = ['library', 'assign', 'board'];
 
@@ -223,6 +224,7 @@ export default function ManagerKpiConfig({
   const [peopleWithKpis, setPeopleWithKpis] = useState<Set<string>>(() => new Set());
   const [boardRosterLoading, setBoardRosterLoading] = useState(true);
   const [boardKpisLoading, setBoardKpisLoading] = useState(false);
+  const [boardTaskView, setBoardTaskView] = useState<BoardTaskView>('progress');
   const [assignKpiId, setAssignKpiId] = useState(() => draft?.assignKpiId || '');
   const [loading, setLoading] = useState(true);
   const [formLoading, setFormLoading] = useState(false);
@@ -593,14 +595,18 @@ export default function ManagerKpiConfig({
     ? (!libDeptId ? 1 : !libPerson ? 2 : 3)
     : (!libPerson ? 1 : 2);
 
-  const boardOpenKpis = useMemo(
+  const boardProgressKpis = useMemo(
     () =>
-      [...boardKpis.filter((k) => k.completion_status !== 'completed')].sort((a, b) => {
-        const rank = (k: Kpi) => (k.completion_status === 'pending_review' ? 0 : 1);
-        const byRank = rank(a) - rank(b);
-        if (byRank !== 0) return byRank;
-        return (b.created_at || '').localeCompare(a.created_at || '');
-      }),
+      [...boardKpis.filter((k) => k.completion_status !== 'completed' && !isKpiAwaitingReview(k))].sort((a, b) =>
+        (b.created_at || '').localeCompare(a.created_at || ''),
+      ),
+    [boardKpis],
+  );
+  const boardReviewKpis = useMemo(
+    () =>
+      [...boardKpis.filter((k) => isKpiAwaitingReview(k))].sort((a, b) =>
+        (b.completed_at || b.updated_at || b.created_at || '').localeCompare(a.completed_at || a.updated_at || a.created_at || ''),
+      ),
     [boardKpis],
   );
   const boardCompletedKpis = useMemo(
@@ -616,6 +622,27 @@ export default function ManagerKpiConfig({
     () => groupCompletedKpisByMonth(boardCompletedKpis),
     [boardCompletedKpis],
   );
+
+  useEffect(() => {
+    setBoardTaskView('progress');
+  }, [boardUserId]);
+
+  // After KPIs load for a person, land on the first non-empty queue once.
+  useEffect(() => {
+    if (!boardUserId || boardKpisLoading || boardKpis.length === 0) return;
+    if (boardTaskView !== 'progress') return;
+    if (boardProgressKpis.length > 0) return;
+    if (boardReviewKpis.length > 0) setBoardTaskView('review');
+    else if (boardCompletedKpis.length > 0) setBoardTaskView('completed');
+  }, [
+    boardUserId,
+    boardKpisLoading,
+    boardKpis.length,
+    boardTaskView,
+    boardProgressKpis.length,
+    boardReviewKpis.length,
+    boardCompletedKpis.length,
+  ]);
 
   useEffect(() => {
     if (isAdmin) return;
@@ -1481,9 +1508,6 @@ export default function ManagerKpiConfig({
                       <h3>{boardPerson.full_name}</h3>
                       <p>
                         {boardPerson.email} · {displayRoleLabel(boardPerson.role)} · {deptNameOf(boardPerson.department_id)}
-                        {' · '}
-                        {boardOpenKpis.length} open
-                        {boardCompletedKpis.length > 0 ? ` · ${boardCompletedKpis.length} completed` : ''}
                       </p>
                     </div>
                   </header>
@@ -1510,19 +1534,152 @@ export default function ManagerKpiConfig({
                     </div>
                   ) : (
                     <>
-                      {boardOpenKpis.length > 0 ? (
-                        <section className="studio-board-section" aria-label="Open assigned tasks">
+                      <div className="studio-board-filters" role="tablist" aria-label="Task status filters">
+                        <button
+                          type="button"
+                          role="tab"
+                          aria-selected={boardTaskView === 'progress'}
+                          className={`studio-board-filter${boardTaskView === 'progress' ? ' is-on' : ''}`}
+                          onClick={() => setBoardTaskView('progress')}
+                        >
+                          <Timer size={16} strokeWidth={2.25} />
+                          <span className="studio-board-filter__copy">
+                            <strong>Current</strong>
+                            <em>In progress</em>
+                          </span>
+                          <span className="studio-board-filter__count">{boardProgressKpis.length}</span>
+                        </button>
+                        <button
+                          type="button"
+                          role="tab"
+                          aria-selected={boardTaskView === 'review'}
+                          className={`studio-board-filter studio-board-filter--review${boardTaskView === 'review' ? ' is-on' : ''}`}
+                          onClick={() => setBoardTaskView('review')}
+                        >
+                          <ClipboardCheck size={16} strokeWidth={2.25} />
+                          <span className="studio-board-filter__copy">
+                            <strong>Review</strong>
+                            <em>Awaiting approval</em>
+                          </span>
+                          <span className="studio-board-filter__count">{boardReviewKpis.length}</span>
+                        </button>
+                        <button
+                          type="button"
+                          role="tab"
+                          aria-selected={boardTaskView === 'completed'}
+                          className={`studio-board-filter studio-board-filter--done${boardTaskView === 'completed' ? ' is-on' : ''}`}
+                          onClick={() => setBoardTaskView('completed')}
+                        >
+                          <CheckCircle2 size={16} strokeWidth={2.25} />
+                          <span className="studio-board-filter__copy">
+                            <strong>Completed</strong>
+                            <em>Approved history</em>
+                          </span>
+                          <span className="studio-board-filter__count">{boardCompletedKpis.length}</span>
+                        </button>
+                      </div>
+
+                      {boardTaskView === 'progress' ? (
+                        <section className="studio-board-section" aria-label="Current and in-progress tasks">
                           <header className="studio-board-section__head">
                             <div>
-                              <p className="studio-board-section__kicker">Active board</p>
-                              <h4>Open &amp; in review</h4>
-                              <p className="studio-board-section__desc">Tasks still on their dashboard — edit, pause, or remove incomplete ones.</p>
+                              <p className="studio-board-section__kicker">Current board</p>
+                              <h4>In progress &amp; open</h4>
+                              <p className="studio-board-section__desc">
+                                Active work not yet submitted for review. Edit, pause, or remove if assigned by mistake.
+                              </p>
                             </div>
-                            <span className="studio-board-section__count">{boardOpenKpis.length}</span>
+                            <span className="studio-board-section__count">{boardProgressKpis.length}</span>
                           </header>
-                          <ul className="studio-assigned studio-assigned--board">
-                            {boardOpenKpis.map((kpi) => (
-                              <li key={kpi.id}>
+                          {boardProgressKpis.length === 0 ? (
+                            <div className="studio-empty studio-empty--compact studio-empty--board">
+                              <h3>No current tasks</h3>
+                              <p>Nothing in progress. Check Review or Completed.</p>
+                            </div>
+                          ) : (
+                            <ul className="studio-assigned studio-assigned--board">
+                              {boardProgressKpis.map((kpi) => (
+                                <li key={kpi.id}>
+                                  <AssignedKpiCard
+                                    kpi={kpi}
+                                    employeeName={boardPerson.full_name}
+                                    onEdit={() => setEditingAssignment({
+                                      kpi,
+                                      siblings: boardKpis,
+                                      employeeName: boardPerson.full_name,
+                                      employeeEmail: boardPerson.email,
+                                    })}
+                                    onRemove={() => void handleDeleteAssigned(kpi.id)}
+                                    onUpdated={() => void refreshOpenKpis()}
+                                  />
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </section>
+                      ) : null}
+
+                      {boardTaskView === 'review' ? (
+                        <section className="studio-board-section studio-board-section--review" aria-label="Tasks awaiting review">
+                          <header className="studio-board-section__head">
+                            <div>
+                              <p className="studio-board-section__kicker">Needs review</p>
+                              <h4>Submitted for approval</h4>
+                              <p className="studio-board-section__desc">
+                                They marked these complete. Set the final weightage to approve, or send back.
+                              </p>
+                            </div>
+                            <span className="studio-board-section__count">{boardReviewKpis.length}</span>
+                          </header>
+                          {boardReviewKpis.length === 0 ? (
+                            <div className="studio-empty studio-empty--compact studio-empty--board">
+                              <h3>No review queue</h3>
+                              <p>When they submit a task, it will appear here.</p>
+                            </div>
+                          ) : (
+                            <ul className="studio-assigned studio-assigned--board">
+                              {boardReviewKpis.map((kpi) => (
+                                <li key={kpi.id}>
+                                  <AssignedKpiCard
+                                    kpi={kpi}
+                                    employeeName={boardPerson.full_name}
+                                    onEdit={() => setEditingAssignment({
+                                      kpi,
+                                      siblings: boardKpis,
+                                      employeeName: boardPerson.full_name,
+                                      employeeEmail: boardPerson.email,
+                                    })}
+                                    onRemove={() => void handleDeleteAssigned(kpi.id)}
+                                    onUpdated={() => void refreshOpenKpis()}
+                                  />
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </section>
+                      ) : null}
+
+                      {boardTaskView === 'completed' ? (
+                        <section className="studio-board-section studio-board-section--history" aria-label="Completed assigned task history">
+                          <header className="studio-board-section__head">
+                            <div>
+                              <p className="studio-board-section__kicker">Archive</p>
+                              <h4>Completed &amp; approved</h4>
+                              <p className="studio-board-section__desc">
+                                Grouped by month. Approved weightage stays on their history and cannot be removed.
+                              </p>
+                            </div>
+                            <span className="studio-board-section__count">{boardCompletedKpis.length}</span>
+                          </header>
+                          {boardHistoryGroups.length === 0 ? (
+                            <div className="studio-empty studio-empty--compact studio-empty--board">
+                              <h3>No completed tasks yet</h3>
+                              <p>Approved work will show here by month.</p>
+                            </div>
+                          ) : (
+                            <AssignedTaskHistory
+                              groups={boardHistoryGroups}
+                              renderTask={(kpi) => (
                                 <AssignedKpiCard
                                   kpi={kpi}
                                   employeeName={boardPerson.full_name}
@@ -1535,44 +1692,9 @@ export default function ManagerKpiConfig({
                                   onRemove={() => void handleDeleteAssigned(kpi.id)}
                                   onUpdated={() => void refreshOpenKpis()}
                                 />
-                              </li>
-                            ))}
-                          </ul>
-                        </section>
-                      ) : (
-                        <div className="studio-empty studio-empty--compact studio-empty--board">
-                          <h3>No open tasks</h3>
-                          <p>Completed and approved work is listed in history below.</p>
-                        </div>
-                      )}
-
-                      {boardHistoryGroups.length > 0 ? (
-                        <section className="studio-board-section studio-board-section--history" aria-label="Completed assigned task history">
-                          <header className="studio-board-section__head">
-                            <div>
-                              <p className="studio-board-section__kicker">Archive</p>
-                              <h4>Completed &amp; approved history</h4>
-                              <p className="studio-board-section__desc">Grouped by month. Approved tasks stay for audit — they cannot be removed.</p>
-                            </div>
-                            <span className="studio-board-section__count">{boardCompletedKpis.length}</span>
-                          </header>
-                          <AssignedTaskHistory
-                            groups={boardHistoryGroups}
-                            renderTask={(kpi) => (
-                              <AssignedKpiCard
-                                kpi={kpi}
-                                employeeName={boardPerson.full_name}
-                                onEdit={() => setEditingAssignment({
-                                  kpi,
-                                  siblings: boardKpis,
-                                  employeeName: boardPerson.full_name,
-                                  employeeEmail: boardPerson.email,
-                                })}
-                                onRemove={() => void handleDeleteAssigned(kpi.id)}
-                                onUpdated={() => void refreshOpenKpis()}
-                              />
-                            )}
-                          />
+                              )}
+                            />
+                          )}
                         </section>
                       ) : null}
                     </>
