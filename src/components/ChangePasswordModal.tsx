@@ -33,22 +33,31 @@ export default function ChangePasswordModal({ onClose }: ChangePasswordModalProp
     setError('');
     if (next.length < 6) { setError('New password must be at least 6 characters.'); return; }
     if (next !== confirm) { setError('Passwords do not match.'); return; }
+    if (current === next) { setError('New password must be different from the current password.'); return; }
 
     setLoading(true);
     try {
-      // Re-authenticate to verify current password before changing
       const { data: { user } } = await supabase.auth.getUser();
       if (!user?.email) throw new Error('No authenticated user.');
 
-      const { error: signInErr } = await supabase.auth.signInWithPassword({
-        email: user.email,
-        password: current,
+      // Server verifies current password and updates via Admin API so MFA/AAL2
+      // is not required (client updateUser fails when MFA is enabled).
+      const { data, error: invokeErr } = await supabase.functions.invoke('change_password', {
+        body: { currentPassword: current, newPassword: next },
       });
-      if (signInErr) { setError('Current password is incorrect.'); return; }
-
-      // Update password
-      const { error: updateErr } = await supabase.auth.updateUser({ password: next });
-      if (updateErr) throw updateErr;
+      if (data && typeof data === 'object' && 'error' in data && data.error) {
+        throw new Error(String(data.error));
+      }
+      if (invokeErr) {
+        const ctx = invokeErr as { context?: Response; message?: string };
+        try {
+          const body = ctx.context ? await ctx.context.json() : null;
+          if (body?.error) throw new Error(String(body.error));
+        } catch (parsed) {
+          if (parsed instanceof Error && parsed.message !== invokeErr.message) throw parsed;
+        }
+        throw new Error(invokeErr.message || 'Failed to update password.');
+      }
 
       setSuccess(true);
     } catch (err: any) {
