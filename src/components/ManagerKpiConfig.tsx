@@ -6,10 +6,12 @@ import { Department } from '../utils/departmentHelpers';
 import { hydrateKpiLastEdits } from '../utils/kpiAssignmentEdits';
 import { emailKpiAssigned } from '../utils/kpiEmail';
 import { formatKpiWeight, KPI_WEIGHT_CAP, remainingKpiWeightBudget, sumEmployeeKpiWeights } from '../utils/kpiWeightHelpers';
+import { groupCompletedKpisByMonth } from '../utils/kpiScoreHelpers';
 import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
 import { readSessionJson, writeSessionJson } from '../utils/persistedUiState';
 import EmployeeKpiWeightMeter from './EmployeeKpiWeightMeter';
 import AssignedKpiCard from './AssignedKpiCard';
+import AssignedTaskHistory from './AssignedTaskHistory';
 import EmployeeKpiBoardSummary from './EmployeeKpiBoardSummary';
 import { KPI_CATEGORIES, kpiCategoryMeta, type KpiCategoryId } from '../utils/kpiCategories';
 import {
@@ -591,6 +593,30 @@ export default function ManagerKpiConfig({
     ? (!libDeptId ? 1 : !libPerson ? 2 : 3)
     : (!libPerson ? 1 : 2);
 
+  const boardOpenKpis = useMemo(
+    () =>
+      [...boardKpis.filter((k) => k.completion_status !== 'completed')].sort((a, b) => {
+        const rank = (k: Kpi) => (k.completion_status === 'pending_review' ? 0 : 1);
+        const byRank = rank(a) - rank(b);
+        if (byRank !== 0) return byRank;
+        return (b.created_at || '').localeCompare(a.created_at || '');
+      }),
+    [boardKpis],
+  );
+  const boardCompletedKpis = useMemo(
+    () =>
+      [...boardKpis.filter((k) => k.completion_status === 'completed')].sort((a, b) => {
+        const aKey = a.completed_at || a.end_date || '';
+        const bKey = b.completed_at || b.end_date || '';
+        return bKey.localeCompare(aKey);
+      }),
+    [boardKpis],
+  );
+  const boardHistoryGroups = useMemo(
+    () => groupCompletedKpisByMonth(boardCompletedKpis),
+    [boardCompletedKpis],
+  );
+
   useEffect(() => {
     if (isAdmin) return;
     if (!managerDepartmentId) return;
@@ -850,11 +876,14 @@ export default function ManagerKpiConfig({
       boardKpis.find((k) => k.id === kpiId) ||
       assignKpis.find((k) => k.id === kpiId);
     const status = target?.completion_status || 'pending';
-    if (status === 'completed' || status === 'pending_review') {
-      setError('Completed or submitted tasks cannot be deleted. They stay in history.');
+    if (status === 'completed') {
+      setError('Approved tasks cannot be deleted. They stay in history with awarded weightage.');
       return;
     }
-    if (!confirm('Remove this open assigned KPI? Its weightage will be cleared from that person’s dashboard.')) return;
+    const weightLabel = formatKpiWeight(Number(target?.weight || 0));
+    if (!confirm(
+      `Remove this assigned KPI (${weightLabel})?\n\nIts weightage will be deducted from this person’s dashboard and will no longer count toward their assigned total.`,
+    )) return;
     setError('');
     setSuccess('');
     try {
@@ -862,8 +891,11 @@ export default function ManagerKpiConfig({
       if (rpcErr) throw rpcErr;
       await refreshOpenKpis();
       const deleted = data && typeof data === 'object' && (data as { deleted?: boolean }).deleted !== false;
+      const removedWeight = data && typeof data === 'object'
+        ? Number((data as { weight?: number }).weight || target?.weight || 0)
+        : Number(target?.weight || 0);
       setSuccess(deleted
-        ? 'Assigned KPI removed. Weightage no longer counts for that person.'
+        ? `Removed. ${formatKpiWeight(removedWeight)} weightage was deducted from their assigned total.`
         : 'That KPI was already removed.');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Could not remove this KPI.');
@@ -1352,8 +1384,8 @@ export default function ManagerKpiConfig({
               <h2>Assigned Task</h2>
               <p>
                 {isAdmin
-                  ? 'Only people who already have KPIs. Select a department, then a person, to check progress.'
-                  : 'Only employees in your department who already have KPIs. Select a person to check progress.'}
+                  ? 'Select department and person. Open tasks stay on top; completed and approved tasks appear below by month, same as History.'
+                  : 'Select a person. Open tasks stay on top; completed and approved tasks appear below by month, same as History.'}
               </p>
             </div>
           </div>
@@ -1447,7 +1479,12 @@ export default function ManagerKpiConfig({
                     <span className={`studio-av studio-av--lg studio-av--${boardPerson.role}`} aria-hidden>{initials(boardPerson.full_name)}</span>
                     <div>
                       <h3>{boardPerson.full_name}</h3>
-                      <p>{boardPerson.email} · {displayRoleLabel(boardPerson.role)} · {deptNameOf(boardPerson.department_id)} · {boardKpis.length} assigned</p>
+                      <p>
+                        {boardPerson.email} · {displayRoleLabel(boardPerson.role)} · {deptNameOf(boardPerson.department_id)}
+                        {' · '}
+                        {boardOpenKpis.length} open
+                        {boardCompletedKpis.length > 0 ? ` · ${boardCompletedKpis.length} completed` : ''}
+                      </p>
                     </div>
                   </header>
                   {boardKpisLoading && boardKpis.length === 0 ? (
@@ -1470,32 +1507,64 @@ export default function ManagerKpiConfig({
                       <p>This person no longer has assigned KPIs.</p>
                     </div>
                   ) : (
-                    <ul className="studio-assigned studio-assigned--board">
-                      {[...boardKpis]
-                        .sort((a, b) => {
-                          const rank = (k: typeof a) =>
-                            k.completion_status === 'completed' ? 2
-                              : k.completion_status === 'pending_review' ? 1
-                                : 0;
-                          return rank(a) - rank(b);
-                        })
-                        .map((kpi) => (
-                        <li key={kpi.id}>
-                          <AssignedKpiCard
-                            kpi={kpi}
-                            employeeName={boardPerson.full_name}
-                            onEdit={() => setEditingAssignment({
-                              kpi,
-                              siblings: boardKpis,
-                              employeeName: boardPerson.full_name,
-                              employeeEmail: boardPerson.email,
-                            })}
-                            onRemove={() => void handleDeleteAssigned(kpi.id)}
-                            onUpdated={() => void refreshOpenKpis()}
+                    <>
+                      {boardOpenKpis.length > 0 ? (
+                        <section className="studio-board-section" aria-label="Open assigned tasks">
+                          <header className="studio-board-section__head">
+                            <h4>Open &amp; in review</h4>
+                            <span>{boardOpenKpis.length}</span>
+                          </header>
+                          <ul className="studio-assigned studio-assigned--board">
+                            {boardOpenKpis.map((kpi) => (
+                              <li key={kpi.id}>
+                                <AssignedKpiCard
+                                  kpi={kpi}
+                                  employeeName={boardPerson.full_name}
+                                  onEdit={() => setEditingAssignment({
+                                    kpi,
+                                    siblings: boardKpis,
+                                    employeeName: boardPerson.full_name,
+                                    employeeEmail: boardPerson.email,
+                                  })}
+                                  onRemove={() => void handleDeleteAssigned(kpi.id)}
+                                  onUpdated={() => void refreshOpenKpis()}
+                                />
+                              </li>
+                            ))}
+                          </ul>
+                        </section>
+                      ) : (
+                        <div className="studio-empty studio-empty--compact">
+                          <p>No open tasks — completed work is listed in history below.</p>
+                        </div>
+                      )}
+
+                      {boardHistoryGroups.length > 0 ? (
+                        <section className="studio-board-section studio-board-section--history" aria-label="Completed assigned task history">
+                          <header className="studio-board-section__head">
+                            <h4>Completed &amp; approved history</h4>
+                            <span>{boardCompletedKpis.length}</span>
+                          </header>
+                          <AssignedTaskHistory
+                            groups={boardHistoryGroups}
+                            renderTask={(kpi) => (
+                              <AssignedKpiCard
+                                kpi={kpi}
+                                employeeName={boardPerson.full_name}
+                                onEdit={() => setEditingAssignment({
+                                  kpi,
+                                  siblings: boardKpis,
+                                  employeeName: boardPerson.full_name,
+                                  employeeEmail: boardPerson.email,
+                                })}
+                                onRemove={() => void handleDeleteAssigned(kpi.id)}
+                                onUpdated={() => void refreshOpenKpis()}
+                              />
+                            )}
                           />
-                        </li>
-                      ))}
-                    </ul>
+                        </section>
+                      ) : null}
+                    </>
                   )}
                     </>
                   )}

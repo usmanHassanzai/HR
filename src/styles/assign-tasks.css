@@ -1164,3 +1164,36 @@
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* Assigned Task board: open vs completed history */
+.studio-board-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.studio-board-section__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.studio-board-section__head h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.studio-board-section__head span {
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: var(--text-muted);
+}
+
+.studio-board-section--history {
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+}

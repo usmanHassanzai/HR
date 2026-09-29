@@ -116,8 +116,13 @@ export default function AssignedKpiCard({
             <Pencil size={14} strokeWidth={2.25} />
             Edit
           </button>
-          {!isCompleted && !awaitingReview ? (
-            <button type="button" className="studio-action studio-action--danger" onClick={onRemove}>
+          {!isCompleted ? (
+            <button
+              type="button"
+              className="studio-action studio-action--danger"
+              onClick={onRemove}
+              title="Remove this open task — its weightage will leave their dashboard"
+            >
               <Trash2 size={14} strokeWidth={2.25} />
               Remove
             </button>
