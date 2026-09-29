@@ -6,12 +6,11 @@ import { Department } from '../utils/departmentHelpers';
 import { hydrateKpiLastEdits } from '../utils/kpiAssignmentEdits';
 import { emailKpiAssigned } from '../utils/kpiEmail';
 import { formatKpiWeight, KPI_WEIGHT_CAP, remainingKpiWeightBudget, sumEmployeeKpiWeights } from '../utils/kpiWeightHelpers';
-import { groupCompletedKpisByMonth } from '../utils/kpiScoreHelpers';
 import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
 import { readSessionJson, writeSessionJson } from '../utils/persistedUiState';
 import EmployeeKpiWeightMeter from './EmployeeKpiWeightMeter';
 import AssignedKpiCard from './AssignedKpiCard';
-import AssignedTaskHistory from './AssignedTaskHistory';
+import EmployeeKpiBoardSummary from './EmployeeKpiBoardSummary';
 import { KPI_CATEGORIES, kpiCategoryMeta, type KpiCategoryId } from '../utils/kpiCategories';
 import {
   DEFAULT_KPI_SCORING_RULE,
@@ -620,10 +619,6 @@ export default function ManagerKpiConfig({
         return bKey.localeCompare(aKey);
       }),
     [boardKpis],
-  );
-  const boardHistoryGroups = useMemo(
-    () => groupCompletedKpisByMonth(boardCompletedKpis),
-    [boardCompletedKpis],
   );
 
   useEffect(() => {
@@ -1559,63 +1554,33 @@ export default function ManagerKpiConfig({
                       </div>
 
                       {boardTaskView === 'progress' ? (
-                        <section className="studio-board-section" aria-label="Current and in-progress tasks">
-                          <header className="studio-board-section__head">
-                            <div>
-                              <p className="studio-board-section__kicker">Current board</p>
-                              <h4>In progress &amp; open</h4>
-                              <p className="studio-board-section__desc">
-                                Only assigned tasks that are not completed yet. If none are open, this list stays empty.
-                              </p>
-                            </div>
-                            <span className="studio-board-section__count">{boardProgressKpis.length}</span>
-                          </header>
-                          {boardProgressKpis.length === 0 ? (
-                            <div className="studio-empty studio-empty--compact studio-empty--board">
-                              <h3>No current tasks</h3>
-                              <p>No open assigned tasks for this person. Incomplete work will show here.</p>
-                            </div>
-                          ) : (
-                            <ul className="studio-assigned studio-assigned--board">
-                              {boardProgressKpis.map((kpi) => (
-                                <li key={kpi.id}>
-                                  <AssignedKpiCard
-                                    kpi={kpi}
-                                    employeeName={boardPerson.full_name}
-                                    onEdit={() => setEditingAssignment({
-                                      kpi,
-                                      siblings: boardKpis,
-                                      employeeName: boardPerson.full_name,
-                                      employeeEmail: boardPerson.email,
-                                    })}
-                                    onRemove={() => void handleDeleteAssigned(kpi.id)}
-                                    onUpdated={() => void refreshOpenKpis()}
-                                  />
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </section>
+                        boardProgressKpis.length === 0 ? (
+                          <div className="studio-empty studio-empty--compact studio-empty--board">
+                            <h3>No current tasks</h3>
+                            <p>No open assigned tasks for this person. Incomplete work will show here.</p>
+                          </div>
+                        ) : (
+                          <EmployeeKpiBoardSummary
+                            kpis={boardProgressKpis}
+                            employeeName={boardPerson.full_name}
+                            userId={boardPerson.id}
+                          />
+                        )
                       ) : null}
 
                       {boardTaskView === 'review' ? (
-                        <section className="studio-board-section studio-board-section--review" aria-label="Tasks awaiting review">
-                          <header className="studio-board-section__head">
-                            <div>
-                              <p className="studio-board-section__kicker">Needs review</p>
-                              <h4>Submitted for approval</h4>
-                              <p className="studio-board-section__desc">
-                                They marked these complete. Set the final weightage to approve, or send back.
-                              </p>
-                            </div>
-                            <span className="studio-board-section__count">{boardReviewKpis.length}</span>
-                          </header>
-                          {boardReviewKpis.length === 0 ? (
-                            <div className="studio-empty studio-empty--compact studio-empty--board">
-                              <h3>No review queue</h3>
-                              <p>When they submit a task, it will appear here.</p>
-                            </div>
-                          ) : (
+                        boardReviewKpis.length === 0 ? (
+                          <div className="studio-empty studio-empty--compact studio-empty--board">
+                            <h3>No review queue</h3>
+                            <p>When they submit a task, it will appear here.</p>
+                          </div>
+                        ) : (
+                          <section className="studio-board-section studio-board-section--review" aria-label="Tasks awaiting review">
+                            <EmployeeKpiBoardSummary
+                              kpis={boardReviewKpis}
+                              employeeName={boardPerson.full_name}
+                              userId={boardPerson.id}
+                            />
                             <ul className="studio-assigned studio-assigned--board">
                               {boardReviewKpis.map((kpi) => (
                                 <li key={kpi.id}>
@@ -1634,47 +1599,23 @@ export default function ManagerKpiConfig({
                                 </li>
                               ))}
                             </ul>
-                          )}
-                        </section>
+                          </section>
+                        )
                       ) : null}
 
                       {boardTaskView === 'completed' ? (
-                        <section className="studio-board-section studio-board-section--history" aria-label="Completed assigned task history">
-                          <header className="studio-board-section__head">
-                            <div>
-                              <p className="studio-board-section__kicker">Archive</p>
-                              <h4>Completed &amp; approved</h4>
-                              <p className="studio-board-section__desc">
-                                Grouped by month. Approved weightage stays on their history and cannot be removed.
-                              </p>
-                            </div>
-                            <span className="studio-board-section__count">{boardCompletedKpis.length}</span>
-                          </header>
-                          {boardHistoryGroups.length === 0 ? (
-                            <div className="studio-empty studio-empty--compact studio-empty--board">
-                              <h3>No completed tasks yet</h3>
-                              <p>Approved work will show here by month.</p>
-                            </div>
-                          ) : (
-                            <AssignedTaskHistory
-                              groups={boardHistoryGroups}
-                              renderTask={(kpi) => (
-                                <AssignedKpiCard
-                                  kpi={kpi}
-                                  employeeName={boardPerson.full_name}
-                                  onEdit={() => setEditingAssignment({
-                                    kpi,
-                                    siblings: boardKpis,
-                                    employeeName: boardPerson.full_name,
-                                    employeeEmail: boardPerson.email,
-                                  })}
-                                  onRemove={() => void handleDeleteAssigned(kpi.id)}
-                                  onUpdated={() => void refreshOpenKpis()}
-                                />
-                              )}
-                            />
-                          )}
-                        </section>
+                        boardCompletedKpis.length === 0 ? (
+                          <div className="studio-empty studio-empty--compact studio-empty--board">
+                            <h3>No completed tasks yet</h3>
+                            <p>Approved work will show here.</p>
+                          </div>
+                        ) : (
+                          <EmployeeKpiBoardSummary
+                            kpis={boardCompletedKpis}
+                            employeeName={boardPerson.full_name}
+                            userId={boardPerson.id}
+                          />
+                        )
                       ) : null}
                     </>
                   )}
