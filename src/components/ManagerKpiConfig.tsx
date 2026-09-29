@@ -575,15 +575,28 @@ export default function ManagerKpiConfig({
   const assignDept = peopleGroups.find((g) => g.id === assignDeptId) || null;
   const boardDept = boardGroups.find((g) => g.id === boardDeptId) || null;
   const libDept = peopleGroups.find((g) => g.id === libDeptId) || null;
+  /** Prefer full department catalog so a selected dept still resolves if roster is refreshing. */
+  const boardDeptName =
+    departments.find((d) => d.id === boardDeptId)?.name
+    || boardDept?.name
+    || (boardDeptId === '_none' ? 'No department' : '');
   const peopleInAssignDept = isAdmin ? assignDept?.people || [] : reports;
   const peopleInLibDept = useMemo(
     () => (isAdmin ? libDept?.people || [] : reports).filter((p) => matchPerson(p, libSearch)),
     [isAdmin, libDept, reports, libSearch],
   );
-  const peopleInBoardDept = useMemo(
-    () => (isAdmin ? boardDept?.people || [] : boardPeople).filter((p) => matchPerson(p, boardSearch)),
-    [isAdmin, boardDept, boardPeople, boardSearch],
-  );
+  const peopleInBoardDept = useMemo(() => {
+    const pool = isAdmin
+      ? reports.filter((p) => {
+          if (!peopleWithKpis.has(p.id)) return false;
+          if (boardDeptId === '_none') return !p.department_id || !departments.some((d) => d.id === p.department_id);
+          return p.department_id === boardDeptId;
+        })
+      : boardPeople;
+    return pool
+      .filter((p) => matchPerson(p, boardSearch))
+      .sort((a, b) => roleOrder(a.role) - roleOrder(b.role) || a.full_name.localeCompare(b.full_name));
+  }, [isAdmin, reports, boardPeople, boardDeptId, boardSearch, peopleWithKpis, departments]);
 
   const deptNameOf = (id?: string | null) => departments.find((d) => d.id === id)?.name || 'No department';
   const boardStep = isAdmin
@@ -629,6 +642,13 @@ export default function ManagerKpiConfig({
     setBoardTaskView('progress');
   }, [boardUserId]);
 
+  // If this person only has completed work, open the Completed tab so history is visible.
+  useEffect(() => {
+    if (!boardUserId || boardKpisLoading) return;
+    if (boardProgressKpis.length > 0 || boardReviewKpis.length > 0) return;
+    if (boardCompletedKpis.length > 0) setBoardTaskView('completed');
+  }, [boardUserId, boardKpisLoading, boardProgressKpis.length, boardReviewKpis.length, boardCompletedKpis.length]);
+
   useEffect(() => {
     if (isAdmin) return;
     if (!managerDepartmentId) return;
@@ -638,11 +658,13 @@ export default function ManagerKpiConfig({
   }, [isAdmin, managerDepartmentId, assignDeptId, boardDeptId, libDeptId, peopleGroups, boardGroups]);
 
   useEffect(() => {
+    // Avoid clearing the selected person while the KPI roster is still loading / empty.
+    if (boardRosterLoading || peopleWithKpis.size === 0) return;
     if (boardUserId && !peopleWithKpis.has(boardUserId)) {
       setBoardUserId('');
       setBoardKpis([]);
     }
-  }, [boardUserId, peopleWithKpis]);
+  }, [boardUserId, peopleWithKpis, boardRosterLoading]);
 
   const whoHint = isAdmin
     ? 'Select the department and person, then pick one of their KPIs to assign.'
@@ -1426,8 +1448,8 @@ export default function ManagerKpiConfig({
               <h2>Assigned Task</h2>
               <p>
                 {isAdmin
-                  ? 'Select department and person. Open tasks stay on top; completed and approved tasks appear below by month, same as History.'
-                  : 'Select a person. Open tasks stay on top; completed and approved tasks appear below by month, same as History.'}
+                  ? 'Select department and person, then use Current / Review / Completed to see their tasks.'
+                  : 'Select a person, then use Current / Review / Completed to see their tasks.'}
               </p>
             </div>
           </div>
@@ -1472,7 +1494,7 @@ export default function ManagerKpiConfig({
               )
             )}
 
-            {!boardRosterLoading && ((isAdmin && boardStep === 2 && boardDept) || (!isAdmin && boardStep === 1)) && (
+            {!boardRosterLoading && ((isAdmin && boardStep === 2 && boardDeptId) || (!isAdmin && boardStep === 1)) && (
               boardPeople.length === 0 && !isAdmin ? (
                 <div className="studio-empty studio-empty--panel">
                   <ClipboardList size={36} strokeWidth={1.5} />
@@ -1487,14 +1509,21 @@ export default function ManagerKpiConfig({
                       <ChevronLeft size={16} /> Departments
                     </button>
                   )}
-                  <h3>{isAdmin ? boardDept?.name : 'Your team'}</h3>
+                  <h3>{isAdmin ? (boardDeptName || 'Department') : 'Your team'}</h3>
                   <div className="studio-search">
                     <Search size={16} />
                     <input type="search" value={boardSearch} onChange={(e) => setBoardSearch(e.target.value)} placeholder={isAdmin ? 'Search this department' : 'Search employees'} aria-label="Search people with KPIs" />
                   </div>
                 </div>
                 {peopleInBoardDept.length === 0 ? (
-                  <p className="studio-muted">{isAdmin ? 'No matches in this department.' : 'No matches.'}</p>
+                  <div className="studio-empty studio-empty--compact studio-empty--board">
+                    <h3>No people with KPIs here</h3>
+                    <p>
+                      {isAdmin
+                        ? 'No employees or managers with assigned tasks in this department yet — or try clearing search.'
+                        : 'No matches. Try another search.'}
+                    </p>
+                  </div>
                 ) : (
                   <div className="studio-choice-grid studio-choice-grid--people">
                     {peopleInBoardDept.map((p) => (
@@ -1514,7 +1543,7 @@ export default function ManagerKpiConfig({
                 <div className="studio-main__scroll">
                   <div className="studio-flow__bar">
                     <button type="button" className="studio-back" onClick={() => { setBoardUserId(''); setBoardSearch(''); }}>
-                      <ChevronLeft size={16} /> {isAdmin ? (boardDept?.name || 'People') : 'Employees'}
+                      <ChevronLeft size={16} /> {isAdmin ? (boardDeptName || 'People') : 'Employees'}
                     </button>
                   </div>
                   <header className="studio-person-head">
