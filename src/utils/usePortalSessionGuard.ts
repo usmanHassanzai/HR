@@ -104,11 +104,11 @@ function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 /**
- * Auto-logout:
- * - After PORTAL_IDLE_MS with no input (default 5 minutes)
- * - When the Scorr app / browser tab is closed (pagehide / native background)
+ * Auto-logout only after true idle (PORTAL_IDLE_MS) with no input.
  *
- * Switching Chrome tabs alone does not log out — only idle expiry or a real close does.
+ * Refresh / tab switch / page reload must NOT sign out — browsers fire the same
+ * unload events for refresh as for close, so we never clear the session on unload.
+ * Native: when returning to the app, expire only if the idle window already passed.
  */
 export function usePortalSessionGuard(enabled: boolean, options?: { idle?: boolean }) {
   const enabledRef = useRef(enabled);
@@ -171,20 +171,6 @@ export function usePortalSessionGuard(enabled: boolean, options?: { idle?: boole
       e.preventDefault();
     };
 
-    /** Close tab / leave page — clear auth immediately (async signOut may not finish). */
-    const onPageHide = (e: PageTransitionEvent) => {
-      if (!enabledRef.current) return;
-      // bfcache freeze (mobile back-forward) — do not treat as close.
-      if (e.persisted) return;
-      clearAuthStorageSync();
-      void lockPortalSession({ force: true });
-    };
-
-    const onBeforeUnload = () => {
-      if (!enabledRef.current) return;
-      clearAuthStorageSync();
-    };
-
     writeLastActivity();
     if (idleEnabled) armIdleTimer();
 
@@ -200,8 +186,6 @@ export function usePortalSessionGuard(enabled: boolean, options?: { idle?: boole
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', expireIfIdle);
     window.addEventListener('keydown', onBackspaceNav, true);
-    window.addEventListener('pagehide', onPageHide);
-    window.addEventListener('beforeunload', onBeforeUnload);
 
     const onStorage = (e: StorageEvent) => {
       if (e.key === LAST_ACTIVITY_KEY) armIdleTimer();
@@ -213,12 +197,10 @@ export function usePortalSessionGuard(enabled: boolean, options?: { idle?: boole
       void CapApp.addListener('appStateChange', ({ isActive }) => {
         if (!enabledRef.current) return;
         if (isActive) {
+          // Returning to the app — logout only if they were idle long enough.
           expireIfIdle();
-          return;
         }
-        // Leaving the native app (home / switch app / close) → sign out.
-        clearAuthStorageSync();
-        void lockPortalSession({ force: true });
+        // Do not sign out merely for backgrounding; refresh/resume must keep the session.
       }).then((h) => {
         appStateHandle = h;
       });
@@ -232,8 +214,6 @@ export function usePortalSessionGuard(enabled: boolean, options?: { idle?: boole
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('focus', expireIfIdle);
       window.removeEventListener('keydown', onBackspaceNav, true);
-      window.removeEventListener('pagehide', onPageHide);
-      window.removeEventListener('beforeunload', onBeforeUnload);
       window.removeEventListener('storage', onStorage);
       void appStateHandle?.remove();
     };
