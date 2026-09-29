@@ -593,20 +593,24 @@ export default function ManagerKpiConfig({
     ? (!libDeptId ? 1 : !libPerson ? 2 : 3)
     : (!libPerson ? 1 : 2);
 
-  /** Current = assigned and not finished (excludes review queue + approved). */
+  /** Current = every assigned task that is not approved yet and not in the review queue. */
   const boardProgressKpis = useMemo(
     () =>
       [...boardKpis.filter((k) => {
-        const status = k.completion_status || 'pending';
-        if (status === 'completed' || status === 'pending_review') return false;
-        if (isKpiAwaitingReview(k)) return false;
+        const status = (k.completion_status || 'pending') as string;
+        // Keep all open assignments here so mistaken assigns can be edited/removed.
+        if (status === 'completed') return false;
+        if (status === 'pending_review') return false;
         return true;
       })].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')),
     [boardKpis],
   );
   const boardReviewKpis = useMemo(
     () =>
-      [...boardKpis.filter((k) => isKpiAwaitingReview(k))].sort((a, b) =>
+      [...boardKpis.filter((k) => {
+        const status = (k.completion_status || 'pending') as string;
+        return status === 'pending_review' || isKpiAwaitingReview(k);
+      })].sort((a, b) =>
         (b.completed_at || b.updated_at || b.created_at || '').localeCompare(a.completed_at || a.updated_at || a.created_at || ''),
       ),
     [boardKpis],
@@ -865,6 +869,15 @@ export default function ManagerKpiConfig({
       setAssignStartDate(dates.start);
       setAssignEndDate(dates.end);
       setAssignKpis(await fetchKpis(assignUserId));
+      setPeopleWithKpis((prev) => {
+        const next = new Set(prev);
+        next.add(assignUserId);
+        return next;
+      });
+      if (boardUserId === assignUserId) {
+        setBoardKpis(await fetchKpis(assignUserId));
+        setBoardTaskView('progress');
+      }
       await loadPeopleWithKpis(reports);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Could not assign this KPI.');
@@ -1560,11 +1573,41 @@ export default function ManagerKpiConfig({
                             <p>No open assigned tasks for this person. Incomplete work will show here.</p>
                           </div>
                         ) : (
-                          <EmployeeKpiBoardSummary
-                            kpis={boardProgressKpis}
-                            employeeName={boardPerson.full_name}
-                            userId={boardPerson.id}
-                          />
+                          <section className="studio-board-section" aria-label="Current assigned tasks">
+                            <header className="studio-board-section__head">
+                              <div>
+                                <p className="studio-board-section__kicker">Current</p>
+                                <h4>Open assigned tasks</h4>
+                                <p className="studio-board-section__desc">
+                                  Tasks assigned to this person that are not completed yet. Edit details or remove a mistaken assignment.
+                                </p>
+                              </div>
+                              <span className="studio-board-section__count">{boardProgressKpis.length}</span>
+                            </header>
+                            <EmployeeKpiBoardSummary
+                              kpis={boardProgressKpis}
+                              employeeName={boardPerson.full_name}
+                              userId={boardPerson.id}
+                            />
+                            <ul className="studio-assigned studio-assigned--board">
+                              {boardProgressKpis.map((kpi) => (
+                                <li key={kpi.id}>
+                                  <AssignedKpiCard
+                                    kpi={kpi}
+                                    employeeName={boardPerson.full_name}
+                                    onEdit={() => setEditingAssignment({
+                                      kpi,
+                                      siblings: boardKpis,
+                                      employeeName: boardPerson.full_name,
+                                      employeeEmail: boardPerson.email,
+                                    })}
+                                    onRemove={() => void handleDeleteAssigned(kpi.id)}
+                                    onUpdated={() => void refreshOpenKpis()}
+                                  />
+                                </li>
+                              ))}
+                            </ul>
+                          </section>
                         )
                       ) : null}
 
