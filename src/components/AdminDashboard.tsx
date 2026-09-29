@@ -17,6 +17,8 @@ import TabFallback from './TabFallback';
 import AdminSimpleWorkspace from './AdminSimpleWorkspace';
 import AdminUsersPage from './AdminUsersPage';
 import { readSessionString, writeSessionString } from '../utils/persistedUiState';
+import { useHistoryOverlay, useHistorySyncedTab } from '../utils/useHistoryNavigation';
+import { isNativeApp } from '../utils/nativePlatform';
 
 const AdminDailyWorkReports = lazy(() => import('./AdminDailyWorkReports'));
 const Analytics = lazy(() => import('./Analytics'));
@@ -105,6 +107,14 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
   useEffect(() => {
     writeSessionString(ADMIN_TAB_KEY, activeTab);
   }, [activeTab]);
+
+  useHistorySyncedTab(activeTab, setActiveTab, {
+    key: 'scorr-admin-tab',
+    trapAtRoot: !isNativeApp(),
+  });
+  useHistoryOverlay(Boolean(viewTasksUser), () => setViewTasksUser(null), {
+    key: 'scorr-admin-view-tasks',
+  });
 
   useEffect(() => {
     if (platformOwnerChecking) return;

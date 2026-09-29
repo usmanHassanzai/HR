@@ -234,12 +234,35 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
   const openRegister = () => {
     setAuthMode('register');
     scrollTo('login');
+    try {
+      window.history.pushState({ scorrLanding: 'register' }, '', '#login');
+    } catch {
+      /* ignore */
+    }
   };
 
   const openLogin = () => {
     setAuthMode('login');
     scrollTo('login');
+    try {
+      window.history.pushState({ scorrLanding: 'login' }, '', '#login');
+    } catch {
+      /* ignore */
+    }
   };
+
+  useEffect(() => {
+    const onPop = () => {
+      const hash = window.location.hash.replace(/^#/, '');
+      if (hash === 'login') {
+        scrollTo('login');
+        return;
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
 
   const navLinks = [
     { id: 'services', label: 'Services' },

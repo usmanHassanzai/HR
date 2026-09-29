@@ -2,7 +2,6 @@ import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { StatusBar, Style } from '@capacitor/status-bar';
-import { supabase } from '../lib/supabase';
 
 export function isNativeApp(): boolean {
   return Capacitor.isNativePlatform();
@@ -63,10 +62,13 @@ export async function initNativeApp(): Promise<void> {
         window.history.back();
         return;
       }
-      void (async () => {
-        await supabase.auth.signOut({ scope: 'local' });
-        void App.exitApp();
-      })();
+      // Stay signed in — return to the previous in-app page when possible,
+      // otherwise minimize instead of dumping the user on the homepage.
+      if (window.history.length > 1) {
+        window.history.back();
+        return;
+      }
+      void App.minimizeApp();
     });
   }
 

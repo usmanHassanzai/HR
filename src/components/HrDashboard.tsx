@@ -6,6 +6,8 @@ import ChangePasswordModal from './ChangePasswordModal';
 import AdminSidebarNav, { findAdminNavIcon, type AdminNavGroup } from './AdminSidebarNav';
 import AdminHamburgerButton from './AdminHamburgerButton';
 import { readSessionString, writeSessionString } from '../utils/persistedUiState';
+import { useHistorySyncedTab } from '../utils/useHistoryNavigation';
+import { isNativeApp } from '../utils/nativePlatform';
 import '../styles/admin-dashboard.css';
 import '../styles/admin-attendance.css';
 import '../styles/hr-dashboard.css';
@@ -58,6 +60,11 @@ export default function HrDashboard({ profile, organizationName }: HrDashboardPr
   useEffect(() => {
     writeSessionString(HR_TAB_KEY, activeTab);
   }, [activeTab]);
+
+  useHistorySyncedTab(activeTab, setActiveTab, {
+    key: 'scorr-hr-tab',
+    trapAtRoot: !isNativeApp(),
+  });
 
   const navGroups = useMemo<AdminNavGroup[]>(
     () => [

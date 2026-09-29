@@ -10,8 +10,10 @@ import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
 import { readSessionJson, writeSessionJson } from '../utils/persistedUiState';
 import EmployeeKpiWeightMeter from './EmployeeKpiWeightMeter';
 import AssignedKpiCard from './AssignedKpiCard';
+import AssignedTaskHistory from './AssignedTaskHistory';
 import EmployeeKpiBoardSummary from './EmployeeKpiBoardSummary';
 import { KPI_CATEGORIES, kpiCategoryMeta, type KpiCategoryId } from '../utils/kpiCategories';
+import { groupCompletedKpisByMonth } from '../utils/kpiScoreHelpers';
 import {
   DEFAULT_KPI_SCORING_RULE,
   formatLatePenaltyLabel,
@@ -220,6 +222,9 @@ export default function ManagerKpiConfig({
   const [assignKpis, setAssignKpis] = useState<Kpi[]>([]);
   const [boardKpis, setBoardKpis] = useState<Kpi[]>([]);
   const [peopleWithKpis, setPeopleWithKpis] = useState<Set<string>>(() => new Set());
+  /** Newest assignment time per person — keeps recently assigned people at the top. */
+  const [lastAssignedAt, setLastAssignedAt] = useState<Record<string, string>>({});
+  const [highlightKpiId, setHighlightKpiId] = useState<string | null>(null);
   const [boardRosterLoading, setBoardRosterLoading] = useState(true);
   const [boardKpisLoading, setBoardKpisLoading] = useState(false);
   const [boardTaskView, setBoardTaskView] = useState<BoardTaskView>('progress');
@@ -402,6 +407,7 @@ export default function ManagerKpiConfig({
     const ids = people.map((p) => p.id);
     if (ids.length === 0) {
       setPeopleWithKpis(new Set());
+      setLastAssignedAt({});
       setBoardRosterLoading(false);
       return;
     }
@@ -416,25 +422,43 @@ export default function ManagerKpiConfig({
           if (id && allowed.has(id)) found.add(id);
         }
         setPeopleWithKpis(found);
-        return;
+      } else {
+        const found = new Set<string>();
+        const chunkSize = 80;
+        const chunks: string[][] = [];
+        for (let i = 0; i < ids.length; i += chunkSize) {
+          chunks.push(ids.slice(i, i + chunkSize));
+        }
+        const results = await Promise.all(
+          chunks.map((chunk) => supabase.from('kpis').select('user_id').in('user_id', chunk)),
+        );
+        for (const res of results) {
+          if (res.error) continue;
+          for (const row of (res.data || []) as { user_id: string }[]) {
+            if (row.user_id) found.add(row.user_id);
+          }
+        }
+        setPeopleWithKpis(found);
       }
 
-      const found = new Set<string>();
+      // Newest assignment first — used to order people on the Assigned Task roster.
+      const latest: Record<string, string> = {};
       const chunkSize = 80;
-      const chunks: string[][] = [];
       for (let i = 0; i < ids.length; i += chunkSize) {
-        chunks.push(ids.slice(i, i + chunkSize));
-      }
-      const results = await Promise.all(
-        chunks.map((chunk) => supabase.from('kpis').select('user_id').in('user_id', chunk)),
-      );
-      for (const res of results) {
-        if (res.error) continue;
-        for (const row of (res.data || []) as { user_id: string }[]) {
-          if (row.user_id) found.add(row.user_id);
+        const chunk = ids.slice(i, i + chunkSize);
+        const { data } = await supabase
+          .from('kpis')
+          .select('user_id, created_at')
+          .in('user_id', chunk)
+          .order('created_at', { ascending: false });
+        for (const row of (data || []) as { user_id: string; created_at: string }[]) {
+          if (!row.user_id || !row.created_at) continue;
+          if (!latest[row.user_id] || row.created_at > latest[row.user_id]) {
+            latest[row.user_id] = row.created_at;
+          }
         }
       }
-      setPeopleWithKpis(found);
+      setLastAssignedAt(latest);
     } finally {
       setBoardRosterLoading(false);
     }
@@ -447,6 +471,12 @@ export default function ManagerKpiConfig({
     onRaw?.(raw);
     return hydrateKpiLastEdits(raw);
   };
+
+  useEffect(() => {
+    if (!highlightKpiId) return;
+    const t = window.setTimeout(() => setHighlightKpiId(null), 8000);
+    return () => window.clearTimeout(t);
+  }, [highlightKpiId]);
 
   useEffect(() => {
     if (initialDesk) setDesk(initialDesk);
@@ -595,9 +625,22 @@ export default function ManagerKpiConfig({
       : boardPeople;
     return pool
       .filter((p) => matchPerson(p, boardSearch))
-      .sort((a, b) => roleOrder(a.role) - roleOrder(b.role) || a.full_name.localeCompare(b.full_name));
-  }, [isAdmin, reports, boardPeople, boardDeptId, boardSearch, peopleWithKpis, departments]);
+      .sort((a, b) => {
+        const aAt = lastAssignedAt[a.id] || '';
+        const bAt = lastAssignedAt[b.id] || '';
+        if (aAt !== bAt) return bAt.localeCompare(aAt);
+        return roleOrder(a.role) - roleOrder(b.role) || a.full_name.localeCompare(b.full_name);
+      });
+  }, [isAdmin, reports, boardPeople, boardDeptId, boardSearch, peopleWithKpis, departments, lastAssignedAt]);
 
+  const assignOpenKpis = useMemo(
+    () =>
+      [...assignKpis.filter((k) => {
+        const status = (k.completion_status || 'pending') as string;
+        return status !== 'completed';
+      })].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')),
+    [assignKpis],
+  );
   const deptNameOf = (id?: string | null) => departments.find((d) => d.id === id)?.name || 'No department';
   const boardStep = isAdmin
     ? (!boardDeptId ? 1 : !boardPerson ? 2 : 3)
@@ -636,6 +679,10 @@ export default function ManagerKpiConfig({
         return bKey.localeCompare(aKey);
       }),
     [boardKpis],
+  );
+  const boardCompletedGroups = useMemo(
+    () => groupCompletedKpisByMonth(boardCompletedKpis),
+    [boardCompletedKpis],
   );
 
   useEffect(() => {
@@ -879,10 +926,11 @@ export default function ManagerKpiConfig({
 
       const who = assignPerson?.full_name || 'this person';
       const paused = isUrgent && pauseOngoingOnUrgent && ongoingIds.length > 0;
+      const newKpiId = row?.kpi_id ? String(row.kpi_id) : null;
       setSuccess(
         paused
-          ? `Assigned “${kpiName}” to ${who} and paused ${ongoingIds.length} ongoing task(s).`
-          : `Assigned ${kpiName} to ${who}.`,
+          ? `Assigned “${kpiName}” to ${who} and paused ${ongoingIds.length} ongoing task(s). Showing it on top.`
+          : `Assigned “${kpiName}” to ${who}. Showing it on top of their Current tasks.`,
       );
 
       setAssignKpiId('');
@@ -896,10 +944,25 @@ export default function ManagerKpiConfig({
         next.add(assignUserId);
         return next;
       });
-      if (boardUserId === assignUserId) {
-        setBoardKpis(await fetchKpis(assignUserId));
-        setBoardTaskView('progress');
-      }
+      setLastAssignedAt((prev) => ({
+        ...prev,
+        [assignUserId]: new Date().toISOString(),
+      }));
+
+      // Jump to Assigned Task with this person — newest assignment sits at the top.
+      const deptForBoard = assignPerson?.department_id
+        || assignDeptId
+        || (assignPerson && !assignPerson.department_id ? '_none' : '');
+      if (deptForBoard) setBoardDeptId(deptForBoard);
+      setBoardUserId(assignUserId);
+      setBoardTaskView('progress');
+      setDesk('board');
+      if (newKpiId) setHighlightKpiId(newKpiId);
+      setBoardKpis(await fetchKpis(assignUserId));
+      window.requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (newKpiId) scrollNavTarget(newKpiId);
+      });
       await loadPeopleWithKpis(reports);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Could not assign this KPI.');
@@ -1285,8 +1348,52 @@ export default function ManagerKpiConfig({
                     <EmployeeKpiWeightMeter kpis={assignKpis} pendingWeight={selectedWeight} />
                   </div>
                 )}
-              </section>
 
+                {assignPerson && assignOpenKpis.length > 0 && (
+                  <div className="studio-assign-open">
+                    <div className="studio-assign-open__head">
+                      <div>
+                        <p className="studio-assign-open__kicker">Already on their board</p>
+                        <h4>Open tasks (newest first)</h4>
+                      </div>
+                      <span className="studio-assign-open__count">{assignOpenKpis.length}</span>
+                    </div>
+                    <ul className="studio-assign-open__list">
+                      {assignOpenKpis.slice(0, 6).map((k) => (
+                        <li key={k.id}>
+                          <strong>{k.name}</strong>
+                          <span>
+                            {formatKpiWeight(Number(k.weight || 0))}
+                            {k.completion_status === 'pending_review' ? ' · In review' : ' · Open'}
+                            {k.end_date ? ` · due ${k.end_date}` : ''}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    {assignOpenKpis.length > 6 && (
+                      <p className="studio-assign-open__more">
+                        +{assignOpenKpis.length - 6} more open task{assignOpenKpis.length - 6 === 1 ? '' : 's'}
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => {
+                        const deptForBoard = assignPerson.department_id
+                          || assignDeptId
+                          || (!assignPerson.department_id ? '_none' : '');
+                        if (deptForBoard) setBoardDeptId(deptForBoard);
+                        setBoardUserId(assignUserId);
+                        setBoardTaskView('progress');
+                        setDesk('board');
+                        window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
+                      }}
+                    >
+                      View all on Assigned Task
+                    </button>
+                  </div>
+                )}
+              </section>
               <section className="studio-assign-section">
                 <header className="studio-assign-section__head">
                   <span className="studio-assign-section__step" aria-hidden>2</span>
@@ -1530,10 +1637,12 @@ export default function ManagerKpiConfig({
                       <button key={p.id} type="button" className="studio-choice studio-choice--person" onClick={() => setBoardUserId(p.id)}>
                         <span className={`studio-av studio-av--lg studio-av--${p.role}`} aria-hidden>{initials(p.full_name)}</span>
                         <strong>{p.full_name}</strong>
-                        <em>{displayRoleLabel(p.role)}</em>
+                        <em>
+                          {displayRoleLabel(p.role)}
+                          {lastAssignedAt[p.id] ? ' · Recent assignment' : ''}
+                        </em>
                       </button>
-                    ))}
-                  </div>
+                    ))}                  </div>
                 )}
               </>
               )
@@ -1629,19 +1738,21 @@ export default function ManagerKpiConfig({
                                 <p className="studio-board-section__kicker">Current</p>
                                 <h4>Open assigned tasks</h4>
                                 <p className="studio-board-section__desc">
-                                  Tasks assigned to this person that are not completed yet. Edit details or remove a mistaken assignment.
+                                  Newest assignments appear at the top. Edit details or remove a mistaken assignment.
                                 </p>
                               </div>
                               <span className="studio-board-section__count">{boardProgressKpis.length}</span>
                             </header>
-                            <EmployeeKpiBoardSummary
-                              kpis={boardProgressKpis}
-                              employeeName={boardPerson.full_name}
-                              userId={boardPerson.id}
-                            />
                             <ul className="studio-assigned studio-assigned--board">
                               {boardProgressKpis.map((kpi) => (
-                                <li key={kpi.id}>
+                                <li
+                                  key={kpi.id}
+                                  id={kpi.id}
+                                  className={highlightKpiId === kpi.id ? 'studio-assigned__item--new' : undefined}
+                                >
+                                  {highlightKpiId === kpi.id && (
+                                    <span className="studio-assigned__new-badge">Just assigned</span>
+                                  )}
                                   <AssignedKpiCard
                                     kpi={kpi}
                                     employeeName={boardPerson.full_name}
@@ -1657,8 +1768,12 @@ export default function ManagerKpiConfig({
                                 </li>
                               ))}
                             </ul>
-                          </section>
-                        )
+                            <EmployeeKpiBoardSummary
+                              kpis={boardProgressKpis}
+                              employeeName={boardPerson.full_name}
+                              userId={boardPerson.id}
+                            />
+                          </section>                        )
                       ) : null}
 
                       {boardTaskView === 'review' ? (
@@ -1669,14 +1784,9 @@ export default function ManagerKpiConfig({
                           </div>
                         ) : (
                           <section className="studio-board-section studio-board-section--review" aria-label="Tasks awaiting review">
-                            <EmployeeKpiBoardSummary
-                              kpis={boardReviewKpis}
-                              employeeName={boardPerson.full_name}
-                              userId={boardPerson.id}
-                            />
                             <ul className="studio-assigned studio-assigned--board">
                               {boardReviewKpis.map((kpi) => (
-                                <li key={kpi.id}>
+                                <li key={kpi.id} id={kpi.id}>
                                   <AssignedKpiCard
                                     kpi={kpi}
                                     employeeName={boardPerson.full_name}
@@ -1692,22 +1802,50 @@ export default function ManagerKpiConfig({
                                 </li>
                               ))}
                             </ul>
-                          </section>
-                        )
+                            <EmployeeKpiBoardSummary
+                              kpis={boardReviewKpis}
+                              employeeName={boardPerson.full_name}
+                              userId={boardPerson.id}
+                            />
+                          </section>                        )
                       ) : null}
 
                       {boardTaskView === 'completed' ? (
                         boardCompletedKpis.length === 0 ? (
                           <div className="studio-empty studio-empty--compact studio-empty--board">
                             <h3>No completed tasks yet</h3>
-                            <p>Approved work will show here.</p>
+                            <p>Approved work will show here under Completed.</p>
                           </div>
                         ) : (
-                          <EmployeeKpiBoardSummary
-                            kpis={boardCompletedKpis}
-                            employeeName={boardPerson.full_name}
-                            userId={boardPerson.id}
-                          />
+                          <section className="studio-board-section studio-board-section--history" aria-label="Completed assigned tasks">
+                            <header className="studio-board-section__head">
+                              <div>
+                                <p className="studio-board-section__kicker">Completed</p>
+                                <h4>Completed KPIs &amp; tasks</h4>
+                                <p className="studio-board-section__desc">
+                                  Every approved KPI for this person, grouped by month — newest months first.
+                                </p>
+                              </div>
+                              <span className="studio-board-section__count">{boardCompletedKpis.length}</span>
+                            </header>
+                            <AssignedTaskHistory
+                              groups={boardCompletedGroups}
+                              renderTask={(kpi) => (
+                                <AssignedKpiCard
+                                  kpi={kpi}
+                                  employeeName={boardPerson.full_name}
+                                  onEdit={() => setEditingAssignment({
+                                    kpi,
+                                    siblings: boardKpis,
+                                    employeeName: boardPerson.full_name,
+                                    employeeEmail: boardPerson.email,
+                                  })}
+                                  onRemove={() => void handleDeleteAssigned(kpi.id)}
+                                  onUpdated={() => void refreshOpenKpis()}
+                                />
+                              )}
+                            />
+                          </section>
                         )
                       ) : null}
                     </>

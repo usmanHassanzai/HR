@@ -390,17 +390,19 @@ export function formatKpiTaskPoints(kpi: Kpi): string | null {
 }
 
 export function kpiScoreRows(kpis: Kpi[]): KpiScoreRow[] {
-  return kpis.map((kpi) => {
-    const employeeScore = kpiAchievedPct(kpi);
-    const weight = Number(kpi.weight || 0);
-    return {
-      kpi,
-      name: kpi.name,
-      weight,
-      employeeScore,
-      weightedScore: kpiScoreContribution(kpi),
-    };
-  });
+  return [...kpis]
+    .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))
+    .map((kpi) => {
+      const employeeScore = kpiAchievedPct(kpi);
+      const weight = Number(kpi.weight || 0);
+      return {
+        kpi,
+        name: kpi.name,
+        weight,
+        employeeScore,
+        weightedScore: kpiScoreContribution(kpi),
+      };
+    });
 }
 
 export function employeeKpiScoreSummary(kpis: Kpi[]) {

@@ -33,6 +33,8 @@ import AssignedTaskHistory from './AssignedTaskHistory';
 import '../styles/employee-mobile.css';
 import '../styles/employee-kpis.css';
 import { readSessionString, writeSessionString } from '../utils/persistedUiState';
+import { useHistorySyncedTab } from '../utils/useHistoryNavigation';
+import { isNativeApp } from '../utils/nativePlatform';
 import { scrollNavTarget } from '../utils/notificationDeepLink';
 
 const EmployeeRewardsPanel = lazy(() => import('./EmployeeRewardsPanel'));
@@ -87,6 +89,12 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
   useEffect(() => {
     if (!isReadOnly) writeSessionString(EMPLOYEE_TAB_KEY, activeTab);
   }, [activeTab, isReadOnly]);
+
+  useHistorySyncedTab(activeTab, setActiveTab, {
+    key: 'scorr-employee-tab',
+    enabled: !isReadOnly,
+    trapAtRoot: !isNativeApp(),
+  });
 
   useEffect(() => {
     if (isReadOnly) return;

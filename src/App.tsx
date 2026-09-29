@@ -280,6 +280,15 @@ function App() {
     setSession(activeSession);
     setLoading(true);
     setError('');
+    // Anchor history so Back stays inside the signed-in app instead of the marketing homepage.
+    try {
+      const st = window.history.state && typeof window.history.state === 'object'
+        ? { ...(window.history.state as Record<string, unknown>) }
+        : {};
+      window.history.replaceState({ ...st, scorrApp: 'dashboard' }, '');
+    } catch {
+      /* ignore */
+    }
     if (activeSession?.user?.id) {
       await fetchUserProfile(activeSession.user.id);
     }

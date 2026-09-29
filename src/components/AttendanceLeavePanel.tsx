@@ -27,6 +27,7 @@ import { canMarkRemoteAttendance, workModeLabel } from '../utils/workModeHelpers
 import { GEO_CLOCK_EVENT, localYmd } from '../utils/geoAttendance';
 import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
 import { scrollNavTarget } from '../utils/notificationDeepLink';
+import { useHistorySyncedTab } from '../utils/useHistoryNavigation';
 import {
   Loader2, CheckCircle, XCircle, Palmtree, LogOut,
   UserCheck, Users, Inbox, History, ClipboardList, CalendarClock,
@@ -92,6 +93,23 @@ export default function AttendanceLeavePanel({
 
   const [managerTab, setManagerTab] = useState<ManagerTab>('approvals');
   const [adminTab, setAdminTab] = useState<AdminTab>(initialAdminTab || (mode === 'hr' ? 'history' : 'leave'));
+  const [employeeTab, setEmployeeTab] = useState<EmployeeTab>('today');
+
+  useHistorySyncedTab(managerTab, setManagerTab, {
+    key: 'scorr-att-mgr-tab',
+    enabled: mode === 'manager',
+    trapAtRoot: false,
+  });
+  useHistorySyncedTab(adminTab, setAdminTab, {
+    key: 'scorr-att-admin-tab',
+    enabled: mode === 'admin' || mode === 'hr',
+    trapAtRoot: false,
+  });
+  useHistorySyncedTab(employeeTab, setEmployeeTab, {
+    key: 'scorr-att-emp-tab',
+    enabled: mode === 'employee',
+    trapAtRoot: false,
+  });
 
   useEffect(() => {
     if (initialAdminTab) setAdminTab(initialAdminTab);
@@ -104,7 +122,6 @@ export default function AttendanceLeavePanel({
       scrollNavTarget(initialLeaveId);
     }
   }, [initialLeaveId, mode, pendingLeaves]);
-  const [employeeTab, setEmployeeTab] = useState<EmployeeTab>('today');
 
   const [leaveType, setLeaveType] = useState<LeaveType>('annual');
   const [leaveCustomType, setLeaveCustomType] = useState('');

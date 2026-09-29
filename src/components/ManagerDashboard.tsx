@@ -11,6 +11,8 @@ import AdminHamburgerButton from './AdminHamburgerButton';
 import TabFallback from './TabFallback';
 import KpiWorkspace from './KpiWorkspace';
 import { readSessionString, writeSessionString } from '../utils/persistedUiState';
+import { useHistoryOverlay, useHistorySyncedTab } from '../utils/useHistoryNavigation';
+import { isNativeApp } from '../utils/nativePlatform';
 import '../styles/admin-dashboard.css';
 import '../styles/manager-mobile.css';
 
@@ -75,6 +77,14 @@ export default function ManagerDashboard({ profile, organizationName }: ManagerD
   useEffect(() => {
     writeSessionString(MANAGER_TAB_KEY, activeTab);
   }, [activeTab]);
+
+  useHistorySyncedTab(activeTab, setActiveTab, {
+    key: 'scorr-manager-tab',
+    trapAtRoot: !isNativeApp(),
+  });
+  useHistoryOverlay(Boolean(selectedEmployee), () => setSelectedEmployee(null), {
+    key: 'scorr-manager-employee',
+  });
 
   useEffect(() => {
     const openTab = (e: Event) => {
