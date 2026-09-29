@@ -4,8 +4,8 @@ import { supabase } from '../lib/supabase';
 import { isNativeApp } from './nativePlatform';
 import { clearGeoHold } from './attendanceBackgroundSession';
 
-/** Idle time before the portal signs the user out (5 minutes). */
-export const PORTAL_IDLE_MS = 5 * 60 * 1000;
+/** Idle time before the portal signs the user out (1 hour). */
+export const PORTAL_IDLE_MS = 60 * 60 * 1000;
 
 const LAST_ACTIVITY_KEY = 'scorr-last-activity';
 
