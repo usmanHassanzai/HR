@@ -73,11 +73,19 @@ export default function MyShiftCard({ userId, layout = 'card' }: MyShiftCardProp
           <CalendarClock size={22} />
         </div>
         <div className="dash-shift-banner__main">
-          <p className="dash-shift-banner__kicker">Your assigned hours</p>
+          <p className="dash-shift-banner__kicker">
+            {shift ? 'Active shift' : 'Your assigned hours'}
+          </p>
           {loading ? (
             <p className="dash-shift-banner__hours">Loading shift…</p>
           ) : (
             <>
+              {shift?.shift_name ? (
+                <p className="dash-shift-banner__name">
+                  <span className="shift-active-pill">Active shift</span>
+                  {shift.shift_name}
+                </p>
+              ) : null}
               <p className="dash-shift-banner__hours">{hours}</p>
               <p className="dash-shift-banner__days">
                 Working days: <strong>{formatWorkingDays(days)}</strong>
@@ -105,7 +113,7 @@ export default function MyShiftCard({ userId, layout = 'card' }: MyShiftCardProp
   return (
     <div className="attendance-card shift-card">
       <h3 className="attendance-card__title">
-        <CalendarClock size={18} /> My shift
+        <CalendarClock size={18} /> {shift ? 'Active shift' : 'My shift'}
       </h3>
       {loading ? (
         <p className="attendance-card__subtitle">Loading your hours…</p>
@@ -116,6 +124,7 @@ export default function MyShiftCard({ userId, layout = 'card' }: MyShiftCardProp
       ) : (
         <>
           <div className="shift-card__hero">
+            <span className="shift-active-pill">Active shift</span>
             <strong>{shift.shift_name}</strong>
             <span className="shift-card__time">{hours}</span>
           </div>
@@ -129,4 +138,3 @@ export default function MyShiftCard({ userId, layout = 'card' }: MyShiftCardProp
     </div>
   );
 }
-

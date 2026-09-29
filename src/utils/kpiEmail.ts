@@ -88,3 +88,39 @@ export async function emailKpiRemoved(opts: {
     `Hi ${employeeName || 'there'},\n\nYour assigned task "${kpiName}" was removed by ${who}.${weightLine}\n\nIt no longer appears on your dashboard and its weightage no longer counts.\n\nOpen Scorr if you need details from your manager.`,
   );
 }
+
+export async function emailShiftAssigned(opts: {
+  email: string;
+  name: string;
+  shiftName: string;
+  hours: string;
+  days: string;
+  assignerLabel?: string;
+}) {
+  const { email, name, shiftName, hours, days, assignerLabel } = opts;
+  if (!email) return;
+  const by = assignerLabel?.trim() ? `\nAssigned by: ${assignerLabel.trim()}` : '';
+  await sendKpiEmail(
+    email,
+    `Active shift assigned: ${shiftName}`,
+    `Hi ${name || 'there'},\n\nAn Active shift has been assigned to you on Scorr.\n\nActive shift: ${shiftName}\nHours: ${hours}\nWorking days: ${days}${by}\n\nOpen Scorr → Attendance to see your Active shift and clock in during those hours.`,
+  );
+}
+
+export async function emailShiftUpdated(opts: {
+  email: string;
+  name: string;
+  shiftName: string;
+  hours: string;
+  days: string;
+  assignerLabel?: string;
+}) {
+  const { email, name, shiftName, hours, days, assignerLabel } = opts;
+  if (!email) return;
+  const by = assignerLabel?.trim() ? `\nUpdated by: ${assignerLabel.trim()}` : '';
+  await sendKpiEmail(
+    email,
+    `Active shift updated: ${shiftName}`,
+    `Hi ${name || 'there'},\n\nYour Active shift on Scorr was changed.\n\nActive shift: ${shiftName}\nHours: ${hours}\nWorking days: ${days}${by}\n\nOpen Scorr → Attendance to review the new schedule.`,
+  );
+}

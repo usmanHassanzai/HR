@@ -2497,6 +2497,32 @@ body.app-shell .admin-users-mobile-list,
   color: var(--text-muted);
 }
 
+.dash-shift-banner__name {
+  margin: 0.25rem 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.55rem;
+  font-size: 1rem;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+.dash-shift-banner .shift-active-pill,
+.shift-active-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--btn-primary-text, #fff);
+  background: var(--color-success, var(--accent-primary));
+  white-space: nowrap;
+}
+
 .dash-shift-banner__hours {
   margin: 0.15rem 0 0;
   font-size: 1.35rem;

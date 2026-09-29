@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarClock, Loader2, Plus, Trash2, Users } from 'lucide-react';
+import { CalendarClock, Loader2, List, Plus, Trash2, Users } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Profile } from '../utils/kpiHelpers';
+import { emailShiftAssigned, emailShiftUpdated } from '../utils/kpiEmail';
 import {
   DAY_LABELS,
   TeamShiftAssignment,
@@ -23,17 +24,62 @@ interface ShiftManagementPanelProps {
 
 const DEFAULT_DAYS = [1, 2, 3, 4, 5];
 
+type ShiftPanelTab = 'list' | 'create' | 'status';
+type ShiftNotifyTarget = { id: string; full_name: string; email: string };
+type ShiftNotifyKind = 'assigned' | 'updated';
+
+async function notifyShiftAssignees(
+  people: ShiftNotifyTarget[],
+  shift: { name: string; start_time: string; end_time: string; days_of_week: number[]; crosses_midnight?: boolean },
+  assignerLabel: string,
+  kind: ShiftNotifyKind = 'assigned',
+) {
+  if (!people.length) return;
+  const hours = formatShiftTimeRange(shift.start_time, shift.end_time, shift.crosses_midnight);
+  const days = formatShiftDays(shift.days_of_week);
+  const title = kind === 'updated' ? 'Active shift updated' : 'Active shift assigned';
+  const message = `Active shift: ${shift.name} · ${hours} · ${days}`;
+
+  await Promise.allSettled(
+    people.map(async (person) => {
+      if (person.email) {
+        const payload = {
+          email: person.email,
+          name: person.full_name,
+          shiftName: shift.name,
+          hours,
+          days,
+          assignerLabel,
+        };
+        if (kind === 'updated') await emailShiftUpdated(payload);
+        else await emailShiftAssigned(payload);
+      }
+      await supabase.rpc('create_system_notification', {
+        p_user_id: person.id,
+        p_title: title,
+        p_message: message,
+        p_type: 'info',
+        p_meta: { adminTab: 'shifts', openTab: 'attendance' },
+      });
+    }),
+  );
+}
+
 export default function ShiftManagementPanel({
   teamMembers,
   mode = 'manager',
   onUpdate,
 }: ShiftManagementPanelProps) {
   const isOrgWide = mode === 'admin' || mode === 'hr';
+  const [panelTab, setPanelTab] = useState<ShiftPanelTab>('list');
   const [shifts, setShifts] = useState<WorkShift[]>([]);
   const [assignments, setAssignments] = useState<OrgShiftAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [assignerLabel, setAssignerLabel] = useState(
+    mode === 'admin' ? 'Admin' : mode === 'hr' ? 'HR' : 'Manager',
+  );
 
   const [name, setName] = useState('');
   const [startTime, setStartTime] = useState('09:00');
@@ -56,7 +102,23 @@ export default function ShiftManagementPanel({
     [teamMembers],
   );
 
-  const employeeCount = teamMembers.filter((m) => m.role === 'employee').length;
+  const teamEmployees = useMemo(
+    () => teamMembers.filter((m) => m.role === 'employee'),
+    [teamMembers],
+  );
+
+  const employeeCount = teamEmployees.length;
+
+  useEffect(() => {
+    void (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.id) return;
+      const { data } = await supabase.from('users').select('full_name, role').eq('id', user.id).maybeSingle();
+      const roleLabel = data?.role === 'admin' ? 'Admin' : data?.role === 'hr' ? 'HR' : 'Manager';
+      const who = data?.full_name?.trim();
+      setAssignerLabel(who ? `${who} (${roleLabel})` : roleLabel);
+    })();
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -80,6 +142,42 @@ export default function ShiftManagementPanel({
       setOvernight(true);
     }
   }, [startTime, endTime, overnight]);
+
+  const peopleByIds = (ids: string[]): ShiftNotifyTarget[] => {
+    const wanted = new Set(ids);
+    const fromTeam = teamMembers
+      .filter((m) => wanted.has(m.id) && m.email)
+      .map((m) => ({ id: m.id, full_name: m.full_name, email: m.email }));
+    if (fromTeam.length > 0) return fromTeam;
+    return assignments
+      .filter((a) => wanted.has(a.user_id) && a.email)
+      .map((a) => ({ id: a.user_id, full_name: a.full_name, email: a.email }));
+  };
+
+  const peopleOnShift = (shiftId: string): ShiftNotifyTarget[] =>
+    assignments
+      .filter((a) => a.shift_id === shiftId && a.email)
+      .map((a) => ({ id: a.user_id, full_name: a.full_name, email: a.email }));
+
+  const shiftPayloadFromForm = () => ({
+    name: name.trim(),
+    start_time: startTime,
+    end_time: endTime,
+    days_of_week: days,
+    crosses_midnight: overnight,
+  });
+
+  const shiftPayloadFromSaved = (shiftId: string) => {
+    const s = shifts.find((x) => x.id === shiftId);
+    if (!s) return null;
+    return {
+      name: s.name,
+      start_time: String(s.start_time).slice(0, 5),
+      end_time: String(s.end_time).slice(0, 5),
+      days_of_week: Array.isArray(s.days_of_week) ? s.days_of_week.map(Number) : DEFAULT_DAYS,
+      crosses_midnight: Boolean(s.crosses_midnight ?? isOvernightShift(s.start_time, s.end_time)),
+    };
+  };
 
   const toggleDay = (d: number) => {
     setDays((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort()));
@@ -116,6 +214,8 @@ export default function ShiftManagementPanel({
     }
     setSubmitting(true);
     setMsg('');
+    const wasEdit = Boolean(editId);
+    const editingShiftId = editId;
     const payload: Record<string, unknown> = {
       p_name: name.trim(),
       p_start_time: startTime,
@@ -127,6 +227,8 @@ export default function ShiftManagementPanel({
     };
     if (editId) payload.p_shift_id = editId;
 
+    const formShift = shiftPayloadFromForm();
+    const existingOnShift = editingShiftId ? peopleOnShift(editingShiftId) : [];
     const { data, error } = await supabase.rpc('upsert_work_shift', payload);
     setSubmitting(false);
     if (error || !data) {
@@ -135,6 +237,8 @@ export default function ShiftManagementPanel({
     }
 
     const shiftId = data as string;
+    let notifiedIds: string[] = [];
+    let notifyKind: ShiftNotifyKind = 'assigned';
 
     if (!isOrgWide && applyToAll && employeeCount > 0) {
       const { error: assignErr } = await supabase.rpc('assign_shift_to_all_team', { p_shift_id: shiftId });
@@ -144,6 +248,8 @@ export default function ShiftManagementPanel({
         onUpdate?.();
         return;
       }
+      notifiedIds = teamEmployees.map((p) => p.id);
+      notifyKind = wasEdit ? 'updated' : 'assigned';
     }
 
     if (isOrgWide && applyToAll && assignablePeople.length > 0) {
@@ -157,7 +263,9 @@ export default function ShiftManagementPanel({
         onUpdate?.();
         return;
       }
-      setMsg(`Shift saved and assigned to ${assigned ?? assignablePeople.length} people.`);
+      notifiedIds = assignablePeople.map((p) => p.id);
+      notifyKind = wasEdit ? 'updated' : 'assigned';
+      setMsg(`Shift saved and assigned to ${assigned ?? assignablePeople.length} people. Emails sent.`);
       setSelectedUserIds([]);
       setAssignShiftId(shiftId);
     } else if (isOrgWide && selectedUserIds.length > 0) {
@@ -171,31 +279,51 @@ export default function ShiftManagementPanel({
         onUpdate?.();
         return;
       }
-      setMsg(`Shift saved and assigned to ${assigned ?? selectedUserIds.length} people.`);
+      notifiedIds = [...selectedUserIds];
+      notifyKind = 'assigned';
+      setMsg(`Shift saved and assigned to ${assigned ?? selectedUserIds.length} people. Emails sent.`);
       setSelectedUserIds([]);
       setAssignShiftId(shiftId);
+    } else if (wasEdit && existingOnShift.length > 0) {
+      notifiedIds = existingOnShift.map((p) => p.id);
+      notifyKind = 'updated';
+      setMsg(`Shift updated. Email sent to ${existingOnShift.length} assigned people.`);
     } else {
       setMsg(
-        editId
+        wasEdit
           ? `Shift updated${!isOrgWide && applyToAll ? ` and applied to ${employeeCount} employee(s).` : '.'}`
           : `Shift saved${!isOrgWide && applyToAll ? ` and applied to all ${employeeCount} team member(s).` : '.'}`,
       );
+      if (!isOrgWide && applyToAll && notifiedIds.length > 0) {
+        setMsg(`Shift saved and applied to ${employeeCount} employee(s). Emails sent.`);
+      }
+    }
+
+    if (notifiedIds.length > 0) {
+      const targets = peopleByIds(notifiedIds);
+      const merged = targets.length > 0 ? targets : existingOnShift.filter((p) => notifiedIds.includes(p.id));
+      void notifyShiftAssignees(merged, formShift, assignerLabel, notifyKind);
     }
 
     resetForm();
+    setPanelTab('list');
     await load();
     onUpdate?.();
   };
 
   const removeShift = async (id: string) => {
-    if (!confirm('Delete this shift? Assigned people will need a new shift.')) return;
+    const shift = shifts.find((s) => s.id === id);
+    if (!confirm(`Delete shift “${shift?.name || 'this shift'}”? Assigned people will need a new Active shift.`)) return;
     setSubmitting(true);
     const { error } = await supabase.rpc('delete_work_shift', { p_shift_id: id });
     setSubmitting(false);
     if (error) setMsg(error.message);
     else {
+      if (editId === id) resetForm();
+      if (assignShiftId === id) setAssignShiftId('');
       setMsg('Shift deleted.');
       await load();
+      onUpdate?.();
     }
   };
 
@@ -206,8 +334,16 @@ export default function ShiftManagementPanel({
     setSubmitting(false);
     if (error) setMsg(error.message);
     else {
-      setMsg(`Shift applied to ${data ?? employeeCount} employee(s).`);
+      const details = shiftPayloadFromSaved(shiftId) || shiftPayloadFromForm();
+      void notifyShiftAssignees(
+        teamEmployees.map((p) => ({ id: p.id, full_name: p.full_name, email: p.email })),
+        details,
+        assignerLabel,
+        'assigned',
+      );
+      setMsg(`Shift applied to ${data ?? employeeCount} employee(s). Emails sent.`);
       await load();
+      onUpdate?.();
     }
   };
 
@@ -229,7 +365,12 @@ export default function ShiftManagementPanel({
     setSubmitting(false);
     if (error) setMsg(error.message);
     else {
-      setMsg(`Assigned shift to ${data ?? selectedUserIds.length} people.`);
+      const details = shiftPayloadFromSaved(assignShiftId);
+      if (details) {
+        void notifyShiftAssignees(peopleByIds(selectedUserIds), details, assignerLabel, 'assigned');
+      }
+      setMsg(`Assigned shift to ${data ?? selectedUserIds.length} people. Emails sent.`);
+      setPanelTab('status');
       await load();
       onUpdate?.();
     }
@@ -246,7 +387,8 @@ export default function ShiftManagementPanel({
     setOvernight(Boolean(s.crosses_midnight ?? isOvernightShift(s.start_time, s.end_time)));
     setApplyToAll(s.apply_to_all ?? true);
     setAssignShiftId(s.id);
-    setMsg(`Editing “${s.name}”. Change the fields above, then Save shift.`);
+    setPanelTab('create');
+    setMsg(`Editing “${s.name}”. Update the fields, then Save shift. Assigned people will get an email.`);
     window.requestAnimationFrame(() => {
       formCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       const nameInput = formCardRef.current?.querySelector<HTMLInputElement>('input:not([type="time"]):not([type="checkbox"])');
@@ -256,10 +398,17 @@ export default function ShiftManagementPanel({
 
   const startAssign = (s: WorkShift) => {
     setAssignShiftId(s.id);
+    setPanelTab('create');
     setMsg(`Assigning “${s.name}”. Select people below, then Assign to selected.`);
     window.requestAnimationFrame(() => {
       assignCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
+  };
+
+  const startCreate = () => {
+    resetForm();
+    setPanelTab('create');
+    setMsg('');
   };
 
   if (loading) {
@@ -278,333 +427,424 @@ export default function ShiftManagementPanel({
         </div>
       )}
 
-      <div
-        ref={formCardRef}
-        className={`attendance-card${editId ? ' attendance-card--editing' : ''}`}
-        id="shift-editor"
-      >
-        <h3 className="attendance-card__title">
-          <CalendarClock size={18} /> {editId ? 'Edit shift' : 'Create shift'}
-        </h3>
-        {editId ? (
-          <p className="attendance-card__subtitle attendance-card__subtitle--edit">
-            You are editing <strong>{name || 'this shift'}</strong>. Update times or days, then tap Save shift.
-          </p>
-        ) : (
-          <p className="attendance-card__subtitle">
-            {isOrgWide
-              ? 'Create any schedule (including overnight), then assign it directly to any person in your organization. No extra approval is required.'
-              : 'Set any shift schedule — including overnight (e.g. 8:00 PM today to 8:00 AM tomorrow). When saved, it can be applied to all employees on your team.'}
-          </p>
-        )}
-        <form onSubmit={(e) => void saveShift(e)} className="attendance-form-grid attendance-form-grid--wide">
-          <div className="form-group">
-            <label>Shift name</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Night Shift" required />
+      <div className="shift-panel-tabs tab-bar tab-bar--inline-mobile" role="tablist" aria-label="Shift management">
+        <button
+          type="button"
+          className={`tab-btn ${panelTab === 'list' ? 'tab-btn--active' : ''}`}
+          onClick={() => setPanelTab('list')}
+        >
+          <List size={16} /> All shifts
+          {shifts.length > 0 && <span className="shift-panel-tabs__count">{shifts.length}</span>}
+        </button>
+        <button
+          type="button"
+          className={`tab-btn ${panelTab === 'create' ? 'tab-btn--active' : ''}`}
+          onClick={() => setPanelTab('create')}
+        >
+          <Plus size={16} /> {editId ? 'Edit shift' : 'Create / Assign'}
+        </button>
+        <button
+          type="button"
+          className={`tab-btn ${panelTab === 'status' ? 'tab-btn--active' : ''}`}
+          onClick={() => setPanelTab('status')}
+        >
+          <Users size={16} /> Who is on which
+        </button>
+      </div>
+
+      {panelTab === 'list' && (
+        <div className="attendance-card">
+          <div className="shift-list-header">
+            <div>
+              <h3 className="attendance-card__title">
+                <List size={18} /> All shifts
+              </h3>
+              <p className="attendance-card__subtitle">
+                Every saved schedule. Edit hours/days, assign to people, or delete. Changing a shift emails everyone on it.
+              </p>
+            </div>
+            <button type="button" className="btn btn-primary btn-sm" onClick={startCreate}>
+              <Plus size={16} /> New shift
+            </button>
           </div>
-          <div className="form-group">
-            <label>Start time</label>
-            <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} required />
-          </div>
-          <div className="form-group">
-            <label>End time</label>
-            <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} required />
-          </div>
-          <div className="form-group attendance-form-span-full">
-            <p className="attendance-card__subtitle" style={{ margin: 0 }}>
-              Everyone can clock in from 1 hour before this start time. After the end time they have 1 hour to clock out — that extra time is counted if they do it themselves. If Scorr is closed, they are checked out at end time. If they stay logged in, checkout waits that extra hour.
-            </p>
-          </div>
-          <div className="form-group attendance-form-span-full">
-            <label className="geo-toggle-row" style={{ margin: 0 }}>
-              <input
-                type="checkbox"
-                checked={overnight}
-                onChange={(e) => setOvernight(e.target.checked)}
-              />
-              <span>Overnight shift — end time is on the <strong>next day</strong> (e.g. 8 PM → 8 AM)</span>
-            </label>
-          </div>
-          <div className="form-group attendance-form-span-full">
-            <label className="geo-toggle-row" style={{ margin: 0 }}>
-              <input
-                type="checkbox"
-                checked={applyToAll}
-                onChange={(e) => setApplyToAll(e.target.checked)}
-              />
-              <span>
-                {isOrgWide
-                  ? `Apply to everyone in the organization (${assignablePeople.length}) when saved`
-                  : `Apply to all team employees (${employeeCount}) when saved`}
-              </span>
-            </label>
-          </div>
-          <div className="form-group attendance-form-span-full">
-            <label>Work days</label>
-            <div className="shift-day-picker">
-              {DAY_LABELS.map((label, i) => {
-                const d = i + 1;
+
+          {shifts.length === 0 ? (
+            <div className="shift-list-empty">
+              <CalendarClock size={32} strokeWidth={1.25} />
+              <h4>No shifts yet</h4>
+              <p>Create a shift, then assign it to employees and managers. They will get an email with Active shift details.</p>
+              <button type="button" className="btn btn-primary" onClick={startCreate}>
+                <Plus size={16} /> Create first shift
+              </button>
+            </div>
+          ) : (
+            <div className="shift-list">
+              {shifts.map((s) => {
+                const onCount = assignments.filter((a) => a.shift_id === s.id).length;
                 return (
-                  <button
-                    key={d}
-                    type="button"
-                    className={`shift-day-btn ${days.includes(d) ? 'shift-day-btn--active' : ''}`}
-                    onClick={() => toggleDay(d)}
+                  <div
+                    key={s.id}
+                    className={`shift-list__item${editId === s.id ? ' shift-list__item--editing' : ''}${assignShiftId === s.id ? ' shift-list__item--assigning' : ''}`}
                   >
-                    {label}
-                  </button>
+                    <div className="shift-list__info">
+                      <strong>{s.name}</strong>
+                      <span className="shift-list__meta">
+                        {formatShiftTimeRange(s.start_time, s.end_time, s.crosses_midnight)}
+                        {' · '}{formatShiftDays(s.days_of_week)}
+                        {!isOrgWide && s.apply_to_all && ' · All team'}
+                        {(s.assigned_count != null ? s.assigned_count : onCount) > 0
+                          && ` · ${s.assigned_count ?? onCount} assigned`}
+                      </span>
+                    </div>
+                    <div className="shift-list__actions">
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm shift-list__action-btn"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          startEdit(s);
+                        }}
+                      >
+                        Edit
+                      </button>
+                      {!isOrgWide && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm shift-list__action-btn"
+                          disabled={submitting}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            void reapplyToAll(s.id);
+                          }}
+                          title="Apply to all team"
+                        >
+                          <Users size={14} />
+                          <span>Apply all</span>
+                        </button>
+                      )}
+                      {isOrgWide && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm shift-list__action-btn"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            startAssign(s);
+                          }}
+                          title="Assign to people"
+                        >
+                          Assign
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm shift-list__action-btn shift-list__action-btn--danger"
+                        disabled={submitting}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          void removeShift(s.id);
+                        }}
+                        aria-label={`Delete ${s.name}`}
+                        title="Delete shift"
+                      >
+                        <Trash2 size={14} />
+                        <span>Delete</span>
+                      </button>
+                    </div>
+                  </div>
                 );
               })}
             </div>
-          </div>
-          <div className="attendance-form-span-full" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <button type="submit" className="btn btn-primary" disabled={submitting || days.length === 0}>
-              {submitting ? <Loader2 size={16} className="spin-icon" /> : editId ? 'Save shift' : <><Plus size={16} /> Save shift</>}
-            </button>
-            {editId && (
-              <button type="button" className="btn btn-secondary" onClick={resetForm}>Cancel</button>
-            )}
-          </div>
-        </form>
-      </div>
-
-      {isOrgWide && (
-        <div
-          ref={assignCardRef}
-          className={`attendance-card${assignShiftId ? ' attendance-card--assigning' : ''}`}
-          id="shift-assigner"
-        >
-          <h3 className="attendance-card__title">
-            <Users size={18} /> Assign shift to people (one or many)
-          </h3>
-          <p className="attendance-card__subtitle">
-            Choose a saved shift, select people, then assign in one click.
-          </p>
-          <div className="form-group">
-            <label>Shift</label>
-            <select value={assignShiftId} onChange={(e) => setAssignShiftId(e.target.value)}>
-              <option value="">— Select shift —</option>
-              {shifts.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} ({formatShiftTimeRange(s.start_time, s.end_time, s.crosses_midnight)})
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="form-group" style={{ marginTop: '0.75rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-              <label style={{ margin: 0 }}>People ({selectedUserIds.length} selected)</label>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={toggleAllUsers}>
-                {selectedUserIds.length === assignablePeople.length ? 'Clear all' : 'Select all'}
-              </button>
-            </div>
-            <div className="shift-assign-list">
-              {assignablePeople.length === 0 ? (
-                <p className="attendance-card__subtitle">No managers or employees yet. Add users first.</p>
-              ) : (
-                assignablePeople.map((p) => (
-                  <label key={p.id} className="shift-assign-row">
-                    <input
-                      type="checkbox"
-                      checked={selectedUserIds.includes(p.id)}
-                      onChange={() => toggleUser(p.id)}
-                    />
-                    <span>
-                      <strong>{p.full_name}</strong>
-                      <span className="shift-assign-meta"> · {p.role} · {p.email}</span>
-                    </span>
-                  </label>
-                ))
-              )}
-            </div>
-          </div>
-          <button
-            type="button"
-            className="btn btn-primary"
-            style={{ marginTop: '0.85rem' }}
-            disabled={submitting || !assignShiftId || selectedUserIds.length === 0}
-            onClick={() => void assignSelected()}
-          >
-            {submitting ? <Loader2 size={16} className="spin-icon" /> : <Users size={16} />}
-            Assign to selected
-          </button>
+          )}
         </div>
       )}
 
-      {shifts.length > 0 && (
-        <div className="attendance-card">
-          <h3 className="attendance-card__title">Saved shifts</h3>
-          <p className="attendance-card__subtitle">
-            Tap Edit to change a shift, or Assign to put it on people.
-          </p>
-          <div className="shift-list">
-            {shifts.map((s) => (
-              <div
-                key={s.id}
-                className={`shift-list__item${editId === s.id ? ' shift-list__item--editing' : ''}${assignShiftId === s.id ? ' shift-list__item--assigning' : ''}`}
-              >
-                <div className="shift-list__info">
-                  <strong>{s.name}</strong>
-                  <span className="shift-list__meta">
-                    {formatShiftTimeRange(s.start_time, s.end_time, s.crosses_midnight)}
-                    {' · '}{formatShiftDays(s.days_of_week)}
-                    {!isOrgWide && s.apply_to_all && ' · All team'}
-                    {s.assigned_count != null && s.assigned_count > 0 && ` · ${s.assigned_count} assigned`}
+      {panelTab === 'create' && (
+        <>
+          <div
+            ref={formCardRef}
+            className={`attendance-card${editId ? ' attendance-card--editing' : ''}`}
+            id="shift-editor"
+          >
+            <h3 className="attendance-card__title">
+              <CalendarClock size={18} /> {editId ? 'Edit shift' : 'Create shift'}
+            </h3>
+            {editId ? (
+              <p className="attendance-card__subtitle attendance-card__subtitle--edit">
+                You are editing <strong>{name || 'this shift'}</strong>. Update times or days, then tap Save shift.
+                People already on this Active shift will get an email.
+              </p>
+            ) : (
+              <p className="attendance-card__subtitle">
+                {isOrgWide
+                  ? 'Create any schedule (including overnight), then assign it to employees and managers. They receive an email with Active shift details.'
+                  : 'Set any shift schedule — including overnight. When saved and applied, your team gets an email with Active shift details.'}
+              </p>
+            )}
+            <form onSubmit={(e) => void saveShift(e)} className="attendance-form-grid attendance-form-grid--wide">
+              <div className="form-group">
+                <label>Shift name</label>
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Night Shift" required />
+              </div>
+              <div className="form-group">
+                <label>Start time</label>
+                <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} required />
+              </div>
+              <div className="form-group">
+                <label>End time</label>
+                <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} required />
+              </div>
+              <div className="form-group attendance-form-span-full">
+                <p className="attendance-card__subtitle" style={{ margin: 0 }}>
+                  Everyone can clock in from 1 hour before this start time. After the end time they have 1 hour to clock out — that extra time is counted if they do it themselves. If Scorr is closed, they are checked out at end time. If they stay logged in, checkout waits that extra hour.
+                </p>
+              </div>
+              <div className="form-group attendance-form-span-full">
+                <label className="geo-toggle-row" style={{ margin: 0 }}>
+                  <input
+                    type="checkbox"
+                    checked={overnight}
+                    onChange={(e) => setOvernight(e.target.checked)}
+                  />
+                  <span>Overnight shift — end time is on the <strong>next day</strong> (e.g. 8 PM → 8 AM)</span>
+                </label>
+              </div>
+              <div className="form-group attendance-form-span-full">
+                <label className="geo-toggle-row" style={{ margin: 0 }}>
+                  <input
+                    type="checkbox"
+                    checked={applyToAll}
+                    onChange={(e) => setApplyToAll(e.target.checked)}
+                  />
+                  <span>
+                    {isOrgWide
+                      ? `Apply to everyone in the organization (${assignablePeople.length}) when saved`
+                      : `Apply to all team employees (${employeeCount}) when saved`}
                   </span>
-                  {editId === s.id && (
-                    <span className="shift-list__badge">Editing above</span>
-                  )}
-                </div>
-                <div className="shift-list__actions">
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm shift-list__action-btn"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      startEdit(s);
-                    }}
-                  >
-                    Edit
-                  </button>
-                  {!isOrgWide && (
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm shift-list__action-btn"
-                      disabled={submitting}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        void reapplyToAll(s.id);
-                      }}
-                      title="Apply to all team"
-                    >
-                      <Users size={14} />
-                      <span>Apply all</span>
-                    </button>
-                  )}
-                  {isOrgWide && (
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm shift-list__action-btn"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        startAssign(s);
-                      }}
-                      title="Use for assignment"
-                    >
-                      Assign
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm shift-list__action-btn shift-list__action-btn--danger"
-                    disabled={submitting}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      void removeShift(s.id);
-                    }}
-                    aria-label={`Delete ${s.name}`}
-                    title="Delete shift"
-                  >
-                    <Trash2 size={14} />
-                    <span>Delete</span>
-                  </button>
+                </label>
+              </div>
+              <div className="form-group attendance-form-span-full">
+                <label>Work days</label>
+                <div className="shift-day-picker">
+                  {DAY_LABELS.map((label, i) => {
+                    const d = i + 1;
+                    return (
+                      <button
+                        key={d}
+                        type="button"
+                        className={`shift-day-btn ${days.includes(d) ? 'shift-day-btn--active' : ''}`}
+                        onClick={() => toggleDay(d)}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
-            ))}
+              <div className="attendance-form-span-full" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <button type="submit" className="btn btn-primary" disabled={submitting || days.length === 0}>
+                  {submitting ? <Loader2 size={16} className="spin-icon" /> : editId ? 'Save shift' : <><Plus size={16} /> Save shift</>}
+                </button>
+                {editId && (
+                  <button type="button" className="btn btn-secondary" onClick={resetForm}>Cancel edit</button>
+                )}
+                <button type="button" className="btn btn-secondary" onClick={() => setPanelTab('list')}>
+                  Back to all shifts
+                </button>
+              </div>
+            </form>
           </div>
-        </div>
+
+          {isOrgWide && (
+            <div
+              ref={assignCardRef}
+              className={`attendance-card${assignShiftId ? ' attendance-card--assigning' : ''}`}
+              id="shift-assigner"
+            >
+              <h3 className="attendance-card__title">
+                <Users size={18} /> Assign shift to people
+              </h3>
+              <p className="attendance-card__subtitle">
+                Choose a saved shift, select employees and managers, then assign. Each person gets an email for their Active shift.
+              </p>
+              <div className="form-group">
+                <label>Shift</label>
+                <select value={assignShiftId} onChange={(e) => setAssignShiftId(e.target.value)}>
+                  <option value="">— Select shift —</option>
+                  {shifts.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({formatShiftTimeRange(s.start_time, s.end_time, s.crosses_midnight)})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group" style={{ marginTop: '0.75rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                  <label style={{ margin: 0 }}>People ({selectedUserIds.length} selected)</label>
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={toggleAllUsers}>
+                    {selectedUserIds.length === assignablePeople.length ? 'Clear all' : 'Select all'}
+                  </button>
+                </div>
+                <div className="shift-assign-list">
+                  {assignablePeople.length === 0 ? (
+                    <p className="attendance-card__subtitle">No managers or employees yet. Add users first.</p>
+                  ) : (
+                    assignablePeople.map((p) => (
+                      <label key={p.id} className="shift-assign-row">
+                        <input
+                          type="checkbox"
+                          checked={selectedUserIds.includes(p.id)}
+                          onChange={() => toggleUser(p.id)}
+                        />
+                        <span>
+                          <strong>{p.full_name}</strong>
+                          <span className="shift-assign-meta"> · {p.role} · {p.email}</span>
+                        </span>
+                      </label>
+                    ))
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ marginTop: '0.85rem' }}
+                disabled={submitting || !assignShiftId || selectedUserIds.length === 0}
+                onClick={() => void assignSelected()}
+              >
+                {submitting ? <Loader2 size={16} className="spin-icon" /> : <Users size={16} />}
+                Assign to selected
+              </button>
+            </div>
+          )}
+        </>
       )}
 
-      {assignments.length > 0 && (
+      {panelTab === 'status' && (
         <div className="attendance-card">
           <h3 className="attendance-card__title">
             <Users size={18} /> {isOrgWide ? 'Organization shift status' : 'Team shift status'}
           </h3>
-          <div className="team-points-table-wrap shift-status-scroll">
-            <table className="attendance-history-table">
-              <thead>
-                <tr>
-                  <th>{isOrgWide ? 'Person' : 'Employee'}</th>
-                  {isOrgWide && <th>Role</th>}
-                  <th>Shift</th>
-                  <th>Hours</th>
-                  <th>Since</th>
-                </tr>
-              </thead>
-              <tbody>
+          <p className="attendance-card__subtitle">
+            Who has which Active shift right now.
+          </p>
+          {assignments.length === 0 ? (
+            <div className="shift-list-empty">
+              <Users size={32} strokeWidth={1.25} />
+              <h4>No assignments yet</h4>
+              <p>Create a shift and assign it to employees or managers to see status here.</p>
+              <button type="button" className="btn btn-primary" onClick={startCreate}>
+                <Plus size={16} /> Create / Assign
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="team-points-table-wrap shift-status-scroll">
+                <table className="attendance-history-table">
+                  <thead>
+                    <tr>
+                      <th>{isOrgWide ? 'Person' : 'Employee'}</th>
+                      {isOrgWide && <th>Role</th>}
+                      <th>Shift</th>
+                      <th>Hours</th>
+                      <th>Since</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {assignments.map((a) => {
+                      const hours =
+                        a.start_time && a.end_time
+                          ? formatShiftTimeRange(String(a.start_time).slice(0, 5), String(a.end_time).slice(0, 5))
+                          : '—';
+                      const hasActive = Boolean(a.shift_id && a.shift_name);
+                      const since = a.effective_from
+                        ? new Date(`${a.effective_from}T12:00:00`).toLocaleDateString(undefined, {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                          })
+                        : hasActive
+                          ? 'Active shift'
+                          : 'Company default';
+                      return (
+                        <tr key={a.user_id}>
+                          <td>{a.full_name}</td>
+                          {isOrgWide && <td style={{ textTransform: 'capitalize' }}>{a.employee_role || '—'}</td>}
+                          <td>
+                            {hasActive ? (
+                              <span className="shift-active-label">
+                                <span className="shift-active-pill">Active shift</span>
+                                {a.shift_name}
+                              </span>
+                            ) : (
+                              a.shift_name || '—'
+                            )}
+                          </td>
+                          <td>{hours}</td>
+                          <td>{since}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="shift-status-cards" aria-label={isOrgWide ? 'Organization shift status' : 'Team shift status'}>
                 {assignments.map((a) => {
                   const hours =
                     a.start_time && a.end_time
                       ? formatShiftTimeRange(String(a.start_time).slice(0, 5), String(a.end_time).slice(0, 5))
                       : '—';
+                  const hasActive = Boolean(a.shift_id && a.shift_name);
                   const since = a.effective_from
                     ? new Date(`${a.effective_from}T12:00:00`).toLocaleDateString(undefined, {
                         year: 'numeric',
                         month: 'short',
                         day: 'numeric',
                       })
-                    : a.shift_id
-                      ? 'Active'
+                    : hasActive
+                      ? 'Active shift'
                       : 'Company default';
                   return (
-                    <tr key={a.user_id}>
-                      <td>{a.full_name}</td>
-                      {isOrgWide && <td style={{ textTransform: 'capitalize' }}>{a.employee_role || '—'}</td>}
-                      <td>{a.shift_name || '—'}</td>
-                      <td>{hours}</td>
-                      <td>{since}</td>
-                    </tr>
+                    <article key={`card-${a.user_id}`} className="shift-status-card">
+                      <header className="shift-status-card__head">
+                        <strong>{a.full_name}</strong>
+                        {isOrgWide ? (
+                          <span className="shift-status-card__role">{a.employee_role || '—'}</span>
+                        ) : null}
+                      </header>
+                      <dl className="shift-status-card__grid">
+                        <div>
+                          <dt>Shift</dt>
+                          <dd>
+                            {hasActive ? (
+                              <span className="shift-active-label">
+                                <span className="shift-active-pill">Active shift</span>
+                                {a.shift_name}
+                              </span>
+                            ) : (
+                              a.shift_name || '—'
+                            )}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Hours</dt>
+                          <dd>{hours}</dd>
+                        </div>
+                        <div className="shift-status-card__since">
+                          <dt>Since</dt>
+                          <dd>{since}</dd>
+                        </div>
+                      </dl>
+                    </article>
                   );
                 })}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="shift-status-cards" aria-label={isOrgWide ? 'Organization shift status' : 'Team shift status'}>
-            {assignments.map((a) => {
-              const hours =
-                a.start_time && a.end_time
-                  ? formatShiftTimeRange(String(a.start_time).slice(0, 5), String(a.end_time).slice(0, 5))
-                  : '—';
-              const since = a.effective_from
-                ? new Date(`${a.effective_from}T12:00:00`).toLocaleDateString(undefined, {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                  })
-                : a.shift_id
-                  ? 'Active'
-                  : 'Company default';
-              return (
-                <article key={`card-${a.user_id}`} className="shift-status-card">
-                  <header className="shift-status-card__head">
-                    <strong>{a.full_name}</strong>
-                    {isOrgWide ? (
-                      <span className="shift-status-card__role">{a.employee_role || '—'}</span>
-                    ) : null}
-                  </header>
-                  <dl className="shift-status-card__grid">
-                    <div>
-                      <dt>Shift</dt>
-                      <dd>{a.shift_name || '—'}</dd>
-                    </div>
-                    <div>
-                      <dt>Hours</dt>
-                      <dd>{hours}</dd>
-                    </div>
-                    <div className="shift-status-card__since">
-                      <dt>Since</dt>
-                      <dd>{since}</dd>
-                    </div>
-                  </dl>
-                </article>
-              );
-            })}
-          </div>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

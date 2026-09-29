@@ -810,11 +810,10 @@ export default function AttendanceLeavePanel({
         {adminTab === 'shifts' && (
           <section className="admin-attendance-card glass-panel">
             <h3>
-              <CalendarClock size={18} /> Create &amp; assign shifts
+              <CalendarClock size={18} /> Shifts
             </h3>
             <p>
-              Choose hours and working days, then assign to one person or several at once.
-              Admins can still view and change the same schedules.
+              Browse all shifts, edit or delete them, and assign to people. Everyone assigned gets an email when a shift is created, changed, or assigned.
             </p>
             <ShiftManagementPanel mode="hr" teamMembers={teamMembers} onUpdate={load} />
           </section>
@@ -938,9 +937,11 @@ export default function AttendanceLeavePanel({
         {adminTab === 'shifts' && (
           <section className="admin-attendance-card glass-panel">
             <h3>
-              <CalendarClock size={18} /> Create &amp; assign shifts
+              <CalendarClock size={18} /> Shifts
             </h3>
-            <p>Create schedules and assign them directly to any manager or employee in your organization.</p>
+            <p>
+              Browse all shifts, edit or delete them, and assign to any manager or employee. Emails go out when a shift is changed or assigned.
+            </p>
             <ShiftManagementPanel mode="admin" teamMembers={teamMembers} onUpdate={load} />
           </section>
         )}

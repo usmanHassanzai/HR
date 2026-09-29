@@ -892,6 +892,83 @@
 }
 
 /* Shift management */
+.shift-panel-tabs {
+  margin-bottom: 0.85rem;
+}
+
+.shift-panel-tabs__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.35rem;
+  margin-left: 0.25rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--accent-primary) 16%, transparent);
+  color: var(--accent-primary);
+}
+
+.shift-list-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.shift-list-header .attendance-card__title,
+.shift-list-header .attendance-card__subtitle {
+  margin-bottom: 0;
+}
+
+.shift-list-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.55rem;
+  padding: 1.75rem 1rem;
+  color: var(--text-secondary);
+}
+
+.shift-list-empty h4 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.05rem;
+}
+
+.shift-list-empty p {
+  margin: 0 0 0.35rem;
+  max-width: 28rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.shift-active-label {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+}
+
+.shift-active-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--btn-primary-text, #fff);
+  background: var(--color-success, var(--accent-primary));
+  white-space: nowrap;
+}
+
 .shift-card__hero {
   display: flex;
   flex-wrap: wrap;
