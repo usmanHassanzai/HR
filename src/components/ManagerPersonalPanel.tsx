@@ -12,6 +12,7 @@ import {
   periodLabel,
   type KpiPeriodMode,
 } from '../utils/kpiScoreHelpers';
+import { displayedAwardedWeightage } from '../utils/weightageReveal';
 import { emailKpiOverdue } from '../utils/kpiEmail';
 import { runOverdueKpiCheckOnce } from '../utils/overdueKpiCheck';
 import KpiAssignmentDetails from './KpiAssignmentDetails';
@@ -248,6 +249,7 @@ export default function ManagerPersonalPanel({ profile, focusKpiId }: ManagerPer
         userId={profile.id}
         rewardsSummary={rewardsSummary}
         title="My KPI scoreboard"
+        deferAchievedUntilMonthEnd
         period={{ mode: periodMode, month: filterMonth, year: filterYear }}
         onPeriodChange={(next) => {
           setPeriodMode(next.mode);
@@ -354,6 +356,7 @@ export default function ManagerPersonalPanel({ profile, focusKpiId }: ManagerPer
                   const latePenalized = isKpiLatePenaltyApplied(kpi);
                   const penaltyLabel = formatLatePenaltyLabel(kpiScoringRule(kpi));
                   const historyDate = kpi.completed_at || kpi.end_date;
+                  const revealed = displayedAwardedWeightage(kpi, { deferUntilMonthEnd: true });
                   return (
                     <article
                       key={kpi.id}
@@ -376,7 +379,11 @@ export default function ManagerPersonalPanel({ profile, focusKpiId }: ManagerPer
                         </div>
                         <div>
                           <dt>Achieved</dt>
-                          <dd>{formatKpiWeight(Number(kpi.assigned_score ?? kpi.weight ?? 0))}</dd>
+                          <dd>
+                            {revealed != null
+                              ? formatKpiWeight(revealed)
+                              : 'Posts at month end'}
+                          </dd>
                         </div>
                         <div>
                           <dt>Approved</dt>
@@ -384,8 +391,9 @@ export default function ManagerPersonalPanel({ profile, focusKpiId }: ManagerPer
                         </div>
                       </dl>
                       <p className="kpi-score-line">
-                        Awarded {formatKpiWeight(Number(kpi.assigned_score ?? kpi.weight ?? 0))}
-                        {latePenalized ? ' (late)' : ''}
+                        {revealed != null
+                          ? `Awarded ${formatKpiWeight(revealed)}${latePenalized ? ' (late)' : ''}`
+                          : 'Approved — weightage posts on the last day of the month'}
                       </p>
                       <KpiAssignmentDetails kpi={kpi} />
                     </article>

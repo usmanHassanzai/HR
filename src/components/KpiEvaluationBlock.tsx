@@ -9,6 +9,7 @@ import { isKpiLatePenaltyApplied, kpiAssignedScore } from '../utils/kpiScoreHelp
 import { formatKpiWeight } from '../utils/kpiWeightHelpers';
 import { formatLatePenaltyLabel, kpiScoringRule } from '../utils/kpiScoringRules';
 import { emailKpiCompleted } from '../utils/kpiEmail';
+import { isKpiAwardedWeightageVisible } from '../utils/weightageReveal';
 import { PauseCircle } from 'lucide-react';
 import KpiOptionPicker from './KpiOptionPicker';
 
@@ -91,12 +92,15 @@ export default function KpiEvaluationBlock({
     }
   };
 
+  const awardVisible = approved && (mode !== 'employee' || isKpiAwardedWeightageVisible(kpi));
   const timing = paused
     ? (pauseText || 'Paused — due date will extend on resume')
     : approved
-      ? (latePenalized
-        ? `Awarded ${formatKpiWeight(kpiAssignedScore(kpi))} (late)`
-        : `Awarded ${formatKpiWeight(kpiAssignedScore(kpi))} (approved)`)
+      ? (awardVisible
+        ? (latePenalized
+          ? `Awarded ${formatKpiWeight(kpiAssignedScore(kpi))} (late)`
+          : `Awarded ${formatKpiWeight(kpiAssignedScore(kpi))} (approved)`)
+        : 'Approved — your weightage posts on the last day of the month')
       : awaitingReview
         ? 'Submitted — waiting for manager, admin, or HR to review and award weightage'
         : (pauseText

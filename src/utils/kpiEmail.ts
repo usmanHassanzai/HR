@@ -89,6 +89,35 @@ export async function emailKpiRemoved(opts: {
   );
 }
 
+/** After review: email ONLY the person who owns the KPI (employee or manager). */
+export async function emailKpiWeightageAwarded(opts: {
+  toEmail: string;
+  toName: string;
+  kpiName: string;
+  weightLabel: string;
+  reviewerName?: string;
+  note?: string;
+  approved: boolean;
+}) {
+  const { toEmail, toName, kpiName, weightLabel, reviewerName, note, approved } = opts;
+  if (!toEmail) return;
+  const by = reviewerName?.trim() ? `\nReviewed by: ${reviewerName.trim()}` : '';
+  const noteLine = note?.trim() ? `\nNote: ${note.trim()}` : '';
+  if (approved) {
+    await sendKpiEmail(
+      toEmail,
+      `KPI approved: ${kpiName}`,
+      `Hi ${toName || 'there'},\n\nYour KPI task "${kpiName}" was approved.\n\nWeightage to be posted: ${weightLabel}${by}${noteLine}\n\nYour awarded weightage appears on your dashboard on the last day of the month (28, 29, 30, or 31). Until then, the task stays in History as approved.`,
+    );
+    return;
+  }
+  await sendKpiEmail(
+    toEmail,
+    `KPI sent back: ${kpiName}`,
+    `Hi ${toName || 'there'},\n\nYour KPI task "${kpiName}" was sent back for more work.${by}${noteLine}\n\nOpen Scorr to update it and submit again.`,
+  );
+}
+
 export async function emailShiftAssigned(opts: {
   email: string;
   name: string;

@@ -24,6 +24,7 @@ import {
   periodLabel,
   type KpiPeriodMode,
 } from '../utils/kpiScoreHelpers';
+import { displayedAwardedWeightage } from '../utils/weightageReveal';
 import { karachiYearMonth, kpiCategoryMeta } from '../utils/kpiCategories';
 import { formatLatePenaltyLabel, kpiScoringRule } from '../utils/kpiScoringRules';
 import { fetchRewardsSummary, type RewardsSummary } from '../utils/rewardsHelpers';
@@ -356,6 +357,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
         userId={activeUser.id}
         rewardsSummary={rewardsSummary}
         title="KPI scoreboard"
+        deferAchievedUntilMonthEnd
         period={{ mode: periodMode, month: filterMonth, year: filterYear }}
         onPeriodChange={(next) => {
           setPeriodMode(next.mode);
@@ -481,6 +483,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
                   const latePenalized = isKpiLatePenaltyApplied(kpi);
                   const penaltyLabel = formatLatePenaltyLabel(kpiScoringRule(kpi));
                   const historyDate = kpi.completed_at || kpi.end_date;
+                  const revealed = displayedAwardedWeightage(kpi, { deferUntilMonthEnd: true });
                   return (
                     <article
                       key={kpi.id}
@@ -503,7 +506,11 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
                         </div>
                         <div>
                           <dt>Achieved</dt>
-                          <dd>{formatKpiWeight(Number(kpi.assigned_score ?? kpi.weight ?? 0))}</dd>
+                          <dd>
+                            {revealed != null
+                              ? formatKpiWeight(revealed)
+                              : 'Posts at month end'}
+                          </dd>
                         </div>
                         <div>
                           <dt>Completed</dt>
@@ -528,14 +535,17 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
                         <div className="emp-kpi-detail__row">
                           <span>Contribution</span>
                           <strong>
-                            {formatKpiWeight(Number(kpi.assigned_score ?? kpi.weight ?? 0))} of{' '}
-                            {formatKpiWeight(kpi.weight)} weightage
+                            {revealed != null
+                              ? `${formatKpiWeight(revealed)} of ${formatKpiWeight(kpi.weight)} weightage`
+                              : `Approved — amount posts on the last day of the month`}
                           </strong>
                         </div>
                       </div>
                       <KpiAssignmentDetails kpi={kpi} compact />
                       <p className="kpi-score-line">
-                        Weightage achieved {formatKpiWeight(Number(kpi.assigned_score ?? kpi.weight ?? 0))}
+                        {revealed != null
+                          ? `Weightage achieved ${formatKpiWeight(revealed)}`
+                          : 'Weightage posts on the last day of the month'}
                       </p>
                       <KpiEvaluationBlock
                         kpi={kpi}
@@ -568,6 +578,9 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
             const awaitingReview = kpi.completion_status === 'pending_review';
             const latePenalized = isKpiLatePenaltyApplied(kpi);
             const penaltyLabel = formatLatePenaltyLabel(kpiScoringRule(kpi));
+            const revealed = complete
+              ? displayedAwardedWeightage(kpi, { deferUntilMonthEnd: true })
+              : null;
             return (
               <article
                 key={kpi.id}
@@ -594,7 +607,9 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
                     <dt>Achieved</dt>
                     <dd>
                       {complete
-                        ? formatKpiWeight(Number(kpi.assigned_score ?? kpi.weight ?? 0))
+                        ? (revealed != null
+                          ? formatKpiWeight(revealed)
+                          : 'Posts at month end')
                         : awaitingReview
                           ? 'Awaiting review'
                           : '—'}
@@ -620,7 +635,9 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
                     <span>Contribution</span>
                     <strong>
                       {complete
-                        ? `${formatKpiWeight(kpi.weight)} of ${formatKpiWeight(kpi.weight)} weightage`
+                        ? (revealed != null
+                          ? `${formatKpiWeight(revealed)} of ${formatKpiWeight(kpi.weight)} weightage`
+                          : 'Approved — amount posts on the last day of the month')
                         : `Not complete (weightage ${formatKpiWeight(kpi.weight)} still counts toward assigned)`}
                     </strong>
                   </div>
@@ -628,7 +645,9 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
                 <KpiAssignmentDetails kpi={kpi} compact />
                 <p className="kpi-score-line">
                   {complete
-                    ? `Weightage achieved ${formatKpiWeight(kpi.weight)}`
+                    ? (revealed != null
+                      ? `Weightage achieved ${formatKpiWeight(revealed)}`
+                      : 'Weightage posts on the last day of the month')
                     : 'Weightage after you mark Complete'}
                 </p>
                 <KpiEvaluationBlock

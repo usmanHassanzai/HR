@@ -20,6 +20,7 @@ import {
   fetchMonthWeightageBalance,
   type MonthWeightageBalance,
 } from '../utils/monthWeightageBalance';
+import { isWeightageRevealDay, weightageRevealHint } from '../utils/weightageReveal';
 import { scrollNavTarget } from '../utils/notificationDeepLink';
 import '../styles/manager-rewards.css';
 import '../styles/employee-rewards.css';
@@ -246,6 +247,7 @@ export default function ManagerRewardsPanel({
     myBalance.available,
     myProgress.find((r) => r.latest_score != null)?.latest_score ?? null,
   );
+  const revealToday = isWeightageRevealDay();
   const arrangeCount = queue.length + catalogQueue.length;
 
   if (loading && myProgress.length === 0 && team.length === 0) {
@@ -269,17 +271,22 @@ export default function ManagerRewardsPanel({
             <p className="mgr-rewards-header__subtitle">
               Redeem gifts whenever you still have enough left to use or saved for later — no one-gift-per-month limit.
               Extra after a gift is saved for later. Movie and surprise streak gifts do not use weightage.
+              {!revealToday ? ` ${weightageRevealHint()}` : ''}
             </p>
           </div>
         </div>
         <div className="mgr-rewards-stats">
           <div className="mgr-rewards-stat">
             <span className="mgr-rewards-stat__label">Earned this month</span>
-            <strong>{formatAwardWeightage(myBalance.earned ?? myWeightage)}</strong>
+            <strong>
+              {revealToday
+                ? formatAwardWeightage(myBalance.earned ?? myWeightage)
+                : 'Month end'}
+            </strong>
           </div>
           <div className="mgr-rewards-stat mgr-rewards-stat--accent">
             <span className="mgr-rewards-stat__label">Left to use</span>
-            <strong>{formatAwardWeightage(myWeightage)}</strong>
+            <strong>{revealToday ? formatAwardWeightage(myWeightage) : 'Month end'}</strong>
           </div>
           <div className="mgr-rewards-stat">
             <span className="mgr-rewards-stat__label">Used on gifts</span>

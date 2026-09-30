@@ -144,8 +144,18 @@ export function resolveNotificationNav(
     return withMeta({ role: 'employee', tab: 'kpis' }, meta);
   }
 
-  // KPI approved / sent back → assignee workspace
-  if (includesAny(text, ['kpi approved', 'kpi sent back', 'task paused', 'task resumed', 'kpi task removed', 'kpi removed'])) {
+  // Weightage awarded / KPI approved / sent back → assignee workspace only
+  if (
+    includesAny(text, [
+      'weightage awarded',
+      'kpi approved',
+      'kpi sent back',
+      'task paused',
+      'task resumed',
+      'kpi task removed',
+      'kpi removed',
+    ])
+  ) {
     if (r === 'admin' || r === 'hr') return withMeta({ role: 'admin', tab: 'kpis', desk: meta.desk || 'board' }, meta);
     if (r === 'manager') return withMeta({ role: 'manager', tab: 'mine' }, meta);
     return withMeta({ role: 'employee', tab: 'kpis' }, meta);

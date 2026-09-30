@@ -7,6 +7,7 @@ import {
 } from './kpiCategories';
 import { kpiScoringRule } from './kpiScoringRules';
 import { KPI_WEIGHT_CAP } from './kpiWeightHelpers';
+import { isKpiAwardedWeightageVisible, isWeightageRevealDay } from './weightageReveal';
 
 /** Round to two decimal places (49.50, 12.75, 90.75). */
 export function roundKpiScore(value: number): number {
@@ -298,27 +299,42 @@ function clampWeightPct(value: number): number {
 /**
  * Scoreboard breakdown for a KPI set (month filter or all-time).
  * Weightage block is capped at 100%. Score uses raw assigned weight and may exceed 100%.
+ * When deferAchievedUntilMonthEnd is true, completed tasks in the current month
+ * do not count toward achieved weightage until the last calendar day (28/29/30/31).
  */
-export function employeeKpiBoardBreakdown(kpis: Kpi[]) {
+export function employeeKpiBoardBreakdown(
+  kpis: Kpi[],
+  opts?: { deferAchievedUntilMonthEnd?: boolean; now?: Date },
+) {
+  const now = opts?.now ?? new Date();
+  const defer = Boolean(opts?.deferAchievedUntilMonthEnd);
+  const countsTowardAchieved = (k: Kpi) =>
+    k.completion_status === 'completed'
+    && (!defer || isKpiAwardedWeightageVisible(k, now));
+
   const weightAssignedRaw = roundKpiScore(
     kpis.reduce((s, k) => s + Number(k.weight || 0), 0),
   );
   const weightAchievedRaw = roundKpiScore(
     kpis
-      .filter((k) => k.completion_status === 'completed')
+      .filter(countsTowardAchieved)
       .reduce((s, k) => {
         const weight = Math.max(0, Number(k.weight || 0));
         const awarded = Math.max(0, Number(k.assigned_score ?? k.weight ?? 0));
-        // Earned for the month cannot exceed the weight that was assigned on the task.
         return s + Math.min(awarded, weight);
       }, 0),
   );
   const weightPendingRaw = roundKpiScore(
     kpis
-      .filter((k) => k.completion_status !== 'completed')
+      .filter((k) => !countsTowardAchieved(k))
       .reduce((s, k) => s + Number(k.weight || 0), 0),
   );
-  const pointsAwarded = employeePerformancePoints(kpis);
+  const pointsAwarded = roundKpiScore(
+    kpis.reduce((sum, kpi) => {
+      if (!countsTowardAchieved(kpi)) return sum;
+      return sum + kpiScoreContribution(kpi);
+    }, 0),
+  );
   const score = weightAssignedRaw > 0
     ? roundKpiScore((pointsAwarded / weightAssignedRaw) * 100)
     : 0;
@@ -328,17 +344,16 @@ export function employeeKpiBoardBreakdown(kpis: Kpi[]) {
     kpiCount: kpis.length,
     completed,
     pending: kpis.length - completed,
-    // Block A — Weightage (≤ 100%)
     totalWeight: KPI_WEIGHT_CAP,
     weightAssigned: clampWeightPct(weightAssignedRaw),
     weightAchieved: clampWeightPct(weightAchievedRaw),
     weightPending: clampWeightPct(weightPendingRaw),
     weightUnassigned: clampWeightPct(KPI_WEIGHT_CAP - weightAssignedRaw),
     weightAssignedRaw,
-    // Block B — Score (may exceed 100%)
     score,
     pointsAwarded,
     performanceRating: performanceRatingForScore(score),
+    weightageDeferred: defer && !isWeightageRevealDay(now),
   };
 }
 

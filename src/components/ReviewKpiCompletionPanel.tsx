@@ -4,6 +4,19 @@ import { supabase } from '../lib/supabase';
 import { isKpiAwaitingReview, type Kpi } from '../utils/kpiHelpers';
 import { formatKpiWeight } from '../utils/kpiWeightHelpers';
 import { kpiAssignedScore } from '../utils/kpiScoreHelpers';
+import { emailKpiWeightageAwarded } from '../utils/kpiEmail';
+
+type ReviewResult = {
+  ok?: boolean;
+  approved?: boolean;
+  kpi_name?: string;
+  assigned_score?: number;
+  assignee_email?: string | null;
+  assignee_name?: string | null;
+  assignee_role?: string | null;
+  reviewer_name?: string | null;
+  note?: string | null;
+};
 
 /** Manager / admin / HR: set final weightage for a task waiting on review. */
 export default function ReviewKpiCompletionPanel({
@@ -31,13 +44,29 @@ export default function ReviewKpiCompletionPanel({
       if (approve && (!Number.isFinite(finalScore) || finalScore < 0 || finalScore > taskWeight)) {
         throw new Error(`Enter a score between 0 and ${formatKpiWeight(taskWeight)} (this task's weight).`);
       }
-      const { error: rpcErr } = await supabase.rpc('review_kpi_completion', {
+      const { data, error: rpcErr } = await supabase.rpc('review_kpi_completion', {
         p_kpi_id: kpi.id,
         p_final_score: approve ? finalScore : defaultScore,
         p_approve: approve,
         p_note: note.trim() || null,
       });
       if (rpcErr) throw rpcErr;
+
+      const result = (data && typeof data === 'object' ? data : {}) as ReviewResult;
+      // Email ONLY the person who owns this KPI (employee or manager) — never the whole team.
+      const ownerEmail = String(result.assignee_email || '').trim();
+      if (ownerEmail) {
+        void emailKpiWeightageAwarded({
+          toEmail: ownerEmail,
+          toName: String(result.assignee_name || ''),
+          kpiName: String(result.kpi_name || kpi.name),
+          weightLabel: formatKpiWeight(Number(result.assigned_score ?? finalScore)),
+          reviewerName: result.reviewer_name || undefined,
+          note: result.note || note.trim() || undefined,
+          approved: Boolean(result.approved ?? approve),
+        });
+      }
+
       onUpdated();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Could not save review.');
@@ -55,6 +84,7 @@ export default function ReviewKpiCompletionPanel({
           <p>
             They marked this complete. Award up to this task&apos;s weight ({formatKpiWeight(taskWeight)}).
             You can give less based on performance — not more than was assigned.
+            The weightage email goes only to this person&apos;s inbox and dashboard.
           </p>
         </div>
       </div>

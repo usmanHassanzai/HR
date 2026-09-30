@@ -14,6 +14,7 @@ import {
 import { karachiYearMonth } from '../utils/kpiCategories';
 import type { RewardsSummary } from '../utils/rewardsHelpers';
 import { fetchMonthWeightageBalance } from '../utils/monthWeightageBalance';
+import { isWeightageRevealDay, weightageRevealHint } from '../utils/weightageReveal';
 import '../styles/employee-kpis.css';
 
 export interface KpiScoreboardPeriodState {
@@ -29,6 +30,11 @@ interface KpiScoreboardSummaryProps {
   /** Compact: hide long formula copy (manager embeds). */
   compact?: boolean;
   title?: string;
+  /**
+   * For employee/manager self dashboards: hide achieved weightage until the
+   * last day of the month (28/29/30/31). Admins reviewing still see live awards.
+   */
+  deferAchievedUntilMonthEnd?: boolean;
   /** Controlled period (keeps parent task lists in sync). */
   period?: KpiScoreboardPeriodState;
   onPeriodChange?: (next: KpiScoreboardPeriodState) => void;
@@ -46,6 +52,7 @@ export default function KpiScoreboardSummary({
   rewardsSummary: _rewardsSummary = null,
   compact = false,
   title = 'KPI weightage',
+  deferAchievedUntilMonthEnd = false,
   period,
   onPeriodChange,
   toolbar,
@@ -53,6 +60,8 @@ export default function KpiScoreboardSummary({
   footer,
 }: KpiScoreboardSummaryProps) {
   const now = karachiYearMonth();
+  const revealToday = isWeightageRevealDay();
+  const deferActive = deferAchievedUntilMonthEnd && !revealToday;
   const [internalMode, setInternalMode] = useState<KpiPeriodMode>('month');
   const [internalMonth, setInternalMonth] = useState(now.monthIndex);
   const [internalYear, setInternalYear] = useState(now.year);
@@ -89,7 +98,7 @@ export default function KpiScoreboardSummary({
     periodMode === 'month' && filterYear === now.year && filterMonth === now.monthIndex;
 
   useEffect(() => {
-    if (!userId || !isCurrentMonthView) {
+    if (!userId || !isCurrentMonthView || deferActive) {
       setGiftUsed(0);
       setGiftAvailable(null);
       setGiftBanked(0);
@@ -108,21 +117,27 @@ export default function KpiScoreboardSummary({
     return () => {
       cancelled = true;
     };
-  }, [userId, isCurrentMonthView, kpis]);
+  }, [userId, isCurrentMonthView, kpis, deferActive]);
 
   const overallKpis = kpis;
-  const overallSummary = useMemo(() => employeeKpiBoardBreakdown(overallKpis), [overallKpis]);
+  const overallSummary = useMemo(
+    () => employeeKpiBoardBreakdown(overallKpis, { deferAchievedUntilMonthEnd }),
+    [overallKpis, deferAchievedUntilMonthEnd],
+  );
   const periodKpis = useMemo(
     () => kpisForPeriod(kpis, periodMode, filterYear, filterMonth),
     [kpis, periodMode, filterYear, filterMonth],
   );
-  const periodSummary = useMemo(() => employeeKpiBoardBreakdown(periodKpis), [periodKpis]);
+  const periodSummary = useMemo(
+    () => employeeKpiBoardBreakdown(periodKpis, { deferAchievedUntilMonthEnd }),
+    [periodKpis, deferAchievedUntilMonthEnd],
+  );
   const selectedLabel = periodLabel(periodMode, filterYear, filterMonth);
 
   const active = periodMode === 'overall' ? overallSummary : periodSummary;
   const activeEmpty = periodMode === 'overall' ? overallKpis.length === 0 : periodKpis.length === 0;
   const has = !activeEmpty && active.kpiCount > 0;
-  const showGiftSplit = Boolean(isCurrentMonthView && userId && has);
+  const showGiftSplit = Boolean(isCurrentMonthView && userId && has && !deferActive);
 
   const earnedWeightage =
     showGiftSplit && giftEarned != null ? giftEarned : active.weightAchieved;
@@ -231,6 +246,12 @@ export default function KpiScoreboardSummary({
                 : `Tasks in ${selectedLabel}. The big number is what you still have left to use on gifts.`}
           </p>
 
+          {deferActive ? (
+            <p className="emp-kpi-month__reveal" role="status">
+              {weightageRevealHint()} Approved tasks stay in History — earned amounts unlock on that day.
+            </p>
+          ) : null}
+
           <section className="emp-kpi-block emp-kpi-block--weight" aria-label="Your weightage">
             <div className="emp-kpi-block__head">
               <h4 className="emp-kpi-block__title">Your weightage</h4>
@@ -239,23 +260,33 @@ export default function KpiScoreboardSummary({
             <div className="emp-kpi-month__score">
               <div className="emp-kpi-month__score-main">
                 <span className="emp-kpi-month__score-label">
-                  {showGiftSplit || periodMode === 'month' ? 'Left to use now' : 'You earned'}
+                  {deferActive
+                    ? 'Earned (posts at month end)'
+                    : showGiftSplit || periodMode === 'month'
+                      ? 'Left to use now'
+                      : 'You earned'}
                 </span>
-                <span className="emp-kpi-month__pct" style={{ color: has ? ratingColor : undefined }}>
-                  {formatKpiWeight(showGiftSplit || periodMode === 'month' ? currentWeightage : earnedWeightage)}
+                <span className="emp-kpi-month__pct" style={{ color: has && !deferActive ? ratingColor : undefined }}>
+                  {formatKpiWeight(deferActive ? 0 : (showGiftSplit || periodMode === 'month' ? currentWeightage : earnedWeightage))}
                 </span>
-                {has && (showGiftSplit || periodMode === 'month') ? (
+                {has && deferActive ? (
+                  <span className="emp-kpi-month__score-hint">
+                    Visible on the last day of this month
+                  </span>
+                ) : has && (showGiftSplit || periodMode === 'month') ? (
                   <span className="emp-kpi-month__score-hint">
                     What you can still spend on gifts
                   </span>
                 ) : null}
               </div>
-              {has ? (
+              {has && !deferActive ? (
                 <span className="emp-kpi-month__rating" style={{ color: ratingColor }}>
                   {rating}
                 </span>
               ) : (
-                <span className="emp-kpi-month__rating emp-kpi-month__rating--muted">No tasks yet</span>
+                <span className="emp-kpi-month__rating emp-kpi-month__rating--muted">
+                  {deferActive ? 'Month-end unlock' : 'No tasks yet'}
+                </span>
               )}
             </div>
 
@@ -267,8 +298,10 @@ export default function KpiScoreboardSummary({
               </div>
               <div>
                 <dt>Earned this month</dt>
-                <dd>{formatKpiWeight(earnedWeightage)}</dd>
-                <span className="emp-kpi-stat-note">From finished tasks</span>
+                <dd>{formatKpiWeight(deferActive ? 0 : earnedWeightage)}</dd>
+                <span className="emp-kpi-stat-note">
+                  {deferActive ? 'Unlocks on last day' : 'From finished tasks'}
+                </span>
               </div>
               <div>
                 <dt>Used on gifts</dt>

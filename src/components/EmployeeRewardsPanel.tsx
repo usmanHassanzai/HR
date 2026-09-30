@@ -15,6 +15,7 @@ import {
   fetchMonthWeightageBalance,
   type MonthWeightageBalance,
 } from '../utils/monthWeightageBalance';
+import { isWeightageRevealDay, weightageRevealHint } from '../utils/weightageReveal';
 import KpiAwardProgressList from './KpiAwardProgressList';
 import WeightageRewardCatalog from './WeightageRewardCatalog';
 import { Gift, Loader2, Trophy, TrendingUp } from 'lucide-react';
@@ -70,8 +71,10 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
     const { year, monthIndex } = karachiYearMonth();
     const monthKpis = kpisForPeriod(kpis, 'month', year, monthIndex);
     if (!monthKpis.length) return null;
-    return employeeKpiBoardBreakdown(monthKpis).weightAchieved;
+    return employeeKpiBoardBreakdown(monthKpis, { deferAchievedUntilMonthEnd: true }).weightAchieved;
   }, [kpis]);
+
+  const revealToday = isWeightageRevealDay();
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -95,11 +98,15 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
     void fetchAll();
   }, [fetchAll]);
 
-  const earnedWeightage = coerceAwardWeightage(balance.earned, clientMonthWeightage);
-  const availableWeightage = coerceAwardWeightage(
-    balance.available,
-    balance.earned != null ? Math.max(0, Number(balance.earned) - Number(balance.deducted || 0)) : null,
-  );
+  const earnedWeightage = revealToday
+    ? coerceAwardWeightage(balance.earned, clientMonthWeightage)
+    : 0;
+  const availableWeightage = revealToday
+    ? coerceAwardWeightage(
+      balance.available,
+      balance.earned != null ? Math.max(0, Number(balance.earned) - Number(balance.deducted || 0)) : null,
+    )
+    : 0;
 
   const claimedKeys = useMemo(() => {
     const { year, monthIndex } = karachiYearMonth();
@@ -156,6 +163,7 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
             <p className="emp-rewards-header__subtitle">
               Complete tasks to earn weightage. Redeem any gift when Current or Banked still covers its cost — there is no one-gift-per-month limit.
               Leftover after a Current redeem moves to Banked. Movie needs 90–95% for 3 months in a row; surprise needs 90–95% for 6 months in a row.
+              {!revealToday ? ` ${weightageRevealHint()}` : ''}
             </p>
           </div>
         </div>
@@ -163,12 +171,12 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
           <div className="emp-rewards-stat">
             <TrendingUp size={16} />
             <span className="emp-rewards-stat__label">Earned this month</span>
-            <strong>{formatAwardWeightage(earnedWeightage)}</strong>
+            <strong>{revealToday ? formatAwardWeightage(earnedWeightage) : 'Month end'}</strong>
           </div>
           <div className="emp-rewards-stat emp-rewards-stat--accent">
             <Gift size={16} />
             <span className="emp-rewards-stat__label">Left to use</span>
-            <strong>{formatAwardWeightage(availableWeightage)}</strong>
+            <strong>{revealToday ? formatAwardWeightage(availableWeightage) : 'Month end'}</strong>
           </div>
           <div className="emp-rewards-stat">
             <span className="emp-rewards-stat__label">Used on gifts</span>

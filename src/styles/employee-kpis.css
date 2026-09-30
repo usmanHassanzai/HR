@@ -562,6 +562,17 @@
   line-height: 1.45;
 }
 
+.emp-kpi-month__reveal {
+  margin: 0 0 0.85rem;
+  padding: 0.65rem 0.8rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, #0f766e 28%, var(--border-color));
+  background: color-mix(in srgb, #0f766e 8%, var(--bg-elevated, #fff));
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
 .emp-kpi-block {
   margin: 0 0 0.75rem;
   padding: 0.85rem 0.9rem;
