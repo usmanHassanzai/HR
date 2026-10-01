@@ -6,10 +6,10 @@
     "appId": "ai.walfia.scorr",
     "version": "1.2.3",
     "buildType": "debug",
-    "sizeBytes": 5928059,
-    "sizeLabel": "5.7 MB",
-    "updatedAt": "2026-09-11T21:45:11.733Z",
-    "updatedLabel": "September 12, 2026"
+    "sizeBytes": 6140406,
+    "sizeLabel": "5.9 MB",
+    "updatedAt": "2026-10-01T21:28:08.072Z",
+    "updatedLabel": "October 2, 2026"
   },
   "ios": {
     "available": true,
@@ -17,8 +17,8 @@
     "appName": "Scorr",
     "appId": "ai.walfia.scorr",
     "version": "1.2.3",
-    "updatedAt": "2026-09-10T16:44:03.575Z",
-    "updatedLabel": "September 10, 2026",
+    "updatedAt": "2026-10-01T21:28:39.918Z",
+    "updatedLabel": "October 2, 2026",
     "pwaUrl": "https://scorr.walfia.ai/?app=1",
     "ipaAvailable": false,
     "ipaFilename": "scorr.ipa",
