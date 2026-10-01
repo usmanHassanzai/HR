@@ -26,7 +26,7 @@ export default function WeightageRewardCatalog({
   monthWeightage,
   bankedWeightage = 0,
   title = 'Reward catalog',
-  intro = 'Redeem any catalog gift when Current or Banked covers its cost. Leftover after a Current redeem moves to Banked.',
+  intro = 'Current month + banked weightage are added together for every gift. Example: 60% current + 30% banked = 90%. Banked never expires. Leftover after a redeem stays banked.',
   onRedeemed,
 }: {
   userId: string;
@@ -72,12 +72,12 @@ export default function WeightageRewardCatalog({
   const openOrPending = (rewardId: string) =>
     mine.find((r) => r.reward_id === rewardId && (r.status === 'pending' || r.status === 'approved'));
 
-  const handleRedeem = async (item: WeightageCatalogItem, useBanked: boolean) => {
+  const handleRedeem = async (item: WeightageCatalogItem, _useBanked?: boolean) => {
     setRedeemingId(item.id);
     setMsg(null);
     const { error } = await supabase.rpc('redeem_catalog_reward', {
       p_reward_id: item.id,
-      p_use_banked: useBanked,
+      p_use_banked: false,
     });
     if (error) {
       setMsg({ type: 'err', text: error.message || 'Could not redeem this reward.' });
@@ -86,9 +86,7 @@ export default function WeightageRewardCatalog({
     }
     setMsg({
       type: 'ok',
-      text: useBanked
-        ? `Requested “${item.name}” using banked weightage — waiting for approval.`
-        : `Requested “${item.name}” — waiting for approval.`,
+      text: `Requested “${item.name}” using current + banked weightage — waiting for approval.`,
     });
     await load();
     onRedeemed?.();
@@ -133,15 +131,14 @@ export default function WeightageRewardCatalog({
       <div className="emp-rewards-catalog">
         {items.map((item) => {
           const need = Number(item.weightage_required) || 0;
-          const have = monthWeightage;
+          const have = Number(monthWeightage) || 0;
           const banked = Number(bankedWeightage) || 0;
-          const meetsCurrent = have != null && have >= need;
-          const meetsBanked = banked >= need;
+          const total = have + banked;
+          const meetsTotal = total >= need;
           const pending = openOrPending(item.id);
           const busy = redeemingId === item.id;
-          const canCurrent = meetsCurrent && !pending;
-          const canBanked = meetsBanked && !pending;
-          const ready = canCurrent || canBanked;
+          const canRedeem = meetsTotal && !pending;
+          const ready = canRedeem || Boolean(pending);
           return (
             <article
               key={item.id}
@@ -153,16 +150,18 @@ export default function WeightageRewardCatalog({
               <div className="emp-rewards-catalog-item__body">
                 <strong>{item.name}</strong>
                 <span>{item.description || 'Company catalog reward'}</span>
-                {!meetsCurrent && !meetsBanked && !pending && (
+                {!meetsTotal && !pending && (
                   <span className="emp-rewards-catalog-item__need">
                     Need {formatAwardWeightage(need)}
-                    {have != null ? ` · current ${formatAwardWeightage(have)}` : ''}
-                    {` · banked ${formatAwardWeightage(banked)}`}
+                    {' · '}
+                    total {formatAwardWeightage(total)}
+                    {' '}(current {formatAwardWeightage(have)} + banked {formatAwardWeightage(banked)})
                   </span>
                 )}
-                {!meetsCurrent && meetsBanked && !pending && (
+                {meetsTotal && !pending && (
                   <span className="emp-rewards-catalog-item__need">
-                    Current is short — you can redeem with banked ({formatAwardWeightage(banked)})
+                    Total {formatAwardWeightage(total)} covers this gift
+                    {' '}(current {formatAwardWeightage(have)} + banked {formatAwardWeightage(banked)})
                   </span>
                 )}
                 {pending && (
@@ -174,37 +173,21 @@ export default function WeightageRewardCatalog({
               <div className="emp-rewards-catalog-item__foot">
                 <span className="emp-rewards-catalog-item__cost">Uses {formatAwardWeightage(need)}</span>
                 <div className="emp-rewards-catalog-item__actions">
-                  {canCurrent ? (
+                  {canRedeem ? (
                     <button
                       type="button"
                       className="btn btn-primary btn-sm"
                       disabled={busy}
-                      onClick={() => void handleRedeem(item, false)}
+                      onClick={() => void handleRedeem(item)}
                     >
                       {busy ? <Loader2 size={14} className="spin-icon" /> : null}
                       Redeem
                     </button>
-                  ) : null}
-                  {canBanked ? (
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      disabled={busy}
-                      onClick={() => {
-                        if (window.confirm(`Use ${formatAwardWeightage(need)} from banked weightage for “${item.name}”?`)) {
-                          void handleRedeem(item, true);
-                        }
-                      }}
-                    >
-                      {busy ? <Loader2 size={14} className="spin-icon" /> : null}
-                      Redeem with Banked
-                    </button>
-                  ) : null}
-                  {!canCurrent && !canBanked ? (
+                  ) : (
                     <button type="button" className="btn btn-primary btn-sm" disabled>
                       {pending ? 'Requested' : 'Redeem'}
                     </button>
-                  ) : null}
+                  )}
                 </div>
               </div>
             </article>

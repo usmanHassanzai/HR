@@ -2,6 +2,7 @@ import { Film, Gift, Loader2, UtensilsCrossed } from 'lucide-react';
 import type { KpiAwardProgress, KpiAwardRuleKey } from '../utils/kpiAwardHelpers';
 import {
   awardProgressHint,
+  coerceAwardWeightage,
   formatAwardWeightage,
   formatAwardWeightageBand,
   isAwardRedeemable,
@@ -30,7 +31,7 @@ const RULES: {
     how: (row) => {
       const min = Number(row?.min_pct ?? 95);
       const max = Number(row?.max_pct ?? 100);
-      return `Reach weightage of ${formatAwardWeightageBand(min, max)} in any 1 month, or redeem with banked when you have enough.`;
+      return `Reach ${formatAwardWeightageBand(min, max)} total (this month + banked). Example: 60% current + 30% banked = 90%.`;
     },
   },
   {
@@ -84,15 +85,12 @@ export default function KpiAwardProgressList({
           const current = Number(row?.current_months || 0);
           const needed = Number(row?.required_months || (rule.key === 'dinner_voucher' ? 1 : rule.key === 'movie_tickets' ? 3 : 6));
           const claimed = Boolean(claimedKeys?.has(rule.key));
-          const canRedeemCurrent =
-            isAwardRedeemable(row, monthWeightage ?? null) && !claimed && Boolean(onRedeem);
           const dinnerCost = Number(row?.min_pct ?? 95);
-          const canBanked =
-            rule.key === 'dinner_voucher' &&
-            banked >= dinnerCost &&
-            !claimed &&
-            Boolean(onRedeem);
-          const canRedeem = canRedeemCurrent || canBanked;
+          const currentW = Number(coerceAwardWeightage(row?.latest_score, monthWeightage ?? null)) || 0;
+          const totalW = currentW + banked;
+          const canRedeemCurrent =
+            isAwardRedeemable(row, monthWeightage ?? null, banked) && !claimed && Boolean(onRedeem);
+          const canRedeem = canRedeemCurrent;
           const ready = canRedeem || claimed;
           const barPct = Math.min(100, needed > 0 ? (current / needed) * 100 : 0);
           const busy = redeemingKey === rule.key;
@@ -112,54 +110,32 @@ export default function KpiAwardProgressList({
               </div>
               <p className="kpi-award-card__hint">
                 {awardProgressHint(row, `${current} of ${needed} months`, { claimed, canRedeem: canRedeemCurrent })}
-                {rule.key === 'dinner_voucher' && canBanked && !canRedeemCurrent ? (
-                  <> · Banked {formatAwardWeightage(banked)} can cover this gift.</>
+                {rule.key === 'dinner_voucher' && !claimed ? (
+                  <>
+                    {' '}
+                    · Total {formatAwardWeightage(totalW)}
+                    {' '}(current {formatAwardWeightage(currentW)} + banked {formatAwardWeightage(banked)})
+                    {canRedeemCurrent ? ` · gift uses ${formatAwardWeightage(dinnerCost)}` : ''}
+                  </>
                 ) : null}
               </p>
-              {(canRedeemCurrent || canBanked) && !claimed ? (
+              {canRedeemCurrent && !claimed ? (
                 <div className="kpi-award-card__actions">
-                  {canRedeemCurrent ? (
-                    <button
-                      type="button"
-                      className="btn btn-primary kpi-award-card__redeem"
-                      disabled={busy}
-                      onClick={() => void onRedeem?.(rule.key, { useBanked: false })}
-                    >
-                      {busy ? (
-                        <>
-                          <Loader2 size={16} className="spin-icon" />
-                          Requesting…
-                        </>
-                      ) : (
-                        'Redeem'
-                      )}
-                    </button>
-                  ) : null}
-                  {canBanked ? (
-                    <button
-                      type="button"
-                      className="btn btn-secondary kpi-award-card__redeem"
-                      disabled={busy}
-                      onClick={() => {
-                        if (
-                          window.confirm(
-                            `Use ${formatAwardWeightage(dinnerCost)} from banked weightage for this dinner gift?`,
-                          )
-                        ) {
-                          void onRedeem?.(rule.key, { useBanked: true });
-                        }
-                      }}
-                    >
-                      {busy ? (
-                        <>
-                          <Loader2 size={16} className="spin-icon" />
-                          Requesting…
-                        </>
-                      ) : (
-                        'Redeem with Banked'
-                      )}
-                    </button>
-                  ) : null}
+                  <button
+                    type="button"
+                    className="btn btn-primary kpi-award-card__redeem"
+                    disabled={busy}
+                    onClick={() => void onRedeem?.(rule.key, { useBanked: false })}
+                  >
+                    {busy ? (
+                      <>
+                        <Loader2 size={16} className="spin-icon" />
+                        Requesting…
+                      </>
+                    ) : (
+                      'Redeem'
+                    )}
+                  </button>
                 </div>
               ) : null}
               {claimed ? (

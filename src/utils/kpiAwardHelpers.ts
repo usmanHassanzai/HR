@@ -106,14 +106,17 @@ function weightageInBand(weightage: number, min: number, max: number): boolean {
 export function isAwardRedeemable(
   row: KpiAwardProgress | undefined,
   monthWeightage: number | null = null,
+  bankedWeightage: number = 0,
 ): boolean {
   if (!row) return false;
   if (row.qualified) return true;
   const weightage = coerceAwardWeightage(row.latest_score, monthWeightage);
-  if (weightage == null) return false;
-  // Dinner is a single-month band — client can verify with this month's weightage.
+  const current = Number(weightage) || 0;
+  const banked = Math.max(0, Number(bankedWeightage) || 0);
+  const total = current + banked;
+  // Dinner: qualify on combined current + banked (e.g. 60% + 30% = 90%).
   if (row.rule_key === 'dinner_voucher') {
-    return weightageInBand(weightage, Number(row.min_pct), Number(row.max_pct));
+    return weightageInBand(total, Number(row.min_pct), Number(row.max_pct));
   }
   return false;
 }

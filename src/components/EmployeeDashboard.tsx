@@ -46,9 +46,8 @@ const BackupCodesLowBanner = lazy(() => import('./BackupCodesLowBanner'));
 
 type EmployeeTab = 'kpis' | 'attendance' | 'rewards' | 'dailyReport' | 'settings';
 const EMPLOYEE_TAB_KEY = 'scorr-employee-active-tab';
-/** Rewards tab hidden for now — keep type for session/notifications, omit from nav. */
-const EMPLOYEE_TABS: EmployeeTab[] = ['kpis', 'attendance', 'dailyReport', 'settings'];
-const EMPLOYEE_REWARDS_HIDDEN = true;
+const EMPLOYEE_TABS: EmployeeTab[] = ['kpis', 'attendance', 'rewards', 'dailyReport', 'settings'];
+const EMPLOYEE_REWARDS_HIDDEN = false;
 
 function initialEmployeeTab(): EmployeeTab {
   const raw = readSessionString(EMPLOYEE_TAB_KEY);
