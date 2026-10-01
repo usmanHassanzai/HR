@@ -100,8 +100,8 @@ export default function KpiScoreboardSummary({
     Boolean(deferAchievedUntilMonthEnd) && isCurrentMonthView && !revealToday;
 
   useEffect(() => {
-    // Always load banked/available for the live month so unused prior weightage shows.
-    if (!userId || !isCurrentMonthView) {
+    // Banked is cross-month — load whenever we know the user, for every period view.
+    if (!userId) {
       setGiftUsed(0);
       setGiftAvailable(null);
       setGiftBanked(0);
@@ -120,7 +120,7 @@ export default function KpiScoreboardSummary({
     return () => {
       cancelled = true;
     };
-  }, [userId, isCurrentMonthView, kpis, revealToday]);
+  }, [userId, kpis, revealToday]);
 
   const overallKpis = kpis;
   const overallSummary = useMemo(
@@ -146,22 +146,26 @@ export default function KpiScoreboardSummary({
   const active = periodMode === 'overall' ? overallSummary : periodSummary;
   const activeEmpty = periodMode === 'overall' ? overallKpis.length === 0 : periodKpis.length === 0;
   const has = !activeEmpty && active.kpiCount > 0;
-  const showGiftSplit = Boolean(isCurrentMonthView && userId);
+  /** Gift ledger (earned/used/available) is for the live month; banked shows in every period. */
+  const showLiveGiftLedger = Boolean(isCurrentMonthView && userId);
+  const showBankedRow = Boolean(userId);
 
-  const bankedWeightage = showGiftSplit ? giftBanked : 0;
+  const bankedWeightage = showBankedRow ? giftBanked : 0;
   const earnedWeightage = deferActive
     ? 0
-    : showGiftSplit && giftEarned != null
+    : showLiveGiftLedger && giftEarned != null
       ? giftEarned
       : active.weightAchieved;
-  const usedWeightage = deferActive ? 0 : (showGiftSplit ? giftUsed : 0);
-  /** Spendable = unlocked current remaining + banked (prior unused never expires). */
+  const usedWeightage = deferActive ? 0 : (showLiveGiftLedger ? giftUsed : 0);
+  /** Spendable now = unlocked current remaining + banked (shown on every month table). */
   const currentOnly =
     deferActive
       ? 0
-      : showGiftSplit && giftAvailable != null
+      : showLiveGiftLedger && giftAvailable != null
         ? giftAvailable
-        : Math.max(0, earnedWeightage - usedWeightage);
+        : isCurrentMonthView
+          ? Math.max(0, earnedWeightage - usedWeightage)
+          : 0;
   const currentWeightage = currentOnly + bankedWeightage;
 
   const rating = performanceRatingForScore(earnedWeightage);
@@ -276,21 +280,21 @@ export default function KpiScoreboardSummary({
             <div className="emp-kpi-month__score">
               <div className="emp-kpi-month__score-main">
                 <span className="emp-kpi-month__score-label">
-                  {showGiftSplit || periodMode === 'month' ? 'Left to use now' : 'You earned'}
+                  {showBankedRow || periodMode === 'month' ? 'Left to use now' : 'You earned'}
                 </span>
                 <span
                   className="emp-kpi-month__pct"
                   style={{ color: currentWeightage > 0 || (has && !deferActive) ? ratingColor : undefined }}
                 >
                   {formatKpiWeight(
-                    showGiftSplit || periodMode === 'month' ? currentWeightage : earnedWeightage,
+                    showBankedRow || periodMode === 'month' ? currentWeightage : earnedWeightage,
                   )}
                 </span>
                 {deferActive ? (
                   <span className="emp-kpi-month__score-hint">
                     This month&apos;s awards unlock on the last day — banked leftover is usable now
                   </span>
-                ) : has && (showGiftSplit || periodMode === 'month') ? (
+                ) : has && (showBankedRow || periodMode === 'month') ? (
                   <span className="emp-kpi-month__score-hint">
                     Current remaining + saved from earlier months
                   </span>
@@ -331,13 +335,17 @@ export default function KpiScoreboardSummary({
                 <dt>Left to use</dt>
                 <dd>{formatKpiWeight(currentWeightage)}</dd>
                 <span className="emp-kpi-stat-note">
-                  {deferActive ? 'Banked leftover (usable now)' : 'Current + banked'}
+                  {deferActive
+                    ? 'Banked leftover (usable now)'
+                    : isCurrentMonthView
+                      ? 'Current + banked'
+                      : 'Banked account (usable any month)'}
                 </span>
               </div>
               <div>
                 <dt>Saved for later</dt>
                 <dd>{formatKpiWeight(bankedWeightage)}</dd>
-                <span className="emp-kpi-stat-note">Never expires — use any month</span>
+                <span className="emp-kpi-stat-note">Banked account — every month, never expires</span>
               </div>
               <div>
                 <dt>In your tasks</dt>
@@ -361,10 +369,11 @@ export default function KpiScoreboardSummary({
               </div>
             </dl>
 
-            {showGiftSplit ? (
+            {showBankedRow ? (
               <p className="emp-kpi-weight-guide">
                 Simple rule: <strong>Earned</strong> (after month end) + <strong>Saved for later</strong> − <strong>Used on gifts</strong> = <strong>Left to use</strong>.
                 Leftover after a gift stays saved and stacks with the next month&apos;s awards until you redeem.
+                Saved for later is your banked account — it shows in every month view and never expires.
               </p>
             ) : null}
           </section>
