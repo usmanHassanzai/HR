@@ -5,7 +5,7 @@ import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const root = new URL('..', import.meta.url).pathname;
-const src = join(root, 'public', 'icons', 'icon-512.png');
+const src = join(root, 'public', 'icons', 'icon-512.webp');
 const resDir = join(root, 'android', 'app', 'src', 'main', 'res');
 
 const sizes = {

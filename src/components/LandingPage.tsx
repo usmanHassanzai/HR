@@ -1,15 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import Login from './Login';
+import { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import ThemeToggle from './ThemeToggle';
 import ScorrWordmark from './ScorrWordmark';
 import MobileAppDownload from './MobileAppDownload';
 import {
-  BarChart3, Trophy, CalendarCheck, Users, FileSpreadsheet, Bell,
+  Trophy, CalendarCheck, Users, FileSpreadsheet, Bell,
   Shield, Check, ArrowRight, CreditCard,
   TrendingUp, Target, Award, Clock, Building2, Radio,
   Menu, X, Download, Apple, KeyRound, Lock, Smartphone,
 } from 'lucide-react';
 import '../styles/landing.css';
+
+const Login = lazy(() => import('./Login'));
+const LandingHeroVisual = lazy(() => import('./LandingHeroVisual'));
 
 interface LandingPageProps {
   onLoginSuccess: (session: unknown) => void;
@@ -202,23 +204,66 @@ function AnimatedCounter({ target, suffix = '' }: { target: number; suffix?: str
   return <span ref={ref}>{val}{suffix}</span>;
 }
 
+function wantsAuthOnLoad(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    if (window.location.hash.replace(/^#/, '') === 'login') return true;
+    const q = new URLSearchParams(window.location.search);
+    return q.get('demo') === '1' || q.get('auth') === '1';
+  } catch {
+    return false;
+  }
+}
+
 export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
   const [navScrolled, setNavScrolled] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
-  const showDemoShortcuts = useMemo(() => {
+  /**
+   * Always start false so SSR prerender matches the first client paint.
+   * Deep-link auth (?demo=1 / #login) opens after mount.
+   */
+  const [authMounted, setAuthMounted] = useState(false);
+  /** Defer hero illustration cards until after first paint so headline/CTAs win. */
+  const [heroVisualReady, setHeroVisualReady] = useState(false);
+  const [showDemoShortcuts, setShowDemoShortcuts] = useState(false);
+  const revealRef = useReveal();
+
+  useEffect(() => {
+    if (wantsAuthOnLoad()) setAuthMounted(true);
     try {
-      return new URLSearchParams(window.location.search).get('demo') === '1';
+      setShowDemoShortcuts(new URLSearchParams(window.location.search).get('demo') === '1');
     } catch {
-      return false;
+      /* ignore */
     }
   }, []);
-  const revealRef = useReveal();
 
   useEffect(() => {
     const onScroll = () => setNavScrolled(window.scrollY > 24);
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const kick = () => {
+      if (cancelled) return;
+      setHeroVisualReady(true);
+    };
+    // Double rAF ≈ after first paint; idle gives the main thread a beat for CTAs.
+    const raf = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (typeof requestIdleCallback === 'function') {
+          requestIdleCallback(kick, { timeout: 400 });
+        } else {
+          kick();
+        }
+      });
+    });
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf);
+    };
   }, []);
 
   useEffect(() => {
@@ -232,6 +277,7 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
   };
 
   const openRegister = () => {
+    setAuthMounted(true);
     setAuthMode('register');
     scrollTo('login');
     try {
@@ -242,6 +288,7 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
   };
 
   const openLogin = () => {
+    setAuthMounted(true);
     setAuthMode('login');
     scrollTo('login');
     try {
@@ -255,6 +302,7 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
     const onPop = () => {
       const hash = window.location.hash.replace(/^#/, '');
       if (hash === 'login') {
+        setAuthMounted(true);
         scrollTo('login');
         return;
       }
@@ -381,30 +429,11 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
           </div>
 
           <div className="landing-hero__visual" aria-hidden>
-            <div className="landing-float-card landing-float-card--1">
-              <div className="landing-float-card__icon" style={{ background: 'rgba(45,212,168,0.15)', color: '#2dd4a8' }}>
-                <BarChart3 size={18} />
-              </div>
-              <div className="landing-float-card__title">Weightage</div>
-              <div className="landing-float-card__val" style={{ color: '#2dd4a8' }}>80%</div>
-              <div className="landing-progress"><div className="landing-progress__bar" style={{ width: '80%' }} /></div>
-            </div>
-            <div className="landing-float-card landing-float-card--2">
-              <div className="landing-float-card__icon" style={{ background: 'rgba(251,191,36,0.15)', color: '#fbbf24' }}>
-                <Trophy size={18} />
-              </div>
-              <div className="landing-float-card__title">Score index</div>
-              <div className="landing-float-card__val" style={{ color: '#fbbf24' }}>218.75</div>
-              <div className="landing-progress"><div className="landing-progress__bar" style={{ width: '100%' }} /></div>
-            </div>
-            <div className="landing-float-card landing-float-card--3">
-              <div className="landing-float-card__icon" style={{ background: 'rgba(13,148,136,0.15)', color: '#0d9488' }}>
-                <KeyRound size={18} />
-              </div>
-              <div className="landing-float-card__title">MFA ready</div>
-              <div className="landing-float-card__val" style={{ color: '#0d9488' }}>Secure</div>
-              <div className="landing-progress"><div className="landing-progress__bar" style={{ width: '100%' }} /></div>
-            </div>
+            {heroVisualReady ? (
+              <Suspense fallback={null}>
+                <LandingHeroVisual />
+              </Suspense>
+            ) : null}
           </div>
         </div>
       </section>
@@ -604,15 +633,38 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
             </div>
           </div>
           <div className="landing-login-card-wrap landing-reveal landing-reveal--delay-2">
-            <Login
-              onLoginSuccess={onLoginSuccess}
-              embedded
-              enableCompanyRegister
-              authMode={authMode}
-              onAuthModeChange={setAuthMode}
-              showDemoShortcuts={showDemoShortcuts && authMode === 'login'}
-              demoSectionLabel="3-day demo sandbox"
-            />
+            {authMounted ? (
+              <Suspense fallback={<div style={{ minHeight: 280 }} aria-hidden />}>
+                <Login
+                  onLoginSuccess={onLoginSuccess}
+                  embedded
+                  enableCompanyRegister
+                  authMode={authMode}
+                  onAuthModeChange={setAuthMode}
+                  showDemoShortcuts={showDemoShortcuts && authMode === 'login'}
+                  demoSectionLabel="3-day demo sandbox"
+                />
+              </Suspense>
+            ) : (
+              <div
+                className="landing-auth-gate"
+                style={{
+                  minHeight: 280,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  gap: '0.75rem',
+                  padding: '1.5rem',
+                }}
+              >
+                <button type="button" className="btn btn-primary" onClick={openLogin}>
+                  Sign In
+                </button>
+                <button type="button" className="btn btn-secondary" onClick={openRegister}>
+                  Register Company
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </section>

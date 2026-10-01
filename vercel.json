@@ -3,7 +3,10 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "rewrites": [
-    { "source": "/((?!.*\\.).*)", "destination": "/index.html" }
+    {
+      "source": "/((?!assets/).*)",
+      "destination": "/index.html"
+    }
   ],
   "headers": [
     {
@@ -28,18 +31,30 @@
       ]
     },
     {
+      "source": "/assets/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/(.*)\\.(woff2?|ttf|otf|eot)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/(.*)\\.(webp|png|jpe?g|gif|svg|ico|avif)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
       "source": "/(.*)",
       "headers": [
         { "key": "X-Content-Type-Options", "value": "nosniff" },
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
         { "key": "X-Frame-Options", "value": "DENY" },
         { "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains" }
-      ]
-    },
-    {
-      "source": "/assets/(.*)",
-      "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
     }
   ]

@@ -408,7 +408,14 @@ export default function PrivilegedMfaGate({ onSatisfied, onCancel, fullName }: P
               <li>Choose Add account / Scan QR code</li>
               <li>Scan the code below, then enter the 6-digit code</li>
             </ol>
-            <img src={qr} alt="Authenticator QR code for Google or Microsoft Authenticator" className="mfa-gate__qr" />
+            <img
+              src={qr}
+              alt="Authenticator QR code for Google or Microsoft Authenticator"
+              className="mfa-gate__qr"
+              width={200}
+              height={200}
+              decoding="async"
+            />
             <p className="mfa-gate__secret">
               Manual key (if you cannot scan): <code>{secret}</code>
             </p>

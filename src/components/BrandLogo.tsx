@@ -10,6 +10,14 @@ interface BrandLogoProps {
   className?: string;
 }
 
+/** Intrinsic size hints matching CSS clamps — prevents layout shift for custom logos. */
+const VARIANT_DIMS: Record<BrandLogoVariant, { width: number; height: number; lazy: boolean }> = {
+  header: { width: 340, height: 76, lazy: false },
+  login: { width: 480, height: 150, lazy: false },
+  preview: { width: 200, height: 44, lazy: true },
+  icon: { width: 32, height: 32, lazy: true },
+};
+
 function isBundledLogo(url: string): boolean {
   return (
     url === DEFAULT_LOGO_URL ||
@@ -81,12 +89,16 @@ export default function BrandLogo({
     );
   }
 
+  const dims = VARIANT_DIMS[variant];
   return (
     <img
       src={url}
       alt={alt}
       className={`brand-logo brand-logo--${variant} ${className}`.trim()}
+      width={dims.width}
+      height={dims.height}
       decoding="async"
+      {...(dims.lazy ? { loading: 'lazy' as const } : { fetchPriority: 'high' as const })}
     />
   );
 }

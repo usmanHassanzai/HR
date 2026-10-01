@@ -13,9 +13,12 @@ interface ThemeToggleProps {
 }
 
 export default function ThemeToggle({ compact = false }: ThemeToggleProps) {
-  const [pref, setPref] = useState<ThemePreference>(() => getStoredThemePreference());
+  // Always start as 'system' so SSR prerender and the first client paint match.
+  // Real preference is applied after mount (inline theme script already set data-theme).
+  const [pref, setPref] = useState<ThemePreference>('system');
 
   useEffect(() => {
+    setPref(getStoredThemePreference());
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<{ preference: ThemePreference }>).detail;
       if (detail?.preference) setPref(detail.preference);

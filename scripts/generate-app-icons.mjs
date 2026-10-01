@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-/** Generate PWA PNG icons from brand colors. Run: node scripts/generate-app-icons.mjs */
+/** Generate PWA WebP icons from brand colors. Run: node scripts/generate-app-icons.mjs */
 import sharp from 'sharp';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readdirSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 
 const root = new URL('..', import.meta.url).pathname;
@@ -32,16 +32,25 @@ async function makeIcon(size) {
     ${rects}
   </svg>`;
 
-  await sharp(Buffer.from(svg)).png().toFile(join(outDir, `icon-${size}.png`));
-  console.log(`  icon-${size}.png`);
+  await sharp(Buffer.from(svg)).webp({ quality: 90 }).toFile(join(outDir, `icon-${size}.webp`));
+  console.log(`  icon-${size}.webp`);
 }
 
-console.log('Generating app icons…');
+console.log('Generating app icons (WebP)…');
 for (const s of [192, 512]) await makeIcon(s);
+const master = join(outDir, 'icon-512.webp');
 for (const s of [180, 167, 152, 120]) {
-  await sharp(join(outDir, 'icon-512.png')).resize(s, s).png().toFile(join(outDir, `apple-touch-icon-${s}.png`));
-  console.log(`  apple-touch-icon-${s}.png`);
+  await sharp(master).resize(s, s).webp({ quality: 90 }).toFile(join(outDir, `apple-touch-icon-${s}.webp`));
+  console.log(`  apple-touch-icon-${s}.webp`);
 }
-await sharp(join(outDir, 'icon-512.png')).resize(180, 180).png().toFile(join(outDir, 'apple-touch-icon.png'));
-console.log('  apple-touch-icon.png');
+await sharp(master).resize(180, 180).webp({ quality: 90 }).toFile(join(outDir, 'apple-touch-icon.webp'));
+console.log('  apple-touch-icon.webp');
+
+// Drop legacy PNGs so /public stays WebP-only for rasters.
+for (const f of readdirSync(outDir)) {
+  if (/\.png$/i.test(f)) {
+    unlinkSync(join(outDir, f));
+    console.log(`  removed ${f}`);
+  }
+}
 console.log('Done → public/icons/');

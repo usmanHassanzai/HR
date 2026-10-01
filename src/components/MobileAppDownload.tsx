@@ -50,16 +50,19 @@ function assetUrl(path: string): string {
 const DEFAULT_PWA_URL = 'https://scorr.walfia.ai/?app=1';
 
 function isStandalonePwa(): boolean {
+  if (typeof window === 'undefined') return false;
   return window.matchMedia('(display-mode: standalone)').matches
     || (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
 }
 
 function isIos(): boolean {
+  if (typeof navigator === 'undefined') return false;
   return /iPad|iPhone|iPod/.test(navigator.userAgent)
     || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 }
 
 function isAndroid(): boolean {
+  if (typeof navigator === 'undefined') return false;
   return /Android/i.test(navigator.userAgent);
 }
 
@@ -120,13 +123,18 @@ export default function MobileAppDownload() {
   const [ipaReady, setIpaReady] = useState<boolean | null>(null);
   const [installed, setInstalled] = useState(false);
   const [iosHint, setIosHint] = useState(false);
+  /** null until mount — keeps SSR and first client paint identical (no navigator). */
+  const [ua, setUa] = useState<{ ios: boolean; android: boolean } | null>(null);
 
   const androidInfo = buildInfo?.android;
   const iosInfo = buildInfo?.ios;
   const pwaUrl = iosInfo?.pwaUrl || DEFAULT_PWA_URL;
   const pwaHost = pwaUrl.replace(/^https?:\/\//, '');
+  const onIos = ua?.ios === true;
+  const onAndroid = ua?.android === true;
 
   useEffect(() => {
+    setUa({ ios: isIos(), android: isAndroid() });
     setInstalled(isStandalonePwa());
 
     void (async () => {
@@ -232,7 +240,7 @@ export default function MobileAppDownload() {
             </div>
           )}
 
-          {isAndroid() && apkReady && (
+          {onAndroid && apkReady && (
             <p className="landing-download-note landing-download-note--highlight">
               You&apos;re on Android — tap the button above to install the latest Scorr app.
             </p>
@@ -281,7 +289,7 @@ export default function MobileAppDownload() {
             <div className="landing-download-installed">
               <CheckCircle size={18} /> Scorr is installed on this device
             </div>
-          ) : isIos() ? (
+          ) : onIos ? (
             <button type="button" className="btn btn-primary landing-download-btn" onClick={openPwaInstall}>
               <Home size={18} /> Install Scorr on this iPhone
             </button>
@@ -295,13 +303,13 @@ export default function MobileAppDownload() {
             Install URL · {pwaHost}
           </a>
 
-          {iosHint && isIos() && !installed && (
+          {iosHint && onIos && !installed && (
             <p className="landing-download-note landing-download-note--highlight">
               Tap <strong>Share</strong> at the bottom of Safari → <strong>Add to Home Screen</strong>
             </p>
           )}
 
-          {isIos() && !installed && iosReady && (
+          {onIos && !installed && iosReady && (
             <p className="landing-download-note landing-download-note--highlight">
               You&apos;re on iPhone — use Share → Add to Home Screen to install Scorr.
             </p>

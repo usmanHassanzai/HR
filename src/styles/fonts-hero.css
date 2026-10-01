@@ -1,0 +1,11 @@
+/**
+ * Hero headline face (Outfit 800) — same file as index.html preload.
+ * Kept separate so preload URL and @font-face src stay identical.
+ */
+@font-face {
+  font-family: 'Outfit';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 800;
+  src: url('/fonts/outfit-latin-800-normal.woff2') format('woff2');
+}

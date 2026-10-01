@@ -16,8 +16,11 @@ export default function RewardCatalogIcon({
         src={value}
         alt=""
         className={`reward-catalog-icon-img ${className}`.trim()}
+        width={size}
+        height={size}
         style={{ width: size, height: size }}
         loading="lazy"
+        decoding="async"
       />
     );
   }

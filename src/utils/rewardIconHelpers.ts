@@ -29,10 +29,11 @@ export async function fileToRewardIconDataUrl(file: File, maxSize = 128): Promis
   ctx.drawImage(bitmap, 0, 0, w, h);
   bitmap.close();
 
-  const preferPng = file.type === 'image/png' || file.type === 'image/gif' || file.type === 'image/webp';
-  const dataUrl = preferPng
-    ? canvas.toDataURL('image/png')
-    : canvas.toDataURL('image/jpeg', 0.88);
+  // Prefer WebP; fall back to JPEG if the browser cannot encode WebP.
+  let dataUrl = canvas.toDataURL('image/webp', 0.88);
+  if (!dataUrl.startsWith('data:image/webp')) {
+    dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+  }
 
   if (dataUrl.length > 350_000) {
     throw new Error('Image is still too large after resize. Try a simpler icon.');
