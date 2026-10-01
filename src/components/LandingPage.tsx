@@ -9,9 +9,9 @@ import {
   Menu, X, Download, Apple, KeyRound, Lock, Smartphone,
 } from 'lucide-react';
 import '../styles/landing.css';
+import LandingHeroVisual from './LandingHeroVisual';
 
 const Login = lazy(() => import('./Login'));
-const LandingHeroVisual = lazy(() => import('./LandingHeroVisual'));
 
 interface LandingPageProps {
   onLoginSuccess: (session: unknown) => void;
@@ -182,25 +182,45 @@ function useReveal() {
 }
 
 function AnimatedCounter({ target, suffix = '' }: { target: number; suffix?: string }) {
-  const [val, setVal] = useState(0);
+  // Final value on first paint (SSR + client) so Speed Index isn't held by counting.
+  // Desktop-only count-up after mount; skip on mobile and prefers-reduced-motion.
+  const [val, setVal] = useState(target);
   const ref = useRef<HTMLSpanElement>(null);
+
   useEffect(() => {
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const mobile = window.matchMedia('(max-width: 960px)').matches;
+    if (reduceMotion || mobile) return;
+
     const el = ref.current;
     if (!el) return;
+
+    let cancelled = false;
+    let intervalId: ReturnType<typeof setInterval> | undefined;
     const obs = new IntersectionObserver(([e]) => {
-      if (!e.isIntersecting) return;
+      if (!e.isIntersecting || cancelled) return;
+      obs.disconnect();
+      setVal(0);
       let start = 0;
       const step = target / 40;
-      const id = setInterval(() => {
+      intervalId = setInterval(() => {
         start += step;
-        if (start >= target) { setVal(target); clearInterval(id); }
-        else setVal(Math.floor(start));
+        if (start >= target) {
+          setVal(target);
+          if (intervalId) clearInterval(intervalId);
+        } else {
+          setVal(Math.floor(start));
+        }
       }, 30);
-      obs.disconnect();
     }, { threshold: 0.5 });
     obs.observe(el);
-    return () => obs.disconnect();
+    return () => {
+      cancelled = true;
+      obs.disconnect();
+      if (intervalId) clearInterval(intervalId);
+    };
   }, [target]);
+
   return <span ref={ref}>{val}{suffix}</span>;
 }
 
@@ -224,8 +244,6 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
    * Deep-link auth (?demo=1 / #login) opens after mount.
    */
   const [authMounted, setAuthMounted] = useState(false);
-  /** Defer hero illustration cards until after first paint so headline/CTAs win. */
-  const [heroVisualReady, setHeroVisualReady] = useState(false);
   const [showDemoShortcuts, setShowDemoShortcuts] = useState(false);
   const revealRef = useReveal();
 
@@ -242,28 +260,6 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
     const onScroll = () => setNavScrolled(window.scrollY > 24);
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    const kick = () => {
-      if (cancelled) return;
-      setHeroVisualReady(true);
-    };
-    // Double rAF ≈ after first paint; idle gives the main thread a beat for CTAs.
-    const raf = requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (typeof requestIdleCallback === 'function') {
-          requestIdleCallback(kick, { timeout: 400 });
-        } else {
-          kick();
-        }
-      });
-    });
-    return () => {
-      cancelled = true;
-      cancelAnimationFrame(raf);
-    };
   }, []);
 
   useEffect(() => {
@@ -463,11 +459,7 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
           </div>
 
           <div className="landing-hero__visual" aria-hidden>
-            {heroVisualReady ? (
-              <Suspense fallback={null}>
-                <LandingHeroVisual />
-              </Suspense>
-            ) : null}
+            <LandingHeroVisual />
           </div>
         </div>
       </section>

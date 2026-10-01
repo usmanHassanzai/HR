@@ -1,6 +1,6 @@
 import { BarChart3, Trophy, KeyRound } from 'lucide-react';
 
-/** Decorative float cards for the landing hero — loaded after first paint. */
+/** Decorative float cards for the landing hero (in initial HTML for Speed Index). */
 export default function LandingHeroVisual() {
   return (
     <>

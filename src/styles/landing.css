@@ -1492,3 +1492,65 @@
     flex-direction: column;
   }
 }
+
+/*
+ * Mobile Speed Index: paint above-the-fold hero in its final visual state.
+ * Continuous floats / pulses / progress grows keep SI high even when LCP is fine.
+ * Same freeze for prefers-reduced-motion.
+ */
+@media (max-width: 960px), (prefers-reduced-motion: reduce) {
+  .landing-orb,
+  .landing-hero__badge,
+  .landing-hero__title span,
+  .landing-float-card,
+  .landing-progress__bar,
+  .landing-marquee,
+  .landing-step__num {
+    animation: none !important;
+  }
+
+  .landing-float-card:hover {
+    transform: none;
+  }
+
+  .landing-hero__title span {
+    background: none;
+    color: var(--landing-accent);
+    -webkit-text-fill-color: currentColor;
+    background-clip: border-box;
+    -webkit-background-clip: border-box;
+  }
+
+  /* Progress bars keep their inline width; cancel the 0→full grow. */
+  .landing-progress__bar {
+    transition: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-feature,
+  .landing-step,
+  .landing-price-card,
+  .landing-fee-item {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .landing-reveal,
+  .landing-reveal--delay-1,
+  .landing-reveal--delay-2,
+  .landing-reveal--delay-3 {
+    transition: none !important;
+    transition-delay: 0s !important;
+  }
+
+  .landing-feature.landing-reveal--visible,
+  .landing-step.landing-reveal--visible,
+  .landing-price-card.landing-reveal--visible,
+  .landing-price-card--featured.landing-reveal--visible,
+  .landing-fee-item.landing-reveal--visible {
+    opacity: 1;
+    transform: none;
+  }
+}
