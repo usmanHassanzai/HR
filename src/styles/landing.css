@@ -1494,11 +1494,11 @@
 }
 
 /*
- * Mobile Speed Index (LCP can be fine while SI stays high if the hero keeps changing).
- * Under 768px and prefers-reduced-motion: final hero paint, static glows, no blur filters.
- * Desktop (>768px) without reduced-motion keeps the animated look.
+ * Mobile Speed Index: paint above-the-fold hero in its final visual state.
+ * Continuous floats / pulses / progress grows keep SI high even when LCP is fine.
+ * Same freeze for prefers-reduced-motion.
  */
-@media (max-width: 767px), (prefers-reduced-motion: reduce) {
+@media (max-width: 960px), (prefers-reduced-motion: reduce) {
   .landing-orb,
   .landing-hero__badge,
   .landing-hero__title span,
@@ -1509,27 +1509,8 @@
     animation: none !important;
   }
 
-  /* Soft static glow — radial gradients already fade out; skip animated + blurred blobs. */
-  .landing-orb {
-    filter: none;
-    transform: none !important;
-    opacity: 0.28;
-  }
-
-  .landing-orb--3 {
-    opacity: 0.16;
-  }
-
-  .landing-float-card {
-    transform: none !important;
-  }
-
   .landing-float-card:hover {
-    transform: none !important;
-  }
-
-  .landing-hero__badge {
-    box-shadow: none;
+    transform: none;
   }
 
   .landing-hero__title span {
@@ -1540,30 +1521,9 @@
     -webkit-background-clip: border-box;
   }
 
-  /* Progress bars: keep inline width; no 0→full grow. */
+  /* Progress bars keep their inline width; cancel the 0→full grow. */
   .landing-progress__bar {
     transition: none;
-  }
-}
-
-@media (max-width: 767px) {
-  /* Decorative cards stay in the document for SEO/agents but paint already-final (no float). */
-  .landing-hero__visual {
-    min-height: auto;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.75rem;
-    margin-top: 1.75rem;
-  }
-
-  .landing-float-card {
-    position: relative;
-    top: auto;
-    left: auto;
-    right: auto;
-    bottom: auto;
-    width: min(100%, 280px);
   }
 }
 

@@ -189,7 +189,7 @@ function AnimatedCounter({ target, suffix = '' }: { target: number; suffix?: str
 
   useEffect(() => {
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const mobile = window.matchMedia('(max-width: 767px)').matches;
+    const mobile = window.matchMedia('(max-width: 960px)').matches;
     if (reduceMotion || mobile) return;
 
     const el = ref.current;
