@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, lazy, Suspense } from 'react';
+import { useEffect, useRef, useState, lazy, Suspense, type MouseEvent } from 'react';
 import ThemeToggle from './ThemeToggle';
 import ScorrWordmark from './ScorrWordmark';
 import MobileAppDownload from './MobileAppDownload';
@@ -321,21 +321,46 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
     { id: 'login', label: 'Sign In' },
   ];
 
+  const onSectionNav = (e: MouseEvent<HTMLAnchorElement>, id: string) => {
+    e.preventDefault();
+    scrollTo(id);
+  };
+
+  const onLoginNav = (e: MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    openLogin();
+  };
+
+  const onRegisterNav = (e: MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    openRegister();
+  };
+
   return (
     <div className="landing" ref={revealRef}>
       <nav className={`landing-nav ${navScrolled ? 'landing-nav--scrolled' : ''}`}>
-        <ScorrWordmark className="landing-nav__logo" variant="header" />
+        <a href="https://scorr.walfia.ai/" className="landing-nav__home" aria-label="Scorr home">
+          <ScorrWordmark className="landing-nav__logo" variant="header" />
+        </a>
         <div className="landing-nav__links">
           {navLinks.filter((l) => l.id !== 'login').map((link) => (
-            <a key={link.id} href={`#${link.id}`} onClick={(e) => { e.preventDefault(); scrollTo(link.id); }}>{link.label}</a>
+            <a
+              key={link.id}
+              href={`#${link.id}`}
+              onClick={(e) => onSectionNav(e, link.id)}
+            >
+              {link.label}
+            </a>
           ))}
         </div>
         <div className="landing-nav__cta">
           <ThemeToggle compact />
-          <button type="button" className="btn btn-secondary btn-sm landing-nav__signin" onClick={openLogin}>Sign In</button>
-          <button type="button" className="btn btn-primary btn-sm landing-nav__register" onClick={openRegister}>
+          <a href="#login" className="btn btn-secondary btn-sm landing-nav__signin" onClick={onLoginNav}>
+            Sign In
+          </a>
+          <a href="#login" className="btn btn-primary btn-sm landing-nav__register" onClick={onRegisterNav}>
             Register Company <ArrowRight size={14} />
-          </button>
+          </a>
           <button
             type="button"
             className="landing-nav__menu-btn"
@@ -358,14 +383,23 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
             </div>
             <nav className="landing-mobile-drawer__nav">
               {navLinks.map((link) => (
-                <button key={link.id} type="button" onClick={() => scrollTo(link.id)}>{link.label}</button>
+                <a
+                  key={link.id}
+                  href={`#${link.id}`}
+                  onClick={(e) => {
+                    if (link.id === 'login') onLoginNav(e);
+                    else onSectionNav(e, link.id);
+                  }}
+                >
+                  {link.label}
+                </a>
               ))}
             </nav>
             <div className="landing-mobile-drawer__actions">
-              <button type="button" className="btn btn-secondary" onClick={openLogin}>Sign In</button>
-              <button type="button" className="btn btn-primary" onClick={openRegister}>
+              <a href="#login" className="btn btn-secondary" onClick={onLoginNav}>Sign In</a>
+              <a href="#login" className="btn btn-primary" onClick={onRegisterNav}>
                 Register Company <Building2 size={15} />
-              </button>
+              </a>
             </div>
           </aside>
         </div>
@@ -391,21 +425,21 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
               protected with authenticator apps, backup codes, and email recovery for every privileged login.
             </p>
             <div className="landing-hero__actions">
-              <button type="button" className="btn btn-primary" onClick={openRegister}>
+              <a href="#login" className="btn btn-primary" onClick={onRegisterNav}>
                 Register Company — Free for 3 Days <ArrowRight size={16} />
-              </button>
-              <button type="button" className="btn btn-secondary" onClick={() => scrollTo('download-app')}>
+              </a>
+              <a href="#download-app" className="btn btn-secondary" onClick={(e) => onSectionNav(e, 'download-app')}>
                 <Download size={16} /> Download Android App
-              </button>
-              <button type="button" className="btn btn-secondary" onClick={() => scrollTo('download-app')}>
+              </a>
+              <a href="#download-app" className="btn btn-secondary" onClick={(e) => onSectionNav(e, 'download-app')}>
                 <Apple size={16} /> Install on iPhone
-              </button>
-              <button type="button" className="btn btn-secondary" onClick={openLogin}>
+              </a>
+              <a href="#login" className="btn btn-secondary" onClick={onLoginNav}>
                 Sign In
-              </button>
-              <button type="button" className="btn btn-secondary" onClick={() => scrollTo('pricing')}>
+              </a>
+              <a href="#pricing" className="btn btn-secondary" onClick={(e) => onSectionNav(e, 'pricing')}>
                 View Pricing
-              </button>
+              </a>
             </div>
             <div className="landing-trust-bar">
               {TRUST_ITEMS.map((item) => (
@@ -547,14 +581,14 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
                   <li key={f}><Check size={16} /> {f}</li>
                 ))}
               </ul>
-              <button
-                type="button"
+              <a
+                href="#login"
                 className={`btn ${plan.featured || plan.price === '0' ? 'btn-primary' : 'btn-secondary'}`}
                 style={{ width: '100%' }}
-                onClick={plan.name === 'Enterprise' ? () => scrollTo('login') : openRegister}
+                onClick={plan.name === 'Enterprise' ? onLoginNav : onRegisterNav}
               >
                 {plan.name === 'Enterprise' ? 'Contact Sales' : plan.price === '0' ? 'Start 3-Day Trial' : 'Get Started'}
-              </button>
+              </a>
             </div>
           ))}
         </div>
@@ -657,12 +691,12 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
                   padding: '1.5rem',
                 }}
               >
-                <button type="button" className="btn btn-primary" onClick={openLogin}>
+                <a href="#login" className="btn btn-primary" onClick={onLoginNav}>
                   Sign In
-                </button>
-                <button type="button" className="btn btn-secondary" onClick={openRegister}>
+                </a>
+                <a href="#login" className="btn btn-secondary" onClick={onRegisterNav}>
                   Register Company
-                </button>
+                </a>
               </div>
             )}
           </div>
@@ -676,10 +710,10 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
             <p>Performance, attendance, rewards, and authenticator-secured access for modern HR teams.</p>
           </div>
           <div className="landing-footer__links">
-            <button type="button" onClick={() => scrollTo('security')}>Security</button>
-            <button type="button" onClick={() => scrollTo('pricing')}>Pricing</button>
-            <button type="button" onClick={openRegister}>Register Company</button>
-            <button type="button" onClick={openLogin}>Sign In</button>
+            <a href="#security" onClick={(e) => onSectionNav(e, 'security')}>Security</a>
+            <a href="#pricing" onClick={(e) => onSectionNav(e, 'pricing')}>Pricing</a>
+            <a href="#login" onClick={onRegisterNav}>Register Company</a>
+            <a href="#login" onClick={onLoginNav}>Sign In</a>
             <a href="https://walfia.ai" target="_blank" rel="noreferrer">Walfia</a>
           </div>
         </div>

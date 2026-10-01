@@ -246,6 +246,11 @@ button, .btn {
   gap: 0.5rem;
 }
 
+a.btn {
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
 .btn-primary {
   background: var(--accent-primary);
   color: var(--btn-primary-text);

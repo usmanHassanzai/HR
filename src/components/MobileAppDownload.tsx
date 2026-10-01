@@ -147,14 +147,6 @@ export default function MobileAppDownload() {
     })();
   }, []);
 
-  const downloadApk = () => {
-    window.location.href = assetUrl(APK_PATH);
-  };
-
-  const downloadIpa = () => {
-    window.location.href = assetUrl(IPA_PATH);
-  };
-
   const openPwaInstall = () => {
     setIosHint(true);
     if (isIos() && !isStandalonePwa()) {
@@ -221,10 +213,10 @@ export default function MobileAppDownload() {
             </button>
           ) : apkReady ? (
             <>
-              <button type="button" className="btn btn-primary landing-download-btn" onClick={downloadApk}>
+              <a href={assetUrl(APK_PATH)} className="btn btn-primary landing-download-btn" download="scorr.apk">
                 <Download size={18} /> Download Android APK
                 {androidInfo?.sizeLabel ? ` (${androidInfo.sizeLabel})` : ''}
-              </button>
+              </a>
               <a
                 href={assetUrl(APK_PATH)}
                 className="landing-download-direct"
@@ -290,13 +282,13 @@ export default function MobileAppDownload() {
               <CheckCircle size={18} /> Scorr is installed on this device
             </div>
           ) : onIos ? (
-            <button type="button" className="btn btn-primary landing-download-btn" onClick={openPwaInstall}>
+            <a href={pwaUrl} className="btn btn-primary landing-download-btn" onClick={(e) => { e.preventDefault(); openPwaInstall(); }}>
               <Home size={18} /> Install Scorr on this iPhone
-            </button>
+            </a>
           ) : (
-            <button type="button" className="btn btn-primary landing-download-btn" onClick={openPwaInstall}>
+            <a href={pwaUrl} className="btn btn-primary landing-download-btn" onClick={(e) => { e.preventDefault(); openPwaInstall(); }}>
               <Apple size={18} /> Open iOS install page
-            </button>
+            </a>
           )}
 
           <a href={pwaUrl} className="landing-download-direct">
@@ -328,10 +320,10 @@ export default function MobileAppDownload() {
 
           {ipaReady && (
             <>
-              <button type="button" className="btn btn-secondary landing-download-btn" onClick={downloadIpa}>
+              <a href={assetUrl(IPA_PATH)} className="btn btn-secondary landing-download-btn" download="scorr.ipa">
                 <Download size={18} /> Download developer IPA
                 {iosInfo?.sizeLabel ? ` (${iosInfo.sizeLabel})` : ''}
-              </button>
+              </a>
               <p className="landing-download-footnote">
                 IPA files require registered devices or TestFlight — for IT teams and Xcode installs.
               </p>

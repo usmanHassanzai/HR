@@ -28,6 +28,14 @@
   background: var(--landing-nav-bg-scrolled);
 }
 
+.landing-nav__home {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  color: inherit;
+  flex-shrink: 0;
+}
+
 .landing-nav__links {
   display: flex;
   align-items: center;
@@ -1268,7 +1276,8 @@
   flex: 1;
 }
 
-.landing-mobile-drawer__nav button {
+.landing-mobile-drawer__nav button,
+.landing-mobile-drawer__nav a {
   display: flex;
   align-items: center;
   min-height: 46px;
@@ -1281,6 +1290,7 @@
   font-size: 0.9rem;
   font-weight: 600;
   text-align: left;
+  text-decoration: none;
   cursor: pointer;
 }
 
