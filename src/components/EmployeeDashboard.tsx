@@ -46,10 +46,13 @@ const BackupCodesLowBanner = lazy(() => import('./BackupCodesLowBanner'));
 
 type EmployeeTab = 'kpis' | 'attendance' | 'rewards' | 'dailyReport' | 'settings';
 const EMPLOYEE_TAB_KEY = 'scorr-employee-active-tab';
-const EMPLOYEE_TABS: EmployeeTab[] = ['kpis', 'attendance', 'rewards', 'dailyReport', 'settings'];
+/** Rewards tab hidden for now — keep type for session/notifications, omit from nav. */
+const EMPLOYEE_TABS: EmployeeTab[] = ['kpis', 'attendance', 'dailyReport', 'settings'];
+const EMPLOYEE_REWARDS_HIDDEN = true;
 
 function initialEmployeeTab(): EmployeeTab {
   const raw = readSessionString(EMPLOYEE_TAB_KEY);
+  if (raw === 'rewards' && EMPLOYEE_REWARDS_HIDDEN) return 'kpis';
   if (raw && EMPLOYEE_TABS.includes(raw as EmployeeTab)) return raw as EmployeeTab;
   return 'kpis';
 }
@@ -90,6 +93,10 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
   useEffect(() => {
     if (!isReadOnly) writeSessionString(EMPLOYEE_TAB_KEY, activeTab);
   }, [activeTab, isReadOnly]);
+
+  useEffect(() => {
+    if (EMPLOYEE_REWARDS_HIDDEN && activeTab === 'rewards') setActiveTab('kpis');
+  }, [activeTab]);
 
   useHistorySyncedTab(activeTab, setActiveTab, {
     key: 'scorr-employee-tab',
@@ -335,7 +342,9 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
     items: [
       { id: 'kpis', label: 'My KPIs', icon: <BarChart2 size={16} /> },
       { id: 'attendance', label: 'Attendance', icon: <CalendarCheck size={16} /> },
-      { id: 'rewards', label: 'Rewards', icon: <Trophy size={16} /> },
+      ...(!EMPLOYEE_REWARDS_HIDDEN
+        ? [{ id: 'rewards', label: 'Rewards', icon: <Trophy size={16} /> }]
+        : []),
       { id: 'dailyReport', label: 'Daily report', icon: <FileText size={16} /> },
       { id: 'settings', label: 'Settings', icon: <Settings size={16} /> },
     ],
@@ -747,7 +756,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
 
         <div className="admin-shell__content">
           <div className="admin-shell__panel">
-      {activeTab === 'rewards' ? (
+      {activeTab === 'rewards' && !EMPLOYEE_REWARDS_HIDDEN ? (
         <Suspense fallback={<TabFallback />}>
           <EmployeeRewardsPanel userId={activeUser.id} kpis={kpis} />
         </Suspense>
