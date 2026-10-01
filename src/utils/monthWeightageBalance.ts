@@ -27,10 +27,13 @@ export function parseMonthWeightageBalance(row: unknown): MonthWeightageBalance 
   };
 }
 
-/** Current month reward balance for one user (earned / used / available / banked). */
+/** Roll unused closed months into Banked, then return live balance. */
 export async function fetchMonthWeightageBalance(
   userId: string,
 ): Promise<MonthWeightageBalance> {
+  // Explicit rollover so prior-month unused (e.g. Sept 8%) lands in Banked.
+  await supabase.rpc('rollover_unused_weightage_to_bank', { p_user_id: userId });
+
   const { data, error } = await supabase.rpc('get_month_weightage_balance', {
     p_user_id: userId,
   });

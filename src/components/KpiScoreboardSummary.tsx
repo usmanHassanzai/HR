@@ -14,7 +14,11 @@ import {
 import { karachiYearMonth } from '../utils/kpiCategories';
 import type { RewardsSummary } from '../utils/rewardsHelpers';
 import { fetchMonthWeightageBalance } from '../utils/monthWeightageBalance';
-import { isWeightageRevealDay, weightageRevealHint } from '../utils/weightageReveal';
+import {
+  estimateUnusedPriorWeightage,
+  isWeightageRevealDay,
+  weightageRevealHint,
+} from '../utils/weightageReveal';
 import '../styles/employee-kpis.css';
 
 export interface KpiScoreboardPeriodState {
@@ -95,9 +99,17 @@ export default function KpiScoreboardSummary({
 
   const isCurrentMonthView =
     periodMode === 'month' && filterYear === now.year && filterMonth === now.monthIndex;
+  const isPastMonthView =
+    periodMode === 'month'
+    && (filterYear < now.year || (filterYear === now.year && filterMonth < now.monthIndex));
   /** Only mask current-month awards mid-month — past months stay fully visible. */
   const deferActive =
     Boolean(deferAchievedUntilMonthEnd) && isCurrentMonthView && !revealToday;
+
+  const estimatedPriorBanked = useMemo(
+    () => estimateUnusedPriorWeightage(kpis),
+    [kpis],
+  );
 
   useEffect(() => {
     // Banked is cross-month — load whenever we know the user, for every period view.
@@ -114,13 +126,14 @@ export default function KpiScoreboardSummary({
       if (cancelled) return;
       setGiftUsed(bal.deducted);
       setGiftAvailable(bal.available);
-      setGiftBanked(bal.banked);
+      // Prefer server banked; fall back to prior-month unused until rollover migrates.
+      setGiftBanked(bal.banked > 0 ? bal.banked : estimatedPriorBanked);
       setGiftEarned(bal.earned);
     })();
     return () => {
       cancelled = true;
     };
-  }, [userId, kpis, revealToday]);
+  }, [userId, kpis, revealToday, estimatedPriorBanked]);
 
   const overallKpis = kpis;
   const overallSummary = useMemo(
@@ -133,7 +146,6 @@ export default function KpiScoreboardSummary({
   );
   const periodSummary = useMemo(
     () => employeeKpiBoardBreakdown(periodKpis, {
-      // Past months: never defer. Current month mid-month: defer. Overall: defer current only.
       deferAchievedUntilMonthEnd:
         periodMode === 'overall'
           ? deferAchievedUntilMonthEnd
@@ -146,7 +158,6 @@ export default function KpiScoreboardSummary({
   const active = periodMode === 'overall' ? overallSummary : periodSummary;
   const activeEmpty = periodMode === 'overall' ? overallKpis.length === 0 : periodKpis.length === 0;
   const has = !activeEmpty && active.kpiCount > 0;
-  /** Gift ledger (earned/used/available) is for the live month; banked shows in every period. */
   const showLiveGiftLedger = Boolean(isCurrentMonthView && userId);
   const showBankedRow = Boolean(userId);
 
@@ -157,16 +168,19 @@ export default function KpiScoreboardSummary({
       ? giftEarned
       : active.weightAchieved;
   const usedWeightage = deferActive ? 0 : (showLiveGiftLedger ? giftUsed : 0);
-  /** Spendable now = unlocked current remaining + banked (shown on every month table). */
+  const monthRemaining = Math.max(0, earnedWeightage - usedWeightage);
+  /** Current month: available + banked. Past month board: that month's unused (before/while banking). */
   const currentOnly =
     deferActive
       ? 0
       : showLiveGiftLedger && giftAvailable != null
         ? giftAvailable
         : isCurrentMonthView
-          ? Math.max(0, earnedWeightage - usedWeightage)
+          ? monthRemaining
           : 0;
-  const currentWeightage = currentOnly + bankedWeightage;
+  const currentWeightage = isPastMonthView
+    ? monthRemaining
+    : currentOnly + bankedWeightage;
 
   const rating = performanceRatingForScore(earnedWeightage);
   const ratingColor = performanceRatingColor(rating);
@@ -337,9 +351,11 @@ export default function KpiScoreboardSummary({
                 <span className="emp-kpi-stat-note">
                   {deferActive
                     ? 'Banked leftover (usable now)'
-                    : isCurrentMonthView
-                      ? 'Current + banked'
-                      : 'Banked account (usable any month)'}
+                    : isPastMonthView
+                      ? 'Unused this month (moves to bank next month)'
+                      : isCurrentMonthView
+                        ? 'Current + banked'
+                        : 'Banked account (usable any month)'}
                 </span>
               </div>
               <div>
@@ -371,9 +387,9 @@ export default function KpiScoreboardSummary({
 
             {showBankedRow ? (
               <p className="emp-kpi-weight-guide">
-                Simple rule: <strong>Earned</strong> (after month end) + <strong>Saved for later</strong> − <strong>Used on gifts</strong> = <strong>Left to use</strong>.
-                Leftover after a gift stays saved and stacks with the next month&apos;s awards until you redeem.
-                Saved for later is your banked account — it shows in every month view and never expires.
+                Simple rule: unused weightage from a closed month moves to <strong>Saved for later</strong> (banked) automatically.
+                Then <strong>Earned</strong> (after month end) + <strong>Saved for later</strong> − <strong>Used on gifts</strong> = <strong>Left to use</strong>.
+                Banked never expires and can be used any month for rewards.
               </p>
             ) : null}
           </section>

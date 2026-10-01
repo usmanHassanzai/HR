@@ -85,3 +85,27 @@ export function displayedAwardedWeightage(
   if (opts?.deferUntilMonthEnd && !isKpiAwardedWeightageVisible(kpi, opts.now)) return null;
   return Math.max(0, Number(kpi.assigned_score ?? kpi.weight ?? 0));
 }
+
+/**
+ * Unused awarded weightage from closed months (before the current Karachi month).
+ * Used as a client display fallback until server rollover deposits into Banked.
+ */
+export function estimateUnusedPriorWeightage(
+  kpis: Pick<Kpi, 'completion_status' | 'completed_at' | 'end_date' | 'created_at' | 'assigned_score' | 'weight'>[],
+  now = new Date(),
+): number {
+  const cur = karachiCalendarDay(now);
+  let sum = 0;
+  for (const kpi of kpis) {
+    if (kpi.completion_status !== 'completed') continue;
+    const award = kpiAwardYearMonth(kpi);
+    const isPrior =
+      award.year < cur.year
+      || (award.year === cur.year && award.monthIndex < cur.monthIndex);
+    if (!isPrior) continue;
+    const weight = Math.max(0, Number(kpi.weight || 0));
+    const awarded = Math.max(0, Number(kpi.assigned_score ?? kpi.weight ?? 0));
+    sum += Math.min(awarded, weight);
+  }
+  return Math.round(Math.min(100, Math.max(0, sum)) * 100) / 100;
+}
