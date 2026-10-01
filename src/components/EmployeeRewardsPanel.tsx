@@ -107,7 +107,7 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
       balance.earned != null ? Math.max(0, Number(balance.earned) - Number(balance.deducted || 0)) : null,
     )
     : 0;
-  const spendableWeightage = availableWeightage + (Number(balance.banked) || 0);
+  const spendableWeightage = (availableWeightage ?? 0) + (Number(balance.banked) || 0);
 
   const claimedKeys = useMemo(() => {
     const { year, monthIndex } = karachiYearMonth();

@@ -248,7 +248,7 @@ export default function ManagerRewardsPanel({
     myProgress.find((r) => r.latest_score != null)?.latest_score ?? null,
   );
   const revealToday = isWeightageRevealDay();
-  const currentAvailable = revealToday ? myWeightage : 0;
+  const currentAvailable = revealToday ? (myWeightage ?? 0) : 0;
   const spendableWeightage = currentAvailable + (Number(myBalance.banked) || 0);
   const arrangeCount = queue.length + catalogQueue.length;
 
