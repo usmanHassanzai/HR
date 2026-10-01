@@ -1,6 +1,7 @@
 // Service worker — cache hashed Vite assets for faster repeat visits.
 // HTML and API stay network-first so users always get fresh app shell.
-const CACHE = 'scorr-assets-v2';
+// Bump CACHE on every deploy that changes hashed chunk names so old assets are purged.
+const CACHE = 'scorr-assets-v3';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -24,6 +25,17 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
+  // Navigations / HTML: always network-first so a new deploy is not stuck on an old shell
+  if (req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html')) {
+    event.respondWith(
+      fetch(req).catch(async () => {
+        const cached = await caches.match(req);
+        return cached || Response.error();
+      }),
+    );
+    return;
+  }
+
   // Only cache fingerprinted build assets (safe to keep for a long time)
   const isHashedAsset =
     url.pathname.startsWith('/assets/') &&
@@ -33,14 +45,19 @@ self.addEventListener('fetch', (event) => {
 
   event.respondWith(
     (async () => {
-      const cached = await caches.match(req);
-      if (cached) return cached;
-      const res = await fetch(req);
-      if (res.ok) {
-        const copy = res.clone();
-        void caches.open(CACHE).then((c) => c.put(req, copy));
+      // Prefer network so a new deploy's chunks win; fall back to cache when offline
+      try {
+        const res = await fetch(req);
+        if (res.ok) {
+          const copy = res.clone();
+          void caches.open(CACHE).then((c) => c.put(req, copy));
+        }
+        return res;
+      } catch {
+        const cached = await caches.match(req);
+        if (cached) return cached;
+        throw new Error('Network and cache miss');
       }
-      return res;
     })(),
   );
 });

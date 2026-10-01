@@ -419,6 +419,7 @@ serve(async (req) => {
       }).eq('id', callerId);
 
       const link = `${APP_URL}/?mfa_action=confirm_email&token=${token}`;
+      const appLink = `ai.walfia.scorr://auth/callback?mfa_action=confirm_email&token=${token}`;
       await sendEmail(
         email,
         'Confirm your Scorr recovery email',
@@ -427,8 +428,11 @@ serve(async (req) => {
           '',
           'Confirm this address as your Scorr 2FA recovery email.',
           '',
-          `Open this link within ${EMAIL_TOKEN_MINUTES} minutes:`,
+          `Open this link within ${EMAIL_TOKEN_MINUTES} minutes (browser):`,
           link,
+          '',
+          'Or open in the Scorr mobile app:',
+          appLink,
           '',
           'If you did not request this, ignore this email.',
           '',
@@ -482,6 +486,7 @@ serve(async (req) => {
       });
 
       const link = `${APP_URL}/?mfa_action=reset_2fa&token=${token}`;
+      const appLink = `ai.walfia.scorr://auth/callback?mfa_action=reset_2fa&token=${token}`;
       await sendEmail(
         caller.recovery_email,
         'Reset your Scorr authenticator',
@@ -490,8 +495,11 @@ serve(async (req) => {
           '',
           'You asked to reset two-factor authentication on Scorr because you cannot use your authenticator or backup codes.',
           '',
-          `Open this link within ${EMAIL_TOKEN_MINUTES} minutes to clear your authenticator:`,
+          `Open this link within ${EMAIL_TOKEN_MINUTES} minutes to clear your authenticator (browser):`,
           link,
+          '',
+          'Or open in the Scorr mobile app:',
+          appLink,
           '',
           'After that, sign in with your password and set up a new authenticator app.',
           '',

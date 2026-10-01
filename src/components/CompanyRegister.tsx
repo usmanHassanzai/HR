@@ -10,6 +10,7 @@ import {
   type CompanyRegistrationForm,
 } from '../utils/companyHelpers';
 import { sendSignupOtp, verifySignupOtp } from '../utils/signupOtp';
+import { getAuthEmailRedirectTo } from '../utils/authDeepLink';
 import PasswordField from './PasswordField';
 import '../styles/company-register.css';
 
@@ -156,7 +157,7 @@ export default function CompanyRegister({ onBack, onSession, embedded = false }:
         email: form.email.trim(),
         password: form.password,
         options: {
-          emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+          emailRedirectTo: getAuthEmailRedirectTo(),
           data: {
             full_name: form.fullName.trim(),
             company_name: form.companyName.trim(),

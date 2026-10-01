@@ -1,36 +1,13 @@
-# Mobile app downloads
+# Public downloads
 
-| File | Platform | Install method |
-|------|----------|----------------|
-| `scorr.apk` | Android | Download from landing page → Install |
-| `Scorr-Client-Feature-Guide.pdf` | All | Client feature documentation (PDF) |
-| `build-info.json` | — | Version, size, and build date for Android + iOS |
-| `scorr.ipa` | iOS (developer) | Mac/Xcode/TestFlight only — not direct public install |
+| File | Notes |
+|------|--------|
+| `scorr.apk` | **Legacy sideload** — keep serving until **2026-11-01**, then delete this file and remove APK references from the site. Prefer Google Play: `https://play.google.com/store/apps/details?id=ai.walfia.scorr` |
+| `Scorr-Client-Feature-Guide.pdf` | Client feature guide |
+| `build-info.json` | Build metadata for the download section |
 
-## Android
+After 2026-11-01:
 
-```bash
-npm run build:android:apk
-```
-
-## iOS
-
-**iPhone users (recommended — no Mac needed):**
-
-1. Open **https://scorr.walfia.ai** in Safari
-2. Share → **Add to Home Screen**
-3. Open Scorr from the home screen icon
-
-```bash
-npm run build:ios:ipa
-```
-
-Syncs the Capacitor iOS project and updates `build-info.json` for the website.
-
-**Native IPA (Mac + Apple Developer account):**
-
-```bash
-npm run build:ios:release
-```
-
-Or GitHub Actions → **Build iOS** on `macos-latest`.
+1. Delete `public/downloads/scorr.apk`
+2. Remove APK exception lines from `.gitignore` / `.vercelignore` if desired
+3. UI already hides the APK button via `APK_DIRECT_UNTIL` in `src/utils/appStoreLinks.ts`

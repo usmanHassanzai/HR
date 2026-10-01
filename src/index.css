@@ -280,6 +280,22 @@ a.btn {
   color: var(--accent-primary);
 }
 
+.btn-danger {
+  background: var(--color-danger);
+  color: #fff;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.btn-danger:hover {
+  filter: brightness(1.06);
+}
+
+.btn-danger:disabled {
+  opacity: 0.55;
+  filter: none;
+}
+
 /* Inputs & Forms */
 .form-group {
   margin-bottom: 1.25rem;

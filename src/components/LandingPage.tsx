@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import '../styles/landing.css';
 import LandingHeroVisual from './LandingHeroVisual';
+import { APP_STORE_URL, PLAY_STORE_URL, showStoreInstallCtas } from '../utils/appStoreLinks';
 
 const Login = lazy(() => import('./Login'));
 
@@ -424,12 +425,32 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
               <a href="#login" className="btn btn-primary" onClick={onRegisterNav}>
                 Register Company — Free for 3 Days <ArrowRight size={16} />
               </a>
-              <a href="#download-app" className="btn btn-secondary" onClick={(e) => onSectionNav(e, 'download-app')}>
-                <Download size={16} /> Download Android App
-              </a>
-              <a href="#download-app" className="btn btn-secondary" onClick={(e) => onSectionNav(e, 'download-app')}>
-                <Apple size={16} /> Install on iPhone
-              </a>
+              {showStoreInstallCtas() && (
+                <>
+                  <a
+                    href={PLAY_STORE_URL}
+                    className="btn btn-secondary"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Download size={16} /> Download Android App
+                  </a>
+                  {APP_STORE_URL ? (
+                    <a
+                      href={APP_STORE_URL}
+                      className="btn btn-secondary"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Apple size={16} /> Install on iPhone
+                    </a>
+                  ) : (
+                    <a href="#download-app" className="btn btn-secondary" onClick={(e) => onSectionNav(e, 'download-app')}>
+                      <Apple size={16} /> Install on iPhone
+                    </a>
+                  )}
+                </>
+              )}
               <a href="#login" className="btn btn-secondary" onClick={onLoginNav}>
                 Sign In
               </a>
@@ -706,6 +727,7 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
             <a href="#pricing" onClick={(e) => onSectionNav(e, 'pricing')}>Pricing</a>
             <a href="#login" onClick={onRegisterNav}>Register Company</a>
             <a href="#login" onClick={onLoginNav}>Sign In</a>
+            <a href="/delete-account">Delete account</a>
             <a href="https://walfia.ai" target="_blank" rel="noreferrer">Walfia</a>
           </div>
         </div>

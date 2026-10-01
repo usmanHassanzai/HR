@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core';
 import { createClient } from '@supabase/supabase-js';
 import { isSupabaseConfigured, supabaseAnonKey, supabaseUrl } from './supabaseConfig';
 
@@ -9,10 +10,19 @@ if (!isSupabaseConfigured) {
   );
 }
 
+const isNative = Capacitor.isNativePlatform();
+
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
   supabaseAnonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder',
   {
+    auth: {
+      // Native opens auth emails via ai.walfia.scorr:// — we exchange the code/tokens ourselves.
+      flowType: isNative ? 'pkce' : 'implicit',
+      detectSessionInUrl: !isNative,
+      persistSession: true,
+      autoRefreshToken: true,
+    },
     realtime: { params: { eventsPerSecond: 4 } },
   },
 );
@@ -26,9 +36,10 @@ export const supabaseSignup = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
   supabaseAnonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder',
   {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-    storageKey: 'walfia-signup-only',
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      storageKey: 'walfia-signup-only',
+    },
   },
-});
+);

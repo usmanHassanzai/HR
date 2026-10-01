@@ -2,6 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { StatusBar, Style } from '@capacitor/status-bar';
+import { registerAuthDeepLinkHandlers } from './authDeepLink';
 
 export function isNativeApp(): boolean {
   return Capacitor.isNativePlatform();
@@ -71,6 +72,9 @@ export async function initNativeApp(): Promise<void> {
       void App.minimizeApp();
     });
   }
+
+  // Supabase recovery / magic-link / MFA emails → ai.walfia.scorr://…
+  void registerAuthDeepLinkHandlers();
 
   window.addEventListener('load', () => {
     void SplashScreen.hide();

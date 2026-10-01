@@ -64,6 +64,7 @@ export interface PlatformNotification {
 
 export const PLATFORM_OWNER_EMAIL = 'info@walfia.ai';
 export const PLATFORM_PATH = '/platform';
+export const DELETE_ACCOUNT_PATH = '/delete-account';
 
 /** Built-in Walfia org — never delete from the platform console. */
 export function isWalfiaDefaultCompany(c: { slug?: string | null; name?: string | null }): boolean {
@@ -96,6 +97,10 @@ export function isPlatformOwner(profile: { email?: string; is_platform_owner?: b
 
 export function isPlatformRoute(): boolean {
   return typeof window !== 'undefined' && window.location.pathname.startsWith(PLATFORM_PATH);
+}
+
+export function isDeleteAccountRoute(): boolean {
+  return typeof window !== 'undefined' && window.location.pathname.startsWith(DELETE_ACCOUNT_PATH);
 }
 
 export async function fetchMyCompany(supabase: { rpc: (name: string) => PromiseLike<{ data: unknown; error: unknown }> }) {

@@ -297,7 +297,7 @@ async function requestNativePosition(opts?: {
 }): Promise<GeolocationPosition> {
   const perm = await Geolocation.checkPermissions();
   if (perm.location === 'denied' && perm.coarseLocation === 'denied') {
-    throw new Error('Location blocked. Open Settings → Apps → Scorr → Permissions → Location → Allow all the time.');
+    throw new Error('Location blocked. Open Settings → Apps → Scorr → Permissions → Location → While using the app.');
   }
   if (perm.location !== 'granted') {
     const req = await Geolocation.requestPermissions({

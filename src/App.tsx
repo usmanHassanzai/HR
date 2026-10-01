@@ -3,10 +3,11 @@ import { SpeedInsights } from '@vercel/speed-insights/react';
 import LandingPage from './components/LandingPage';
 import NativeScrollRoot from './components/NativeScrollRoot';
 import { isAppShell } from './utils/nativePlatform';
-import { isPlatformRoute } from './utils/companyHelpers';
+import { isDeleteAccountRoute, isPlatformRoute } from './utils/companyHelpers';
 
 const PortalApp = lazy(() => import('./PortalApp'));
 const PlatformOwnerPortal = lazy(() => import('./components/PlatformOwnerPortal'));
+const DeleteAccountPage = lazy(() => import('./components/DeleteAccountPage'));
 
 function RouteFallback() {
   return <div style={{ minHeight: '100vh' }} aria-hidden />;
@@ -162,6 +163,14 @@ function App() {
       <NativeScrollRoot>
         <Suspense fallback={<RouteFallback />}>
           <PlatformOwnerPortal />
+        </Suspense>
+      </NativeScrollRoot>
+    );
+  } else if (isDeleteAccountRoute()) {
+    content = (
+      <NativeScrollRoot>
+        <Suspense fallback={<RouteFallback />}>
+          <DeleteAccountPage />
         </Suspense>
       </NativeScrollRoot>
     );

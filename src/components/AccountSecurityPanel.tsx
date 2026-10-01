@@ -8,6 +8,7 @@ import {
 } from '../utils/mfaRecovery';
 import BackupCodesRevealModal from './BackupCodesRevealModal';
 import PasswordField from './PasswordField';
+import DeleteAccountSection from './DeleteAccountSection';
 import { supabase } from '../lib/supabase';
 
 interface AccountSecurityPanelProps {
@@ -160,6 +161,8 @@ export default function AccountSecurityPanel({ fullName }: AccountSecurityPanelP
 
       {error && <p style={{ color: 'var(--color-danger)', fontSize: '0.85rem' }}>{error}</p>}
       {note && <p style={{ color: 'var(--color-success, #0f766e)', fontSize: '0.85rem' }}>{note}</p>}
+
+      <DeleteAccountSection />
 
       {audit.length > 0 && (
         <div className="app-settings-block">
