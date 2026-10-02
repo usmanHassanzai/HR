@@ -23,6 +23,8 @@ import '../styles/daily-work-reports.css';
 
 interface DailyWorkReportPanelProps {
   profile: Profile;
+  /** Hide outer hero when nested in HR workspace. */
+  compact?: boolean;
 }
 
 const MIN_CHARS = 20;
@@ -34,7 +36,7 @@ function dwrDraftKey(userId: string) {
   return `scorr-dwr-draft:${userId}`;
 }
 
-export default function DailyWorkReportPanel({ profile }: DailyWorkReportPanelProps) {
+export default function DailyWorkReportPanel({ profile, compact = false }: DailyWorkReportPanelProps) {
   const today = todayIsoDate();
   const draft = useMemo(() => readSessionJson<DwrDraft>(dwrDraftKey(profile.id)), [profile.id]);
   const [content, setContent] = useState(() => draft?.content || '');
@@ -128,30 +130,36 @@ export default function DailyWorkReportPanel({ profile }: DailyWorkReportPanelPr
   })();
 
   return (
-    <div className="dwr-panel animate-fade-in">
-      <div className="dwr-hero glass-panel">
-        <div className="dwr-hero__icon">
-          <FileText size={22} />
+    <div className={`dwr-panel animate-fade-in${compact ? ' dwr-panel--compact' : ''}`}>
+      {!compact && (
+        <div className="dwr-hero glass-panel">
+          <div className="dwr-hero__icon">
+            <FileText size={22} />
+          </div>
+          <div className="dwr-hero__copy">
+            <span className="dash-eyebrow">Daily work log</span>
+            <h2>What did you accomplish today?</h2>
+            <p>
+              Write a clear summary of your work for the day. Only organization admins can read submitted reports.
+              {profile.role === 'manager'
+                ? ' Managers submit the same daily log as employees.'
+                : profile.role === 'hr'
+                  ? ' HR reports go to your company admin.'
+                  : ''}
+            </p>
+          </div>
         </div>
-        <div className="dwr-hero__copy">
-          <span className="dash-eyebrow">Daily work log</span>
-          <h2>What did you accomplish today?</h2>
-          <p>
-            Write a clear summary of your work for the day. Only organization admins can read submitted reports.
-            {profile.role === 'manager'
-              ? ' Managers submit the same daily log as employees.'
-              : profile.role === 'hr'
-                ? ' HR reports go to your company admin.'
-                : ''}
-          </p>
-        </div>
-      </div>
+      )}
 
       <form className="dwr-compose glass-panel" onSubmit={handleSubmit}>
         <div className="dwr-compose__head">
           <div>
             <h3>{existingForDate ? 'Update report' : 'Submit today\'s report'}</h3>
-            <p>Minimum {MIN_CHARS} characters · be specific about projects and outcomes</p>
+            <p>
+              {compact
+                ? `Sent to your company admin · minimum ${MIN_CHARS} characters`
+                : `Minimum ${MIN_CHARS} characters · be specific about projects and outcomes`}
+            </p>
           </div>
           <label className="dwr-date-field">
             <Calendar size={14} />

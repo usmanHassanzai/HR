@@ -1,5 +1,65 @@
 /* ── Daily Work Reports ── */
 
+.dwr-hr-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.dwr-hr-workspace__hero {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  padding: 1.2rem 1.3rem !important;
+  border-left: 3px solid var(--accent-primary);
+}
+
+.dwr-hr-workspace__hero-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 12px;
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
+  color: var(--accent-primary);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 25%, transparent);
+}
+
+.dwr-hr-workspace__hero-copy h2 {
+  margin: 0.15rem 0 0.35rem;
+  font-family: var(--font-display);
+  font-size: 1.28rem;
+  color: var(--text-primary);
+}
+
+.dwr-hr-workspace__hero-copy p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  max-width: 44rem;
+}
+
+.dwr-hr-workspace__tabs {
+  margin: 0;
+}
+
+.dwr-panel--compact {
+  gap: 1rem;
+}
+
+.dwr-admin--hr .dwr-admin__hero h2 {
+  font-size: 1.2rem;
+}
+
+.dwr-admin--hr .dwr-admin__hero p {
+  max-width: 44rem;
+}
+
 .dwr-panel {
   display: flex;
   flex-direction: column;

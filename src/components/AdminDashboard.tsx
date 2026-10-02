@@ -20,8 +20,8 @@ import { readSessionString, writeSessionString } from '../utils/persistedUiState
 import { useHistoryOverlay, useHistorySyncedTab } from '../utils/useHistoryNavigation';
 import { isNativeApp } from '../utils/nativePlatform';
 
+const HrDailyReportsWorkspace = lazy(() => import('./HrDailyReportsWorkspace'));
 const AdminDailyWorkReports = lazy(() => import('./AdminDailyWorkReports'));
-const DailyWorkReportPanel = lazy(() => import('./DailyWorkReportPanel'));
 const Analytics = lazy(() => import('./Analytics'));
 const BrandingSettings = lazy(() => import('./BrandingSettings'));
 const AccountSecurityPanel = lazy(() => import('./AccountSecurityPanel'));
@@ -316,7 +316,7 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
     () => [
       { id: 'users', label: 'People', icon: <Users size={18} />, description: 'People, roles, and logins' },
       { id: 'kpis', label: 'Assign Task', icon: <ClipboardList size={18} />, description: 'KPIs assigned to one person' },
-      { id: 'dailyReports', label: 'Daily Reports', icon: <FileText size={18} />, description: isHr ? 'My report to admin & staff logs' : 'Staff daily work logs', badge: dailyReportUnread },
+      { id: 'dailyReports', label: 'Daily Reports', icon: <FileText size={18} />, description: isHr ? 'My report & organization review' : 'Staff daily work logs', badge: dailyReportUnread },
       { id: 'rewards', label: 'Rewards', icon: <Trophy size={18} />, description: 'Gifts, history & redemptions' },
       { id: 'kpiPoints', label: 'KPI & Rewards', icon: <Coins size={18} />, description: "Each person's score and points" },
       { id: 'analytics', label: 'Analytics', icon: <BarChart3 size={18} />, description: 'Trends & attainment' },
@@ -564,16 +564,11 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
         />
       ) : activeTab === 'dailyReports' ? (
         isHr ? (
-          <div className="app-page-stack">
-            <DailyWorkReportPanel profile={profile} />
-            <details className="app-settings-block">
-              <summary>Staff daily reports</summary>
-              <AdminDailyWorkReports
-                initialSearch={reportsNavState?.search}
-                initialDeptId={reportsNavState?.deptId}
-              />
-            </details>
-          </div>
+          <HrDailyReportsWorkspace
+            profile={profile}
+            initialSearch={reportsNavState?.search}
+            initialDeptId={reportsNavState?.deptId}
+          />
         ) : (
           <AdminDailyWorkReports
             initialSearch={reportsNavState?.search}

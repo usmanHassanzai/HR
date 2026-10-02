@@ -57,9 +57,15 @@ function initials(name: string): string {
 interface AdminDailyWorkReportsProps {
   initialSearch?: string;
   initialDeptId?: string;
+  /** HR organization review: softer chrome, no duplicate page title. */
+  variant?: 'admin' | 'hr';
 }
 
-export default function AdminDailyWorkReports({ initialSearch = '', initialDeptId = 'all' }: AdminDailyWorkReportsProps = {}) {
+export default function AdminDailyWorkReports({
+  initialSearch = '',
+  initialDeptId = 'all',
+  variant = 'admin',
+}: AdminDailyWorkReportsProps = {}) {
   const today = todayIsoDate();
   const [reportDate, setReportDate] = useState(today);
   const [selectedDeptId, setSelectedDeptId] = useState<DeptSelection>(initialDeptId || 'all');
@@ -258,14 +264,17 @@ export default function AdminDailyWorkReports({ initialSearch = '', initialDeptI
   );
 
   return (
-    <div className="dwr-admin animate-fade-in">
+    <div className={`dwr-admin animate-fade-in${variant === 'hr' ? ' dwr-admin--hr' : ''}`}>
       <div className="dwr-admin__hero">
         <div>
-          <span className="dash-eyebrow">Saved daily in database</span>
-          <h2>Daily work reports</h2>
+          <span className="dash-eyebrow">
+            {variant === 'hr' ? 'Company-wide review' : 'Saved daily in database'}
+          </span>
+          <h2>{variant === 'hr' ? 'Manager & employee reports' : 'Daily work reports'}</h2>
           <p>
-            Select a date on the calendar, then filter by department to review
-            every manager and employee daily report for that day. HR submissions appear under Human Resources.
+            {variant === 'hr'
+              ? 'Pick a date and department to review submitted work logs from managers and employees. Your own report is under My report.'
+              : 'Select a date on the calendar, then filter by department to review every manager and employee daily report for that day. HR submissions appear under Human Resources.'}
           </p>
         </div>
         <button type="button" className="btn btn-secondary" onClick={() => void load()}>
