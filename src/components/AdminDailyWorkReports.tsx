@@ -30,7 +30,10 @@ import '../styles/daily-work-reports.css';
 import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
 
 type RoleTab = 'managers' | 'employees' | 'hr' | 'both';
-type DeptSelection = 'all' | 'unassigned' | string;
+type DeptSelection = 'all' | 'unassigned' | 'hr' | string;
+
+const HR_DEPT_LABEL = 'Human Resources';
+const NO_DEPT_LABEL = 'No department';
 
 interface StaffRow {
   user_id: string;
@@ -150,17 +153,22 @@ export default function AdminDailyWorkReports({ initialSearch = '', initialDeptI
   );
 
   const deptName = useCallback(
-    (id: string | null | undefined) => {
-      if (!id) return 'Unassigned';
+    (id: string | null | undefined, role?: string) => {
+      if (role === 'hr' && !id) return HR_DEPT_LABEL;
+      if (!id) return NO_DEPT_LABEL;
       return departments.find((d) => d.id === id)?.name
         ?? summary.find((s) => s.department_id === id)?.department_name
-        ?? 'Unassigned';
+        ?? NO_DEPT_LABEL;
     },
     [departments, summary],
   );
 
   const hasUnassignedStaff = useMemo(
-    () => users.some((u) => !u.department_id),
+    () => users.some((u) => !u.department_id && u.role !== 'hr'),
+    [users],
+  );
+  const hasHrStaff = useMemo(
+    () => users.some((u) => u.role === 'hr'),
     [users],
   );
 
@@ -177,7 +185,7 @@ export default function AdminDailyWorkReports({ initialSearch = '', initialDeptI
       email: u.email,
       role: u.role as 'manager' | 'employee' | 'hr',
       department_id: u.department_id ?? null,
-      department_name: deptName(u.department_id),
+      department_name: deptName(u.department_id, u.role),
       report: reportByUser.get(u.id) ?? null,
     }));
   }, [users, reportByUser, deptName]);
@@ -185,8 +193,10 @@ export default function AdminDailyWorkReports({ initialSearch = '', initialDeptI
   const scopedRows = useMemo(() => {
     let rows = staffRows;
 
-    if (selectedDeptId === 'unassigned') {
-      rows = rows.filter((r) => !r.department_id);
+    if (selectedDeptId === 'hr') {
+      rows = rows.filter((r) => r.role === 'hr');
+    } else if (selectedDeptId === 'unassigned') {
+      rows = rows.filter((r) => !r.department_id && r.role !== 'hr');
     } else if (selectedDeptId !== 'all') {
       rows = rows.filter((r) => r.department_id === selectedDeptId);
     }
@@ -226,19 +236,25 @@ export default function AdminDailyWorkReports({ initialSearch = '', initialDeptI
 
   const selectedDeptLabel = useMemo(() => {
     if (selectedDeptId === 'all') return 'All departments';
-    if (selectedDeptId === 'unassigned') return 'Unassigned';
+    if (selectedDeptId === 'unassigned') return NO_DEPT_LABEL;
+    if (selectedDeptId === 'hr') return HR_DEPT_LABEL;
     return deptName(selectedDeptId);
   }, [selectedDeptId, deptName]);
 
   const deptOptionMeta = useCallback(
-    (deptId: string | null) => {
+    (deptId: string | null | 'hr') => {
+      if (deptId === 'hr') {
+        const hrUsers = users.filter((u) => u.role === 'hr');
+        const submitted = hrUsers.filter((u) => reportByUser.has(u.id)).length;
+        return ` — ${submitted}/${hrUsers.length} submitted`;
+      }
       const row = summary.find((s) =>
         deptId === null ? !s.department_id : s.department_id === deptId,
       );
       if (!row) return '';
       return ` — ${row.submitted_count}/${row.total_staff} submitted`;
     },
-    [summary],
+    [summary, users, reportByUser],
   );
 
   return (
@@ -249,7 +265,7 @@ export default function AdminDailyWorkReports({ initialSearch = '', initialDeptI
           <h2>Daily work reports</h2>
           <p>
             Select a date on the calendar, then filter by department to review
-            managers, employees, and HR for that day.
+            every manager and employee daily report for that day. HR submissions appear under Human Resources.
           </p>
         </div>
         <button type="button" className="btn btn-secondary" onClick={() => void load()}>
@@ -317,8 +333,11 @@ export default function AdminDailyWorkReports({ initialSearch = '', initialDeptI
                   {dept.name}{deptOptionMeta(dept.id)}
                 </option>
               ))}
+            {hasHrStaff && (
+              <option value="hr">{HR_DEPT_LABEL}{deptOptionMeta('hr')}</option>
+            )}
             {hasUnassignedStaff && (
-              <option value="unassigned">Unassigned{deptOptionMeta(null)}</option>
+              <option value="unassigned">{NO_DEPT_LABEL}{deptOptionMeta(null)}</option>
             )}
           </select>
         </label>

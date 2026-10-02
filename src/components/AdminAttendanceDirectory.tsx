@@ -33,6 +33,25 @@ interface EmployeeGroup {
 type ViewStep = 'departments' | 'employees' | 'history';
 
 const UNASSIGNED_KEY = '__unassigned__';
+const HR_GROUP_KEY = '__hr__';
+
+function groupKeyForUser(user: Profile): string {
+  if (user.role === 'hr' && !user.department_id) return HR_GROUP_KEY;
+  return user.department_id || UNASSIGNED_KEY;
+}
+
+function groupLabelForKey(key: string, deptName?: string | null): string {
+  if (key === HR_GROUP_KEY) return 'Human Resources';
+  if (key === UNASSIGNED_KEY) return 'No department';
+  return deptName || 'Department';
+}
+
+function peopleCountLabel(count: number, groupKey: string): string {
+  if (groupKey === HR_GROUP_KEY) {
+    return `${count} HR member${count !== 1 ? 's' : ''}`;
+  }
+  return `${count} team member${count !== 1 ? 's' : ''}`;
+}
 
 function initials(name: string): string {
   return name
@@ -81,7 +100,7 @@ function resolveInitialNav(
   }
   return {
     step: 'history',
-    deptId: user.department_id || UNASSIGNED_KEY,
+    deptId: groupKeyForUser(user),
     userId: user.id,
   };
 }
@@ -148,7 +167,7 @@ export default function AdminAttendanceDirectory({ departments, initialUserId }:
     const deptMap = new Map<string, { dept: Department | null; employees: Profile[] }>();
 
     for (const emp of employees) {
-      const key = emp.department_id || UNASSIGNED_KEY;
+      const key = groupKeyForUser(emp);
       if (!deptMap.has(key)) {
         const dept = departments.find((d) => d.id === emp.department_id) || null;
         deptMap.set(key, { dept, employees: [] });
@@ -169,14 +188,16 @@ export default function AdminAttendanceDirectory({ departments, initialUserId }:
 
       sections.push({
         deptId: key,
-        deptName: dept?.name || (key === UNASSIGNED_KEY ? 'Unassigned' : 'Department'),
+        deptName: groupLabelForKey(key, dept?.name),
         groups,
       });
     }
 
+    const sortRank = (id: string) => (id === HR_GROUP_KEY ? 2 : id === UNASSIGNED_KEY ? 3 : 0);
     return sections.sort((a, b) => {
-      if (a.deptName === 'Unassigned') return 1;
-      if (b.deptName === 'Unassigned') return -1;
+      const ra = sortRank(a.deptId);
+      const rb = sortRank(b.deptId);
+      if (ra !== rb) return ra - rb;
       return a.deptName.localeCompare(b.deptName);
     });
   }, [employees, departments, rows]);
@@ -307,8 +328,8 @@ export default function AdminAttendanceDirectory({ departments, initialUserId }:
         <History size={18} /> Attendance history
       </h3>
       <p>
-        Choose a department, then an employee, to view their attendance day by day, month by month, or for the full year.
-        Download records for one person, a department, or everyone.
+        Choose a department or team group, then a person, to view attendance day by day, month by month, or for the full year.
+        Download records for one person, a group, or everyone.
       </p>
 
       <div className="admin-attendance-info">
@@ -368,7 +389,7 @@ export default function AdminAttendanceDirectory({ departments, initialUserId }:
         <div className="admin-attendance-stats" style={{ marginBottom: '1rem' }}>
           <div className="admin-attendance-stat">
             <Users size={16} />
-            <span className="admin-attendance-stat__label">Employees</span>
+            <span className="admin-attendance-stat__label">People</span>
             <strong>{totalEmployees}</strong>
           </div>
           <div className="admin-attendance-stat">
@@ -418,7 +439,7 @@ export default function AdminAttendanceDirectory({ departments, initialUserId }:
                   <span className="admin-attendance-dept-card__body">
                     <strong>{section.deptName}</strong>
                     <span className="admin-attendance-dept-card__meta">
-                      {section.groups.length} employee{section.groups.length !== 1 ? 's' : ''}
+                      {peopleCountLabel(section.groups.length, section.deptId)}
                       {' · '}
                       {deptRecords} record{deptRecords !== 1 ? 's' : ''}
                       {' · '}
@@ -446,7 +467,7 @@ export default function AdminAttendanceDirectory({ departments, initialUserId }:
                 <Building2 size={16} />
                 {selectedSection.deptName}
                 <span className="admin-attendance-dept-section__meta">
-                  {selectedSection.groups.length} employee{selectedSection.groups.length !== 1 ? 's' : ''}
+                  {peopleCountLabel(selectedSection.groups.length, selectedSection.deptId)}
                 </span>
               </h4>
               <button
@@ -464,7 +485,9 @@ export default function AdminAttendanceDirectory({ departments, initialUserId }:
               </button>
             </div>
 
-            <p className="admin-attendance-step-hint">Select an employee to view their attendance history.</p>
+            <p className="admin-attendance-step-hint">
+              Select a person to view their attendance history.
+            </p>
 
             <div className="admin-attendance-employee-list">
               {selectedSection.groups.map((group) =>
