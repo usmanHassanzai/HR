@@ -1556,8 +1556,8 @@ export default function ManagerKpiConfig({
               <h2>Assigned Task</h2>
               <p>
                 {isAdmin
-                  ? 'Select department and person, then use Current / Review / Completed to see their tasks.'
-                  : 'Select a person, then use Current / Review / Completed to see their tasks.'}
+                  ? 'Pick a department and person, then track Current, Review, and Completed work.'
+                  : 'Pick a person, then track Current, Review, and Completed work.'}
               </p>
             </div>
           </div>
@@ -1661,8 +1661,10 @@ export default function ManagerKpiConfig({
                     <div>
                       <h3>{boardPerson.full_name}</h3>
                       <p>
-                        {boardPerson.email} · {displayRoleLabel(boardPerson.role)} · {deptNameOf(boardPerson.department_id)}
+                        {displayRoleLabel(boardPerson.role)}
+                        {deptNameOf(boardPerson.department_id) ? ` · ${deptNameOf(boardPerson.department_id)}` : ''}
                       </p>
+                      <p className="studio-person-head__email">{boardPerson.email}</p>
                     </div>
                   </header>
                   {boardKpisLoading && boardKpis.length === 0 ? (

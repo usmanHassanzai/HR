@@ -275,80 +275,18 @@
   /* ── Assigned Task / history polish ───────────────────────── */
   .studio-board-filters {
     top: var(--admin-topbar-offset);
-    margin: 0 0 0.35rem;
-    padding: 0.45rem 0.15rem;
-    border-bottom: 1px solid color-mix(in srgb, var(--border-color) 80%, transparent);
-    background: var(--dash-card-bg, #fff);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-
-  .studio-board-filter {
-    min-height: 52px;
-    border-radius: 11px;
-    gap: 0.2rem;
-    padding: 0.45rem 0.25rem;
-  }
-
-  .studio-board-filter__copy strong {
-    font-size: 0.76rem;
-    font-weight: 750;
-  }
-
-  .studio-board-section--history {
-    background: transparent !important;
-    border: 0 !important;
-    box-shadow: none !important;
-    padding: 0 !important;
   }
 
   .studio-board-section--history > .studio-board-section__head {
-    padding: 0 0.15rem 0.55rem;
-    margin-bottom: 0.15rem;
+    padding: 0 0.1rem 0.25rem;
   }
 
   .emp-kpi-history__month {
-    padding: 0.9rem 0.8rem 1rem !important;
-    gap: 0.8rem;
-    background: var(--dash-card-bg, #fff);
-    border: 1px solid var(--dash-card-border, var(--border-color));
-  }
-
-  .emp-kpi-history__scoreboard {
-    padding: 0.7rem 0.6rem 0.75rem !important;
-    border-radius: 12px;
-    border: 1px solid color-mix(in srgb, var(--border-color) 90%, transparent);
-    background: color-mix(in srgb, var(--surface-muted) 55%, var(--dash-card-bg, #fff)) !important;
-    box-shadow: none;
+    padding: 0.95rem 0.85rem 1rem !important;
   }
 
   .emp-kpi-history__cards-head p {
     display: none;
-  }
-
-  .emp-kpi-history__cards-head h5 {
-    font-size: 0.72rem;
-    margin-bottom: 0.15rem;
-  }
-
-  .assigned-kpi-card {
-    padding: 0.9rem 0.85rem 1rem !important;
-    border: 1px solid var(--dash-card-border, var(--border-color));
-  }
-
-  .assigned-kpi-card__facts div {
-    background: color-mix(in srgb, var(--surface-muted) 80%, transparent);
-    border: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
-  }
-
-  .assigned-kpi-card__block {
-    background: color-mix(in srgb, var(--surface-muted) 55%, transparent);
-    border: 1px solid color-mix(in srgb, var(--border-color) 65%, transparent);
-  }
-
-  .assigned-kpi-card__actions .studio-action {
-    border-radius: 10px;
-    font-weight: 700;
   }
 
   .kpi-review-panel {
@@ -394,13 +332,5 @@
 
   .admin-shell__page-title {
     font-size: 1.08rem;
-  }
-
-  .studio-board-filter__copy strong {
-    font-size: 0.72rem;
-  }
-
-  .assigned-kpi-card__actions .studio-action {
-    font-size: 0.74rem;
   }
 }
