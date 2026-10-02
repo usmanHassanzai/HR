@@ -1,7 +1,7 @@
 // Service worker — cache hashed Vite assets for faster repeat visits.
 // HTML and API stay network-first so users always get fresh app shell.
 // Bump CACHE on every deploy that changes hashed chunk names so old assets are purged.
-const CACHE = 'scorr-assets-v5';
+const CACHE = 'scorr-assets-v6';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

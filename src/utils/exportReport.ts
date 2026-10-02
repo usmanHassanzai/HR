@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { Kpi, Profile, KpiSubmission } from './kpiHelpers';
-import { employeeKpiBoardBreakdown, isKpiLateCompletion } from './kpiScoreHelpers';
+import { employeeKpiBoardBreakdown, isKpiLateCompletion, kpiScoreContribution } from './kpiScoreHelpers';
 import { formatKpiWeight } from './kpiWeightHelpers';
 
 function kpiTimingLabel(kpi: Kpi): string {
@@ -87,7 +87,7 @@ export function exportToCsv(data: ReportData) {
     const user = userMap.get(kpi.user_id);
     const userKpis = kpisByUser.get(kpi.user_id) || [];
     const board = employeeKpiBoardBreakdown(userKpis);
-    const achieved = kpi.completion_status === 'completed' ? Number(kpi.weight || 0) : 0;
+    const achieved = kpi.completion_status === 'completed' ? Number(kpiScoreContribution(kpi) || 0) : 0;
     const fields = [
       user?.full_name || 'Unknown',
       kpi.department || kpi.category || '',
@@ -116,7 +116,7 @@ export async function exportToExcel(data: ReportData) {
       Department: kpi.department || kpi.category || '',
       KPI: kpi.name,
       Weightage: kpi.weight,
-      Achieved: kpi.completion_status === 'completed' ? kpi.weight : 0,
+      Achieved: kpi.completion_status === 'completed' ? kpiScoreContribution(kpi) : 0,
       Timing: kpiTimingLabel(kpi),
       'Board Achieved Weightage': board.weightAchieved,
       'Board Assigned Weightage': board.weightAssigned,
@@ -165,7 +165,7 @@ export async function exportToPdf(data: ReportData) {
     const employee = userMap.get(kpi.user_id)?.full_name || 'Unknown';
     const userKpis = data.kpis.filter((k) => k.user_id === kpi.user_id);
     const board = employeeKpiBoardBreakdown(userKpis);
-    const achieved = kpi.completion_status === 'completed' ? formatKpiWeight(kpi.weight) : '0%';
+    const achieved = kpi.completion_status === 'completed' ? formatKpiWeight(kpiScoreContribution(kpi)) : '0%';
     const line = `${employee} — ${kpi.name}: weightage ${formatKpiWeight(kpi.weight)}  achieved ${achieved}  ${kpiTimingLabel(kpi)}  board ${formatKpiWeight(board.weightAchieved)} / ${formatKpiWeight(board.weightAssigned)}`;
     doc.text(line, 14, y);
     y += 5;

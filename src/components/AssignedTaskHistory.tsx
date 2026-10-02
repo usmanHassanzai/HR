@@ -7,6 +7,7 @@ import {
 } from '../utils/kpiHelpers';
 import {
   employeeKpiBoardBreakdown,
+  kpiScoreContribution,
   kpiScoreRows,
   type CompletedKpiMonthGroup,
 } from '../utils/kpiScoreHelpers';
@@ -71,7 +72,7 @@ function CompletedKpiScoreTable({ kpis }: { kpis: Kpi[] }) {
                     {editNote ? <p className="kpi-assignment-edit-note">{editNote}</p> : null}
                   </td>
                   <td>{formatKpiWeight(row.weight)}</td>
-                  <td>{formatKpiWeight(Number(row.kpi.assigned_score ?? row.weight))}</td>
+                  <td>{formatKpiWeight(kpiScoreContribution(row.kpi))}</td>
                   <td>{fmtDate(row.kpi.start_date)}</td>
                   <td>{fmtDate(row.kpi.end_date)}</td>
                   <td>{kpiProgressBadge(row.kpi).label}</td>

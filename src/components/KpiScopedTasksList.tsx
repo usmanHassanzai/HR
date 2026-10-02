@@ -2,6 +2,7 @@ import { Check } from 'lucide-react';
 import type { Kpi } from '../utils/kpiHelpers';
 import { kpiCategoryMeta } from '../utils/kpiCategories';
 import { formatKpiWeight } from '../utils/kpiWeightHelpers';
+import { kpiScoreContribution } from '../utils/kpiScoreHelpers';
 import KpiTaskBrief from './KpiTaskBrief';
 import '../styles/kpi-scope-tasks.css';
 
@@ -29,6 +30,7 @@ export default function KpiScopedTasksList({ kpis }: { kpis: Kpi[] }) {
             {kpis.map((kpi) => {
               const isDone = kpi.completion_status === 'completed';
               const weight = Number(kpi.weight) || 0;
+              const achieved = isDone ? kpiScoreContribution(kpi) : 0;
               const cat = kpiCategoryMeta(kpi.kpi_category);
               const completedDateStr = completedDateLabel(kpi, isDone);
 
@@ -43,7 +45,7 @@ export default function KpiScopedTasksList({ kpis }: { kpis: Kpi[] }) {
                   <td className="kpi-scope-tasks__num">{formatKpiWeight(weight)}</td>
                   <td>
                     <strong className={isDone ? 'kpi-scope-tasks__awarded' : 'kpi-scope-tasks__open'}>
-                      {isDone ? formatKpiWeight(weight) : '0% (open)'}
+                      {isDone ? formatKpiWeight(achieved) : '0% (open)'}
                     </strong>
                   </td>
                   <td>
@@ -71,6 +73,7 @@ export default function KpiScopedTasksList({ kpis }: { kpis: Kpi[] }) {
         {kpis.map((kpi) => {
           const isDone = kpi.completion_status === 'completed';
           const weight = Number(kpi.weight) || 0;
+          const achieved = isDone ? kpiScoreContribution(kpi) : 0;
           const cat = kpiCategoryMeta(kpi.kpi_category);
           const completedDateStr = completedDateLabel(kpi, isDone);
 
@@ -98,7 +101,7 @@ export default function KpiScopedTasksList({ kpis }: { kpis: Kpi[] }) {
                 <div>
                   <dt>Achieved</dt>
                   <dd className={isDone ? 'kpi-scope-tasks__awarded' : 'kpi-scope-tasks__open'}>
-                    {isDone ? formatKpiWeight(weight) : '0%'}
+                    {isDone ? formatKpiWeight(achieved) : '0%'}
                   </dd>
                 </div>
                 <div>

@@ -45,7 +45,7 @@ export default function ExportButton({ kpis, userName }: ExportButtonProps) {
         doc.text(row.name.substring(0, 40), 14, y);
         doc.text(`${row.weight}%`, 90, y);
         doc.text(
-          row.kpi.completion_status === 'completed' ? `${row.weight}%` : '—',
+          row.kpi.completion_status === 'completed' ? `${row.weightedScore}%` : '—',
           140,
           y,
         );
@@ -70,7 +70,7 @@ export default function ExportButton({ kpis, userName }: ExportButtonProps) {
       const rows = kpiScoreRows(kpis).map((row) => ({
         KPI: row.name,
         Weightage: row.weight,
-        Achieved: row.kpi.completion_status === 'completed' ? row.weight : 0,
+        Achieved: row.kpi.completion_status === 'completed' ? row.weightedScore : 0,
       }));
       rows.push({
         KPI: 'TOTAL',

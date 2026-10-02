@@ -318,11 +318,7 @@ export function employeeKpiBoardBreakdown(
   const weightAchievedRaw = roundKpiScore(
     kpis
       .filter(countsTowardAchieved)
-      .reduce((s, k) => {
-        const weight = Math.max(0, Number(k.weight || 0));
-        const awarded = Math.max(0, Number(k.assigned_score ?? k.weight ?? 0));
-        return s + Math.min(awarded, weight);
-      }, 0),
+      .reduce((s, k) => s + kpiScoreContribution(k), 0),
   );
   const weightPendingRaw = roundKpiScore(
     kpis

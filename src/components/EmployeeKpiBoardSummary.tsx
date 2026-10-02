@@ -1,5 +1,5 @@
 import { formatKpiAssignmentChange, Kpi } from '../utils/kpiHelpers';
-import { employeeKpiBoardBreakdown, kpiScoreRows } from '../utils/kpiScoreHelpers';
+import { employeeKpiBoardBreakdown, kpiScoreContribution, kpiScoreRows } from '../utils/kpiScoreHelpers';
 import { formatKpiWeight, KPI_WEIGHT_CAP } from '../utils/kpiWeightHelpers';
 import { kpiCategoryMeta } from '../utils/kpiCategories';
 import KpiScoreboardSummary from './KpiScoreboardSummary';
@@ -36,7 +36,7 @@ export default function EmployeeKpiBoardSummary({ kpis, employeeName, userId }: 
         <div className="kpi-score-cards" aria-label="KPI task breakdown">
           {rows.map((row) => {
             const achieved = row.kpi.completion_status === 'completed'
-              ? formatKpiWeight(Number(row.kpi.assigned_score ?? row.weight))
+              ? formatKpiWeight(kpiScoreContribution(row.kpi))
               : row.kpi.completion_status === 'pending_review'
                 ? 'Awaiting review'
                 : formatKpiWeight(0);
@@ -97,7 +97,7 @@ export default function EmployeeKpiBoardSummary({ kpis, employeeName, userId }: 
                   <td>{formatKpiWeight(row.weight)}</td>
                   <td>
                     {row.kpi.completion_status === 'completed'
-                      ? formatKpiWeight(Number(row.kpi.assigned_score ?? row.weight))
+                      ? formatKpiWeight(kpiScoreContribution(row.kpi))
                       : row.kpi.completion_status === 'pending_review'
                         ? 'Awaiting review'
                         : formatKpiWeight(0)}
