@@ -146,6 +146,7 @@ const MIGRATIONS = [
   'kpi_scoring_rules_decouple.sql',
   'user_job_title.sql',
   'fix_edit_assigned_kpi_save.sql',
+  'preserve_kpi_opened_on_edit.sql',
   'mfa_reset_requests.sql',
   'mfa_backup_recovery.sql',
   'admin_org_kpi_overall_vs_month_score.sql',

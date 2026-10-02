@@ -102,23 +102,37 @@ export default function ManagerPersonalPanel({ profile, focusKpiId }: ManagerPer
     const ids = kpis.filter((k) => !isKpiViewedByAssignee(k)).map((k) => k.id);
     if (!ids.length) return;
     let cancelled = false;
-    void markAssignedKpisViewed(ids).then(() => {
-      if (cancelled) return;
-      const nowIso = new Date().toISOString();
-      setKpis((prev) => prev.map((k) => (
-        ids.includes(k.id)
-          ? {
-              ...k,
-              viewed_at: k.viewed_at || nowIso,
-              viewed_by: k.viewed_by || profile.id,
-              employee_progress: k.employee_progress === 'completed' || k.completion_status === 'completed'
-                ? k.employee_progress
-                : 'started',
-            }
-          : k
-      )));
-    });
-    return () => { cancelled = true; };
+    let retryTimer: number | undefined;
+
+    const mark = () => {
+      void markAssignedKpisViewed(ids).then((result) => {
+        if (cancelled) return;
+        if (!result.ok) {
+          retryTimer = window.setTimeout(mark, 2500);
+          return;
+        }
+        const nowIso = new Date().toISOString();
+        setKpis((prev) => prev.map((k) => (
+          ids.includes(k.id)
+            ? {
+                ...k,
+                viewed_at: k.viewed_at || nowIso,
+                viewed_by: k.viewed_by || profile.id,
+                employee_progress: k.employee_progress === 'completed' || k.completion_status === 'completed'
+                  ? k.employee_progress
+                  : 'started',
+              }
+            : k
+        )));
+      });
+    };
+
+    const kickoff = window.setTimeout(mark, 300);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(kickoff);
+      if (retryTimer) window.clearTimeout(retryTimer);
+    };
   }, [kpis, profile.id]);
 
   useEffect(() => {

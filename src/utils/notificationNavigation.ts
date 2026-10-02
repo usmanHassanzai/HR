@@ -95,7 +95,7 @@ export function resolveNotificationNav(
     if (r === 'manager') {
       return withMeta({ role: 'manager', tab: 'rewards', search, rewardsTab }, meta, search);
     }
-    return withMeta({ role: 'employee', tab: 'rewards', rewardsTab }, meta);
+    return withMeta({ role: 'employee', tab: 'kpis', rewardsTab }, meta);
   }
 
   // Catalog redemptions
@@ -105,7 +105,7 @@ export function resolveNotificationNav(
       return withMeta({ role: 'admin', tab: 'rewards', rewardsTab }, meta);
     }
     if (r === 'manager') return withMeta({ role: 'manager', tab: 'rewards', rewardsTab }, meta);
-    return withMeta({ role: 'employee', tab: 'rewards', rewardsTab }, meta);
+    return withMeta({ role: 'employee', tab: 'kpis', rewardsTab }, meta);
   }
 
   // Rewards / gifts / catalog / milestones
@@ -128,7 +128,7 @@ export function resolveNotificationNav(
   ) {
     if (r === 'admin' || r === 'hr') return withMeta({ role: 'admin', tab: 'rewards' }, meta);
     if (r === 'manager') return withMeta({ role: 'manager', tab: 'rewards' }, meta);
-    return withMeta({ role: 'employee', tab: 'rewards' }, meta);
+    return withMeta({ role: 'employee', tab: 'kpis' }, meta);
   }
 
   // KPI ready for review (assigner / manager / admin)

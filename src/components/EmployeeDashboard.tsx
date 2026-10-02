@@ -47,7 +47,8 @@ const BackupCodesLowBanner = lazy(() => import('./BackupCodesLowBanner'));
 type EmployeeTab = 'kpis' | 'attendance' | 'rewards' | 'dailyReport' | 'settings';
 const EMPLOYEE_TAB_KEY = 'scorr-employee-active-tab';
 const EMPLOYEE_TABS: EmployeeTab[] = ['kpis', 'attendance', 'rewards', 'dailyReport', 'settings'];
-const EMPLOYEE_REWARDS_HIDDEN = false;
+/** Rewards catalog/tab hidden for employees on web + native (all breakpoints). */
+const EMPLOYEE_REWARDS_HIDDEN = true;
 
 function initialEmployeeTab(): EmployeeTab {
   const raw = readSessionString(EMPLOYEE_TAB_KEY);
@@ -118,7 +119,12 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
       if (detail.awardId || detail.redemptionId) {
         setRewardsFocusId(detail.awardId || detail.redemptionId || null);
       }
-      setActiveTab(next as EmployeeTab);
+      // Rewards tab is disabled for employees — never navigate there.
+      setActiveTab(
+        next === 'rewards' && EMPLOYEE_REWARDS_HIDDEN
+          ? 'kpis'
+          : (next as EmployeeTab),
+      );
       setNavOpen(false);
     };
     window.addEventListener('scorr-open-employee-tab', openTab);
@@ -235,25 +241,41 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
     if (isReadOnly || activeTab !== 'kpis') return;
     const ids = kpis.filter((k) => !isKpiViewedByAssignee(k)).map((k) => k.id);
     if (!ids.length) return;
+
     let cancelled = false;
-    void markAssignedKpisViewed(ids).then(() => {
-      if (cancelled) return;
-      const now = new Date().toISOString();
-      setKpis((prev) => prev.map((k) => (
-        ids.includes(k.id)
-          ? {
-              ...k,
-              viewed_at: k.viewed_at || now,
-              viewed_by: k.viewed_by || activeUser.id,
-              employee_progress: k.employee_progress === 'completed' || k.completion_status === 'completed'
-                ? k.employee_progress
-                : 'started',
-            }
-          : k
-      )));
-    });
-    return () => { cancelled = true; };
-  }, [isReadOnly, activeTab, kpis]);
+    let retryTimer: number | undefined;
+
+    const mark = () => {
+      void markAssignedKpisViewed(ids).then((result) => {
+        if (cancelled) return;
+        if (!result.ok) {
+          // Do not optimistic-update — that blocked retries and left admin on “Not opened yet”.
+          retryTimer = window.setTimeout(mark, 2500);
+          return;
+        }
+        const now = new Date().toISOString();
+        setKpis((prev) => prev.map((k) => (
+          ids.includes(k.id)
+            ? {
+                ...k,
+                viewed_at: k.viewed_at || now,
+                viewed_by: k.viewed_by || activeUser.id,
+                employee_progress: k.employee_progress === 'completed' || k.completion_status === 'completed'
+                  ? k.employee_progress
+                  : 'started',
+              }
+            : k
+        )));
+      });
+    };
+
+    const kickoff = window.setTimeout(mark, 300);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(kickoff);
+      if (retryTimer) window.clearTimeout(retryTimer);
+    };
+  }, [isReadOnly, activeTab, kpis, activeUser.id]);
 
   const years = useMemo(() => availableKpiYears(kpis), [kpis]);
 
