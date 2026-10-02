@@ -1,5 +1,10 @@
 import { Fragment, type ReactNode } from 'react';
-import { formatKpiAssignmentChange, type Kpi } from '../utils/kpiHelpers';
+import {
+  formatKpiAssignmentChange,
+  kpiHealthLabel,
+  kpiProgressBadge,
+  type Kpi,
+} from '../utils/kpiHelpers';
 import {
   employeeKpiBoardBreakdown,
   kpiScoreRows,
@@ -10,6 +15,16 @@ import { kpiCategoryMeta } from '../utils/kpiCategories';
 import '../styles/departments.css';
 import '../styles/employee-kpis.css';
 
+function fmtDate(d?: string | null): string {
+  if (!d) return '—';
+  return new Date(`${String(d).slice(0, 10)}T00:00:00`).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+/** Same scoreboard on mobile and desktop — table scrolls horizontally on narrow screens. */
 function CompletedKpiScoreTable({ kpis }: { kpis: Kpi[] }) {
   const rows = kpiScoreRows(kpis);
   const summary = employeeKpiBoardBreakdown(kpis);
@@ -21,32 +36,7 @@ function CompletedKpiScoreTable({ kpis }: { kpis: Kpi[] }) {
         <span>{rows.length} completed</span>
       </div>
 
-      <div className="kpi-score-cards" aria-label="Completed KPI breakdown">
-        {rows.map((row) => {
-          const editNote = formatKpiAssignmentChange(row.kpi);
-          return (
-            <article key={row.kpi.id} className="kpi-score-card">
-              <div className="kpi-score-card__main">
-                <strong className="kpi-score-card__name">{row.name}</strong>
-                <span className="kpi-score-card__cat">{kpiCategoryMeta(row.kpi.kpi_category).label}</span>
-                {editNote ? <p className="kpi-assignment-edit-note">{editNote}</p> : null}
-              </div>
-              <div className="kpi-score-card__metrics">
-                <div>
-                  <span>Weightage</span>
-                  <strong>{formatKpiWeight(row.weight)}</strong>
-                </div>
-                <div>
-                  <span>Achieved</span>
-                  <strong>{formatKpiWeight(Number(row.kpi.assigned_score ?? row.weight))}</strong>
-                </div>
-              </div>
-            </article>
-          );
-        })}
-      </div>
-
-      <div className="kpi-score-list__total">
+      <div className="kpi-score-list__total kpi-score-list__total--always">
         <div>
           <span>Total weightage</span>
           <strong>{formatKpiWeight(Math.min(KPI_WEIGHT_CAP, summary.weightAssigned))}</strong>
@@ -57,29 +47,38 @@ function CompletedKpiScoreTable({ kpis }: { kpis: Kpi[] }) {
         </div>
       </div>
 
-      <div className="kpi-score-table-wrap kpi-score-table-wrap--desktop">
+      <div className="kpi-score-table-wrap kpi-score-table-wrap--responsive">
         <table className="kpi-score-table">
           <thead>
             <tr>
               <th>KPI</th>
               <th>Weightage</th>
               <th>Achieved</th>
+              <th>Start</th>
+              <th>Due</th>
+              <th>Progress</th>
+              <th>Health</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
-              <tr key={row.kpi.id}>
-                <td>
-                  <strong>{row.name}</strong>
-                  <span className="kpi-score-table__cat">{kpiCategoryMeta(row.kpi.kpi_category).label}</span>
-                  {formatKpiAssignmentChange(row.kpi) ? (
-                    <p className="kpi-assignment-edit-note">{formatKpiAssignmentChange(row.kpi)}</p>
-                  ) : null}
-                </td>
-                <td>{formatKpiWeight(row.weight)}</td>
-                <td>{formatKpiWeight(Number(row.kpi.assigned_score ?? row.weight))}</td>
-              </tr>
-            ))}
+            {rows.map((row) => {
+              const editNote = formatKpiAssignmentChange(row.kpi);
+              return (
+                <tr key={row.kpi.id}>
+                  <td>
+                    <strong>{row.name}</strong>
+                    <span className="kpi-score-table__cat">{kpiCategoryMeta(row.kpi.kpi_category).label}</span>
+                    {editNote ? <p className="kpi-assignment-edit-note">{editNote}</p> : null}
+                  </td>
+                  <td>{formatKpiWeight(row.weight)}</td>
+                  <td>{formatKpiWeight(Number(row.kpi.assigned_score ?? row.weight))}</td>
+                  <td>{fmtDate(row.kpi.start_date)}</td>
+                  <td>{fmtDate(row.kpi.end_date)}</td>
+                  <td>{kpiProgressBadge(row.kpi).label}</td>
+                  <td>{kpiHealthLabel(row.kpi.status)}</td>
+                </tr>
+              );
+            })}
           </tbody>
           <tfoot>
             <tr>
@@ -88,6 +87,7 @@ function CompletedKpiScoreTable({ kpis }: { kpis: Kpi[] }) {
               <td>
                 <strong>{formatKpiWeight(summary.weightAchieved)}</strong>
               </td>
+              <td colSpan={4} />
             </tr>
           </tfoot>
         </table>
@@ -101,7 +101,7 @@ interface AssignedTaskHistoryProps {
   renderTask: (kpi: Kpi) => ReactNode;
 }
 
-/** Monthly completed/approved assigned KPIs with scoreboard + detail cards. */
+/** Monthly completed/approved assigned KPIs — same scoreboard + detail cards on every device. */
 export default function AssignedTaskHistory({ groups, renderTask }: AssignedTaskHistoryProps) {
   return (
     <div className="emp-kpi-history">
@@ -116,8 +116,14 @@ export default function AssignedTaskHistory({ groups, renderTask }: AssignedTask
               {group.kpis.length} task{group.kpis.length === 1 ? '' : 's'}
             </span>
           </header>
+
           <CompletedKpiScoreTable kpis={group.kpis} />
+
           <div className="emp-kpi-history__cards">
+            <header className="emp-kpi-history__cards-head">
+              <h5>Task details</h5>
+              <p>Same fields as desktop — Edit opens weightage, due date, status, and completion.</p>
+            </header>
             {group.kpis.map((kpi) => (
               <Fragment key={kpi.id}>{renderTask(kpi)}</Fragment>
             ))}
