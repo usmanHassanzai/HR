@@ -1,8 +1,8 @@
 /* Employee dashboard — mobile only professional layout */
 
 @media (max-width: 768px) {
-  /* Admin-shell already owns safe-area; avoid leftover bottom-nav dead space */
-  .dashboard-container:has(.emp-dash) {
+  /* Admin-shell already owns safe-area; avoid double padding */
+  .dashboard-container:has(.emp-dash):not(.dashboard-container--admin) {
     padding-left: max(0.75rem, env(safe-area-inset-left));
     padding-right: max(0.75rem, env(safe-area-inset-right));
     padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
@@ -25,7 +25,7 @@
     align-items: stretch;
     gap: 0.75rem;
     padding: 0.95rem 1rem;
-    border-radius: 16px;
+    border-radius: var(--radius-card, 14px);
   }
 
   .emp-dash .mobile-banner-row .btn {
@@ -42,7 +42,7 @@
 
   .emp-dash .dash-health-card {
     padding: 1.15rem 1rem;
-    border-radius: 16px;
+    border-radius: var(--radius-card, 14px);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -61,7 +61,7 @@
 
   .emp-dash .dash-metrics-panel {
     padding: 0.9rem 0.95rem;
-    border-radius: 16px;
+    border-radius: var(--radius-card, 14px);
   }
 
   .emp-dash .dash-metric-row {
@@ -102,7 +102,7 @@
 
   .emp-dash .kpi-card,
   .emp-dash .emp-kpi-item {
-    border-radius: 16px;
+    border-radius: var(--radius-card, 14px);
     padding: 1rem 0.95rem;
   }
 
@@ -157,11 +157,11 @@
 
   .emp-dash .dash-info-panel {
     padding: 1rem 0.95rem;
-    border-radius: 16px;
+    border-radius: var(--radius-card, 14px);
   }
 
   .emp-dash .employee-kpi-board-summary {
-    border-radius: 16px;
+    border-radius: var(--radius-card, 14px);
     padding: 1rem 0.95rem;
   }
 
@@ -172,7 +172,7 @@
 
   .emp-dash .team-points-table-wrap,
   .emp-dash .team-points-board {
-    border-radius: 16px;
+    border-radius: var(--radius-card, 14px);
   }
 
   .emp-dash .team-points-table-wrap {
@@ -181,7 +181,7 @@
   }
 
   .emp-attendance-header {
-    border-radius: 16px !important;
+    border-radius: var(--radius-card, 14px) !important;
     padding: 1.05rem 1rem !important;
     gap: 0.85rem;
   }
@@ -227,9 +227,12 @@
   .emp-attendance-tabs {
     display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.45rem;
+    gap: 0.25rem;
     overflow: visible;
-    padding-bottom: 0;
+    padding: 0.22rem;
+    border-radius: 12px;
+    background: var(--surface-muted);
+    border: 1px solid var(--dash-card-border, var(--border-color));
   }
 
   .emp-attendance-tabs::-webkit-scrollbar {
@@ -242,14 +245,15 @@
     flex: none;
     white-space: nowrap;
     min-height: 44px;
-    border-radius: 999px;
-    padding: 0.5rem 0.7rem;
+    border-radius: 10px;
+    padding: 0.5rem 0.55rem;
     font-size: 0.8rem;
+    font-weight: 700;
     justify-content: center;
   }
 
   .emp-attendance-card {
-    border-radius: 16px;
+    border-radius: var(--radius-card, 14px);
     padding: 1.05rem 1rem;
   }
 
@@ -303,7 +307,7 @@
   }
 
   .emp-rewards-header {
-    border-radius: 16px !important;
+    border-radius: var(--radius-card, 14px) !important;
     padding: 1.05rem 1rem !important;
     gap: 0.85rem;
   }
@@ -351,7 +355,7 @@
   }
 
   .emp-rewards-card {
-    border-radius: 16px;
+    border-radius: var(--radius-card, 14px);
     padding: 1.05rem 1rem;
   }
 
@@ -372,14 +376,14 @@
   }
 
   .emp-rewards-balance-card {
-    border-radius: 16px;
+    border-radius: var(--radius-card, 14px);
   }
 
   .emp-dash .dwr-panel,
   .emp-dash .dwr-hero,
   .emp-dash .dwr-compose,
   .emp-dash .dwr-history {
-    border-radius: 16px;
+    border-radius: var(--radius-card, 14px);
   }
 
   .emp-dash .dwr-textarea {
@@ -394,11 +398,11 @@
   }
 
   .emp-dash .glass-panel {
-    border-radius: 16px;
+    border-radius: var(--radius-card, 14px);
   }
 
   .emp-dash .attendance-hero {
-    border-radius: 16px;
+    border-radius: var(--radius-card, 14px);
     padding: 1.15rem 1rem;
   }
 
@@ -409,7 +413,7 @@
   .emp-dash details.glass-panel,
   .emp-dash .settings-security,
   .emp-dash .account-security {
-    border-radius: 16px;
+    border-radius: var(--radius-card, 14px);
   }
 
   .emp-dash details > summary {

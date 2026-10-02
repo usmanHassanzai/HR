@@ -23,7 +23,8 @@ body.mobile-dash-drawer-open {
     background: var(--dash-card-bg);
     border: 1px solid var(--dash-card-border);
     box-shadow: var(--dash-card-shadow);
-    backdrop-filter: var(--glass-blur);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 
   .mobile-dash-nav__menu-btn {

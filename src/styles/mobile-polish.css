@@ -1,0 +1,406 @@
+/**
+ * Shared mobile web polish — cohesive cards, type, tabs, and chrome.
+ * Loaded globally; complements role-specific *-mobile.css files.
+ */
+
+@media (max-width: 768px) {
+  :root {
+    --app-content-pad-x: 0.8rem;
+    --app-content-pad-y: 0.8rem;
+    --space-section: 0.85rem;
+    --space-card: 0.95rem;
+    --admin-topbar-offset: 3.6rem;
+  }
+
+  /* Instant scroll — never animate finger scrolling */
+  html,
+  body,
+  #root,
+  .native-scroll-root,
+  .dashboard-main,
+  .admin-shell__panel,
+  .admin-shell__main,
+  .kpi-edit-dialog__body,
+  .assign-drawer {
+    scroll-behavior: auto !important;
+  }
+
+  html,
+  body {
+    overscroll-behavior-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /*
+   * Sticky/fixed chrome must stay solid — backdrop-filter blur while scrolling
+   * is the main reason mobile WebViews feel laggy.
+   */
+  .app-header,
+  .admin-shell__topbar,
+  .studio-board-filters,
+  .studio-assign-bar,
+  .kpi-edit-dialog__head,
+  .kpi-edit-dialog__foot,
+  .mobile-dash-nav,
+  .dwr-dept-rail,
+  .admin-add-user-panel {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  .app-header {
+    background: var(--dash-card-bg, var(--bg-elevated, #fff)) !important;
+  }
+
+  .studio-assign-bar {
+    background: var(--dash-card-bg, #fff) !important;
+  }
+
+  /* ── App chrome ───────────────────────────────────────────── */
+  .admin-shell__topbar {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    gap: 0.55rem;
+    padding: 0.7rem 0.75rem;
+    padding-left: max(0.75rem, env(safe-area-inset-left));
+    padding-right: max(0.75rem, env(safe-area-inset-right));
+    border-bottom: 1px solid var(--dash-card-border, var(--border-color));
+    /* Solid paint — backdrop-filter blur makes phone scrolling feel laggy */
+    background: var(--dash-card-bg, #fff);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .admin-shell__page-title {
+    font-family: var(--font-display);
+    font-size: 1.18rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.25;
+  }
+
+  .admin-shell__page-eyebrow {
+    font-size: 0.68rem;
+    font-weight: 750;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .admin-shell__hamburger {
+    width: 2.7rem;
+    height: 2.7rem;
+    border-radius: var(--radius-control);
+  }
+
+  .admin-shell__panel {
+    padding: 0.85rem 0.75rem calc(1.35rem + env(safe-area-inset-bottom, 0px));
+    padding-left: max(0.75rem, env(safe-area-inset-left));
+    padding-right: max(0.75rem, env(safe-area-inset-right));
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-section);
+  }
+
+  .admin-shell__sidebar {
+    border-radius: 0 var(--radius-card) var(--radius-card) 0;
+  }
+
+  /* Portal header — flush app bar on phones */
+  .dashboard-container--admin > .app-header,
+  .dashboard-container--admin .app-header {
+    margin: 0;
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+    border-top: 0;
+    box-shadow: none;
+    border-bottom: 1px solid var(--dash-card-border, var(--border-color));
+  }
+
+  /* ── Unified card language ────────────────────────────────── */
+  .admin-shell__panel .glass-panel,
+  .admin-shell__panel .dash-panel,
+  .mgr-dash .glass-panel,
+  .emp-dash .glass-panel,
+  .studio .studio-flow,
+  .studio-board-section,
+  .assigned-kpi-card,
+  .emp-kpi-history__month,
+  .mgr-attendance-card,
+  .mgr-rewards-card,
+  .mgr-kpi-card,
+  .mgr-personal-card,
+  .emp-dash .dash-health-card,
+  .emp-dash .dash-metrics-panel,
+  .admin-users-panel,
+  .dwr-panel,
+  .dwr-hero,
+  .dwr-compose,
+  .dwr-history {
+    border-radius: var(--radius-card) !important;
+    box-shadow: var(--dash-card-shadow);
+  }
+
+  .mgr-attendance-header,
+  .mgr-rewards-header,
+  .mgr-kpi-header,
+  .mgr-personal-header,
+  .admin-tracking-header,
+  .studio-hero {
+    border-radius: var(--radius-card) !important;
+  }
+
+  /* ── Section headers ──────────────────────────────────────── */
+  .mgr-attendance-header__title,
+  .mgr-rewards-header__title,
+  .mgr-kpi-header__title,
+  .mgr-personal-header__title,
+  .studio-hero h2 {
+    font-family: var(--font-display);
+    font-size: 1.15rem !important;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+  }
+
+  .mgr-attendance-header__subtitle,
+  .mgr-rewards-header__subtitle,
+  .mgr-kpi-header__subtitle,
+  .mgr-personal-header__subtitle,
+  .studio-hero p {
+    font-size: 0.84rem !important;
+    line-height: 1.45;
+    color: var(--text-secondary);
+  }
+
+  /* ── Segmented tabs (replace pill inconsistency) ──────────── */
+  .mgr-attendance-tabs,
+  .mgr-kpi-tabs,
+  .mgr-personal-tabs,
+  .emp-dash .emp-kpi-filter__modes,
+  .studio-switch {
+    display: grid !important;
+    gap: 0.25rem;
+    padding: 0.22rem;
+    border-radius: 12px;
+    background: var(--surface-muted);
+    border: 1px solid var(--dash-card-border, var(--border-color));
+    overflow: visible;
+  }
+
+  .mgr-attendance-tabs,
+  .mgr-kpi-tabs,
+  .mgr-personal-tabs {
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  }
+
+  .mgr-attendance-tabs .tab-btn,
+  .mgr-kpi-tabs .tab-btn,
+  .mgr-personal-tabs .tab-btn,
+  .studio-switch button {
+    min-height: var(--touch-min);
+    border-radius: 10px !important;
+    font-size: 0.8rem;
+    font-weight: 700;
+    justify-content: center;
+    white-space: nowrap;
+  }
+
+  /* ── Stats ────────────────────────────────────────────────── */
+  .mgr-attendance-stat,
+  .mgr-rewards-stat,
+  .mgr-kpi-stat,
+  .mgr-personal-stat,
+  .admin-shell__mobile-stats > * {
+    border-radius: 12px;
+  }
+
+  .mgr-attendance-stat strong,
+  .mgr-rewards-stat strong,
+  .mgr-kpi-stat strong,
+  .mgr-personal-stat strong {
+    font-family: var(--font-display);
+    font-size: 1.08rem;
+    letter-spacing: -0.02em;
+  }
+
+  .mgr-attendance-stat__label,
+  .mgr-rewards-stat__label,
+  .mgr-kpi-stat__label,
+  .mgr-personal-stat__label {
+    font-size: 0.74rem;
+    letter-spacing: 0.03em;
+  }
+
+  /* ── Forms / touch ────────────────────────────────────────── */
+  .admin-shell__panel input,
+  .admin-shell__panel select,
+  .admin-shell__panel textarea,
+  .studio input,
+  .studio select,
+  .studio textarea,
+  .mgr-dash input,
+  .mgr-dash select,
+  .mgr-dash textarea,
+  .emp-dash input,
+  .emp-dash select,
+  .emp-dash textarea {
+    font-size: 16px;
+    border-radius: var(--radius-control);
+  }
+
+  .admin-shell__panel .btn,
+  .studio .btn,
+  .mgr-dash .btn,
+  .emp-dash .btn {
+    min-height: var(--touch-min);
+    border-radius: var(--radius-control);
+  }
+
+  /* ── Tables ───────────────────────────────────────────────── */
+  .team-points-table-wrap,
+  .mgr-rewards-table-wrap,
+  .admin-tracking-table-wrap,
+  .kpi-score-table-wrap--responsive,
+  .mgr-dash .team-points-table-wrap {
+    border: 1px solid var(--dash-card-border, var(--border-color));
+    border-radius: 12px;
+    background: var(--dash-card-bg, #fff);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* ── Assigned Task / history polish ───────────────────────── */
+  .studio-board-filters {
+    top: var(--admin-topbar-offset);
+    margin: 0 0 0.35rem;
+    padding: 0.45rem 0.15rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--border-color) 80%, transparent);
+    background: var(--dash-card-bg, #fff);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .studio-board-filter {
+    min-height: 52px;
+    border-radius: 11px;
+    gap: 0.2rem;
+    padding: 0.45rem 0.25rem;
+  }
+
+  .studio-board-filter__copy strong {
+    font-size: 0.76rem;
+    font-weight: 750;
+  }
+
+  .studio-board-section--history {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+
+  .studio-board-section--history > .studio-board-section__head {
+    padding: 0 0.15rem 0.55rem;
+    margin-bottom: 0.15rem;
+  }
+
+  .emp-kpi-history__month {
+    padding: 0.9rem 0.8rem 1rem !important;
+    gap: 0.8rem;
+    background: var(--dash-card-bg, #fff);
+    border: 1px solid var(--dash-card-border, var(--border-color));
+  }
+
+  .emp-kpi-history__scoreboard {
+    padding: 0.7rem 0.6rem 0.75rem !important;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--border-color) 90%, transparent);
+    background: color-mix(in srgb, var(--surface-muted) 55%, var(--dash-card-bg, #fff)) !important;
+    box-shadow: none;
+  }
+
+  .emp-kpi-history__cards-head p {
+    display: none;
+  }
+
+  .emp-kpi-history__cards-head h5 {
+    font-size: 0.72rem;
+    margin-bottom: 0.15rem;
+  }
+
+  .assigned-kpi-card {
+    padding: 0.9rem 0.85rem 1rem !important;
+    border: 1px solid var(--dash-card-border, var(--border-color));
+  }
+
+  .assigned-kpi-card__facts div {
+    background: color-mix(in srgb, var(--surface-muted) 80%, transparent);
+    border: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
+  }
+
+  .assigned-kpi-card__block {
+    background: color-mix(in srgb, var(--surface-muted) 55%, transparent);
+    border: 1px solid color-mix(in srgb, var(--border-color) 65%, transparent);
+  }
+
+  .assigned-kpi-card__actions .studio-action {
+    border-radius: 10px;
+    font-weight: 700;
+  }
+
+  .kpi-review-panel {
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--color-warning, #d97706) 28%, var(--border-color));
+    background: color-mix(in srgb, var(--color-warning, #d97706) 6%, var(--dash-card-bg, #fff));
+  }
+
+  /* Edit sheet handle cue */
+  .kpi-edit-dialog {
+    box-shadow: 0 -8px 40px rgba(15, 23, 42, 0.18);
+  }
+
+  .kpi-edit-dialog__head::before {
+    content: '';
+    display: block;
+    width: 2.25rem;
+    height: 0.28rem;
+    margin: 0 auto 0.75rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--text-muted) 45%, transparent);
+  }
+
+  /* ── Empty / banners ──────────────────────────────────────── */
+  .studio-empty,
+  .studio-empty--board,
+  .login-error-banner,
+  .login-success-banner {
+    border-radius: var(--radius-card);
+  }
+
+  /* ── Rewards queue ────────────────────────────────────────── */
+  .mgr-rewards-queue-item {
+    border-radius: var(--radius-card);
+    padding: var(--space-card);
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --space-card: 0.85rem;
+  }
+
+  .admin-shell__page-title {
+    font-size: 1.08rem;
+  }
+
+  .studio-board-filter__copy strong {
+    font-size: 0.72rem;
+  }
+
+  .assigned-kpi-card__actions .studio-action {
+    font-size: 0.74rem;
+  }
+}

@@ -1,3 +1,12 @@
+/** Prefer instant scroll on phones — smooth animation feels laggy in WebViews. */
+function scrollBehavior(): ScrollBehavior {
+  if (typeof window === 'undefined') return 'auto';
+  if (window.matchMedia('(pointer: coarse)').matches) return 'auto';
+  if (document.documentElement.classList.contains('native-app')) return 'auto';
+  if (document.documentElement.classList.contains('app-shell')) return 'auto';
+  return 'smooth';
+}
+
 /** Scroll to and briefly highlight an element tagged with data-nav-id. */
 export function scrollNavTarget(id: string | null | undefined, opts?: { retries?: number }): void {
   const target = (id || '').trim();
@@ -8,7 +17,7 @@ export function scrollNavTarget(id: string | null | undefined, opts?: { retries?
     const el = document.querySelector(`[data-nav-id="${CSS.escape(target)}"]`) as HTMLElement | null;
     if (el) {
       el.classList.add('scorr-nav-target');
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.scrollIntoView({ behavior: scrollBehavior(), block: 'center' });
       window.setTimeout(() => el.classList.remove('scorr-nav-target'), 4500);
       return;
     }

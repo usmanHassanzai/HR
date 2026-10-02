@@ -122,7 +122,6 @@ export default function AssignedTaskHistory({ groups, renderTask }: AssignedTask
           <div className="emp-kpi-history__cards">
             <header className="emp-kpi-history__cards-head">
               <h5>Task details</h5>
-              <p>Same fields as desktop — Edit opens weightage, due date, status, and completion.</p>
             </header>
             {group.kpis.map((kpi) => (
               <Fragment key={kpi.id}>{renderTask(kpi)}</Fragment>

@@ -1196,8 +1196,9 @@ button.ws-dept-list__toggle {
     padding-left: max(0.75rem, env(safe-area-inset-left));
     padding-right: max(0.75rem, env(safe-area-inset-right));
     gap: 0.55rem;
-    backdrop-filter: blur(12px);
-    background: color-mix(in srgb, var(--dash-card-bg) 92%, transparent);
+    background: var(--dash-card-bg);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 
   .admin-shell__hamburger {

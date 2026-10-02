@@ -37,7 +37,7 @@ body.native-app #root,
   height: 100%;
   overflow-x: hidden;
   overflow-y: auto;
-  overscroll-behavior-y: contain;
+  overscroll-behavior-y: auto;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
   scroll-behavior: auto;

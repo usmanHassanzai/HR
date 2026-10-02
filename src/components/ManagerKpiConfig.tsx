@@ -961,7 +961,7 @@ export default function ManagerKpiConfig({
       if (newKpiId) setHighlightKpiId(newKpiId);
       setBoardKpis(await fetchKpis(assignUserId));
       window.requestAnimationFrame(() => {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        window.scrollTo({ top: 0, behavior: 'auto' });
         if (newKpiId) scrollNavTarget(newKpiId);
       });
       await loadPeopleWithKpis(reports);
@@ -1387,7 +1387,7 @@ export default function ManagerKpiConfig({
                         setBoardUserId(assignUserId);
                         setBoardTaskView('progress');
                         setDesk('board');
-                        window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
+                        window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'auto' }));
                       }}
                     >
                       View all on Assigned Task

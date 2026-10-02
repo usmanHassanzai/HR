@@ -15,6 +15,15 @@
   --border-radius-lg: 20px;
   --glass-blur: blur(12px);
   --transition-smooth: all 0.2s ease;
+
+  /* Mobile chrome aliases */
+  --radius-card: var(--border-radius-md);
+  --radius-control: var(--border-radius-sm);
+  --space-section: 0.9rem;
+  --space-card: 1rem;
+  --space-tight: 0.5rem;
+  --touch-min: 44px;
+  --admin-topbar-offset: 0px;
 }
 
 /* ── Day (light) theme — high contrast, readable ── */
