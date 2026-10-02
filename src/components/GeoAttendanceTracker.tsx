@@ -15,7 +15,7 @@ interface GeoAttendanceTrackerProps {
  */
 export default function GeoAttendanceTracker({ profile }: GeoAttendanceTrackerProps) {
   const isEligible =
-    (profile.role === 'employee' || profile.role === 'manager') &&
+    (profile.role === 'employee' || profile.role === 'manager' || profile.role === 'hr') &&
     usesOfficeGps(profile.work_mode);
 
   useEffect(() => {

@@ -242,6 +242,11 @@
   color: var(--color-success);
 }
 
+.dwr-badge--hr {
+  background: rgba(37, 99, 235, 0.12);
+  color: #2563eb;
+}
+
 .dwr-empty {
   display: flex;
   flex-direction: column;
@@ -587,6 +592,12 @@
   border-color: color-mix(in srgb, var(--color-warning) 28%, transparent);
 }
 
+.dwr-avatar--hr {
+  background: color-mix(in srgb, #2563eb 14%, transparent);
+  color: #2563eb;
+  border-color: color-mix(in srgb, #2563eb 28%, transparent);
+}
+
 .dwr-report-card__who {
   flex: 1;
   min-width: 0;
@@ -768,6 +779,10 @@
 
 .dwr-role-section__label--employee {
   color: var(--color-success);
+}
+
+.dwr-role-section__label--hr {
+  color: #2563eb;
 }
 
 .dwr-role-section__hint {

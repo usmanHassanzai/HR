@@ -189,6 +189,8 @@ const MIGRATIONS = [
   'keep_completed_assigned_kpis.sql',
   'delete_incomplete_assigned_kpi.sql',
   'notify_delete_assigned_kpi.sql',
+  'hr_self_attendance.sql',
+  'hr_daily_work_reports.sql',
 ];
 
 async function runMigration(filename) {

@@ -138,7 +138,11 @@ export default function DailyWorkReportPanel({ profile }: DailyWorkReportPanelPr
           <h2>What did you accomplish today?</h2>
           <p>
             Write a clear summary of your work for the day. Only organization admins can read submitted reports.
-            {profile.role === 'manager' ? ' Managers submit the same daily log as employees.' : ''}
+            {profile.role === 'manager'
+              ? ' Managers submit the same daily log as employees.'
+              : profile.role === 'hr'
+                ? ' HR reports go to your company admin.'
+                : ''}
           </p>
         </div>
       </div>

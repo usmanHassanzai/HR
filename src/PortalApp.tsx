@@ -136,13 +136,13 @@ function PortalApp({ initialSession = null, onSignedOut }: PortalAppProps) {
 
   useEffect(() => {
     if (!session || !profile || geoHold) return;
-    if (profile.role !== 'employee' && profile.role !== 'manager') return;
+    if (profile.role !== 'employee' && profile.role !== 'manager' && profile.role !== 'hr') return;
     window.dispatchEvent(new Event(GEO_DASHBOARD_OPEN_EVENT));
   }, [session, profile, geoHold]);
 
   useEffect(() => {
     if (!session || !profile || geoHold) return;
-    if (profile.role !== 'employee' && profile.role !== 'manager') return;
+    if (profile.role !== 'employee' && profile.role !== 'manager' && profile.role !== 'hr') return;
     return startPresenceHeartbeat();
   }, [session, profile, geoHold]);
 
@@ -372,7 +372,7 @@ function PortalApp({ initialSession = null, onSignedOut }: PortalAppProps) {
     <RouteFallback />
   );
 
-  const staffSession = session && profile && (profile.role === 'employee' || profile.role === 'manager');
+  const staffSession = session && profile && (profile.role === 'employee' || profile.role === 'manager' || profile.role === 'hr');
   const geoTracker = staffSession ? (
     <Suspense fallback={null}>
       <GeoAttendanceTracker profile={profile} />

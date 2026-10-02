@@ -110,7 +110,7 @@ export default function AdminEditUserModal({
       });
       if (updateError) throw updateError;
 
-      if (role === 'employee' || role === 'manager') {
+      if (role === 'employee' || role === 'manager' || role === 'hr') {
         const { error: modeErr } = await supabase.rpc('set_user_work_mode', {
           p_user_id: user.id,
           p_work_mode: workMode,
@@ -285,7 +285,7 @@ export default function AdminEditUserModal({
               </div>
             )}
 
-            {(role === 'employee' || role === 'manager') && (
+            {(role === 'employee' || role === 'manager' || role === 'hr') && (
               <div className="form-group" style={{ margin: 0 }}>
                 <label>Work location</label>
                 <select

@@ -29,14 +29,14 @@ import ReportDateCalendar from './ReportDateCalendar';
 import '../styles/daily-work-reports.css';
 import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
 
-type RoleTab = 'managers' | 'employees' | 'both';
+type RoleTab = 'managers' | 'employees' | 'hr' | 'both';
 type DeptSelection = 'all' | 'unassigned' | string;
 
 interface StaffRow {
   user_id: string;
   full_name: string;
   email: string;
-  role: 'manager' | 'employee';
+  role: 'manager' | 'employee' | 'hr';
   department_id: string | null;
   department_name: string;
   report: AdminDailyWorkReport | null;
@@ -127,7 +127,7 @@ export default function AdminDailyWorkReports({ initialSearch = '', initialDeptI
       setSummary(summaryRows);
       setReports(reportRows);
       setUsers(((usersRes.data as Profile[]) || []).filter(
-        (u) => u.role === 'manager' || u.role === 'employee',
+        (u) => u.role === 'manager' || u.role === 'employee' || u.role === 'hr',
       ));
       setDepartments((deptsRes.data as Department[]) || []);
       void loadCalendarCounts(calendarMonth.year, calendarMonth.month);
@@ -175,7 +175,7 @@ export default function AdminDailyWorkReports({ initialSearch = '', initialDeptI
       user_id: u.id,
       full_name: u.full_name,
       email: u.email,
-      role: u.role as 'manager' | 'employee',
+      role: u.role as 'manager' | 'employee' | 'hr',
       department_id: u.department_id ?? null,
       department_name: deptName(u.department_id),
       report: reportByUser.get(u.id) ?? null,
@@ -199,15 +199,18 @@ export default function AdminDailyWorkReports({ initialSearch = '', initialDeptI
     }
 
     return rows.sort((a, b) => {
-      if (a.role !== b.role) return a.role === 'manager' ? -1 : 1;
+      const rank = (r: StaffRow['role']) => (r === 'manager' ? 0 : r === 'hr' ? 1 : 2);
+      if (a.role !== b.role) return rank(a.role) - rank(b.role);
       return a.full_name.localeCompare(b.full_name);
     });
   }, [staffRows, selectedDeptId, searchDebounced]);
 
   const managers = scopedRows.filter((r) => r.role === 'manager');
   const employees = scopedRows.filter((r) => r.role === 'employee');
-  const visibleManagers = roleTab === 'employees' ? [] : managers;
-  const visibleEmployees = roleTab === 'managers' ? [] : employees;
+  const hrStaff = scopedRows.filter((r) => r.role === 'hr');
+  const visibleManagers = roleTab === 'employees' || roleTab === 'hr' ? [] : managers;
+  const visibleEmployees = roleTab === 'managers' || roleTab === 'hr' ? [] : employees;
+  const visibleHr = roleTab === 'managers' || roleTab === 'employees' ? [] : hrStaff;
 
   const totals = useMemo(() => {
     const submitted = scopedRows.filter((r) => r.report).length;
@@ -217,8 +220,9 @@ export default function AdminDailyWorkReports({ initialSearch = '', initialDeptI
       missing: Math.max(scopedRows.length - submitted, 0),
       managers: managers.length,
       employees: employees.length,
+      hr: hrStaff.length,
     };
-  }, [scopedRows, managers.length, employees.length]);
+  }, [scopedRows, managers.length, employees.length, hrStaff.length]);
 
   const selectedDeptLabel = useMemo(() => {
     if (selectedDeptId === 'all') return 'All departments';
@@ -245,7 +249,7 @@ export default function AdminDailyWorkReports({ initialSearch = '', initialDeptI
           <h2>Daily work reports</h2>
           <p>
             Select a date on the calendar, then filter by department to review
-            managers and employees for that day.
+            managers, employees, and HR for that day.
           </p>
         </div>
         <button type="button" className="btn btn-secondary" onClick={() => void load()}>
@@ -278,8 +282,8 @@ export default function AdminDailyWorkReports({ initialSearch = '', initialDeptI
         <div className="dwr-stat-card">
           <Briefcase size={18} />
           <div>
-            <strong>{totals.managers}/{totals.employees}</strong>
-            <span>Mgr / Emp</span>
+            <strong>{totals.managers}/{totals.employees}{totals.hr > 0 ? `/${totals.hr}` : ''}</strong>
+            <span>Mgr / Emp{totals.hr > 0 ? ' / HR' : ''}</span>
           </div>
         </div>
       </div>
@@ -337,21 +341,28 @@ export default function AdminDailyWorkReports({ initialSearch = '', initialDeptI
           className={`dwr-role-tabs__btn ${roleTab === 'both' ? 'dwr-role-tabs__btn--active' : ''}`}
           onClick={() => setRoleTab('both')}
         >
-          Managers &amp; Employees
+          All roles
         </button>
         <button
           type="button"
           className={`dwr-role-tabs__btn ${roleTab === 'managers' ? 'dwr-role-tabs__btn--active' : ''}`}
           onClick={() => setRoleTab('managers')}
         >
-          <Briefcase size={14} /> Managers only
+          <Briefcase size={14} /> Managers
         </button>
         <button
           type="button"
           className={`dwr-role-tabs__btn ${roleTab === 'employees' ? 'dwr-role-tabs__btn--active' : ''}`}
           onClick={() => setRoleTab('employees')}
         >
-          <Users size={14} /> Employees only
+          <Users size={14} /> Employees
+        </button>
+        <button
+          type="button"
+          className={`dwr-role-tabs__btn ${roleTab === 'hr' ? 'dwr-role-tabs__btn--active' : ''}`}
+          onClick={() => setRoleTab('hr')}
+        >
+          <FileText size={14} /> HR
         </button>
       </div>
 
@@ -385,7 +396,7 @@ export default function AdminDailyWorkReports({ initialSearch = '', initialDeptI
           </div>
         ) : (
           <div className="dwr-admin__sections">
-            {roleTab !== 'employees' && (
+            {(roleTab === 'both' || roleTab === 'managers') && (
               <div className="dwr-role-section">
                 <div className="dwr-role-section__label dwr-role-section__label--manager">
                   <Briefcase size={14} /> Managers ({visibleManagers.length})
@@ -414,7 +425,7 @@ export default function AdminDailyWorkReports({ initialSearch = '', initialDeptI
               </div>
             )}
 
-            {roleTab !== 'managers' && (
+            {(roleTab === 'both' || roleTab === 'employees') && (
               <div className="dwr-role-section">
                 <div className="dwr-role-section__label dwr-role-section__label--employee">
                   <Users size={14} /> Employees ({visibleEmployees.length})
@@ -429,6 +440,35 @@ export default function AdminDailyWorkReports({ initialSearch = '', initialDeptI
                 ) : (
                   <div className="dwr-report-grid">
                     {visibleEmployees.map((row) => (
+                      <StaffReportCard
+                        key={row.user_id}
+                        row={row}
+                        expanded={expandedId === row.user_id}
+                        onToggle={() =>
+                          setExpandedId((id) => (id === row.user_id ? null : row.user_id))
+                        }
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {(roleTab === 'both' || roleTab === 'hr') && (
+              <div className="dwr-role-section">
+                <div className="dwr-role-section__label dwr-role-section__label--hr">
+                  <FileText size={14} /> HR ({visibleHr.length})
+                  <span className="dwr-role-section__hint">
+                    {visibleHr.filter((r) => r.report).length} submitted
+                  </span>
+                </div>
+                {visibleHr.length === 0 ? (
+                  <div className="dwr-empty dwr-empty--compact">
+                    <p>No HR in this filter.</p>
+                  </div>
+                ) : (
+                  <div className="dwr-report-grid">
+                    {visibleHr.map((row) => (
                       <StaffReportCard
                         key={row.user_id}
                         row={row}
@@ -467,20 +507,32 @@ function StaffReportCard({
 
   return (
     <article
-      className={`dwr-report-card ${row.role === 'manager' ? 'dwr-report-card--manager' : ''} ${
-        submitted ? '' : 'dwr-report-card--missing'
-      }`}
+      className={`dwr-report-card ${
+        row.role === 'manager' ? 'dwr-report-card--manager' : row.role === 'hr' ? 'dwr-report-card--hr' : ''
+      } ${submitted ? '' : 'dwr-report-card--missing'}`}
     >
       <header className="dwr-report-card__head">
-        <div className={`dwr-avatar ${row.role === 'manager' ? 'dwr-avatar--manager' : ''}`}>
+        <div
+          className={`dwr-avatar ${
+            row.role === 'manager' ? 'dwr-avatar--manager' : row.role === 'hr' ? 'dwr-avatar--hr' : ''
+          }`}
+        >
           {initials(row.full_name)}
         </div>
         <div className="dwr-report-card__who">
           <strong>{row.full_name}</strong>
           <span>{row.email}</span>
         </div>
-        <span className={`dwr-badge ${row.role === 'manager' ? 'dwr-badge--manager' : 'dwr-badge--employee'}`}>
-          {row.role}
+        <span
+          className={`dwr-badge ${
+            row.role === 'manager'
+              ? 'dwr-badge--manager'
+              : row.role === 'hr'
+                ? 'dwr-badge--hr'
+                : 'dwr-badge--employee'
+          }`}
+        >
+          {row.role === 'hr' ? 'HR' : row.role}
         </span>
       </header>
 

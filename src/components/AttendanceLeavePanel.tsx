@@ -48,7 +48,7 @@ interface AttendanceLeavePanelProps {
 
 type EmployeeTab = 'today' | 'leave' | 'history';
 type ManagerTab = 'approvals' | 'today' | 'team' | 'shifts' | 'history';
-type AdminTab = 'leave' | 'remote' | 'shifts' | 'history';
+type AdminTab = 'leave' | 'remote' | 'shifts' | 'history' | 'today';
 
 function ApprovalActions({
   onApprove,
@@ -92,7 +92,7 @@ export default function AttendanceLeavePanel({
   const [departments, setDepartments] = useState<Department[]>([]);
 
   const [managerTab, setManagerTab] = useState<ManagerTab>('approvals');
-  const [adminTab, setAdminTab] = useState<AdminTab>(initialAdminTab || (mode === 'hr' ? 'history' : 'leave'));
+  const [adminTab, setAdminTab] = useState<AdminTab>(initialAdminTab || (mode === 'hr' ? 'today' : 'leave'));
   const [employeeTab, setEmployeeTab] = useState<EmployeeTab>('today');
 
   useHistorySyncedTab(managerTab, setManagerTab, {
@@ -226,10 +226,46 @@ export default function AttendanceLeavePanel({
     if (!opts?.silent) setMsg('');
     try {
       if (mode === 'admin' || mode === 'hr') {
-        const [{ data: deptData }, { data: usersData, error: usersErr }, pending] = await Promise.all([
+        const monthStart = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
+        const monthEnd = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${new Date(currentYear, currentMonth, 0).getDate()}`;
+        const [
+          { data: deptData },
+          { data: usersData, error: usersErr },
+          pending,
+          { data: ownAtt },
+          balRes,
+          yearSumRes,
+          monthSumRes,
+          yearLeaveRes,
+          monthLeaveRes,
+          leaveRes,
+          shiftDateRes,
+        ] = await Promise.all([
           supabase.rpc('get_departments'),
           supabase.rpc('get_all_users_admin'),
-          mode === 'admin' ? loadPendingLeavesForAdmin() : Promise.resolve([] as PendingLeaveRequest[]),
+          mode === 'admin' || mode === 'hr'
+            ? loadPendingLeavesForAdmin().then((rows) =>
+                mode === 'hr'
+                  ? rows.filter((r) => r.user_id !== userId && r.employee_role === 'employee')
+                  : rows,
+              )
+            : Promise.resolve([] as PendingLeaveRequest[]),
+          supabase
+            .from('attendance_records')
+            .select('*')
+            .eq('user_id', userId)
+            .gte('attendance_date', monthStart)
+            .lte('attendance_date', monthEnd)
+            .order('attendance_date', { ascending: false }),
+          mode === 'hr' ? supabase.rpc('get_leave_balance', { p_user_id: userId }) : Promise.resolve({ data: null, error: null }),
+          mode === 'hr' ? supabase.rpc('get_my_attendance_summary', { p_year: currentYear }) : Promise.resolve({ data: null, error: null }),
+          mode === 'hr' ? supabase.rpc('get_my_attendance_summary', { p_year: currentYear, p_month: currentMonth }) : Promise.resolve({ data: null, error: null }),
+          mode === 'hr' ? supabase.rpc('get_my_leave_summary', { p_year: currentYear }) : Promise.resolve({ data: null, error: null }),
+          mode === 'hr' ? supabase.rpc('get_my_leave_summary', { p_year: currentYear, p_month: currentMonth }) : Promise.resolve({ data: null, error: null }),
+          mode === 'hr'
+            ? supabase.from('leave_requests').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(20)
+            : Promise.resolve({ data: null, error: null }),
+          mode === 'hr' ? supabase.rpc('get_my_shift_attendance_date') : Promise.resolve({ data: null, error: null }),
         ]);
         if (usersErr) throw new Error(usersErr.message);
         setDepartments((deptData || []) as Department[]);
@@ -239,14 +275,17 @@ export default function AttendanceLeavePanel({
           ),
         );
         setPendingLeaves(pending);
-        const { data: ownAtt } = await supabase
-          .from('attendance_records')
-          .select('*')
-          .eq('user_id', userId)
-          .gte('attendance_date', `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`)
-          .lte('attendance_date', `${currentYear}-${String(currentMonth).padStart(2, '0')}-${new Date(currentYear, currentMonth, 0).getDate()}`)
-          .order('attendance_date', { ascending: false });
         setMyAttendance((ownAtt || []) as AttendanceRecord[]);
+        if (mode === 'hr') {
+          if (balRes.data?.[0]) setBalance(balRes.data[0] as LeaveBalance);
+          if (yearSumRes.data?.[0]) setSummary(yearSumRes.data[0] as AttendanceSummary);
+          if (monthSumRes.data?.[0]) setMonthlySummary(monthSumRes.data[0] as AttendanceSummary);
+          if (yearLeaveRes.data?.[0]) setYearLeaveSummary(yearLeaveRes.data[0] as LeaveSummary);
+          if (monthLeaveRes.data?.[0]) setMonthLeaveSummary(monthLeaveRes.data[0] as LeaveSummary);
+          if (!leaveRes.error) setMyLeaves((leaveRes.data || []) as LeaveRequest[]);
+          const rawShiftDate = shiftDateRes.data;
+          setShiftDate(typeof rawShiftDate === 'string' ? rawShiftDate.slice(0, 10) : localYmd());
+        }
         return;
       }
 
@@ -379,7 +418,8 @@ export default function AttendanceLeavePanel({
         setLeaveType('other');
         setLeaveCustomType('Urgent leave');
         setLeaveReason((prev) => prev || 'Leaving shift early');
-        setEmployeeTab('leave');
+        if (mode === 'hr') setAdminTab('today');
+        else setEmployeeTab('leave');
       }
     }
   };
@@ -405,7 +445,7 @@ export default function AttendanceLeavePanel({
     else {
       if (data) await emailLeaveRequestNotifications(data);
       setMsg(
-        profile.role === 'manager'
+        profile.role === 'manager' || profile.role === 'hr'
           ? 'Leave request sent. Admin will review it.'
           : 'Leave request sent. Your manager will review it.'
       );
@@ -416,6 +456,7 @@ export default function AttendanceLeavePanel({
       setLeaveType('annual');
       setEmployeeTab('leave');
       setManagerTab('today');
+      if (mode === 'hr') setAdminTab('today');
       load();
     }
   };
@@ -469,8 +510,13 @@ export default function AttendanceLeavePanel({
   };
 
   const remoteStaff = teamMembers.filter(
-    (m) => canMarkRemoteAttendance(m.work_mode) && m.id !== userId && (m.role === 'employee' || m.role === 'manager'),
+    (m) =>
+      canMarkRemoteAttendance(m.work_mode) &&
+      m.id !== userId &&
+      (m.role === 'employee' || m.role === 'manager' || m.role === 'hr'),
   );
+  const selfCardClass =
+    mode === 'employee' ? 'emp-attendance-card' : mode === 'hr' ? 'admin-attendance-card glass-panel' : 'mgr-attendance-card';
   const remoteStaffKey = remoteStaff.map((m) => m.id).sort().join(',');
 
   useEffect(() => {
@@ -521,7 +567,8 @@ export default function AttendanceLeavePanel({
               <div>
                 <strong>{m.full_name}</strong>
                 <span>
-                  {workModeLabel(m.work_mode)} {m.role === 'manager' ? 'manager' : 'employee'} · {m.email}
+                  {workModeLabel(m.work_mode)}{' '}
+                  {m.role === 'manager' ? 'manager' : m.role === 'hr' ? 'HR' : 'employee'} · {m.email}
                 </span>
               </div>
               <div className="mgr-remote-mark-row__actions">
@@ -553,7 +600,7 @@ export default function AttendanceLeavePanel({
   );
 
   const renderRemoteSelfCard = () => (
-    <section className={mode === 'employee' ? 'emp-attendance-card' : 'mgr-attendance-card'}>
+    <section className={selfCardClass}>
       <h3>
         <UserCheck size={18} /> Remote attendance
       </h3>
@@ -573,7 +620,7 @@ export default function AttendanceLeavePanel({
   );
 
   const renderHybridTodayCard = () => (
-    <section className={mode === 'employee' ? 'emp-attendance-card' : 'mgr-attendance-card'}>
+    <section className={selfCardClass}>
       <h3>
         <UserCheck size={18} /> Hybrid — remote day
       </h3>
@@ -678,7 +725,7 @@ export default function AttendanceLeavePanel({
           {submitting && stillOnSiteToday ? <Loader2 size={18} className="spin-icon" /> : <LogOut size={18} />}
           Check out
         </button>
-        {stillOnSiteToday && mode === 'employee' && (
+        {stillOnSiteToday && (mode === 'employee' || mode === 'hr') && (
           <button
             type="button"
             className="btn btn-secondary attendance-hero__btn attendance-hero__btn--leave-early"
@@ -802,6 +849,34 @@ export default function AttendanceLeavePanel({
         <div className="attendance-section-tabs admin-attendance-tabs tab-bar tab-bar--inline-mobile" role="tablist" aria-label="HR attendance sections">
           <button
             type="button"
+            className={`tab-btn ${adminTab === 'today' ? 'tab-btn--active' : ''}`}
+            onClick={() => setAdminTab('today')}
+            aria-label="My day attendance"
+          >
+            <UserCheck size={16} />
+            <span>My day</span>
+          </button>
+          <button
+            type="button"
+            className={`tab-btn ${adminTab === 'leave' ? 'tab-btn--active' : ''}`}
+            onClick={() => setAdminTab('leave')}
+            aria-label="Leave approvals"
+          >
+            <Inbox size={16} />
+            <span>Leave</span>
+            {pendingLeaves.length > 0 && <span className="admin-attendance-count-badge">{pendingLeaves.length}</span>}
+          </button>
+          <button
+            type="button"
+            className={`tab-btn ${adminTab === 'remote' ? 'tab-btn--active' : ''}`}
+            onClick={() => setAdminTab('remote')}
+            aria-label="Remote and hybrid attendance"
+          >
+            <UserCheck size={16} />
+            <span>Remote</span>
+          </button>
+          <button
+            type="button"
             className={`tab-btn ${adminTab === 'history' ? 'tab-btn--active' : ''}`}
             onClick={() => setAdminTab('history')}
             aria-label="Employee attendance history"
@@ -819,6 +894,69 @@ export default function AttendanceLeavePanel({
             <span>Shifts</span>
           </button>
         </div>
+
+        {adminTab === 'today' && (
+          <>
+            <MyShiftCard />
+            {isRemoteWorker ? (
+              renderRemoteSelfCard()
+            ) : (
+              <>
+                <GeoAttendancePanel onClockUpdate={onClockUpdate} />
+                {isHybridWorker && renderHybridTodayCard()}
+                {renderCheckInHero('Admin')}
+              </>
+            )}
+            {renderQuickStats()}
+            {renderLeaveForm('Your leave goes to admin for approval (you report to admin).')}
+            {myLeaves.length > 0 && (
+              <section className="admin-attendance-card glass-panel">
+                <h3>
+                  <Inbox size={18} /> My leave requests
+                </h3>
+                <div className="mgr-attendance-approval-list">
+                  {myLeaves.slice(0, 8).map((lr) => (
+                    <div key={lr.id} className="attendance-approval-item">
+                      <div className="attendance-approval-item__main">
+                        <span className="attendance-approval-item__name">
+                          {formatLeaveType(lr.leave_type, lr.leave_custom_type)}
+                        </span>
+                        <span className="attendance-approval-item__meta">
+                          {lr.start_date} to {lr.end_date} · {lr.days_count} days ·{' '}
+                          <span className={approvalBadgeClass(lr.status)}>{APPROVAL_LABEL[lr.status]}</span>
+                        </span>
+                        {lr.reason && <span className="attendance-approval-item__reason">&ldquo;{lr.reason}&rdquo;</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+          </>
+        )}
+
+        {adminTab === 'leave' && (
+          <section className="admin-attendance-card glass-panel">
+            <h3>
+              <Inbox size={18} /> Pending leave requests
+            </h3>
+            <p>Review time-off requests from employees and managers across all departments.</p>
+            {renderLeaveApprovals('All caught up — no pending leave requests.')}
+          </section>
+        )}
+
+        {adminTab === 'remote' && (
+          <section className="admin-attendance-card glass-panel">
+            <h3>
+              <UserCheck size={18} /> Mark remote &amp; hybrid staff
+            </h3>
+            <p>
+              Mark remote and hybrid employees, managers, and HR present or absent for work-from-home days. Office-only
+              staff still use GPS. Records are saved in their attendance history.
+            </p>
+            {renderRemoteMarkList()}
+          </section>
+        )}
 
         {adminTab === 'history' && (
           <AdminAttendanceDirectory departments={departments} initialUserId={initialUserId} />

@@ -21,6 +21,7 @@ import { useHistoryOverlay, useHistorySyncedTab } from '../utils/useHistoryNavig
 import { isNativeApp } from '../utils/nativePlatform';
 
 const AdminDailyWorkReports = lazy(() => import('./AdminDailyWorkReports'));
+const DailyWorkReportPanel = lazy(() => import('./DailyWorkReportPanel'));
 const Analytics = lazy(() => import('./Analytics'));
 const BrandingSettings = lazy(() => import('./BrandingSettings'));
 const AccountSecurityPanel = lazy(() => import('./AccountSecurityPanel'));
@@ -315,18 +316,18 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
     () => [
       { id: 'users', label: 'People', icon: <Users size={18} />, description: 'People, roles, and logins' },
       { id: 'kpis', label: 'Assign Task', icon: <ClipboardList size={18} />, description: 'KPIs assigned to one person' },
-      { id: 'dailyReports', label: 'Daily Reports', icon: <FileText size={18} />, description: 'Staff daily work logs', badge: dailyReportUnread },
+      { id: 'dailyReports', label: 'Daily Reports', icon: <FileText size={18} />, description: isHr ? 'My report to admin & staff logs' : 'Staff daily work logs', badge: dailyReportUnread },
       { id: 'rewards', label: 'Rewards', icon: <Trophy size={18} />, description: 'Gifts, history & redemptions' },
       { id: 'kpiPoints', label: 'KPI & Rewards', icon: <Coins size={18} />, description: "Each person's score and points" },
       { id: 'analytics', label: 'Analytics', icon: <BarChart3 size={18} />, description: 'Trends & attainment' },
-      { id: 'attendance', label: 'Attendance', icon: <CalendarCheck size={18} />, description: 'Leave & approvals' },
+      { id: 'attendance', label: 'Attendance', icon: <CalendarCheck size={18} />, description: isHr ? 'My day, leave & history' : 'Leave & approvals' },
       { id: 'office', label: 'Office GPS', icon: <MapPin size={18} />, description: 'Geofence & check-ins' },
       { id: 'tracking', label: 'Live Tracking', icon: <Radio size={18} />, description: 'Field team locations' },
       { id: 'departments', label: 'Departments', icon: <Building2 size={18} />, description: 'Org structure only' },
       { id: 'export', label: 'Export', icon: <Download size={18} />, description: 'Monthly & quarterly exports' },
       { id: 'settings', label: 'Settings', icon: <Settings size={18} />, description: 'Logo and company theme' },
     ],
-    [dailyReportUnread],
+    [dailyReportUnread, isHr],
   );
 
   const navGroups: AdminNavGroup[] = useMemo(() => {
@@ -556,16 +557,29 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
       ) : activeTab === 'attendance' ? (
         <AttendanceLeavePanel
           profile={profile}
-          mode="admin"
+          mode={isHr ? 'hr' : 'admin'}
           initialAdminTab={attendanceNavState?.adminTab}
           initialUserId={attendanceNavState?.userId}
           initialLeaveId={attendanceNavState?.leaveId}
         />
       ) : activeTab === 'dailyReports' ? (
-        <AdminDailyWorkReports
-          initialSearch={reportsNavState?.search}
-          initialDeptId={reportsNavState?.deptId}
-        />
+        isHr ? (
+          <div className="app-page-stack">
+            <DailyWorkReportPanel profile={profile} />
+            <details className="app-settings-block">
+              <summary>Staff daily reports</summary>
+              <AdminDailyWorkReports
+                initialSearch={reportsNavState?.search}
+                initialDeptId={reportsNavState?.deptId}
+              />
+            </details>
+          </div>
+        ) : (
+          <AdminDailyWorkReports
+            initialSearch={reportsNavState?.search}
+            initialDeptId={reportsNavState?.deptId}
+          />
+        )
       ) : activeTab === 'office' ? (
         <OfficeLocationSettings />
       ) : activeTab === 'tracking' ? (
