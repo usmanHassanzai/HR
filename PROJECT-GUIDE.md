@@ -82,6 +82,8 @@ User-facing PDF: `public/downloads/Scorr-Client-Feature-Guide.pdf`
 Regenerate: `npm run docs:client-guide`  
 Linked from the landing page Mobile / Download section.
 
+Covers: download & install (Android APK + iPhone Home Screen), register organization, sign-in/MFA, separate Admin / HR / Manager / Employee dashboards, mark attendance, assign tasks, daily reports, rewards, GPS, troubleshooting.
+
 ---
 
 *Scorr — scorr.walfia.ai · Walfia*
