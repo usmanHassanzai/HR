@@ -27,6 +27,7 @@ import { scrollNavTarget } from '../utils/notificationDeepLink';
 import '../styles/assign-tasks.css';
 import '../styles/manager-kpi-tasks.css';
 import '../styles/admin-dashboard.css';
+import '../styles/studio-mobile.css';
 
 type Desk = 'library' | 'assign' | 'board';
 type BoardTaskView = 'progress' | 'review' | 'completed';

@@ -1428,7 +1428,8 @@
 }
 
 @media (max-width: 720px) {
+  /* Keep Current | Review | Completed in one row on phones — studio-mobile.css owns the compact layout */
   .studio-board-filters {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }

@@ -182,7 +182,7 @@ export default function AssignedKpiCard({
       {description ? (
         <div className="assigned-kpi-card__block">
           <h4>What this task is</h4>
-          <KpiTaskBrief kpi={kpi} compact={false} hideName />
+          <KpiTaskBrief kpi={kpi} compact hideName />
         </div>
       ) : (
         <div className="assigned-kpi-card__block assigned-kpi-card__block--muted">
