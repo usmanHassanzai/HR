@@ -10,7 +10,13 @@ import {
 } from 'lucide-react';
 import '../styles/landing.css';
 import LandingHeroVisual from './LandingHeroVisual';
-import { APP_STORE_URL, PLAY_STORE_URL, showStoreInstallCtas } from '../utils/appStoreLinks';
+import {
+  androidInstallHref,
+  androidInstallIsDownload,
+  iosInstallHref,
+  iosInstallIsAppStore,
+  showStoreInstallCtas,
+} from '../utils/appStoreLinks';
 
 const Login = lazy(() => import('./Login'));
 
@@ -428,27 +434,23 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
               {showStoreInstallCtas() && (
                 <>
                   <a
-                    href={PLAY_STORE_URL}
+                    href={androidInstallHref()}
                     className="btn btn-secondary"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    {...(androidInstallIsDownload()
+                      ? { download: 'scorr.apk' }
+                      : { target: '_blank', rel: 'noopener noreferrer' })}
                   >
                     <Download size={16} /> Download Android App
                   </a>
-                  {APP_STORE_URL ? (
-                    <a
-                      href={APP_STORE_URL}
-                      className="btn btn-secondary"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <Apple size={16} /> Install on iPhone
-                    </a>
-                  ) : (
-                    <a href="#download-app" className="btn btn-secondary" onClick={(e) => onSectionNav(e, 'download-app')}>
-                      <Apple size={16} /> Install on iPhone
-                    </a>
-                  )}
+                  <a
+                    href={iosInstallIsAppStore() ? iosInstallHref() : '#download-app'}
+                    className="btn btn-secondary"
+                    {...(iosInstallIsAppStore()
+                      ? { target: '_blank', rel: 'noopener noreferrer' }
+                      : { onClick: (e: MouseEvent<HTMLAnchorElement>) => onSectionNav(e, 'download-app') })}
+                  >
+                    <Apple size={16} /> Install on iPhone
+                  </a>
                 </>
               )}
               <a href="#login" className="btn btn-secondary" onClick={onLoginNav}>
