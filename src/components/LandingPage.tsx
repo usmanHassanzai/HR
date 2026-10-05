@@ -434,6 +434,13 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
               {showStoreInstallCtas() && (
                 <>
                   <a
+                    href="#download-app"
+                    className="btn btn-secondary"
+                    onClick={(e: MouseEvent<HTMLAnchorElement>) => onSectionNav(e, 'download-app')}
+                  >
+                    <Download size={16} /> Download Desktop App
+                  </a>
+                  <a
                     href={androidInstallHref()}
                     className="btn btn-secondary"
                     {...(androidInstallIsDownload()

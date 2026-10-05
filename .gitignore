@@ -9,6 +9,7 @@ lerna-debug.log*
 
 node_modules
 dist
+dist-desktop
 dist-ssr
 *.local
 .env
@@ -46,10 +47,18 @@ ios/App/App/build
 *.keystore
 .tools/
 
-# Native binaries — keep the website APK so Vercel/GitHub can serve it
+# Native binaries — APK stays in git; Electron packages are too large for GitHub
+# (>100MB). Build with `npm run build:desktop` before deploy so Vercel uploads them.
 *.aab
 *.ipa
 *.apk
+*.AppImage
+*.deb
 !public/downloads/scorr.apk
+public/downloads/Scorr-Windows.zip
+public/downloads/Scorr-Setup.exe
+public/downloads/Scorr.AppImage
+public/downloads/Scorr.deb
 public/downloads/*.aab
 public/downloads/*.ipa
+public/downloads/*.blockmap

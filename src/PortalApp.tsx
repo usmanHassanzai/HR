@@ -3,7 +3,12 @@ import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { Profile } from './utils/kpiHelpers';
 import NativeScrollRoot from './components/NativeScrollRoot';
 import DemoModeBanner from './components/DemoModeBanner';
-import { isAppShell, isNativeApp } from './utils/nativePlatform';
+import {
+  isAppShell,
+  isNativeApp,
+  notifyDesktopLogin,
+  notifyDesktopWorkspace,
+} from './utils/nativePlatform';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { applyBranding, fetchCompanyBranding, loadBranding } from './lib/branding';
 import { isDemoProfile } from './utils/demoMode';
@@ -257,6 +262,16 @@ function PortalApp({ initialSession = null, onSignedOut }: PortalAppProps) {
       void SplashScreen.hide();
     }
   }, [loading]);
+
+  // Electron: compact Sign In window → full workspace after auth.
+  useEffect(() => {
+    if (loading) return;
+    if (session && profile) {
+      notifyDesktopWorkspace();
+    } else if (!session) {
+      notifyDesktopLogin();
+    }
+  }, [loading, session, profile]);
 
   const refreshCompanyStatus = useCallback(async () => {
     if (!session?.user?.id || !profile?.company_id || isDemoProfile(profile)) return;

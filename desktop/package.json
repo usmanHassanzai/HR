@@ -1,0 +1,12 @@
+{
+  "name": "scorr-desktop",
+  "productName": "Scorr",
+  "version": "1.3.4",
+  "description": "Scorr desktop — Sign In for admin, HR, manager, and employee",
+  "author": "Walfia <hello@walfia.ai>",
+  "homepage": "https://scorr.walfia.ai",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "main.cjs",
+  "desktopName": "scorr.desktop"
+}

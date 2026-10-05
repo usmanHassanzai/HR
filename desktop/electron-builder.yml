@@ -1,0 +1,37 @@
+appId: ai.walfia.scorr.desktop
+productName: Scorr
+copyright: Copyright © Walfia
+electronVersion: 37.10.3
+npmRebuild: false
+nodeGypRebuild: false
+directories:
+  output: ../dist-desktop
+  buildResources: .
+files:
+  - main.cjs
+  - preload.cjs
+  - icon.png
+  - package.json
+asar: true
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Office
+  icon: icon.png
+  maintainer: Walfia <hello@walfia.ai>
+  artifactName: Scorr-${version}.${ext}
+win:
+  # zip avoids Wine (needed for NSIS when building on Linux). Users unzip and run Scorr.exe.
+  target:
+    - target: zip
+      arch:
+        - x64
+  icon: icon.png
+  artifactName: Scorr-Windows-${version}.${ext}
+mac:
+  target:
+    - dmg
+  category: public.app-category.business
+  icon: icon.png
+  artifactName: Scorr-${version}.${ext}

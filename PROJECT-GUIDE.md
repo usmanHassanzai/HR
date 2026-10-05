@@ -70,9 +70,13 @@ Local secrets live in `.env` (never commit).
 npm run dev                          # Local web
 npm run build                        # Production web build
 npm run build:android:apk            # APK → public/downloads/scorr.apk
+npm run desktop                      # Run Electron shell (Sign In = ?app=1)
+npm run build:desktop                # Windows zip + Linux AppImage/deb → public/downloads/
 npm run docs:client-guide            # PDF → public/downloads/Scorr-Client-Feature-Guide.pdf
 node scripts/apply-all-migrations.mjs
 ```
+
+Desktop packages are large (~90–125 MB) and are gitignored — run `npm run build:desktop` before deploy so Vercel can upload them.
 
 ---
 
@@ -82,7 +86,14 @@ User-facing PDF: `public/downloads/Scorr-Client-Feature-Guide.pdf`
 Regenerate: `npm run docs:client-guide`  
 Linked from the landing page Mobile / Download section.
 
-Covers: download & install (Android APK + iPhone Home Screen), register organization, sign-in/MFA, separate Admin / HR / Manager / Employee dashboards, mark attendance, assign tasks, daily reports, rewards, GPS, troubleshooting.
+Covers: download & install (desktop Windows/Linux, Android APK, iPhone Home Screen), register organization, sign-in/MFA, separate Admin / HR / Manager / Employee dashboards, mark attendance, assign tasks, daily reports, rewards, GPS, troubleshooting.
+
+## Security overview (for organizations)
+
+Organization-facing PDF: `public/downloads/Scorr-Security-Overview.pdf`  
+Regenerate: `npm run docs:security-guide`  
+
+Explains multi-tenant isolation, MFA, RLS, sessions, roles, location data, demo isolation, and what Scorr does / does not claim — suitable to share with IT and leadership.
 
 ---
 

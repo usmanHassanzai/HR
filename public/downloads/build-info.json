@@ -23,5 +23,34 @@
     "ipaAvailable": false,
     "ipaFilename": "scorr.ipa",
     "notes": "HR attendance & daily reports to admin; Human Resources history group; polished HR daily reports workspace. Same as Android."
+  },
+  "desktop": {
+    "available": true,
+    "appName": "Scorr",
+    "appId": "ai.walfia.scorr.desktop",
+    "version": "1.3.4",
+    "updatedAt": "2026-10-05T14:36:15.380Z",
+    "updatedLabel": "October 5, 2026",
+    "platforms": {
+      "windows": {
+        "available": true,
+        "filename": "Scorr-Windows.zip",
+        "format": "zip",
+        "sizeBytes": 129404428,
+        "sizeLabel": "123.4 MB"
+      },
+      "linuxAppImage": {
+        "available": true,
+        "filename": "Scorr.AppImage",
+        "sizeBytes": 115747586,
+        "sizeLabel": "110.4 MB"
+      },
+      "linuxDeb": {
+        "available": true,
+        "filename": "Scorr.deb",
+        "sizeBytes": 90590692,
+        "sizeLabel": "86.4 MB"
+      }
+    }
   }
 }
