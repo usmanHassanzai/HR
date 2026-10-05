@@ -238,7 +238,7 @@ doc.text('Audience:    Company admins · IT · Security reviewers', M + 4, 156);
 
 doc.setFontSize(9);
 doc.setTextColor(100, 116, 139);
-doc.text('Multi-tenant isolation · MFA · RLS · Encrypted transport · Role-based access', M + 4, H - 22);
+doc.text('Multi-tenant · MFA · RLS · Desktop & mobile apps · Encrypted transport', M + 4, H - 22);
 
 newPage();
 
@@ -256,7 +256,7 @@ title('Table of Contents');
   ['10.', 'Attendance & location data'],
   ['11.', 'Demo sandbox isolation'],
   ['12.', 'Account recovery & deletion'],
-  ['13.', 'Mobile apps (Android & iOS)'],
+  ['13.', 'Desktop & mobile apps (Windows, Linux, Android, iOS)'],
   ['14.', 'What we do not claim'],
   ['15.', 'Security checklist for your organization'],
   ['16.', 'Contact & further documents'],
@@ -266,7 +266,7 @@ newPage();
 
 // 1
 title('1. Executive summary');
-para('Scorr is a multi-company performance and attendance platform. Every organization runs as a private tenant: your people, KPIs, attendance, rewards, daily reports, and GPS records are separated from every other company on the same platform.');
+para('Scorr is a multi-company performance and attendance platform available on the web, Windows, Linux, Android, and iPhone. Every organization runs as a private tenant: your people, KPIs, attendance, rewards, daily reports, and GPS records are separated from every other company on the same platform.');
 para('Security is built into the product — not bolted on later. Access requires a verified login, mandatory authenticator MFA for real accounts, and database policies that enforce who can read or write each record.');
 
 h2('In one sentence');
@@ -482,14 +482,32 @@ footer();
 newPage();
 
 // 13
-title('13. Mobile apps (Android & iOS)');
-bullet('Android APK and iPhone Home Screen / native shell use the same Scorr backend and auth.');
-bullet('Same MFA, roles, and company isolation as the website.');
-bullet('Store/download CTAs are hidden inside the already-installed app.');
+title('13. Desktop & mobile apps (Windows, Linux, Android, iOS)');
+para('Scorr offers the same authenticated experience on Windows and Linux desktop installers, Android APK, iPhone Home Screen / native shell, and the website. All clients talk to the same backend over HTTPS with the same MFA and company isolation.');
+
+h1('13.1 Shared security properties');
+bullet('Same Sign In, MFA (TOTP), backup codes, roles, and tenant isolation as the website.');
+bullet('Store/download CTAs are hidden inside an already-installed app shell.');
 bullet('Location permission is requested for attendance — grant “while using the app” for GPS modes.');
+bullet('Session idle lock and privileged MFA gates apply on every client.');
+
+h1('13.2 Windows desktop (Scorr-Setup.exe)');
+bullet('Official installer from https://scorr.walfia.ai/#download-windows (GitHub Release asset Scorr-Setup.exe).');
+bullet('Installs permanently with Start Menu and Desktop shortcuts — not a portable unzip-only build.');
+bullet('Loads the live app shell (https://scorr.walfia.ai/?app=1) inside a locked-down Electron window (no marketing chrome).');
+bullet('If Windows SmartScreen warns, verify the download came from scorr.walfia.ai / the official GitHub Release before continuing.');
+bullet('Uninstall via Windows Settings → Apps when an employee leaves or a device is retired.');
+
+h1('13.3 Linux desktop (Scorr.deb)');
+bullet('Official package from https://scorr.walfia.ai/#download-linux (Scorr.deb).');
+bullet('Install with: sudo apt install ./Scorr.deb — then open Scorr from the applications menu.');
+bullet('Same Electron shell and backend auth as Windows; keep packages updated from the official download page.');
+
+h1('13.4 Android & iOS');
+bullet('Android APK and iPhone Home Screen / native shell use the same Scorr backend and auth.');
 bullet('Keep devices updated; install APKs only from https://scorr.walfia.ai/#download-app (official source).');
 
-warn('Do not sideload Scorr APKs from unknown websites. Official download: scorr.walfia.ai.');
+warn('Do not install Scorr Setup.exe, .deb, or APKs from unknown websites. Official source: scorr.walfia.ai (and the linked GitHub Release).');
 footer();
 newPage();
 
@@ -516,7 +534,7 @@ h2('Ongoing');
 bullet('Offboard leavers the same day in People (or reset password / remove access).');
 bullet('Review Admin/HR privileges quarterly.');
 bullet('Monitor Daily Reports and leave approvals for unusual patterns.');
-bullet('Keep Android/iOS builds current from the official download page.');
+bullet('Keep Windows, Linux, Android, and iOS builds current from the official download page.');
 bullet('Escalate suspected account takeover to info@walfia.ai immediately.');
 footer();
 newPage();
@@ -527,12 +545,14 @@ tableHeader('Resource', 'Where');
 tableRow('Live product', 'https://scorr.walfia.ai');
 tableRow('This security PDF', 'https://scorr.walfia.ai/downloads/Scorr-Security-Overview.pdf');
 tableRow('Full user guide PDF', 'https://scorr.walfia.ai/downloads/Scorr-Client-Feature-Guide.pdf');
-tableRow('App download', 'https://scorr.walfia.ai/#download-app');
+tableRow('App download (all platforms)', 'https://scorr.walfia.ai/#download-app');
+tableRow('Windows installer', 'https://scorr.walfia.ai/#download-windows');
+tableRow('Linux .deb', 'https://scorr.walfia.ai/#download-linux');
 tableRow('Delete-account help', 'https://scorr.walfia.ai/delete-account');
 tableRow('Support', 'info@walfia.ai');
 spacer();
 
-para('Scorr is built so organizations can run KPIs, attendance, and rewards with clear boundaries: one company, authenticated people, verified MFA, and database-enforced access. Share this brief with your IT and leadership teams when evaluating or rolling out Scorr.');
+para('Scorr is built so organizations can run KPIs, attendance, and rewards with clear boundaries: one company, authenticated people, verified MFA, and database-enforced access — on web, Windows, Linux, Android, and iPhone. Share this brief with your IT and leadership teams when evaluating or rolling out Scorr.');
 para('© Walfia · https://scorr.walfia.ai · info@walfia.ai');
 para(`Document generated: ${generated}`);
 

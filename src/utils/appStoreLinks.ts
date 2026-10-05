@@ -12,6 +12,11 @@ function isScorrDesktopShell(): boolean {
   }
 }
 
+function envUrl(key: string): string {
+  const v = (import.meta.env[key] as string | undefined)?.trim() || '';
+  return v;
+}
+
 /** Google Play listing (live only after the app is published). Currently 404 — do not use as primary CTA. */
 export const PLAY_STORE_URL =
   'https://play.google.com/store/apps/details?id=ai.walfia.scorr';
@@ -38,25 +43,26 @@ export const APK_DIRECT_UNTIL = new Date('2026-11-01T00:00:00.000Z');
 
 export const APK_PATH = '/downloads/scorr.apk';
 
-/** Windows desktop package (Electron zip — extract and run Scorr.exe). */
-export const DESKTOP_WIN_PATH = '/downloads/Scorr-Windows.zip';
+/**
+ * Desktop packages are large and hosted on GitHub Releases (not Vercel).
+ * Prefer env overrides when set; otherwise /downloads/… fallbacks.
+ */
+export const DESKTOP_WIN_PATH =
+  envUrl('VITE_DESKTOP_WIN_URL') || '/downloads/Scorr-Setup.exe';
 
-/** Linux AppImage (Electron). */
-export const DESKTOP_LINUX_APPIMAGE_PATH = '/downloads/Scorr.AppImage';
-
-/** Linux .deb package (Electron), when built. */
-export const DESKTOP_LINUX_DEB_PATH = '/downloads/Scorr.deb';
+/** Linux .deb package (Electron). */
+export const DESKTOP_LINUX_DEB_PATH =
+  envUrl('VITE_DESKTOP_LINUX_DEB_URL') || '/downloads/Scorr.deb';
 
 export function isApkDirectDownloadAvailable(now = new Date()): boolean {
   return now.getTime() < APK_DIRECT_UNTIL.getTime();
 }
 
-/** Prefer Windows exe / Linux AppImage based on UA; otherwise show both. */
+/** Prefer Windows Setup / Linux deb based on UA. */
 export function desktopPrimaryInstallHref(): string {
   if (typeof navigator === 'undefined') return DESKTOP_WIN_PATH;
   const ua = navigator.userAgent.toLowerCase();
-  if (ua.includes('linux') && !ua.includes('android')) return DESKTOP_LINUX_APPIMAGE_PATH;
-  if (ua.includes('mac')) return DESKTOP_LINUX_APPIMAGE_PATH;
+  if (ua.includes('linux') && !ua.includes('android')) return DESKTOP_LINUX_DEB_PATH;
   return DESKTOP_WIN_PATH;
 }
 

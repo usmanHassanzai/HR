@@ -6,7 +6,7 @@ import {
   Trophy, CalendarCheck, Users, FileSpreadsheet, Bell,
   Shield, Check, ArrowRight, CreditCard,
   TrendingUp, Target, Award, Clock, Building2, Radio,
-  Menu, X, Download, Apple, KeyRound, Lock, Smartphone,
+  Menu, X, Download, Apple, KeyRound, Lock, Smartphone, Monitor,
 } from 'lucide-react';
 import '../styles/landing.css';
 import LandingHeroVisual from './LandingHeroVisual';
@@ -434,11 +434,18 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
               {showStoreInstallCtas() && (
                 <>
                   <a
-                    href="#download-app"
+                    href="#download-windows"
                     className="btn btn-secondary"
-                    onClick={(e: MouseEvent<HTMLAnchorElement>) => onSectionNav(e, 'download-app')}
+                    onClick={(e: MouseEvent<HTMLAnchorElement>) => onSectionNav(e, 'download-windows')}
                   >
-                    <Download size={16} /> Download Desktop App
+                    <Monitor size={16} /> Download for Windows
+                  </a>
+                  <a
+                    href="#download-linux"
+                    className="btn btn-secondary"
+                    onClick={(e: MouseEvent<HTMLAnchorElement>) => onSectionNav(e, 'download-linux')}
+                  >
+                    <Download size={16} /> Download for Linux
                   </a>
                   <a
                     href={androidInstallHref()}

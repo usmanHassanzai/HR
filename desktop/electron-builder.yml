@@ -15,20 +15,30 @@ files:
 asar: true
 linux:
   target:
-    - AppImage
     - deb
   category: Office
   icon: icon.png
   maintainer: Walfia <hello@walfia.ai>
   artifactName: Scorr-${version}.${ext}
 win:
-  # zip avoids Wine (needed for NSIS when building on Linux). Users unzip and run Scorr.exe.
+  # Proper installer (Start Menu + Desktop shortcut). Skip Wine signing on Linux CI.
+  signAndEditExecutable: false
   target:
-    - target: zip
+    - target: nsis
       arch:
         - x64
   icon: icon.png
-  artifactName: Scorr-Windows-${version}.${ext}
+  artifactName: Scorr-Setup-${version}.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: Scorr
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  uninstallDisplayName: Scorr
+  deleteAppDataOnUninstall: false
+  runAfterFinish: true
 mac:
   target:
     - dmg

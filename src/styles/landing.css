@@ -926,14 +926,10 @@
 /* Mobile app download */
 .landing-download-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 1.5rem;
   max-width: 1100px;
   margin: 0 auto;
-}
-
-@media (max-width: 1024px) {
-  .landing-download-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 768px) {
@@ -959,13 +955,22 @@
   border-color: color-mix(in srgb, #38bdf8 28%, var(--border-color));
 }
 
-.landing-download-card--desktop {
-  border-color: color-mix(in srgb, #64748b 28%, var(--border-color));
+.landing-download-card--windows {
+  border-color: color-mix(in srgb, #60a5fa 28%, var(--border-color));
 }
 
-.landing-download-card__icon--desktop {
-  background: color-mix(in srgb, #64748b 14%, transparent);
-  color: #334155;
+.landing-download-card--linux {
+  border-color: color-mix(in srgb, #f59e0b 28%, var(--border-color));
+}
+
+.landing-download-card__icon--windows {
+  background: color-mix(in srgb, #60a5fa 14%, transparent);
+  color: #1d4ed8;
+}
+
+.landing-download-card__icon--linux {
+  background: color-mix(in srgb, #f59e0b 14%, transparent);
+  color: #b45309;
 }
 
 .landing-download-card__head {

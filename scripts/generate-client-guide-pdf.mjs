@@ -277,7 +277,7 @@ doc.text('Support:         info@walfia.ai', M, 152);
 
 doc.setFontSize(9);
 doc.setTextColor(100, 116, 139);
-doc.text('Android APK · iPhone Home Screen · Web · Same login everywhere', M, H - 22);
+doc.text('Windows Setup · Linux .deb · Android APK · iPhone Home Screen · Web', M, H - 22);
 
 newPage();
 
@@ -285,8 +285,8 @@ newPage();
 title('Table of Contents');
 [
   ['1.', 'What is Scorr?'],
-  ['2.', 'How to download the app'],
-  ['3.', 'How to install (Android & iPhone)'],
+  ['2.', 'How to download the app (all platforms)'],
+  ['3.', 'How to install (Windows, Linux, Android & iPhone)'],
   ['4.', 'How to register an organization'],
   ['5.', 'How to sign in & set up security (MFA)'],
   ['6.', 'Roles at a glance'],
@@ -311,7 +311,7 @@ newPage();
 
 // 1
 title('1. What is Scorr?');
-para('Scorr (https://scorr.walfia.ai) is your company workspace for performance KPIs, GPS attendance, leave, daily work reports, and weightage-based rewards. One account works on the website, the Android app, and the iPhone Home Screen app.');
+para('Scorr (https://scorr.walfia.ai) is your company workspace for performance KPIs, GPS attendance, leave, daily work reports, and weightage-based rewards. One account works on the website, Windows desktop, Linux desktop, Android app, and iPhone Home Screen app.');
 para('Each registered company is private. Staff in one organization cannot see another company’s people, tasks, attendance, or reports.');
 
 h2('What you can do');
@@ -327,33 +327,64 @@ drawFooter();
 newPage();
 
 // 2
-title('2. How to download the app');
-para('Open the website on your phone or computer: https://scorr.walfia.ai. Scroll to the Mobile App section, or jump to https://scorr.walfia.ai/#download-app.');
+title('2. How to download the app (all platforms)');
+para('Open the website on your phone or computer: https://scorr.walfia.ai. Scroll to the Apps / download section, or jump to https://scorr.walfia.ai/#download-app. Use the button that matches your device.');
 
-h1('2.1 Android');
-bullet('On the homepage, find Download Scorr for Android & iOS.');
-bullet('Tap Download Android App — this downloads the file scorr.apk (latest version).');
+h1('2.1 Windows desktop');
+bullet('On the homepage, click Download for Windows (or open the Windows card under #download-app).');
+bullet('You get Scorr-Setup.exe — the permanent Windows installer (Start Menu + Desktop shortcuts).');
+bullet('Official release file: https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.4/Scorr-Setup.exe');
+bullet('Version is shown on the download card (e.g. 1.3.4). Same Sign In for Admin, HR, Manager, and Employee.');
+
+h1('2.2 Linux desktop');
+bullet('Click Download for Linux to get Scorr.deb (Ubuntu / Debian style install).');
+bullet('Official release file: https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.4/Scorr.deb');
+bullet('After install, Scorr appears in your applications menu.');
+
+h1('2.3 Android');
+bullet('Tap Download Android App — this downloads scorr.apk (latest version).');
 bullet('You can also open: https://scorr.walfia.ai/downloads/scorr.apk');
-bullet('App ID: ai.walfia.scorr · Version is shown on the download card (e.g. 1.3.4).');
+bullet('App ID: ai.walfia.scorr · Version is shown on the download card.');
 bullet('Direct APK download remains available until 1 November 2026 (until Google Play is live).');
 
-h1('2.2 iPhone / iPad');
+h1('2.4 iPhone / iPad');
 bullet('There is no separate APK for iPhone. Install from Safari as a Home Screen app.');
 bullet('Open https://scorr.walfia.ai/?app=1 in Safari (see Section 3 for install steps).');
 bullet('When the App Store listing is live, the site will show Get it on the App Store.');
 
-h1('2.3 This PDF guide');
-bullet('Download anytime: https://scorr.walfia.ai/downloads/Scorr-Client-Feature-Guide.pdf');
-bullet('Or run locally: npm run docs:client-guide');
+h1('2.5 This PDF guide & security overview');
+bullet('User guide: https://scorr.walfia.ai/downloads/Scorr-Client-Feature-Guide.pdf');
+bullet('Security overview for organizations: https://scorr.walfia.ai/downloads/Scorr-Security-Overview.pdf');
+bullet('Or regenerate locally: npm run docs:client-guide · npm run docs:security-guide');
 
-note('Inside the already-installed Android/iOS app, store/download buttons are hidden — you already have Scorr installed.');
+note('Inside the already-installed Android, iOS, Windows, or Linux app, store/download buttons are hidden — you already have Scorr installed.');
 drawFooter();
 newPage();
 
 // 3
-title('3. How to install (Android & iPhone)');
+title('3. How to install (Windows, Linux, Android & iPhone)');
 
-h1('3.1 Install on Android');
+h1('3.1 Install on Windows (permanent)');
+para('Use Scorr-Setup.exe — do not rely on unzipping a portable folder. The Setup wizard installs Scorr so you can open it from the Start Menu and Desktop.');
+step(1, 'Open https://scorr.walfia.ai/#download-windows and click Download for Windows.');
+step(2, 'Open the downloaded file Scorr-Setup.exe.');
+step(3, 'If Windows SmartScreen says “Windows protected your PC”, click More info → Run anyway (only when the file came from scorr.walfia.ai / the official GitHub Release).');
+step(4, 'Follow Next → choose install folder if asked → Install.');
+step(5, 'Finish the wizard; open Scorr from the Start Menu or Desktop shortcut.');
+step(6, 'Sign in with your company email and password → allow Location if you use GPS attendance.');
+bullet('To uninstall later: Windows Settings → Apps → Scorr → Uninstall (or use the uninstaller from the Start Menu).');
+bullet('Updating: download the latest Scorr-Setup.exe and run it again over the existing install.');
+
+h1('3.2 Install on Linux (.deb)');
+step(1, 'Open https://scorr.walfia.ai/#download-linux and click Download for Linux (Scorr.deb).');
+step(2, 'Open a terminal in your Downloads folder: cd ~/Downloads');
+step(3, 'Install: sudo apt install ./Scorr.deb');
+step(4, 'Open Scorr from your applications menu (or search for “Scorr”).');
+step(5, 'Sign in with your company email → allow Location if needed for attendance.');
+bullet('If apt reports dependency issues: sudo apt --fix-broken install then retry the .deb install.');
+bullet('Updating: download the new Scorr.deb and run sudo apt install ./Scorr.deb again.');
+
+h1('3.3 Install on Android');
 step(1, 'Tap Download Android App on https://scorr.walfia.ai/#download-app.');
 step(2, 'Open your phone’s Downloads folder (or the notification) and tap scorr.apk.');
 step(3, 'If Android asks “Install unknown apps?” or “Allow from this source?”, allow it for your browser or Files app.');
@@ -363,7 +394,7 @@ step(6, 'When prompted, allow Location (while using the app) so GPS attendance c
 bullet('If install is blocked: Settings → Apps → Special access → Install unknown apps → enable for Chrome/Files.');
 bullet('If an older Scorr is installed, update by installing the new APK over it (same app ID).');
 
-h1('3.2 Install on iPhone / iPad (Safari)');
+h1('3.4 Install on iPhone / iPad (Safari)');
 warn('Use Safari only — Chrome or other browsers cannot Add to Home Screen the same way.');
 step(1, 'Open https://scorr.walfia.ai/?app=1 in Safari.');
 step(2, 'Tap the Share button (square with an arrow pointing up).');
@@ -372,11 +403,12 @@ step(4, 'Confirm the name Scorr → tap Add.');
 step(5, 'Open the new Scorr icon on your Home Screen → Sign In.');
 step(6, 'Allow Location when you use GPS attendance.');
 
-h1('3.3 Website (desktop or mobile browser)');
+h1('3.5 Website (browser only)');
 bullet('You can use Scorr fully in the browser at https://scorr.walfia.ai without installing.');
-bullet('Sign In with the same email and password as the apps.');
+bullet('Sign In with the same email and password as the desktop and mobile apps.');
 
-h1('3.4 After install — first open');
+h1('3.6 After install — first open');
+bullet('You see Sign In / Register Company only (no marketing homepage chrome).');
 bullet('Sign in → accept the monitoring / location policy if shown.');
 bullet('Enroll authenticator MFA and save backup codes (Section 5).');
 bullet('Your role (Admin, HR, Manager, or Employee) opens the matching dashboard.');
@@ -790,6 +822,10 @@ newPage();
 // 20
 title('20. Troubleshooting & support');
 tableHeader(['Problem', 'What to try']);
+tableRow('Cannot download Windows/Linux', 'Use https://scorr.walfia.ai/#download-app → Download for Windows / Linux. Files open from the official GitHub Release.');
+tableRow('Windows Setup blocked', 'SmartScreen → More info → Run anyway only if you downloaded from scorr.walfia.ai. Then finish the Setup wizard.');
+tableRow('Windows only runs from a folder', 'You used an old zip. Download Scorr-Setup.exe and install — then open from Start Menu.');
+tableRow('Linux .deb won’t install', 'cd ~/Downloads then: sudo apt install ./Scorr.deb (fix broken deps if apt asks).');
 tableRow('Cannot download APK', 'Use https://scorr.walfia.ai/#download-app → Download Android App. Try another browser.');
 tableRow('APK won’t install', 'Allow install from browser/Files; uninstall old build only if signature conflicts, then reinstall.');
 tableRow('iPhone install fails', 'Use Safari → Share → Add to Home Screen (not Chrome).');
@@ -816,9 +852,12 @@ newPage();
 title('21. Quick reference');
 tableHeader(['Item', 'Value']);
 tableRow('Live URL', 'https://scorr.walfia.ai');
+tableRow('Windows install', 'Scorr-Setup.exe from #download-windows (Start Menu install)');
+tableRow('Linux install', 'Scorr.deb → sudo apt install ./Scorr.deb');
 tableRow('Android download', '/downloads/scorr.apk or #download-app');
 tableRow('iOS install', 'Safari → Add to Home Screen (?app=1)');
-tableRow('App ID', 'ai.walfia.scorr');
+tableRow('Desktop app ID', 'ai.walfia.scorr.desktop');
+tableRow('Mobile app ID', 'ai.walfia.scorr');
 tableRow('Company trial after approval', '3 days');
 tableRow('Password minimum', '6 characters');
 tableRow('Backup codes', '10 single-use');
@@ -829,7 +868,7 @@ tableRow('Geofence default', '~150 m');
 tableRow('Direct APK until', '1 November 2026');
 spacer();
 
-para('Thank you for using Scorr — KPIs, GPS attendance, daily reports, and rewards in one secure company workspace.');
+para('Thank you for using Scorr — KPIs, GPS attendance, daily reports, and rewards in one secure company workspace on web, Windows, Linux, Android, and iPhone.');
 para('© Walfia · https://scorr.walfia.ai · info@walfia.ai');
 
 drawFooter();

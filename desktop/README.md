@@ -22,6 +22,18 @@ npm run build:desktop
 
 Artifacts land in `public/downloads/`:
 
-- `Scorr-Windows.zip` (Windows — unzip, run Scorr.exe)
-- `Scorr.AppImage` (Linux)
-- `Scorr.deb` (Linux, when available)
+- `Scorr-Setup.exe` (Windows installer — Start Menu + Desktop shortcuts)
+- `Scorr.deb` (Linux)
+
+AppImage is no longer shipped.
+
+These files are **too large for GitHub git and often too large for the Vercel
+site upload**, so the landing page should download them from a **GitHub Release**:
+
+```bash
+gh auth login
+npm run publish:desktop
+```
+
+Then set the printed `VITE_DESKTOP_*_URL` values in Vercel → Environment Variables
+and redeploy the site.

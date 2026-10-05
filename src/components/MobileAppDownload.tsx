@@ -17,7 +17,6 @@ import {
   APK_DIRECT_UNTIL,
   APK_PATH,
   APP_STORE_URL,
-  DESKTOP_LINUX_APPIMAGE_PATH,
   DESKTOP_LINUX_DEB_PATH,
   DESKTOP_WIN_PATH,
   IOS_PWA_INSTALL_URL,
@@ -25,7 +24,6 @@ import {
   PLAY_STORE_URL,
   androidInstallHref,
   androidInstallIsDownload,
-  desktopPrimaryInstallHref,
   isApkDirectDownloadAvailable,
   iosInstallHref,
   iosInstallIsAppStore,
@@ -54,6 +52,7 @@ interface DesktopPlatformInfo {
   filename?: string;
   sizeBytes?: number;
   sizeLabel?: string;
+  url?: string;
 }
 
 interface DesktopBuildInfo {
@@ -65,7 +64,6 @@ interface DesktopBuildInfo {
   updatedLabel?: string;
   platforms?: {
     windows?: DesktopPlatformInfo;
-    linuxAppImage?: DesktopPlatformInfo;
     linuxDeb?: DesktopPlatformInfo;
   };
 }
@@ -88,6 +86,7 @@ function isLinuxUa(): boolean {
 }
 
 function assetUrl(path: string): string {
+  if (/^https?:\/\//i.test(path)) return path;
   if (typeof window !== 'undefined') return `${window.location.origin}${path}`;
   return path;
 }
@@ -155,6 +154,8 @@ const apkUntilLabel = APK_DIRECT_UNTIL.toLocaleDateString('en-US', {
 });
 
 async function checkDesktopFile(path: string): Promise<boolean> {
+  // Cross-origin hosts (GitHub Releases) often block browser HEAD — treat absolute http(s) as OK.
+  if (/^https?:\/\//i.test(path)) return true;
   try {
     const r = await fetch(assetUrl(path), { method: 'HEAD', cache: 'no-store' });
     if (!r.ok) return false;
@@ -172,7 +173,6 @@ export default function MobileAppDownload() {
   const [apkReady, setApkReady] = useState<boolean | null>(null);
   const [desktopReady, setDesktopReady] = useState<{
     win: boolean;
-    appImage: boolean;
     deb: boolean;
   } | null>(null);
   const [ua, setUa] = useState<{ ios: boolean; android: boolean; win: boolean; linux: boolean } | null>(null);
@@ -191,10 +191,16 @@ export default function MobileAppDownload() {
   const onLinux = ua?.linux === true;
   const androidHref = androidInstallHref();
   const androidIsFile = androidInstallIsDownload();
-  const desktopPrimary = desktopPrimaryInstallHref();
-  const desktopAnyReady = desktopReady
-    ? desktopReady.win || desktopReady.appImage || desktopReady.deb
-    : desktopInfo?.available === true;
+
+  const winHref =
+    desktopInfo?.platforms?.windows?.url
+    || DESKTOP_WIN_PATH;
+  const linuxDebHref =
+    desktopInfo?.platforms?.linuxDeb?.url
+    || DESKTOP_LINUX_DEB_PATH;
+
+  const winReady = desktopReady?.win === true;
+  const linuxReady = desktopReady?.deb === true;
 
   useEffect(() => {
     if (!showStoreInstallCtas()) return;
@@ -214,15 +220,17 @@ export default function MobileAppDownload() {
         const headOk = await checkApkAvailable();
         setApkReady(headOk || info?.android?.available === true);
       }
-      const [winOk, appImageOk, debOk] = await Promise.all([
-        checkDesktopFile(DESKTOP_WIN_PATH),
-        checkDesktopFile(DESKTOP_LINUX_APPIMAGE_PATH),
-        checkDesktopFile(DESKTOP_LINUX_DEB_PATH),
+
+      const winUrl = info?.desktop?.platforms?.windows?.url || DESKTOP_WIN_PATH;
+      const debUrl = info?.desktop?.platforms?.linuxDeb?.url || DESKTOP_LINUX_DEB_PATH;
+
+      const [winOk, debOk] = await Promise.all([
+        checkDesktopFile(winUrl),
+        checkDesktopFile(debUrl),
       ]);
       setDesktopReady({
-        win: winOk || info?.desktop?.platforms?.windows?.available === true,
-        appImage: appImageOk || info?.desktop?.platforms?.linuxAppImage?.available === true,
-        deb: debOk || info?.desktop?.platforms?.linuxDeb?.available === true,
+        win: winOk && (info?.desktop?.platforms?.windows?.available !== false),
+        deb: debOk && (info?.desktop?.platforms?.linuxDeb?.available !== false),
       });
     })();
   }, [apkWindowOpen]);
@@ -242,10 +250,10 @@ export default function MobileAppDownload() {
     <section id="download-app" className="landing-section landing-section--alt">
       <div className="landing-section__header landing-reveal">
         <div className="landing-section__eyebrow">Apps</div>
-        <h2 className="landing-section__title">Download Scorr for desktop, Android &amp; iOS</h2>
+        <h2 className="landing-section__title">Download Scorr for Windows, Linux, Android &amp; iOS</h2>
         <p>
-          One Sign In for admin, HR, managers, and employees — on Windows/Linux desktops,
-          Android APK{PLAY_STORE_LIVE ? ' / Google Play' : ''}, and iPhone
+          Separate installers for each platform — same Sign In for admin, HR, managers, and employees.
+          Windows Setup, Linux .deb, Android APK{PLAY_STORE_LIVE ? ' / Google Play' : ''}, and iPhone
           {iosInstallIsAppStore() ? ' (App Store)' : ' (Home Screen)'}.
         </p>
       </div>
@@ -446,26 +454,25 @@ export default function MobileAppDownload() {
           )}
         </div>
 
-        <div className="landing-download-card landing-download-card--desktop">
+        <div id="download-windows" className="landing-download-card landing-download-card--windows">
           <div className="landing-download-card__head">
-            <div className="landing-download-card__icon landing-download-card__icon--desktop">
+            <div className="landing-download-card__icon landing-download-card__icon--windows">
               <Monitor size={28} />
             </div>
-            {desktopAnyReady && (
-              <span className="landing-download-badge landing-download-badge--live">Desktop ready</span>
+            {winReady && (
+              <span className="landing-download-badge landing-download-badge--live">Windows ready</span>
             )}
           </div>
 
-          <h3>Windows &amp; Linux desktop</h3>
+          <h3>Windows desktop</h3>
           <p>
-            Install <strong>Scorr</strong> on office PCs — opens straight to the same Sign In /
-            Register Company screen as the mobile app. After login, admin, HR, manager, and employee
-            dashboards load for that account.
+            Install <strong>Scorr</strong> permanently on Windows PCs — Setup adds Start Menu and
+            Desktop shortcuts. Opens to the same Sign In / Register screen for every role.
           </p>
 
-          {desktopInfo?.available && (
+          {desktopInfo?.platforms?.windows && (
             <div className="landing-download-meta">
-              <span><Package size={14} /> v{desktopInfo.version}</span>
+              <span><Package size={14} /> v{desktopInfo.version} · {desktopInfo.platforms.windows.sizeLabel}</span>
               {desktopInfo.updatedLabel && (
                 <span><Calendar size={14} /> Updated {desktopInfo.updatedLabel}</span>
               )}
@@ -474,93 +481,141 @@ export default function MobileAppDownload() {
           )}
 
           <ul className="landing-download-features">
-            <li><CheckCircle size={14} /> Same Sign In card as the web/mobile app</li>
-            <li><CheckCircle size={14} /> One app for admin, HR, manager &amp; employee</li>
-            <li><CheckCircle size={14} /> GPS attendance when the PC has location</li>
-            <li><CheckCircle size={14} /> Auto-updates via live scorr.walfia.ai</li>
+            <li><CheckCircle size={14} /> Real installer (Start Menu + Desktop)</li>
+            <li><CheckCircle size={14} /> Same Sign In as web &amp; mobile</li>
+            <li><CheckCircle size={14} /> One app for every role</li>
           </ul>
 
           <ol className="landing-download-steps">
-            <li>Download the package for your OS below</li>
-            <li>
-              <strong>Windows:</strong> unzip → run <strong>Scorr.exe</strong>
-              {' · '}
-              <strong>Linux:</strong> <code>chmod +x Scorr.AppImage</code> → run it
-            </li>
-            <li>Open Scorr — you see Sign In / Register only</li>
-            <li>Sign in with your company email</li>
+            <li>Click <strong>Download for Windows</strong></li>
+            <li>Run <strong>Scorr-Setup.exe</strong></li>
+            <li>Follow the installer → open Scorr from Start Menu</li>
           </ol>
 
           {desktopReady === null ? (
             <button type="button" className="btn btn-secondary landing-download-btn" disabled>
               <Loader2 size={16} className="spin-icon" /> Checking download…
             </button>
-          ) : desktopAnyReady ? (
+          ) : winReady ? (
             <>
-              {(onWindows || (!onLinux && !onAndroid && !onIos)) && desktopReady.win && (
-                <a
-                  href={assetUrl(DESKTOP_WIN_PATH)}
-                  className="btn btn-primary landing-download-btn"
-                  download="Scorr-Windows.zip"
-                >
-                  <Download size={18} /> Download for Windows
-                  {desktopInfo?.platforms?.windows?.sizeLabel
-                    ? ` (${desktopInfo.platforms.windows.sizeLabel})`
-                    : ''}
-                </a>
-              )}
-              {(onLinux || (!onWindows && !onAndroid && !onIos)) && desktopReady.appImage && (
-                <a
-                  href={assetUrl(DESKTOP_LINUX_APPIMAGE_PATH)}
-                  className="btn btn-primary landing-download-btn"
-                  download="Scorr.AppImage"
-                >
-                  <Download size={18} /> Download for Linux (AppImage)
-                  {desktopInfo?.platforms?.linuxAppImage?.sizeLabel
-                    ? ` (${desktopInfo.platforms.linuxAppImage.sizeLabel})`
-                    : ''}
-                </a>
-              )}
-              {!onWindows && !onLinux && desktopReady.win && (
-                <a
-                  href={assetUrl(DESKTOP_WIN_PATH)}
-                  className="btn btn-secondary landing-download-btn"
-                  download="Scorr-Windows.zip"
-                >
-                  <Monitor size={18} /> Windows zip
-                </a>
-              )}
-              {desktopReady.deb && (
-                <a
-                  href={assetUrl(DESKTOP_LINUX_DEB_PATH)}
-                  className="landing-download-direct"
-                  download="Scorr.deb"
-                >
-                  Also available · Scorr.deb
-                </a>
-              )}
-              <a href={assetUrl(desktopPrimary)} className="landing-download-direct" download>
-                Direct link · {typeof window !== 'undefined' ? window.location.host : 'scorr.walfia.ai'}
-                {desktopPrimary}
+              <a
+                href={assetUrl(winHref)}
+                className="btn btn-primary landing-download-btn"
+                {...(/^https?:\/\//i.test(winHref)
+                  ? { target: '_blank', rel: 'noopener noreferrer' }
+                  : { download: 'Scorr-Setup.exe' })}
+              >
+                <Download size={18} /> Download for Windows
+                {desktopInfo?.platforms?.windows?.sizeLabel
+                  ? ` (${desktopInfo.platforms.windows.sizeLabel})`
+                  : ''}
+              </a>
+              <a
+                href={assetUrl(winHref)}
+                className="landing-download-direct"
+                {...(/^https?:\/\//i.test(winHref)
+                  ? { target: '_blank', rel: 'noopener noreferrer' }
+                  : { download: 'Scorr-Setup.exe' })}
+              >
+                Direct link · {/^https?:\/\//i.test(winHref) ? 'GitHub Release' : '/downloads/Scorr-Setup.exe'}
               </a>
             </>
           ) : (
             <div className="landing-download-soon">
               <AlertCircle size={16} />
-              <span>Desktop installers are being prepared — check back after the next deploy.</span>
+              <span>Windows installer is being prepared — check back after the next deploy.</span>
             </div>
           )}
 
-          {onWindows && desktopReady?.win && (
+          {onWindows && winReady && (
             <p className="landing-download-note landing-download-note--highlight">
-              You&apos;re on Windows — unzip <strong>Scorr-Windows.zip</strong> and run{' '}
-              <strong>Scorr.exe</strong>.
+              You&apos;re on Windows — run <strong>Scorr-Setup.exe</strong> to install permanently.
             </p>
           )}
-          {onLinux && desktopReady?.appImage && (
+        </div>
+
+        <div id="download-linux" className="landing-download-card landing-download-card--linux">
+          <div className="landing-download-card__head">
+            <div className="landing-download-card__icon landing-download-card__icon--linux">
+              <Monitor size={28} />
+            </div>
+            {linuxReady && (
+              <span className="landing-download-badge landing-download-badge--live">Linux ready</span>
+            )}
+          </div>
+
+          <h3>Linux desktop</h3>
+          <p>
+            Install <strong>Scorr</strong> with the .deb package on Ubuntu/Debian — same Sign In
+            screen as Windows and mobile for admin, HR, manager, and employee.
+          </p>
+
+          {desktopInfo?.platforms?.linuxDeb && (
+            <div className="landing-download-meta">
+              <span>
+                <Package size={14} /> v{desktopInfo.version}
+                {desktopInfo.platforms.linuxDeb.sizeLabel
+                  ? ` · ${desktopInfo.platforms.linuxDeb.sizeLabel}`
+                  : ''}
+              </span>
+              {desktopInfo.updatedLabel && (
+                <span><Calendar size={14} /> Updated {desktopInfo.updatedLabel}</span>
+              )}
+              <span><Shield size={14} /> {desktopInfo.appId || 'ai.walfia.scorr.desktop'}</span>
+            </div>
+          )}
+
+          <ul className="landing-download-features">
+            <li><CheckCircle size={14} /> System install via .deb</li>
+            <li><CheckCircle size={14} /> Appears in your app menu</li>
+            <li><CheckCircle size={14} /> Same Sign In for every role</li>
+          </ul>
+
+          <ol className="landing-download-steps">
+            <li>Click <strong>Download for Linux</strong></li>
+            <li>Run <code>sudo apt install ./Scorr.deb</code></li>
+            <li>Open <strong>Scorr</strong> from the app menu → Sign In</li>
+          </ol>
+
+          {desktopReady === null ? (
+            <button type="button" className="btn btn-secondary landing-download-btn" disabled>
+              <Loader2 size={16} className="spin-icon" /> Checking download…
+            </button>
+          ) : linuxReady ? (
+            <>
+              <a
+                href={assetUrl(linuxDebHref)}
+                className="btn btn-primary landing-download-btn"
+                {...(/^https?:\/\//i.test(linuxDebHref)
+                  ? { target: '_blank', rel: 'noopener noreferrer' }
+                  : { download: 'Scorr.deb' })}
+              >
+                <Download size={18} /> Download for Linux
+                {desktopInfo?.platforms?.linuxDeb?.sizeLabel
+                  ? ` (${desktopInfo.platforms.linuxDeb.sizeLabel})`
+                  : ''}
+              </a>
+              <a
+                href={assetUrl(linuxDebHref)}
+                className="landing-download-direct"
+                {...(/^https?:\/\//i.test(linuxDebHref)
+                  ? { target: '_blank', rel: 'noopener noreferrer' }
+                  : { download: 'Scorr.deb' })}
+              >
+                Direct link · {/^https?:\/\//i.test(linuxDebHref) ? 'GitHub Release' : '/downloads/Scorr.deb'}
+              </a>
+            </>
+          ) : (
+            <div className="landing-download-soon">
+              <AlertCircle size={16} />
+              <span>Linux package is being prepared — check back after the next deploy.</span>
+            </div>
+          )}
+
+          {onLinux && linuxReady && (
             <p className="landing-download-note landing-download-note--highlight">
-              You&apos;re on Linux — download the AppImage, then{' '}
-              <code>chmod +x Scorr.AppImage</code> and run it.
+              You&apos;re on Linux — install with{' '}
+              <code>sudo apt install ./Scorr.deb</code>.
             </p>
           )}
         </div>
