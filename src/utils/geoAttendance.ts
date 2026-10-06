@@ -4,6 +4,15 @@ import { Capacitor } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
 import { supabase } from '../lib/supabase';
 
+export interface OfficeWifiNetwork {
+  id?: string | null;
+  label: string;
+  ssid: string;
+  wifi_bssids: string;
+  public_ip_cidrs: string;
+  active: boolean;
+}
+
 export interface OfficeLocation {
   id: string;
   name: string;
@@ -19,6 +28,7 @@ export interface OfficeLocation {
   detection_mode?: 'gps_only' | 'wifi_only' | 'gps_or_wifi';
   default_timezone?: string | null;
   default_display_timezones?: string[] | null;
+  wifi_networks?: OfficeWifiNetwork[];
 }
 
 /** Foreground auto GPS interval while the dashboard is open (office / hybrid). */

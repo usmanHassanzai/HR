@@ -341,3 +341,24 @@
   align-items: center;
   grid-column: 1 / -1;
 }
+
+.admin-office-wifi-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.admin-office-wifi-row {
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm, 8px);
+  padding: 0.85rem 1rem;
+  background: color-mix(in srgb, var(--surface, #fff) 92%, transparent);
+}
+
+.admin-office-wifi-row__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+}
