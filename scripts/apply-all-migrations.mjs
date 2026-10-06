@@ -191,6 +191,25 @@ const MIGRATIONS = [
   'notify_delete_assigned_kpi.sql',
   'hr_self_attendance.sql',
   'hr_daily_work_reports.sql',
+  'geo_auto_attendance_restore.sql',
+  // SCORR automatic attendance (R1–R75 / N1–N4) — apply in order
+  'attendance_tz_shift_fields.sql',
+  'attendance_window_core.sql',
+  'attendance_settings.sql',
+  'office_network_allowlist.sql',
+  'attendance_source_enum.sql',
+  'attendance_devices.sql',
+  'attendance_events_log.sql',
+  'attendance_enforcement_triggers.sql',
+  'attendance_auto_rpc.sql',
+  'attendance_register_device_rpc.sql',
+  'attendance_correction_rpc.sql',
+  'attendance_schedule_rpc.sql',
+  'attendance_cron.sql',
+  'attendance_writers_window.sql',
+  'attendance_geo_window.sql',
+  'attendance_leave_window.sql',
+  'attendance_rls_lockdown.sql',
 ];
 
 async function runMigration(filename) {
