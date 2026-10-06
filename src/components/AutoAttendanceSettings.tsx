@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Loader2, Smartphone, Laptop, MapPin, ShieldAlert } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import TimeZonePicker from './TimeZonePicker';
 import {
   PHONE_OPT_IN_TEXT,
   LAPTOP_OPT_IN_TEXT,
@@ -34,17 +35,39 @@ type Unenrolled = {
   laptop_enabled: boolean;
 };
 
+type FlaggedEvent = {
+  id: string;
+  created_at: string;
+  event: string;
+  reason_code: string | null;
+  matched_method: string | null;
+  client_ip: string | null;
+  user_id: string | null;
+  clock_flagged: boolean;
+};
+
+const FLAG_REASONS = new Set([
+  'mock_location',
+  'outside_radius',
+  'outside_window',
+  'wrong_network',
+  'fake_hotspot_suspected',
+  'event_too_old',
+]);
+
 export default function AutoAttendanceSettings({ mode = 'admin' }: { mode?: 'admin' | 'self' }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
   const [phoneOn, setPhoneOn] = useState(false);
   const [laptopOn, setLaptopOn] = useState(false);
-  const [timezone, setTimezone] = useState('Asia/Karachi');
+  const [timezone, setTimezone] = useState('');
   const [devices, setDevices] = useState<DeviceRow[]>([]);
   const [unenrolled, setUnenrolled] = useState<Unenrolled[]>([]);
+  const [flagged, setFlagged] = useState<FlaggedEvent[]>([]);
   const [hasToken, setHasToken] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
+  const [showDisclosure, setShowDisclosure] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -59,13 +82,30 @@ export default function AutoAttendanceSettings({ mode = 'admin' }: { mode?: 'adm
         if (co) {
           setPhoneOn(Boolean(co.auto_phone_attendance));
           setLaptopOn(Boolean(co.auto_laptop_attendance));
-          setTimezone(co.timezone || 'Asia/Karachi');
+          setTimezone(co.timezone || '');
         }
       }
       const { data: devs } = await supabase.rpc('list_company_attendance_devices');
       setDevices((devs || []) as DeviceRow[]);
       const { data: missing } = await supabase.rpc('list_unenrolled_auto_attendance_users');
       setUnenrolled((missing || []) as Unenrolled[]);
+      const { data: events } = await supabase
+        .from('attendance_events_log')
+        .select('id, created_at, event, reason_code, matched_method, client_ip, user_id, clock_flagged')
+        .or('accepted.eq.false,clock_flagged.eq.true')
+        .order('created_at', { ascending: false })
+        .limit(80);
+      setFlagged(
+        ((events || []) as FlaggedEvent[]).filter(
+          (e) =>
+            e.clock_flagged ||
+            (e.reason_code &&
+              (FLAG_REASONS.has(e.reason_code) ||
+                e.reason_code.includes('clock') ||
+                e.reason_code.includes('radius') ||
+                e.reason_code.includes('network'))),
+        ),
+      );
     } else {
       const { data: me } = await supabase
         .from('users')
@@ -99,12 +139,17 @@ export default function AutoAttendanceSettings({ mode = 'admin' }: { mode?: 'adm
 
   const enroll = async () => {
     if (!isAutoAttendanceClient()) {
-      setMsg('Automatic attendance needs the Android, iPhone or desktop app.');
+      setMsg('Automatic attendance needs the Android app or the desktop app.');
+      return;
+    }
+    if (isNativeApp() && !showDisclosure) {
+      setShowDisclosure(true);
       return;
     }
     setEnrolling(true);
     const res = await registerAttendanceDevice();
     setEnrolling(false);
+    setShowDisclosure(false);
     if (!res.ok) {
       setMsg(res.error || 'Enrollment failed');
       return;
@@ -161,7 +206,7 @@ export default function AutoAttendanceSettings({ mode = 'admin' }: { mode?: 'adm
           </label>
           <div className="form-group">
             <label>Company time zone (reports / defaults)</label>
-            <input value={timezone} onChange={(e) => setTimezone(e.target.value)} placeholder="Asia/Karachi" />
+            <TimeZonePicker value={timezone} onChange={setTimezone} />
           </div>
           <button type="button" className="btn btn-primary" disabled={saving} onClick={() => void saveCompany()}>
             {saving ? 'Saving…' : 'Save company settings'}
@@ -173,20 +218,50 @@ export default function AutoAttendanceSettings({ mode = 'admin' }: { mode?: 'adm
         <h4 style={{ marginTop: 0 }}>This device</h4>
         {!isAutoAttendanceClient() && (
           <p style={{ color: 'var(--color-warning)' }}>
-            Automatic attendance needs the Android, iPhone or desktop app.
+            Automatic attendance needs the Android app or the desktop app.
           </p>
         )}
         <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>
           {isDesktopApp() ? LAPTOP_OPT_IN_TEXT : PHONE_OPT_IN_TEXT}
         </p>
+        {showDisclosure && isNativeApp() && (
+          <div
+            style={{
+              border: '1px solid var(--border-color)',
+              borderRadius: 8,
+              padding: '1rem',
+              background: 'var(--bg-elevated, rgba(0,0,0,0.04))',
+              display: 'grid',
+              gap: '0.75rem',
+            }}
+          >
+            <h4 style={{ margin: 0 }}>Background location (Google Play disclosure)</h4>
+            <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.45 }}>
+              Scorr collects location data to enable automatic office check-in and check-out even when the app is closed
+              or not in use. Location is used only from 1 hour before your shift starts until 1 hour after it ends
+              (your shift time zone). Outside that window, Scorr does not use your location. You can turn this off any
+              time in Automatic attendance settings.
+            </p>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button type="button" className="btn btn-primary" disabled={enrolling} onClick={() => void enroll()}>
+                {enrolling ? 'Enabling…' : 'I understand — continue'}
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={() => setShowDisclosure(false)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
         {hasToken ? (
           <button type="button" className="btn btn-secondary" disabled={enrolling} onClick={() => void turnOff()}>
             Turn off automatic attendance
           </button>
         ) : (
-          <button type="button" className="btn btn-primary" disabled={enrolling || !isAutoAttendanceClient()} onClick={() => void enroll()}>
-            {enrolling ? 'Enabling…' : 'Enable automatic attendance (one-time)'}
-          </button>
+          !showDisclosure && (
+            <button type="button" className="btn btn-primary" disabled={enrolling || !isAutoAttendanceClient()} onClick={() => void enroll()}>
+              {enrolling ? 'Enabling…' : 'Enable automatic attendance (one-time)'}
+            </button>
+          )
         )}
         {isNativeApp() && (
           <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
@@ -241,6 +316,32 @@ export default function AutoAttendanceSettings({ mode = 'admin' }: { mode?: 'adm
               {unenrolled.slice(0, 40).map((u) => (
                 <li key={u.user_id}>
                   {u.full_name || u.email} ({u.role})
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h4>Flagged attendance</h4>
+            <p style={{ marginTop: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+              Mock location, outside radius, outside window, wrong network, and device clock wrong.
+            </p>
+            {flagged.length === 0 && <p style={{ color: 'var(--text-muted)' }}>No flagged events yet.</p>}
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: '0.4rem', maxHeight: 280, overflow: 'auto' }}>
+              {flagged.map((e) => (
+                <li
+                  key={e.id}
+                  style={{
+                    fontSize: '0.82rem',
+                    padding: '0.5rem 0.65rem',
+                    background: 'var(--bg-elevated, rgba(0,0,0,0.04))',
+                    borderRadius: 6,
+                  }}
+                >
+                  <strong>{e.reason_code || (e.clock_flagged ? 'device_clock_wrong' : e.event)}</strong>
+                  {' · '}
+                  {new Date(e.created_at).toLocaleString()}
+                  {e.client_ip ? ` · IP ${e.client_ip}` : ''}
+                  {e.matched_method ? ` · ${e.matched_method}` : ''}
                 </li>
               ))}
             </ul>

@@ -1,4 +1,5 @@
 import { Profile } from './kpiHelpers';
+import { usesOfficeGps } from './workModeHelpers';
 
 const GEO_HOLD_KEY = 'scorr-geo-hold';
 const GEO_HOLD_EVENT = 'scorr-geo-hold';
@@ -51,7 +52,13 @@ export function subscribeGeoHold(onChange: () => void): () => void {
   };
 }
 
-/** Background GPS after logout is disabled — location is only used at clock-in/out. */
-export async function shouldContinueGpsAfterLogout(_profile?: Profile | null): Promise<boolean> {
-  return false;
+/**
+ * Keep GPS attendance running after leaving the dashboard UI.
+ * Native apps continue in the background; web needs the tab open.
+ */
+export async function shouldContinueGpsAfterLogout(profile?: Profile | null): Promise<boolean> {
+  const person = profile ?? latestProfile;
+  if (!person) return false;
+  if (person.role !== 'employee' && person.role !== 'manager' && person.role !== 'hr') return false;
+  return usesOfficeGps(person.work_mode);
 }

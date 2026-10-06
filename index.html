@@ -46,6 +46,20 @@
           }
           var meta = document.querySelector('meta[name="theme-color"]');
           if (meta) meta.setAttribute('content', theme === 'light' ? '#f4f7fb' : '#0b1120');
+
+          // iOS + app shell before first paint — keeps header below the status bar.
+          var ua = navigator.userAgent || '';
+          var ios = /iPad|iPhone|iPod/i.test(ua)
+            || (navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1);
+          if (ios) {
+            document.documentElement.classList.add('ios-device');
+          }
+          var q = new URLSearchParams(window.location.search);
+          var standalone = window.matchMedia('(display-mode: standalone)').matches
+            || (window.navigator).standalone === true;
+          if (standalone || q.get('app') === '1' || q.get('mode') === 'app') {
+            document.documentElement.classList.add('app-shell');
+          }
         } catch (e) {}
       })();
     </script>

@@ -75,6 +75,80 @@ body.native-app .native-scroll-root .app-header {
   z-index: 800;
 }
 
+/*
+ * iOS safe area — status bar / Dynamic Island must not cover the header or logout.
+ * Applies to Capacitor iOS and Home Screen / standalone PWA shells.
+ */
+html.ios-device.app-shell .native-scroll-root,
+html.ios-device.native-app .native-scroll-root,
+body.ios-device.app-shell .native-scroll-root,
+body.ios-device.native-app .native-scroll-root {
+  padding-top: 0;
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  box-sizing: border-box;
+}
+
+html.ios-device.app-shell .native-scroll-root .app-header,
+html.ios-device.native-app .native-scroll-root .app-header,
+html.ios-device.app-shell .app-header,
+html.ios-device.native-app .app-header,
+body.ios-device.app-shell .app-header,
+body.ios-device.native-app .app-header {
+  /* At least ~status-bar height when env() is 0; otherwise env + comfortable pad */
+  padding-top: max(3.1rem, calc(env(safe-area-inset-top, 0px) + 0.55rem)) !important;
+  padding-left: max(0.75rem, env(safe-area-inset-left, 0px)) !important;
+  padding-right: max(0.75rem, env(safe-area-inset-right, 0px)) !important;
+  margin-top: 0 !important;
+}
+
+html.ios-device.app-shell .app-header__icon-btn,
+html.ios-device.native-app .app-header__icon-btn,
+html.ios-device.app-shell .app-header__toolbar .theme-toggle--compact,
+html.ios-device.native-app .app-header__toolbar .theme-toggle--compact,
+html.ios-device.app-shell .app-header__toolbar > .btn.btn-secondary,
+html.ios-device.native-app .app-header__toolbar > .btn.btn-secondary {
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+}
+
+/* Admin / HR shell top bar (hamburger + page title) */
+html.ios-device.app-shell .admin-shell__topbar,
+html.ios-device.native-app .admin-shell__topbar,
+body.ios-device.app-shell .admin-shell__topbar,
+body.ios-device.native-app .admin-shell__topbar {
+  padding-top: max(3.1rem, calc(env(safe-area-inset-top, 0px) + 0.55rem)) !important;
+  padding-left: max(0.75rem, env(safe-area-inset-left, 0px)) !important;
+  padding-right: max(0.75rem, env(safe-area-inset-right, 0px)) !important;
+}
+
+html.ios-device.app-shell .admin-shell__hamburger,
+html.ios-device.native-app .admin-shell__hamburger {
+  width: 2.75rem;
+  height: 2.75rem;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* Mobile role nav under the header */
+html.ios-device.app-shell .mobile-dash-nav,
+html.ios-device.native-app .mobile-dash-nav {
+  padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+  padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+}
+
+/* Login / MFA screens on iOS shell */
+html.ios-device.app-shell .app-login-screen,
+html.ios-device.native-app .app-login-screen,
+html.ios-device.app-shell .mfa-gate,
+html.ios-device.native-app .mfa-gate {
+  padding-top: max(3.1rem, calc(env(safe-area-inset-top, 0px) + 0.85rem)) !important;
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0px)) !important;
+}
+
 body.app-shell .native-scroll-root .glass-panel,
 body.app-shell .native-scroll-root .dash-panel,
 body.native-app .native-scroll-root .glass-panel,

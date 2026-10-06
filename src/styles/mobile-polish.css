@@ -63,6 +63,7 @@
     z-index: 40;
     gap: 0.55rem;
     padding: 0.7rem 0.75rem;
+    padding-top: max(0.7rem, calc(env(safe-area-inset-top, 0px) + 0.35rem));
     padding-left: max(0.75rem, env(safe-area-inset-left));
     padding-right: max(0.75rem, env(safe-area-inset-right));
     border-bottom: 1px solid var(--dash-card-border, var(--border-color));

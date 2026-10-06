@@ -1,14 +1,20 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Lock, Mail, Loader2, LogIn, Building2 } from 'lucide-react';
 import BrandLogo from './BrandLogo';
 import PasswordField from './PasswordField';
 import DemoLoginShortcuts from './DemoLoginShortcuts';
 import CompanyRegister from './CompanyRegister';
-import { isNativeApp } from '../utils/nativePlatform';
+import { isAppShell, isNativeApp } from '../utils/nativePlatform';
 import { loginFailureMessage } from '../utils/loginErrors';
 import { requestForgotPassword } from '../utils/forgotPassword';
 import { assertForgotAllowed, assertLoginAllowed, recordLoginAttempt } from '../utils/loginSecurity';
+import {
+  clearRememberedLogin,
+  loadRememberedLogin,
+  migrateClearInsecureRememberedLogin,
+  saveRememberedLogin,
+} from '../utils/rememberedLogin';
 
 interface LoginProps {
   onLoginSuccess: (session: any) => void;
@@ -90,6 +96,24 @@ export default function Login({
   const [info, setInfo] = useState('');
   const [forgotMode, setForgotMode] = useState(false);
   const [acceptedPolicy, setAcceptedPolicy] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
+  const showRememberMe = isAppShell();
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      await migrateClearInsecureRememberedLogin();
+      if (!showRememberMe) return;
+      const saved = await loadRememberedLogin();
+      if (cancelled || !saved) return;
+      setEmail(saved.email);
+      setPassword(saved.password);
+      setRememberMe(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [showRememberMe]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,6 +141,10 @@ export default function Login({
         setError(loginFailureMessage(authError.message));
       } else if (data.session) {
         await recordLoginAttempt({ email, success: true, acceptedPolicy: true });
+        if (showRememberMe) {
+          if (rememberMe) await saveRememberedLogin(email, password);
+          else await clearRememberedLogin();
+        }
         onLoginSuccess(data.session);
       }
     } catch (err: any) {
@@ -244,16 +272,21 @@ export default function Login({
             </button>
           </form>
           ) : (
-          <form onSubmit={handleLogin} className="login-form">
+          <form onSubmit={handleLogin} className="login-form" autoComplete="on">
             <div className="form-group login-form__group">
               <label htmlFor="email">
                 <Mail size={14} /> Email Address
               </label>
               <input
                 id="email"
+                name="email"
                 type="email"
                 placeholder="name@company.com"
                 value={email}
+                autoComplete="username"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck={false}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={loading}
                 required
@@ -266,6 +299,7 @@ export default function Login({
               </label>
               <PasswordField
                 id="password"
+                name="password"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -289,6 +323,18 @@ export default function Login({
             >
               Forgot password?
             </button>
+
+            {showRememberMe && (
+              <label className="login-policy" style={{ marginTop: '0.35rem' }}>
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  disabled={loading}
+                />
+                <span>Remember me on this device</span>
+              </label>
+            )}
 
             <label className="login-policy">
               <input

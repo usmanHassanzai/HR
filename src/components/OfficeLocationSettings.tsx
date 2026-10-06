@@ -17,6 +17,7 @@ import {
 import { OfficeLocation } from '../utils/geoAttendance';
 import AssignManagerLocationPanel, { ManagerSiteRow } from './AssignManagerLocationPanel';
 import LiveGpsCapture from './LiveGpsCapture';
+import TimeZonePicker from './TimeZonePicker';
 import '../styles/attendance.css';
 import '../styles/admin-office.css';
 
@@ -37,6 +38,8 @@ export default function OfficeLocationSettings() {
   const [activeTab, setActiveTab] = useState<OfficeTab>('create');
   const [assignOfficeId, setAssignOfficeId] = useState('');
   const [assignKey, setAssignKey] = useState(0);
+  const [wifiProbe, setWifiProbe] = useState('');
+  const [wifiProbing, setWifiProbing] = useState(false);
   const [form, setForm] = useState({
     id: '' as string | null,
     name: '',
@@ -49,6 +52,8 @@ export default function OfficeLocationSettings() {
     wifi_bssids: '',
     public_ip_cidrs: '',
     detection_mode: 'gps_or_wifi' as 'gps_only' | 'wifi_only' | 'gps_or_wifi',
+    default_timezone: '',
+    default_display_timezones: '',
   });
 
   const showMsg = useCallback((text: string) => {
@@ -87,7 +92,42 @@ export default function OfficeLocationSettings() {
       wifi_bssids: '',
       public_ip_cidrs: '',
       detection_mode: 'gps_or_wifi',
+      default_timezone: '',
+      default_display_timezones: '',
     });
+  };
+
+  const testOfficeWifi = async () => {
+    setWifiProbing(true);
+    setWifiProbe('');
+    try {
+      let publicIp = 'unknown';
+      try {
+        const r = await fetch('https://api.ipify.org?format=json', { signal: AbortSignal.timeout(8000) });
+        const j = (await r.json()) as { ip?: string };
+        if (j.ip) publicIp = j.ip;
+      } catch {
+        publicIp = 'unavailable (network)';
+      }
+      let ssid = 'n/a (browser)';
+      let bssid = 'n/a (browser)';
+      try {
+        const { registerPlugin } = await import('@capacitor/core');
+        const probe = registerPlugin<{
+          probeNetwork?: () => Promise<{ ssid?: string; bssid?: string }>;
+        }>('AttendancePing');
+        if (typeof probe.probeNetwork === 'function') {
+          const n = await probe.probeNetwork();
+          if (n?.ssid) ssid = n.ssid;
+          if (n?.bssid) bssid = n.bssid;
+        }
+      } catch {
+        /* web / plugin missing — IP-only probe is still useful for admins */
+      }
+      setWifiProbe(`Public IP Scorr sees: ${publicIp}. BSSID: ${bssid}. SSID: ${ssid}.`);
+    } finally {
+      setWifiProbing(false);
+    }
   };
 
   const editOffice = (o: OfficeLocation) => {
@@ -103,6 +143,8 @@ export default function OfficeLocationSettings() {
       wifi_bssids: (o.wifi_bssids || []).join(', '),
       public_ip_cidrs: (o.public_ip_cidrs || []).join(', '),
       detection_mode: o.detection_mode || 'gps_or_wifi',
+      default_timezone: o.default_timezone || '',
+      default_display_timezones: (o.default_display_timezones || []).join(', '),
     });
     setActiveTab('create');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -157,6 +199,18 @@ export default function OfficeLocationSettings() {
     setSaving(false);
     if (error) showMsg(error.message);
     else {
+      const { data: refreshed } = await supabase.rpc('get_office_locations');
+      const list = (refreshed || []) as OfficeLocation[];
+      const match =
+        list.find((o) => (form.id ? o.id === form.id : o.name === savedName)) ||
+        list.find((o) => o.name === savedName);
+      if (match && (form.default_timezone || form.default_display_timezones)) {
+        await supabase.rpc('update_office_default_timezones', {
+          p_office_id: match.id,
+          p_default_timezone: form.default_timezone || null,
+          p_default_display_timezones: splitList(form.default_display_timezones),
+        });
+      }
       showMsg(
         wasNew
           ? `"${savedName}" saved at your current location. Everyone assigned to it will use this exact pin.`
@@ -164,12 +218,7 @@ export default function OfficeLocationSettings() {
       );
       resetForm();
       await load();
-      if (wasNew) {
-        const { data: refreshed } = await supabase.rpc('get_office_locations');
-        const list = (refreshed || []) as OfficeLocation[];
-        const match = list.find((o) => o.name === savedName);
-        if (match) startAssign(match.id);
-      }
+      if (wasNew && match) startAssign(match.id);
     }
   };
 
@@ -408,6 +457,27 @@ export default function OfficeLocationSettings() {
                   value={form.public_ip_cidrs}
                   onChange={(e) => setForm({ ...form, public_ip_cidrs: e.target.value })}
                   placeholder="203.0.113.10 or 203.0.113.0/24"
+                />
+                <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <button type="button" className="btn btn-secondary" disabled={wifiProbing} onClick={() => void testOfficeWifi()}>
+                    {wifiProbing ? 'Testing…' : 'Test office Wi-Fi'}
+                  </button>
+                  {wifiProbe && <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{wifiProbe}</span>}
+                </div>
+              </div>
+              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                <label>Default shift time zone (pre-fill when creating shifts)</label>
+                <TimeZonePicker
+                  value={form.default_timezone}
+                  onChange={(tz) => setForm({ ...form, default_timezone: tz })}
+                />
+              </div>
+              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                <label>Default extra display zones (IANA ids, comma-separated)</label>
+                <input
+                  value={form.default_display_timezones}
+                  onChange={(e) => setForm({ ...form, default_display_timezones: e.target.value })}
+                  placeholder="Asia/Karachi, Asia/Dubai"
                 />
               </div>
               <div className="form-group">

@@ -263,8 +263,8 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
         </span>
       </h3>
       <p className="attendance-card__subtitle">
-        You can clock in and out more than once during the shift. Each visit is saved and the minutes are added together (time away is not counted).
-        Clock in from 1 hour before start. You can clock out anytime while checked in — including mid-shift for urgent leave.
+        GPS auto check-in when you enter the office during shift hours, and auto check-out when you leave — no need to open the dashboard each time (phone app runs in the background after you sign in once).
+        Manual Clock in / Clock out still work anytime. Multiple visits in one shift are saved and minutes are added (time away is not counted).
         {windowInfo
           ? ` Hours: ${formatShiftTimeRange(windowInfo.start_time, windowInfo.end_time, windowInfo.crosses_midnight)}${windowInfo.source === 'shift' && windowInfo.shift_name ? ` · ${windowInfo.shift_name}` : ' · company window'}.`
           : ' Hours follow your assigned shift, or the company window.'}

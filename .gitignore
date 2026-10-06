@@ -62,3 +62,4 @@ public/downloads/Scorr.deb
 public/downloads/*.aab
 public/downloads/*.ipa
 public/downloads/*.blockmap
+.env.staging

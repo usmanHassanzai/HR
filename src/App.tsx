@@ -2,8 +2,10 @@ import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from
 import { SpeedInsights } from '@vercel/speed-insights/react';
 import LandingPage from './components/LandingPage';
 import NativeScrollRoot from './components/NativeScrollRoot';
+import SilentGeoAttendance from './components/SilentGeoAttendance';
 import { isAppShell } from './utils/nativePlatform';
 import { isDeleteAccountRoute, isPlatformRoute } from './utils/companyHelpers';
+import { isGeoHold, clearGeoHold } from './utils/attendanceBackgroundSession';
 
 const PortalApp = lazy(() => import('./PortalApp'));
 const PlatformOwnerPortal = lazy(() => import('./components/PlatformOwnerPortal'));
@@ -52,6 +54,7 @@ function WebMarketingRoot() {
   const [showPortal, setShowPortal] = useState(false);
 
   const enterPortal = useCallback((session: unknown) => {
+    clearGeoHold();
     setPortalSession(session);
     setShowPortal(true);
     try {
@@ -70,6 +73,13 @@ function WebMarketingRoot() {
     try {
       if (window.location.hash === '#login') {
         window.history.replaceState({}, '', `${window.location.pathname}${window.location.search}`);
+      }
+      const st = window.history.state && typeof window.history.state === 'object'
+        ? { ...(window.history.state as Record<string, unknown>) }
+        : {};
+      if ('scorrApp' in st) {
+        delete st.scorrApp;
+        window.history.replaceState(st, '');
       }
     } catch {
       /* ignore */
@@ -121,7 +131,8 @@ function WebMarketingRoot() {
 
       const { data: { session } } = await supabase.auth.getSession();
       if (cancelled) return;
-      if (session?.user) {
+      // Geo-hold logout: keep session for background GPS, stay on landing page.
+      if (session?.user && !isGeoHold()) {
         enterPortal(session);
       }
 
@@ -152,7 +163,12 @@ function WebMarketingRoot() {
     );
   }
 
-  return <LandingPage onLoginSuccess={enterPortal} />;
+  return (
+    <>
+      <SilentGeoAttendance />
+      <LandingPage onLoginSuccess={enterPortal} />
+    </>
+  );
 }
 
 function App() {

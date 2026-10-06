@@ -32,6 +32,7 @@ const WORKSPACE_SIZE = { width: 1280, height: 840 };
 const TOKEN_FILE = () => path.join(app.getPath('userData'), 'attendance-token.bin');
 const DEVICE_ID_FILE = () => path.join(app.getPath('userData'), 'attendance-device-id.txt');
 const SCHEDULE_FILE = () => path.join(app.getPath('userData'), 'attendance-schedule.json');
+const LOGIN_CREDS_FILE = () => path.join(app.getPath('userData'), 'login-credentials.bin');
 
 /** @type {BrowserWindow | null} */
 let mainWindow = null;
@@ -92,6 +93,42 @@ function clearToken() {
   } catch {
     /* ignore */
   }
+}
+
+function saveLoginCredentials(email, password) {
+  if (!email || !password) return false;
+  const payload = JSON.stringify({ email: String(email).trim(), password: String(password) });
+  try {
+    if (safeStorage.isEncryptionAvailable()) {
+      fs.writeFileSync(LOGIN_CREDS_FILE(), safeStorage.encryptString(payload));
+      return true;
+    }
+  } catch {
+    /* fall through */
+  }
+  return false;
+}
+
+function loadLoginCredentials() {
+  try {
+    if (fs.existsSync(LOGIN_CREDS_FILE()) && safeStorage.isEncryptionAvailable()) {
+      const raw = safeStorage.decryptString(fs.readFileSync(LOGIN_CREDS_FILE()));
+      const parsed = JSON.parse(raw || '{}');
+      if (parsed.email && parsed.password) return { email: parsed.email, password: parsed.password };
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+function clearLoginCredentials() {
+  try {
+    if (fs.existsSync(LOGIN_CREDS_FILE())) fs.unlinkSync(LOGIN_CREDS_FILE());
+  } catch {
+    /* ignore */
+  }
+  return true;
 }
 
 function notify(title, body) {
@@ -384,6 +421,9 @@ app.whenReady().then(async () => {
     return true;
   });
   ipcMain.handle('scorr:hasAttendanceToken', () => Boolean(loadToken()));
+  ipcMain.handle('scorr:saveLoginCredentials', (_e, email, password) => saveLoginCredentials(email, password));
+  ipcMain.handle('scorr:loadLoginCredentials', () => loadLoginCredentials());
+  ipcMain.handle('scorr:clearLoginCredentials', () => clearLoginCredentials());
 
   setupTray();
   wirePowerEvents();

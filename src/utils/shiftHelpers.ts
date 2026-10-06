@@ -11,6 +11,8 @@ export interface WorkShift {
   crosses_midnight?: boolean;
   apply_to_all?: boolean;
   assigned_count?: number;
+  /** Main IANA zone — drives attendance window */
+  timezone?: string | null;
 }
 
 export interface MyShift {
@@ -69,6 +71,22 @@ export interface MonthlyAttendanceReport {
 }
 
 export const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
+
+/** Prefer company/shift zone; never invent Asia/Karachi or America/Chicago. */
+export function resolveAppTimeZone(preferred?: string | null): string {
+  if (preferred && preferred.trim()) return preferred.trim();
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+}
+
+/** @deprecated Use resolveAppTimeZone — kept as alias for older imports. */
+export const APP_TIMEZONE = resolveAppTimeZone();
+
+/** @deprecated Viewer/device zone is preferred over any office fallback. */
+export const OFFICE_DISPLAY_TZ_FALLBACK = resolveAppTimeZone();
 
 export function formatShiftTime(t: string | null | undefined): string {
   if (!t) return '—';
@@ -230,13 +248,9 @@ export function isTodayWorkDay(days: number[]): boolean {
 }
 
 /**
- * Display/default company TZ only — NOT used for attendance window authority.
- * Window decisions use server `attendance_window_for_user` / schedule UTC instants.
- * Client helpers below accept an explicit IANA zone (shift.timezone).
+ * Display helpers accept an explicit IANA zone (shift.timezone).
+ * Do not hardcode a country default here.
  */
-export const APP_TIMEZONE = 'Asia/Karachi';
-export const OFFICE_DISPLAY_TZ_FALLBACK = 'America/Chicago';
-
 function isoDowInTimezone(timeZone: string, at = new Date()): number {
   const weekday = new Intl.DateTimeFormat('en-US', { timeZone, weekday: 'short' }).format(at);
   const map: Record<string, number> = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
@@ -257,10 +271,6 @@ function minutesInTimezone(timeZone: string, at = new Date()): number {
 
 function isoDowInAppTimezone(at = new Date()): number {
   return isoDowInTimezone(APP_TIMEZONE, at);
-}
-
-function minutesInAppTimezone(at = new Date()): number {
-  return minutesInTimezone(APP_TIMEZONE, at);
 }
 
 /** Format an instant in device TZ with office TZ alongside (R27). */

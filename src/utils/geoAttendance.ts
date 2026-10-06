@@ -17,6 +17,8 @@ export interface OfficeLocation {
   wifi_bssids?: string[];
   public_ip_cidrs?: string[];
   detection_mode?: 'gps_only' | 'wifi_only' | 'gps_or_wifi';
+  default_timezone?: string | null;
+  default_display_timezones?: string[] | null;
 }
 
 /** Foreground auto GPS interval while the dashboard is open (office / hybrid). */

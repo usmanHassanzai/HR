@@ -1,5 +1,12 @@
 package ai.walfia.scorr;
 
+import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import com.getcapacitor.JSObject;
@@ -84,5 +91,79 @@ public class AttendancePingPlugin extends Plugin {
     @PluginMethod
     public void stop(PluginCall call) {
         stopAutoAttendance(call);
+    }
+
+    @PluginMethod
+    public void saveLoginCredentials(PluginCall call) {
+        String email = call.getString("email");
+        String password = call.getString("password");
+        if (email == null || email.isEmpty() || password == null || password.isEmpty()) {
+            call.reject("Missing email or password");
+            return;
+        }
+        AttendancePingStore.saveLoginCredentials(getContext(), email.trim(), password);
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void loadLoginCredentials(PluginCall call) {
+        JSObject result = new JSObject();
+        String email = AttendancePingStore.loginEmail(getContext());
+        String password = AttendancePingStore.loginPassword(getContext());
+        result.put("email", email != null ? email : "");
+        result.put("password", password != null ? password : "");
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void clearLoginCredentials(PluginCall call) {
+        AttendancePingStore.clearLoginCredentials(getContext());
+        call.resolve();
+    }
+
+    /** Admin "Test office Wi-Fi" — SSID/BSSID seen on this device. */
+    @PluginMethod
+    public void probeNetwork(PluginCall call) {
+        String ssid = null;
+        String bssid = null;
+        try {
+            Context ctx = getContext().getApplicationContext();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ConnectivityManager cm = (ConnectivityManager) ctx.getSystemService(Context.CONNECTIVITY_SERVICE);
+                if (cm != null) {
+                    Network net = cm.getActiveNetwork();
+                    if (net != null) {
+                        NetworkCapabilities caps = cm.getNetworkCapabilities(net);
+                        if (caps != null) {
+                            Object transport = caps.getTransportInfo();
+                            if (transport instanceof WifiInfo) {
+                                WifiInfo wi = (WifiInfo) transport;
+                                ssid = wi.getSSID();
+                                bssid = wi.getBSSID();
+                            }
+                        }
+                    }
+                }
+            }
+            if (ssid == null || bssid == null) {
+                WifiManager wm = (WifiManager) ctx.getSystemService(Context.WIFI_SERVICE);
+                if (wm != null) {
+                    WifiInfo info = wm.getConnectionInfo();
+                    if (info != null) {
+                        if (ssid == null) ssid = info.getSSID();
+                        if (bssid == null) bssid = info.getBSSID();
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        if (ssid != null) {
+            ssid = ssid.replace("\"", "");
+            if ("<unknown ssid>".equalsIgnoreCase(ssid)) ssid = null;
+        }
+        JSObject result = new JSObject();
+        result.put("ssid", ssid != null ? ssid : "");
+        result.put("bssid", bssid != null ? bssid : "");
+        call.resolve(result);
     }
 }

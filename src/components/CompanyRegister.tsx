@@ -12,6 +12,8 @@ import {
 import { sendSignupOtp, verifySignupOtp } from '../utils/signupOtp';
 import { getAuthEmailRedirectTo } from '../utils/authDeepLink';
 import PasswordField from './PasswordField';
+import TimeZonePicker from './TimeZonePicker';
+import { suggestBrowserTimeZone } from '../utils/ianaTimezones';
 import '../styles/company-register.css';
 
 interface CompanyRegisterProps {
@@ -30,6 +32,7 @@ const INITIAL: CompanyRegistrationForm = {
   email: '',
   password: '',
   confirmPassword: '',
+  timezone: suggestBrowserTimeZone() || '',
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -89,8 +92,11 @@ export default function CompanyRegister({ onBack, onSession, embedded = false }:
     if (industryIsOther && industrySelect === 'Other' && !form.industry.trim() && touched.industry) {
       e.industry = 'Type your industry, or pick one from the list.';
     }
+    if (touched.timezone && !form.timezone.trim()) {
+      e.timezone = 'Pick your company time zone.';
+    }
     return e;
-  }, [form, industryIsOther, industrySelect, touched.industry]);
+  }, [form, industryIsOther, industrySelect, touched.industry, touched.timezone]);
 
   const show = (key: keyof CompanyRegistrationForm) => (touched[key] ? fieldErrors[key] : undefined);
 
@@ -101,11 +107,13 @@ export default function CompanyRegister({ onBack, onSession, embedded = false }:
     && phoneDigits(form.phone).length >= 7
     && form.password.length >= 6
     && form.password === form.confirmPassword
+    && form.timezone.trim().length > 0
     && !fieldErrors.companyName
     && !fieldErrors.email
     && !fieldErrors.phone
     && !fieldErrors.password
-    && !fieldErrors.confirmPassword;
+    && !fieldErrors.confirmPassword
+    && !fieldErrors.timezone;
 
   const onIndustrySelectChange = (value: string) => {
     setIndustrySelect(value);
@@ -121,6 +129,7 @@ export default function CompanyRegister({ onBack, onSession, embedded = false }:
       phone: true,
       password: true,
       confirmPassword: true,
+      timezone: true,
     });
     if (!step1Ready) return;
     setStep(2);
@@ -166,6 +175,7 @@ export default function CompanyRegister({ onBack, onSession, embedded = false }:
             industry: form.industry,
             employee_count: form.employeeCount,
             subscription_plan: 'trial',
+            timezone: form.timezone.trim(),
           },
         },
       });
@@ -324,6 +334,21 @@ export default function CompanyRegister({ onBack, onSession, embedded = false }:
                 autoComplete="name"
               />
               <Hint error={show('fullName')} />
+            </label>
+            <label className="company-register__field" style={{ gridColumn: '1 / -1' }}>
+              <span>Company time zone *</span>
+              <TimeZonePicker
+                value={form.timezone}
+                onChange={(tz) => {
+                  set('timezone', tz);
+                  blur('timezone');
+                }}
+                placeholder="Suggested from your browser — search to change"
+              />
+              <Hint
+                error={show('timezone')}
+                ok={form.timezone ? `Attendance dates use ${form.timezone}` : undefined}
+              />
             </label>
             <label className="company-register__field">
               <span><Mail size={12} /> Admin email *</span>

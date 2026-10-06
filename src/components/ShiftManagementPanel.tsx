@@ -3,6 +3,17 @@ import { CalendarClock, Loader2, List, Plus, Trash2, Users } from 'lucide-react'
 import { supabase } from '../lib/supabase';
 import { Profile } from '../utils/kpiHelpers';
 import { emailShiftAssigned, emailShiftUpdated } from '../utils/kpiEmail';
+import TimeZonePicker from './TimeZonePicker';
+import { suggestBrowserTimeZone, zoneShortLabel } from '../utils/ianaTimezones';
+import {
+  convertOfficeTime,
+  describeUpcomingDstChanges,
+  formatShiftZonesLine,
+  isOvernightHm,
+  todayYmdInZone,
+  validateSameMoment,
+  type ShiftOfficeTime,
+} from '../utils/shiftMultiZone';
 import {
   DAY_LABELS,
   TeamShiftAssignment,
@@ -11,6 +22,8 @@ import {
   formatShiftTimeRange,
   isOvernightShift,
 } from '../utils/shiftHelpers';
+
+type ExtraOfficeTime = ShiftOfficeTime & { key: string };
 
 interface OrgShiftAssignment extends TeamShiftAssignment {
   employee_role?: string;
@@ -84,12 +97,16 @@ export default function ShiftManagementPanel({
   const [name, setName] = useState('');
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('18:00');
+  const [mainTimezone, setMainTimezone] = useState(() => suggestBrowserTimeZone() || '');
+  const [extraTimes, setExtraTimes] = useState<ExtraOfficeTime[]>([]);
   const [overnight, setOvernight] = useState(false);
   const [days, setDays] = useState<number[]>(DEFAULT_DAYS);
   const [applyToAll, setApplyToAll] = useState(true);
   const [editId, setEditId] = useState<string | null>(null);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [assignShiftId, setAssignShiftId] = useState('');
+  const [zoneSyncError, setZoneSyncError] = useState('');
+  const [dstNotices, setDstNotices] = useState<string[]>([]);
   const formCardRef = useRef<HTMLDivElement | null>(null);
   const assignCardRef = useRef<HTMLDivElement | null>(null);
 
@@ -142,6 +159,126 @@ export default function ShiftManagementPanel({
       setOvernight(true);
     }
   }, [startTime, endTime, overnight]);
+
+  const mainOffice: ShiftOfficeTime = useMemo(
+    () => ({ timezone: mainTimezone, start: startTime, end: endTime }),
+    [mainTimezone, startTime, endTime],
+  );
+
+  const refYmd = useMemo(
+    () => (mainTimezone ? todayYmdInZone(mainTimezone) : todayYmdInZone(suggestBrowserTimeZone() || 'UTC')),
+    [mainTimezone],
+  );
+
+  const syncExtrasFromMain = (main: ShiftOfficeTime, ymd: string) => {
+    setExtraTimes((prev) =>
+      prev.map((row) => {
+        if (!row.timezone) return row;
+        const c = convertOfficeTime(main, row.timezone, ymd);
+        return { ...row, start: c.start, end: c.end };
+      }),
+    );
+  };
+
+  const onMainStartChange = (v: string) => {
+    setStartTime(v);
+    if (mainTimezone) syncExtrasFromMain({ timezone: mainTimezone, start: v, end: endTime }, refYmd);
+  };
+  const onMainEndChange = (v: string) => {
+    setEndTime(v);
+    if (mainTimezone) syncExtrasFromMain({ timezone: mainTimezone, start: startTime, end: v }, refYmd);
+  };
+  const onMainTzChange = (tz: string) => {
+    if (!tz || tz === mainTimezone) return;
+    if (extraTimes.length > 0 && mainTimezone) {
+      if (
+        !confirm(
+          `Attendance will follow ${zoneShortLabel(tz)} instead of ${zoneShortLabel(mainTimezone)}. Continue?`,
+        )
+      ) {
+        return;
+      }
+    }
+    const prevMain = mainOffice;
+    const promoted = extraTimes.find((e) => e.timezone === tz);
+    setMainTimezone(tz);
+    if (promoted) {
+      setStartTime(promoted.start);
+      setEndTime(promoted.end);
+      setOvernight(isOvernightHm(promoted.start, promoted.end));
+      setExtraTimes((prev) => {
+        const without = prev.filter((e) => e.timezone !== tz);
+        // old main becomes a display zone
+        if (prevMain.timezone) {
+          return [
+            {
+              key: `was-main-${Date.now()}`,
+              timezone: prevMain.timezone,
+              start: prevMain.start,
+              end: prevMain.end,
+            },
+            ...without,
+          ];
+        }
+        return without;
+      });
+      return;
+    }
+    if (prevMain.timezone && tz) {
+      const converted = convertOfficeTime(prevMain, tz, todayYmdInZone(prevMain.timezone));
+      setStartTime(converted.start);
+      setEndTime(converted.end);
+      setOvernight(isOvernightHm(converted.start, converted.end));
+      syncExtrasFromMain({ timezone: tz, start: converted.start, end: converted.end }, todayYmdInZone(tz));
+    }
+  };
+
+  const onExtraChange = (index: number, patch: Partial<ShiftOfficeTime>) => {
+    setExtraTimes((prev) => {
+      const next = prev.map((row, i) => (i === index ? { ...row, ...patch } : row));
+      const row = next[index];
+      if (!row?.timezone || !mainTimezone) return next;
+      // Editing extra times → update main + other extras to the same UTC moment
+      if (patch.start != null || patch.end != null) {
+        const asMain = convertOfficeTime(row, mainTimezone, refYmd);
+        setStartTime(asMain.start);
+        setEndTime(asMain.end);
+        setOvernight(isOvernightHm(asMain.start, asMain.end));
+        return next.map((r, i) => {
+          if (i === index || !r.timezone) return r;
+          const c = convertOfficeTime(row, r.timezone, refYmd);
+          return { ...r, start: c.start, end: c.end };
+        });
+      }
+      if (patch.timezone) {
+        const c = convertOfficeTime(mainOffice, patch.timezone, refYmd);
+        return next.map((r, i) => (i === index ? { ...r, timezone: patch.timezone!, start: c.start, end: c.end } : r));
+      }
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    if (!mainTimezone || extraTimes.length === 0) {
+      setZoneSyncError('');
+      setDstNotices([]);
+      return;
+    }
+    const others = extraTimes.filter((e) => e.timezone);
+    const v = validateSameMoment(mainOffice, others, refYmd);
+    setZoneSyncError(v.ok ? '' : v.message);
+    setDstNotices(describeUpcomingDstChanges(mainOffice, others, refYmd));
+  }, [mainOffice, extraTimes, refYmd, mainTimezone]);
+
+  const previewLine = useMemo(() => {
+    if (!mainTimezone) return '';
+    return formatShiftZonesLine(
+      mainOffice,
+      extraTimes.filter((e) => e.timezone).map((e) => ({ timezone: e.timezone })),
+      refYmd,
+      suggestBrowserTimeZone(),
+    );
+  }, [mainOffice, extraTimes, refYmd, mainTimezone]);
 
   const peopleByIds = (ids: string[]): ShiftNotifyTarget[] => {
     const wanted = new Set(ids);
@@ -200,6 +337,10 @@ export default function ShiftManagementPanel({
     setName('');
     setStartTime('09:00');
     setEndTime('18:00');
+    setMainTimezone(suggestBrowserTimeZone() || '');
+    setExtraTimes([]);
+    setZoneSyncError('');
+    setDstNotices([]);
     setDays(DEFAULT_DAYS);
     setOvernight(false);
     setApplyToAll(true);
@@ -208,9 +349,24 @@ export default function ShiftManagementPanel({
   const saveShift = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || days.length === 0) return;
+    if (!mainTimezone) {
+      setMsg('Choose a time zone for Office time 1.');
+      return;
+    }
     if (!overnight && endTime <= startTime) {
       setMsg('End time must be after start time, or enable overnight shift.');
       return;
+    }
+    if (extraTimes.length > 0) {
+      const v = validateSameMoment(
+        mainOffice,
+        extraTimes.filter((x) => x.timezone),
+        refYmd,
+      );
+      if (!v.ok) {
+        setMsg(v.message);
+        return;
+      }
     }
     setSubmitting(true);
     setMsg('');
@@ -224,6 +380,15 @@ export default function ShiftManagementPanel({
       p_grace_minutes: 60,
       p_crosses_midnight: overnight,
       p_apply_to_all: applyToAll,
+      p_timezone: mainTimezone,
+      p_display_zones: extraTimes
+        .filter((x) => x.timezone)
+        .map((x, i) => ({
+          timezone: x.timezone,
+          start: x.start,
+          end: x.end,
+          sort_order: i,
+        })),
     };
     if (editId) payload.p_shift_id = editId;
 
@@ -383,12 +548,30 @@ export default function ShiftManagementPanel({
     setName(s.name || '');
     setStartTime(String(s.start_time || '09:00').slice(0, 5));
     setEndTime(String(s.end_time || '18:00').slice(0, 5));
+    setMainTimezone(s.timezone || suggestBrowserTimeZone() || '');
     setDays(nextDays.length > 0 ? nextDays : DEFAULT_DAYS);
     setOvernight(Boolean(s.crosses_midnight ?? isOvernightShift(s.start_time, s.end_time)));
     setApplyToAll(s.apply_to_all ?? true);
     setAssignShiftId(s.id);
     setPanelTab('create');
     setMsg(`Editing “${s.name}”. Update the fields, then Save shift. Assigned people will get an email.`);
+    void (async () => {
+      const { data } = await supabase.rpc('list_shift_display_zones', { p_shift_id: s.id });
+      const rows = (data || []) as {
+        timezone: string;
+        entered_start_time: string;
+        entered_end_time: string;
+        sort_order: number;
+      }[];
+      setExtraTimes(
+        rows.map((r, i) => ({
+          key: `dz-${i}-${r.timezone}`,
+          timezone: r.timezone,
+          start: String(r.entered_start_time).slice(0, 5),
+          end: String(r.entered_end_time).slice(0, 5),
+        })),
+      );
+    })();
     window.requestAnimationFrame(() => {
       formCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       const nameInput = formCardRef.current?.querySelector<HTMLInputElement>('input:not([type="time"]):not([type="checkbox"])');
@@ -490,6 +673,7 @@ export default function ShiftManagementPanel({
                       <strong>{s.name}</strong>
                       <span className="shift-list__meta">
                         {formatShiftTimeRange(s.start_time, s.end_time, s.crosses_midnight)}
+                        {s.timezone ? ` · ${s.timezone}` : ''}
                         {' · '}{formatShiftDays(s.days_of_week)}
                         {!isOrgWide && s.apply_to_all && ' · All team'}
                         {(s.assigned_count != null ? s.assigned_count : onCount) > 0
@@ -585,18 +769,132 @@ export default function ShiftManagementPanel({
               </p>
             )}
             <form onSubmit={(e) => void saveShift(e)} className="attendance-form-grid attendance-form-grid--wide">
-              <div className="form-group">
+              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                 <label>Shift name</label>
                 <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Night Shift" required />
               </div>
+
+              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                <label>Office time 1 (attendance follows this zone)</label>
+                <TimeZonePicker value={mainTimezone} onChange={onMainTzChange} />
+              </div>
               <div className="form-group">
                 <label>Start time</label>
-                <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} required />
+                <input type="time" value={startTime} onChange={(e) => onMainStartChange(e.target.value)} required />
               </div>
               <div className="form-group">
                 <label>End time</label>
-                <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} required />
+                <input type="time" value={endTime} onChange={(e) => onMainEndChange(e.target.value)} required />
               </div>
+
+              {extraTimes.map((row, idx) => (
+                <div
+                  key={row.key}
+                  style={{
+                    gridColumn: '1 / -1',
+                    display: 'grid',
+                    gap: '0.65rem',
+                    padding: '0.75rem',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 8,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <strong>Office time {idx + 2}</strong>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => setExtraTimes((prev) => prev.filter((_, i) => i !== idx))}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <TimeZonePicker
+                    value={row.timezone}
+                    onChange={(tz) => onExtraChange(idx, { timezone: tz })}
+                  />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem' }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label>Start</label>
+                      <input
+                        type="time"
+                        value={row.start}
+                        onChange={(e) => onExtraChange(idx, { start: e.target.value })}
+                      />
+                    </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label>End</label>
+                      <input
+                        type="time"
+                        value={row.end}
+                        onChange={(e) => onExtraChange(idx, { end: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {extraTimes.length < 3 && (
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      const tz = '';
+                      setExtraTimes((prev) => [
+                        ...prev,
+                        {
+                          key: `extra-${Date.now()}`,
+                          timezone: tz,
+                          start: startTime,
+                          end: endTime,
+                        },
+                      ]);
+                    }}
+                  >
+                    <Plus size={14} /> Add another office time
+                  </button>
+                </div>
+              )}
+
+              {extraTimes.length > 0 && (
+                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                  <label>Attendance follows</label>
+                  <select
+                    value={mainTimezone}
+                    onChange={(e) => onMainTzChange(e.target.value)}
+                  >
+                    <option value={mainTimezone}>{mainTimezone} (main)</option>
+                    {extraTimes
+                      .filter((e) => e.timezone)
+                      .map((e) => (
+                        <option key={e.timezone} value={e.timezone}>
+                          {e.timezone}
+                        </option>
+                      ))}
+                  </select>
+                  <p style={{ margin: '0.35rem 0 0', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                    Only the main zone drives the attendance window (−60/+60), check-in/out and lateness.
+                  </p>
+                </div>
+              )}
+
+              {zoneSyncError && (
+                <p style={{ gridColumn: '1 / -1', color: 'var(--color-danger, #b91c1c)', margin: 0 }}>
+                  {zoneSyncError}
+                </p>
+              )}
+              {dstNotices.map((n) => (
+                <p key={n} style={{ gridColumn: '1 / -1', margin: 0, fontSize: '0.88rem', color: 'var(--color-warning, #a16207)' }}>
+                  {n}
+                </p>
+              ))}
+              {previewLine && (
+                <p style={{ gridColumn: '1 / -1', margin: 0, fontSize: '0.9rem' }}>
+                  <strong>Preview:</strong> {previewLine}
+                </p>
+              )}
+
               <div className="form-group attendance-form-span-full">
                 <p className="attendance-card__subtitle" style={{ margin: 0 }}>
                   Everyone can clock in from 1 hour before this start time. After the end time they have 1 hour to clock out — that extra time is counted if they do it themselves. If Scorr is closed, they are checked out at end time. If they stay logged in, checkout waits that extra hour.

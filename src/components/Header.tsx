@@ -13,6 +13,8 @@ import {
   shouldContinueGpsAfterLogout,
 } from '../utils/attendanceBackgroundSession';
 import { pingAttendanceBeforeLogout } from '../utils/geoAttendance';
+import { isAppShell } from '../utils/nativePlatform';
+import { clearRememberedLogin } from '../utils/rememberedLogin';
 
 interface HeaderProps {
   profile: Profile;
@@ -54,6 +56,12 @@ export default function Header({ profile, organizationName, onLogout, onNavigate
 
   const handleLogout = async () => {
     try {
+      if (isAppShell()) {
+        const forget = window.confirm(
+          'Forget this device?\n\nOK = Sign out and delete saved email/password on this device.\nCancel = Sign out only (keep Remember me).',
+        );
+        if (forget) await clearRememberedLogin();
+      }
       if (await shouldContinueGpsAfterLogout(profile)) {
         // Leave session + native GPS running; hide dashboard UI only.
         lockDashboardForGeo();

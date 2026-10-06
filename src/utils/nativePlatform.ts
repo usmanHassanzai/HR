@@ -12,6 +12,9 @@ type ScorrDesktopApi = {
   saveAttendanceToken?: (token: string) => Promise<boolean> | void;
   clearAttendanceToken?: () => Promise<boolean> | void;
   hasAttendanceToken?: () => Promise<boolean> | boolean;
+  saveLoginCredentials?: (email: string, password: string) => Promise<boolean> | boolean;
+  loadLoginCredentials?: () => Promise<{ email: string; password: string } | null> | { email: string; password: string } | null;
+  clearLoginCredentials?: () => Promise<boolean> | boolean;
 };
 
 declare global {

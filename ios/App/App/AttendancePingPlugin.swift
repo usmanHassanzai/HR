@@ -22,6 +22,9 @@ public class AttendancePingPlugin: CAPPlugin, CAPBridgedPlugin {
         .init(name: "startAutoAttendance", returnType: CAPPluginReturnPromise),
         .init(name: "stopAutoAttendance", returnType: CAPPluginReturnPromise),
         .init(name: "syncSchedule", returnType: CAPPluginReturnPromise),
+        .init(name: "saveLoginCredentials", returnType: CAPPluginReturnPromise),
+        .init(name: "loadLoginCredentials", returnType: CAPPluginReturnPromise),
+        .init(name: "clearLoginCredentials", returnType: CAPPluginReturnPromise),
         // Legacy aliases — map to the auto-attendance API
         .init(name: "start", returnType: CAPPluginReturnPromise),
         .init(name: "stop", returnType: CAPPluginReturnPromise),
@@ -62,6 +65,31 @@ public class AttendancePingPlugin: CAPPlugin, CAPBridgedPlugin {
         call.resolve(["ok": true])
     }
 
+    @objc func saveLoginCredentials(_ call: CAPPluginCall) {
+        guard
+            let email = call.getString("email"), !email.isEmpty,
+            let password = call.getString("password"), !password.isEmpty
+        else {
+            call.reject("Missing email or password")
+            return
+        }
+        AttendanceKeychain.saveLoginEmail(email.trimmingCharacters(in: .whitespacesAndNewlines))
+        AttendanceKeychain.saveLoginPassword(password)
+        call.resolve(["ok": true])
+    }
+
+    @objc func loadLoginCredentials(_ call: CAPPluginCall) {
+        call.resolve([
+            "email": AttendanceKeychain.loadLoginEmail() ?? "",
+            "password": AttendanceKeychain.loadLoginPassword() ?? "",
+        ])
+    }
+
+    @objc func clearLoginCredentials(_ call: CAPPluginCall) {
+        AttendanceKeychain.clearLoginCredentials()
+        call.resolve(["ok": true])
+    }
+
     @objc func syncSchedule(_ call: CAPPluginCall) {
         engine.syncSchedule { result in
             switch result {
@@ -98,6 +126,8 @@ enum AttendanceKeychain {
     private static let service = "ai.walfia.scorr.attendance"
     private static let tokenAccount = "device_token"
     private static let deviceIdAccount = "device_id"
+    private static let loginEmailAccount = "login_email"
+    private static let loginPasswordAccount = "login_password"
 
     static func saveToken(_ token: String) {
         save(account: tokenAccount, value: token)
@@ -117,6 +147,27 @@ enum AttendanceKeychain {
 
     static func loadDeviceId() -> String? {
         load(account: deviceIdAccount)
+    }
+
+    static func saveLoginEmail(_ email: String) {
+        save(account: loginEmailAccount, value: email)
+    }
+
+    static func saveLoginPassword(_ password: String) {
+        save(account: loginPasswordAccount, value: password)
+    }
+
+    static func loadLoginEmail() -> String? {
+        load(account: loginEmailAccount)
+    }
+
+    static func loadLoginPassword() -> String? {
+        load(account: loginPasswordAccount)
+    }
+
+    static func clearLoginCredentials() {
+        delete(account: loginEmailAccount)
+        delete(account: loginPasswordAccount)
     }
 
     private static func save(account: String, value: String) {

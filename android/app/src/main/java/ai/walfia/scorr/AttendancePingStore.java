@@ -81,6 +81,29 @@ final class AttendancePingStore {
         return prefs(ctx).getString("device_token", null);
     }
 
+    /** Remember-me login — Keystore-backed EncryptedSharedPreferences only. */
+    static void saveLoginCredentials(Context ctx, String email, String password) {
+        prefs(ctx).edit()
+            .putString("login_email", email)
+            .putString("login_password", password)
+            .apply();
+    }
+
+    static String loginEmail(Context ctx) {
+        return prefs(ctx).getString("login_email", null);
+    }
+
+    static String loginPassword(Context ctx) {
+        return prefs(ctx).getString("login_password", null);
+    }
+
+    static void clearLoginCredentials(Context ctx) {
+        prefs(ctx).edit()
+            .remove("login_email")
+            .remove("login_password")
+            .apply();
+    }
+
     static String deviceId(Context ctx) {
         return prefs(ctx).getString("device_id", null);
     }

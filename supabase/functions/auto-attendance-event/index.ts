@@ -3,6 +3,7 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
+import { trustedClientIp } from '../_shared/trustedClientIp.ts';
 
 const ALLOWED_ORIGINS = new Set([
   'https://scorr.walfia.ai',
@@ -29,24 +30,6 @@ function json(req: Request, data: unknown, status = 200) {
     status,
     headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
   });
-}
-
-/**
- * Trusted client IP (R73):
- * Supabase Edge (Deno Deploy) sets `x-forwarded-for` from the connection.
- * We take the LEFTMOST (original client) IP. Clients cannot set this header
- * in a way that overrides the edge proxy's value for the connecting socket —
- * the platform appends/overwrites hop information. We never read IP from the body.
- */
-function trustedClientIp(req: Request): string | null {
-  const xff = req.headers.get('x-forwarded-for') || req.headers.get('X-Forwarded-For');
-  if (xff) {
-    const first = xff.split(',')[0]?.trim();
-    if (first) return first;
-  }
-  const cf = req.headers.get('cf-connecting-ip');
-  if (cf) return cf.trim();
-  return null;
 }
 
 async function sha256Hex(token: string): Promise<string> {

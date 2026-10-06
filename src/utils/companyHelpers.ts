@@ -24,6 +24,8 @@ export interface CompanyRegistrationForm {
   email: string;
   password: string;
   confirmPassword: string;
+  /** IANA timezone — required at registration (R76 / Section O). */
+  timezone: string;
 }
 
 export interface PlatformCompanyRow {

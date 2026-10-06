@@ -4,34 +4,34 @@
     "filename": "scorr.apk",
     "appName": "Scorr",
     "appId": "ai.walfia.scorr",
-    "version": "1.3.4",
+    "version": "1.3.6",
     "buildType": "debug",
-    "sizeBytes": 6158951,
-    "sizeLabel": "5.9 MB",
-    "updatedAt": "2026-10-02T21:20:14.473Z",
-    "updatedLabel": "October 3, 2026"
+    "sizeBytes": 7163002,
+    "sizeLabel": "6.8 MB",
+    "updatedAt": "2026-10-06T19:17:13.046Z",
+    "updatedLabel": "October 7, 2026"
   },
   "ios": {
     "available": true,
     "installMethod": "pwa",
     "appName": "Scorr",
     "appId": "ai.walfia.scorr",
-    "version": "1.3.4",
-    "updatedAt": "2026-10-02T21:20:36.554Z",
-    "updatedLabel": "October 3, 2026",
+    "version": "1.3.6",
+    "updatedAt": "2026-10-06T19:04:29.189Z",
+    "updatedLabel": "October 7, 2026",
     "pwaUrl": "https://scorr.walfia.ai/?app=1",
     "ipaAvailable": false,
     "ipaFilename": "scorr.ipa",
-    "notes": "HR attendance & daily reports to admin; Human Resources history group; polished HR daily reports workspace. Same as Android."
+    "notes": "Install via Safari → Add to Home Screen (?app=1). Native IPA: build on Mac with MARKETING_VERSION 1.3.6 / build 10."
   },
   "desktop": {
     "available": true,
     "appName": "Scorr",
     "appId": "ai.walfia.scorr.desktop",
-    "version": "1.3.4",
-    "updatedAt": "2026-10-05T16:04:13.359Z",
-    "updatedLabel": "October 5, 2026",
-    "releaseTag": "desktop-v1.3.4",
+    "version": "1.3.6",
+    "updatedAt": "2026-10-06T19:07:17.471Z",
+    "updatedLabel": "October 7, 2026",
+    "releaseTag": "desktop-v1.3.6",
     "releaseRepo": "usmanHassanzai/HR",
     "platforms": {
       "windows": {
@@ -39,14 +39,14 @@
         "filename": "Scorr-Setup.exe",
         "sizeBytes": 92054533,
         "sizeLabel": "87.8 MB",
-        "url": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.4/Scorr-Setup.exe"
+        "url": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.6/Scorr-Setup.exe"
       },
       "linuxDeb": {
         "available": true,
         "filename": "Scorr.deb",
         "sizeBytes": 90589952,
         "sizeLabel": "86.4 MB",
-        "url": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.4/Scorr.deb"
+        "url": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.6/Scorr.deb"
       }
     }
   }
