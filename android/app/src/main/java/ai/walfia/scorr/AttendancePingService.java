@@ -47,10 +47,14 @@ public class AttendancePingService extends Service {
         if (!AttendancePingStore.enabled(app)) return;
         if (!AttendancePingStore.isInsideActiveWindow(app)) return;
         Intent intent = new Intent(app, AttendancePingService.class);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            app.startForegroundService(intent);
-        } else {
-            app.startService(intent);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                app.startForegroundService(intent);
+            } else {
+                app.startService(intent);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Unable to start attendance FGS", e);
         }
     }
 
@@ -79,10 +83,16 @@ public class AttendancePingService extends Service {
             .setSilent(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build();
-        if (Build.VERSION.SDK_INT >= 34) {
-            startForeground(NOTIF_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
-        } else {
-            startForeground(NOTIF_ID, notification);
+        try {
+            if (Build.VERSION.SDK_INT >= 34) {
+                startForeground(NOTIF_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
+            } else {
+                startForeground(NOTIF_ID, notification);
+            }
+        } catch (SecurityException se) {
+            Log.e(TAG, "startForeground denied — missing location permission?", se);
+            stopSelf();
+            return START_NOT_STICKY;
         }
 
         handler.removeCallbacks(tick);
@@ -262,10 +272,8 @@ public class AttendancePingService extends Service {
         String ssidNorm = ssid != null ? ssid.trim() : null;
         String bssidNorm = bssid != null ? bssid.trim().toLowerCase(Locale.US) : null;
 
-        boolean anyWifiZone = false;
         for (AttendanceScheduleController.Zone z : AttendanceScheduleController.parseZones(this)) {
             if (!z.usesWifi()) continue;
-            anyWifiZone = true;
             // BSSID match preferred
             if (bssidNorm != null && z.wifiBssids != null) {
                 for (int i = 0; i < z.wifiBssids.length(); i++) {
@@ -286,8 +294,8 @@ public class AttendancePingService extends Service {
                 return true;
             }
         }
-        // No wifi zones configured: still report connectivity for gps_or_wifi default offices
-        return !anyWifiZone && ssidNorm != null;
+        // gps_only offices or no SSID/BSSID match
+        return false;
     }
 
     @SuppressWarnings("deprecation")

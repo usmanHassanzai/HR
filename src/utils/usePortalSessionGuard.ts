@@ -3,11 +3,19 @@ import { App as CapApp } from '@capacitor/app';
 import { supabase } from '../lib/supabase';
 import { isNativeApp } from './nativePlatform';
 import { clearGeoHold } from './attendanceBackgroundSession';
+import {
+  hasAssignedShiftEnded,
+  isWithinAssignedShift,
+  locationWindowToMyShift,
+  msUntilAssignedShiftEnd,
+  type LocationWindow,
+} from './shiftHelpers';
 
 /** Idle time before the portal signs the user out (1 hour). */
 export const PORTAL_IDLE_MS = 60 * 60 * 1000;
 
 const LAST_ACTIVITY_KEY = 'scorr-last-activity';
+const SHIFT_SESSION_KEY = 'scorr-shift-session';
 
 const ACTIVITY_EVENTS: (keyof WindowEventMap)[] = [
   'pointerdown',
@@ -31,6 +39,7 @@ function clearAuthStorageSync() {
     sessionStorage.removeItem('scorr-web-tab');
     sessionStorage.removeItem('scorr-tab-id');
     sessionStorage.removeItem('scorr-mfa-ok');
+    sessionStorage.removeItem(SHIFT_SESSION_KEY);
   } catch {
     /* ignore */
   }
@@ -55,6 +64,7 @@ export async function lockPortalSession(_options?: { force?: boolean }) {
   lockingSession = true;
   try {
     clearGeoHold();
+    // R32: shift-end / session lock must NOT stop device-token auto attendance.
     clearAuthStorageSync();
     try {
       await supabase.auth.signOut({ scope: 'local' });
@@ -101,6 +111,97 @@ function isEditableTarget(target: EventTarget | null): boolean {
     return !['button', 'submit', 'checkbox', 'radio', 'file', 'reset', 'image', 'range', 'color'].includes(type);
   }
   return Boolean(target.closest('input, textarea, select, [contenteditable="true"]'));
+}
+
+function markShiftSession() {
+  try {
+    sessionStorage.setItem(SHIFT_SESSION_KEY, '1');
+  } catch {
+    /* ignore */
+  }
+}
+
+function hadShiftSession(): boolean {
+  try {
+    return sessionStorage.getItem(SHIFT_SESSION_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Auto-logout when the assigned shift (or company office window) ends.
+ * After-hours logins are not kicked immediately — only sessions that were
+ * active during the shift window.
+ */
+export function useShiftEndSessionLogout(enabled: boolean) {
+  const enabledRef = useRef(enabled);
+  enabledRef.current = enabled;
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    let cancelled = false;
+    let endTimer: number | null = null;
+    let pollId: number | null = null;
+
+    const clearEndTimer = () => {
+      if (endTimer != null) {
+        window.clearTimeout(endTimer);
+        endTimer = null;
+      }
+    };
+
+    const logoutForShiftEnd = async () => {
+      if (cancelled || !enabledRef.current) return;
+      await lockPortalSession({ force: true });
+    };
+
+    const sync = async () => {
+      if (cancelled || !enabledRef.current) return;
+      try {
+        const { data, error } = await supabase.rpc('get_my_location_window');
+        if (error || !data || cancelled) return;
+        const win = data as LocationWindow;
+        if (!win?.start_time || !win?.end_time) return;
+        const shift = locationWindowToMyShift(win);
+
+        if (isWithinAssignedShift(shift)) {
+          markShiftSession();
+          clearEndTimer();
+          const wait = Math.min(Math.max(msUntilAssignedShiftEnd(shift) + 2_000, 5_000), 12 * 60 * 60 * 1000);
+          endTimer = window.setTimeout(() => {
+            void logoutForShiftEnd();
+          }, wait);
+          return;
+        }
+
+        if (hasAssignedShiftEnded(shift) && hadShiftSession()) {
+          clearEndTimer();
+          await logoutForShiftEnd();
+        }
+      } catch {
+        /* network — retry on next poll */
+      }
+    };
+
+    void sync();
+    pollId = window.setInterval(() => {
+      void sync();
+    }, 60_000);
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void sync();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      cancelled = true;
+      clearEndTimer();
+      if (pollId != null) window.clearInterval(pollId);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [enabled]);
 }
 
 /**

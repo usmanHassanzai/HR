@@ -14,13 +14,16 @@ import { applyBranding, fetchCompanyBranding, loadBranding } from './lib/brandin
 import { isDemoProfile } from './utils/demoMode';
 import { fetchMyCompany, Company, isPlatformOwner } from './utils/companyHelpers';
 import { useSupabaseRealtime } from './utils/useSupabaseRealtime';
-import { usePortalSessionGuard } from './utils/usePortalSessionGuard';
+import { usePortalSessionGuard, useShiftEndSessionLogout } from './utils/usePortalSessionGuard';
 import {
   clearGeoHold,
   isGeoHold,
   setAttendanceLogoutProfile,
   subscribeGeoHold,
 } from './utils/attendanceBackgroundSession';
+import {
+  refreshNativeAttendanceSession,
+} from './utils/attendanceNativePing';
 import { GEO_DASHBOARD_OPEN_EVENT } from './utils/geoAttendance';
 import { startPresenceHeartbeat } from './utils/presenceHeartbeat';
 import { roleRequiresMfa, currentMfaLevel, getVerifiedTotpFactorId } from './utils/mfaHelpers';
@@ -59,6 +62,10 @@ function PortalApp({ initialSession = null, onSignedOut }: PortalAppProps) {
   const [privilegedMfaOk, setPrivilegedMfaOk] = useState(false);
   const [mfaLinkMsg, setMfaLinkMsg] = useState('');
   usePortalSessionGuard(Boolean(session), { idle: Boolean(session) && !geoHold });
+  const shiftStaff =
+    Boolean(session && profile) &&
+    (profile?.role === 'employee' || profile?.role === 'manager' || profile?.role === 'hr');
+  useShiftEndSessionLogout(shiftStaff);
 
   useEffect(() => {
     if (!session?.user?.id) {
@@ -217,7 +224,11 @@ function PortalApp({ initialSession = null, onSignedOut }: PortalAppProps) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, activeSession) => {
       setSession(activeSession);
-      if (event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+      if (event === 'TOKEN_REFRESHED') {
+        void refreshNativeAttendanceSession();
+        return;
+      }
+      if (event === 'INITIAL_SESSION') {
         return;
       }
       if (activeSession?.user) {
@@ -234,6 +245,8 @@ function PortalApp({ initialSession = null, onSignedOut }: PortalAppProps) {
           void fetchUserProfile(activeSession.user.id);
         }
       } else {
+        // R32: JWT sign-out must NOT stop device-token auto attendance.
+        void refreshNativeAttendanceSession();
         setProfile(null);
         setCompany(null);
         setPrivilegedMfaOk(false);
@@ -318,6 +331,9 @@ function PortalApp({ initialSession = null, onSignedOut }: PortalAppProps) {
   const handleLogout = () => {
     if (isGeoHold()) {
       setGeoHold(true);
+      applyBranding(loadBranding(false));
+      // Return to landing / login UI — GPS keeps running with no banner.
+      onSignedOut?.();
       return;
     }
     void supabase.auth.signOut();
@@ -396,20 +412,12 @@ function PortalApp({ initialSession = null, onSignedOut }: PortalAppProps) {
 
   let main: ReactNode;
   if (geoHold && session && profile) {
-    main = (
-      <>
-        <div className="geo-hold-banner" role="status">
-          <p>
-            You left the dashboard, but location is still checked every 5 minutes until your shift ends.
-            Keep this page open. Sign in again whenever you want to return.
-          </p>
-          <button type="button" className="btn btn-primary" onClick={() => void handleLoginSuccess(session)}>
-            Back to dashboard
-          </button>
-        </div>
-        {loginScreen}
-      </>
-    );
+    // No banner — GPS continues silently; show normal login (app) or empty while web exits to landing.
+    if (onSignedOut && !isAppShell()) {
+      main = <RouteFallback />;
+    } else {
+      main = loginScreen;
+    }
   } else if (!session || !profile) {
     if (onSignedOut && !isAppShell()) {
       main = <RouteFallback />;

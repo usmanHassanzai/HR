@@ -8,6 +8,11 @@ import { isDemoProfile } from '../utils/demoMode';
 import { usePlatformOwnerAccess } from '../utils/usePlatformOwnerAccess';
 import BrandLogo from './BrandLogo';
 import ThemeToggle from './ThemeToggle';
+import {
+  lockDashboardForGeo,
+  shouldContinueGpsAfterLogout,
+} from '../utils/attendanceBackgroundSession';
+import { pingAttendanceBeforeLogout } from '../utils/geoAttendance';
 
 interface HeaderProps {
   profile: Profile;
@@ -49,6 +54,14 @@ export default function Header({ profile, organizationName, onLogout, onNavigate
 
   const handleLogout = async () => {
     try {
+      if (await shouldContinueGpsAfterLogout(profile)) {
+        // Leave session + native GPS running; hide dashboard UI only.
+        lockDashboardForGeo();
+        onLogout();
+        return;
+      }
+      await pingAttendanceBeforeLogout();
+      // R32: dashboard logout must NOT stop device-token auto attendance.
       await supabase.auth.signOut();
       onLogout();
     } catch (err) {
