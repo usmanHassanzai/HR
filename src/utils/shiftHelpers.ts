@@ -22,6 +22,8 @@ export interface MyShift {
   days_of_week: number[];
   effective_from: string;
   crosses_midnight?: boolean;
+  /** IANA zone for this shift (e.g. America/Chicago). Display default may still be company TZ. */
+  timezone?: string;
 }
 
 export interface TeamShiftAssignment {
@@ -227,18 +229,23 @@ export function isTodayWorkDay(days: number[]): boolean {
   return days.includes(isoDowInAppTimezone());
 }
 
-/** Company local timezone used for shift windows (matches database app_timezone()). */
+/**
+ * Display/default company TZ only — NOT used for attendance window authority.
+ * Window decisions use server `attendance_window_for_user` / schedule UTC instants.
+ * Client helpers below accept an explicit IANA zone (shift.timezone).
+ */
 export const APP_TIMEZONE = 'Asia/Karachi';
+export const OFFICE_DISPLAY_TZ_FALLBACK = 'America/Chicago';
 
-function isoDowInAppTimezone(at = new Date()): number {
-  const weekday = new Intl.DateTimeFormat('en-US', { timeZone: APP_TIMEZONE, weekday: 'short' }).format(at);
+function isoDowInTimezone(timeZone: string, at = new Date()): number {
+  const weekday = new Intl.DateTimeFormat('en-US', { timeZone, weekday: 'short' }).format(at);
   const map: Record<string, number> = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
   return map[weekday] ?? 1;
 }
 
-function minutesInAppTimezone(at = new Date()): number {
+function minutesInTimezone(timeZone: string, at = new Date()): number {
   const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: APP_TIMEZONE,
+    timeZone,
     hour: '2-digit',
     minute: '2-digit',
     hourCycle: 'h23',
@@ -246,6 +253,35 @@ function minutesInAppTimezone(at = new Date()): number {
   const hour = Number(parts.find((p) => p.type === 'hour')?.value ?? 0);
   const minute = Number(parts.find((p) => p.type === 'minute')?.value ?? 0);
   return hour * 60 + minute;
+}
+
+function isoDowInAppTimezone(at = new Date()): number {
+  return isoDowInTimezone(APP_TIMEZONE, at);
+}
+
+function minutesInAppTimezone(at = new Date()): number {
+  return minutesInTimezone(APP_TIMEZONE, at);
+}
+
+/** Format an instant in device TZ with office TZ alongside (R27). */
+export function formatDualTimezone(
+  iso: string | Date | null | undefined,
+  deviceTz?: string,
+  officeTz = OFFICE_DISPLAY_TZ_FALLBACK,
+): string {
+  if (!iso) return '—';
+  const d = typeof iso === 'string' ? new Date(iso) : iso;
+  if (Number.isNaN(d.getTime())) return '—';
+  const localTz = deviceTz || Intl.DateTimeFormat().resolvedOptions().timeZone || APP_TIMEZONE;
+  const fmt = (tz: string) =>
+    new Intl.DateTimeFormat(undefined, {
+      timeZone: tz,
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZoneName: 'short',
+    }).format(d);
+  if (localTz === officeTz) return fmt(localTz);
+  return `${fmt(localTz)} (${fmt(officeTz)})`;
 }
 
 function clockToMinutes(clock: string): number {
@@ -260,14 +296,20 @@ function assignedShiftIsOvernight(shift: Pick<MyShift, 'start_time' | 'end_time'
   return clockToMinutes(shift.start_time) >= clockToMinutes(shift.end_time);
 }
 
+function shiftDisplayTimezone(shift: Pick<MyShift, 'timezone'> | null | undefined): string {
+  return shift?.timezone || OFFICE_DISPLAY_TZ_FALLBACK;
+}
+
 function inShiftSpan(
   shift: MyShift,
   at: Date,
   beforeMinutes: number,
   afterMinutes: number,
 ): boolean {
-  const local = minutesInAppTimezone(at);
-  const isoDow = isoDowInAppTimezone(at);
+  // UI-only approximation. Server attendance_window_for_user is authoritative (R21).
+  const tz = shiftDisplayTimezone(shift);
+  const local = minutesInTimezone(tz, at);
+  const isoDow = isoDowInTimezone(tz, at);
   const start = clockToMinutes(shift.start_time);
   const end = clockToMinutes(shift.end_time);
   const early = (start - Math.max(0, beforeMinutes) + 24 * 60) % (24 * 60);
@@ -299,8 +341,9 @@ export function isWithinShiftExitWindow(shift: MyShift, at = new Date()): boolea
 }
 
 export function hasAssignedShiftEnded(shift: MyShift, at = new Date()): boolean {
-  const local = minutesInAppTimezone(at);
-  const isoDow = isoDowInAppTimezone(at);
+  const tz = shiftDisplayTimezone(shift);
+  const local = minutesInTimezone(tz, at);
+  const isoDow = isoDowInTimezone(tz, at);
   const start = clockToMinutes(shift.start_time);
   const end = clockToMinutes(shift.end_time);
   const days = shift.days_of_week || [];
@@ -312,6 +355,24 @@ export function hasAssignedShiftEnded(shift: MyShift, at = new Date()): boolean 
   if (local > end && local < start) return true;
   if (local >= start || local <= end) return false;
   return true;
+}
+
+/** Milliseconds until this shift's end clock in shift TZ (UI only). 0 if already ended. */
+export function msUntilAssignedShiftEnd(shift: MyShift, at = new Date()): number {
+  if (hasAssignedShiftEnded(shift, at)) return 0;
+  const tz = shiftDisplayTimezone(shift);
+  const local = minutesInTimezone(tz, at);
+  const start = clockToMinutes(shift.start_time);
+  const end = clockToMinutes(shift.end_time);
+  let minutesLeft: number;
+  if (!assignedShiftIsOvernight(shift)) {
+    minutesLeft = end - local;
+  } else if (local >= start) {
+    minutesLeft = 24 * 60 - local + end;
+  } else {
+    minutesLeft = end - local;
+  }
+  return Math.max(0, minutesLeft) * 60_000;
 }
 
 export interface LocationWindow {

@@ -24,6 +24,7 @@ const HrDailyReportsWorkspace = lazy(() => import('./HrDailyReportsWorkspace'));
 const AdminDailyWorkReports = lazy(() => import('./AdminDailyWorkReports'));
 const Analytics = lazy(() => import('./Analytics'));
 const BrandingSettings = lazy(() => import('./BrandingSettings'));
+const AutoAttendanceSettings = lazy(() => import('./AutoAttendanceSettings'));
 const AccountSecurityPanel = lazy(() => import('./AccountSecurityPanel'));
 const BackupCodesLowBanner = lazy(() => import('./BackupCodesLowBanner'));
 const AdminRewards = lazy(() => import('./AdminRewards'));
@@ -538,6 +539,12 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
         />
       ) : activeTab === 'settings' ? (
         <div className="app-settings-stack">
+          <details className="app-settings-block" open>
+            <summary>Automatic attendance</summary>
+            <Suspense fallback={<Loader2 className="spin-icon" size={24} />}>
+              <AutoAttendanceSettings mode="admin" />
+            </Suspense>
+          </details>
           <details className="app-settings-block" open>
             <summary>Account security (2FA recovery)</summary>
             <AccountSecurityPanel fullName={profile.full_name} />

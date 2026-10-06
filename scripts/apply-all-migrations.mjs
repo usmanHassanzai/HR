@@ -210,6 +210,8 @@ const MIGRATIONS = [
   'attendance_geo_window.sql',
   'attendance_leave_window.sql',
   'attendance_rls_lockdown.sql',
+  'office_network_upsert.sql',
+  'attendance_auto_tests.sql',
 ];
 
 async function runMigration(filename) {

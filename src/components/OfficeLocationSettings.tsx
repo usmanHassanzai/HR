@@ -45,6 +45,10 @@ export default function OfficeLocationSettings() {
     longitude: '',
     radius_meters: '150',
     active: true,
+    wifi_ssids: '',
+    wifi_bssids: '',
+    public_ip_cidrs: '',
+    detection_mode: 'gps_or_wifi' as 'gps_only' | 'wifi_only' | 'gps_or_wifi',
   });
 
   const showMsg = useCallback((text: string) => {
@@ -71,7 +75,19 @@ export default function OfficeLocationSettings() {
   }, [load]);
 
   const resetForm = () => {
-    setForm({ id: null, name: '', address: '', latitude: '', longitude: '', radius_meters: '150', active: true });
+    setForm({
+      id: null,
+      name: '',
+      address: '',
+      latitude: '',
+      longitude: '',
+      radius_meters: '150',
+      active: true,
+      wifi_ssids: '',
+      wifi_bssids: '',
+      public_ip_cidrs: '',
+      detection_mode: 'gps_or_wifi',
+    });
   };
 
   const editOffice = (o: OfficeLocation) => {
@@ -83,6 +99,10 @@ export default function OfficeLocationSettings() {
       longitude: String(o.longitude),
       radius_meters: String(o.radius_meters),
       active: o.active,
+      wifi_ssids: (o.wifi_ssids || []).join(', '),
+      wifi_bssids: (o.wifi_bssids || []).join(', '),
+      public_ip_cidrs: (o.public_ip_cidrs || []).join(', '),
+      detection_mode: o.detection_mode || 'gps_or_wifi',
     });
     setActiveTab('create');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -116,6 +136,11 @@ export default function OfficeLocationSettings() {
     setMsg('');
     const savedName = form.name.trim();
     const wasNew = !form.id;
+    const splitList = (s: string) =>
+      s
+        .split(/[\n,]+/)
+        .map((x) => x.trim())
+        .filter(Boolean);
     const { error } = await supabase.rpc('upsert_office_location', {
       p_id: form.id || null,
       p_name: form.name.trim(),
@@ -124,6 +149,10 @@ export default function OfficeLocationSettings() {
       p_longitude: parseFloat(form.longitude),
       p_radius_meters: parseInt(form.radius_meters, 10) || 150,
       p_active: form.active,
+      p_wifi_ssids: splitList(form.wifi_ssids),
+      p_wifi_bssids: splitList(form.wifi_bssids),
+      p_public_ip_cidrs: splitList(form.public_ip_cidrs),
+      p_detection_mode: form.detection_mode,
     });
     setSaving(false);
     if (error) showMsg(error.message);
@@ -335,6 +364,50 @@ export default function OfficeLocationSettings() {
                   onChange={(e) => setForm({ ...form, longitude: e.target.value })}
                   placeholder="From live GPS"
                   required
+                />
+              </div>
+              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                <label htmlFor="office-detect">Detection mode</label>
+                <select
+                  id="office-detect"
+                  value={form.detection_mode}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      detection_mode: e.target.value as 'gps_only' | 'wifi_only' | 'gps_or_wifi',
+                    })
+                  }
+                >
+                  <option value="gps_or_wifi">GPS or Wi-Fi</option>
+                  <option value="gps_only">GPS only</option>
+                  <option value="wifi_only">Wi-Fi only</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label htmlFor="office-ssids">Office Wi-Fi name(s) / SSID</label>
+                <input
+                  id="office-ssids"
+                  value={form.wifi_ssids}
+                  onChange={(e) => setForm({ ...form, wifi_ssids: e.target.value })}
+                  placeholder="OfficeWiFi, Guest (comma-separated)"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="office-bssids">Router hardware ID(s) / BSSID</label>
+                <input
+                  id="office-bssids"
+                  value={form.wifi_bssids}
+                  onChange={(e) => setForm({ ...form, wifi_bssids: e.target.value })}
+                  placeholder="aa:bb:cc:dd:ee:ff"
+                />
+              </div>
+              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                <label htmlFor="office-ips">Office public IP(s) / CIDR (no private ranges)</label>
+                <input
+                  id="office-ips"
+                  value={form.public_ip_cidrs}
+                  onChange={(e) => setForm({ ...form, public_ip_cidrs: e.target.value })}
+                  placeholder="203.0.113.10 or 203.0.113.0/24"
                 />
               </div>
               <div className="form-group">

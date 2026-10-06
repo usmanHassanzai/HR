@@ -13,10 +13,14 @@ export interface OfficeLocation {
   radius_meters: number;
   active: boolean;
   is_demo?: boolean;
+  wifi_ssids?: string[];
+  wifi_bssids?: string[];
+  public_ip_cidrs?: string[];
+  detection_mode?: 'gps_only' | 'wifi_only' | 'gps_or_wifi';
 }
 
-/** Legacy interval constant — continuous GPS polling is disabled. */
-export const AUTO_LOCATION_CHECK_MS = 0;
+/** Foreground auto GPS interval while the dashboard is open (office / hybrid). */
+export const AUTO_LOCATION_CHECK_MS = 60_000;
 
 export const GEO_PING_EVENT = 'scorr-geo-ping';
 export const GEO_CLOCK_EVENT = 'scorr-geo-clock';
@@ -253,6 +257,35 @@ export async function submitGeoClockEvent(intent: GeoClockIntent): Promise<GeoPi
     longitude: pos.coords.longitude,
     accuracy: pos.coords.accuracy ?? null,
     auto: false,
+    checkedAt: Date.now(),
+  });
+  return result;
+}
+
+/**
+ * Periodic / watch GPS ping for auto geofence attendance.
+ * Server decides auto clock-in (enter office) or auto clock-out (leave office).
+ */
+export async function submitGeoAutoPing(): Promise<GeoPingResult> {
+  const pos = await requestCurrentPosition({
+    maximumAge: 60_000,
+    timeout: 15_000,
+    enableHighAccuracy: false,
+  });
+  const { data, error } = await supabase.rpc('process_geo_attendance_ping', {
+    p_latitude: pos.coords.latitude,
+    p_longitude: pos.coords.longitude,
+    p_accuracy: pos.coords.accuracy ?? null,
+    p_intent: 'auto',
+  });
+  if (error) throw error;
+  const result = data as GeoPingResult;
+  dispatchGeoPing({
+    result,
+    latitude: pos.coords.latitude,
+    longitude: pos.coords.longitude,
+    accuracy: pos.coords.accuracy ?? null,
+    auto: true,
     checkedAt: Date.now(),
   });
   return result;

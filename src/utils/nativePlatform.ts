@@ -9,6 +9,9 @@ type ScorrDesktopApi = {
   platform?: string;
   expandWorkspace?: () => void;
   shrinkToLogin?: () => void;
+  saveAttendanceToken?: (token: string) => Promise<boolean> | void;
+  clearAttendanceToken?: () => Promise<boolean> | void;
+  hasAttendanceToken?: () => Promise<boolean> | boolean;
 };
 
 declare global {
@@ -75,6 +78,15 @@ export function isIosApp(): boolean {
   return Capacitor.getPlatform() === 'ios';
 }
 
+/** True on iPhone/iPad browsers and Home Screen PWAs (not only Capacitor). */
+export function isIosUa(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  if (/iPad|iPhone|iPod/i.test(ua)) return true;
+  // iPadOS 13+ desktop UA
+  return navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1;
+}
+
 /** Initialize native shell (status bar, back button). Safe to call on web. */
 export async function initNativeApp(): Promise<void> {
   if (isAppShell()) {
@@ -82,6 +94,13 @@ export async function initNativeApp(): Promise<void> {
     document.body.classList.add('app-shell');
     document.getElementById('root')?.classList.add('native-app-root');
   }
+
+  // iOS (Capacitor or Safari / Home Screen) — used for safe-area CSS fallbacks.
+  if (isIosApp() || isIosUa()) {
+    document.documentElement.classList.add('ios-device');
+    document.body.classList.add('ios-device');
+  }
+
   if (!isNativeApp()) return;
 
   document.documentElement.classList.add('native-app');
@@ -93,8 +112,10 @@ export async function initNativeApp(): Promise<void> {
     await StatusBar.setOverlaysWebView({ overlay: false });
   }
   if (isIosApp()) {
-    await StatusBar.setStyle({ style: Style.Dark });
+    // Style.Light = light icons/text for dark app chrome.
+    await StatusBar.setStyle({ style: Style.Light });
     await StatusBar.setOverlaysWebView({ overlay: false });
+    await StatusBar.setBackgroundColor({ color: '#0b1120' });
   }
   } catch {
     // Status bar plugin may be unavailable in some WebView builds.
