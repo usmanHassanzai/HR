@@ -7,7 +7,23 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // Resume geofence auto-attendance after cold start (device-token, no dashboard login).
+        AttendanceAutoEngine.shared.resumeIfNeeded()
+        // R34: re-sync schedule after device time / timezone changes.
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.significantTimeChangeNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            AttendanceAutoEngine.shared.syncIfEnrolled()
+        }
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name.NSSystemTimeZoneDidChange,
+            object: nil,
+            queue: .main
+        ) { _ in
+            AttendanceAutoEngine.shared.syncIfEnrolled()
+        }
         return true
     }
 
@@ -26,7 +42,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func applicationDidBecomeActive(_ application: UIApplication) {
-        // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
+        AttendanceAutoEngine.shared.syncIfEnrolled()
     }
 
     func applicationWillTerminate(_ application: UIApplication) {

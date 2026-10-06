@@ -48,11 +48,11 @@
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Scorr uses your location for GPS attendance check-in and check-out at your assigned office site.</string>
+	<string>Scorr uses your location to check you in and out at your assigned office during your shift window (from 1 hour before start until 1 hour after end). Location is not used outside that window.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Scorr uses background location so attendance stays accurate during your shift — including overnight shifts and auto clock-out when the shift ends.</string>
+	<string>Scorr needs Always location so it can check you in when you arrive at the office and out when you leave — even if the app is closed. Monitoring uses office geofences only during your shift window (1 hour before start through 1 hour after end). Outside that window, location is not used. Office Wi-Fi may be read as a supporting signal when a geofence event wakes the app (requires the Access WiFi Information entitlement).</string>
 	<key>NSLocationAlwaysUsageDescription</key>
-	<string>Scorr uses background location so attendance stays accurate during your shift — including overnight shifts and auto clock-out when the shift ends.</string>
+	<string>Scorr needs Always location so it can check you in when you arrive at the office and out when you leave — even if the app is closed. Monitoring uses office geofences only during your shift window (1 hour before start through 1 hour after end). Outside that window, location is not used.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>
