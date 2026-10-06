@@ -631,7 +631,13 @@ export default function AttendanceLeavePanel({
       {todayRecord ? (
         <p style={{ marginBottom: '0.75rem' }}>
           Today: <strong>{ATTENDANCE_STATUS_LABEL[todayRecord.status]}</strong>
-          {todayRecord.attendance_source === 'geo' ? ' · Office GPS' : ''}
+          {todayRecord.attendance_source === 'geo' || todayRecord.attendance_source === 'auto_gps'
+            ? ' · Auto GPS'
+            : todayRecord.attendance_source === 'auto_wifi'
+              ? ' · Auto Wi-Fi'
+              : todayRecord.attendance_source === 'auto_laptop'
+                ? ' · Auto Laptop'
+                : ''}
           {todayRecord.notes ? ` · ${todayRecord.notes}` : ''}
         </p>
       ) : (

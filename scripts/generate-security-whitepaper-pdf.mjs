@@ -285,7 +285,7 @@ bullet('Least privilege — each role sees only what the role needs (Admin, HR, 
 bullet('Tenant isolation — company_id scopes data; Company A cannot query Company B.');
 bullet('Defense in depth — browser/app → HTTPS → Auth → role checks → Row Level Security → security-definer RPCs.');
 bullet('Verify identity — password + MFA (TOTP) for production accounts; backup codes and email recovery when devices are lost.');
-bullet('Minimize sensitive data — GPS is used for attendance check-in/out, not sold or shared across tenants.');
+bullet('Minimize sensitive data — location and Wi-Fi signals are used only inside the attendance window (shift −60 / +60 minutes) for automatic or manual office attendance; not sold or shared across tenants.');
 bullet('Audit & recovery — login attempt recording, admin authenticator reset, account deletion with owner safeguards.');
 footer();
 newPage();
@@ -436,7 +436,9 @@ newPage();
 title('10. Attendance & location data');
 
 h1('10.1 What is collected');
-bullet('GPS coordinates at clock-in and clock-out (and related attendance processing) for Office / Hybrid modes.');
+bullet('Automatic attendance (one-time device enrollment, non-expiring device token): phone GPS and/or office Wi-Fi (public IP + BSSID), or laptop on/off on the office network. Check-in/out only inside W = [shift start − 60 min, shift end + 60 min] in the shift’s IANA time zone (e.g. America/Chicago). Outside W nothing is recorded.');
+bullet('Server clock (UTC) is authoritative; device clock skew is corrected. Raw location pings outside W are rejected and pings older than 90 days are deleted.');
+bullet('Optional manual clock-in/out uses the same window rules. Leave days and supervisor remote/hybrid day status do not write clock times.');
 bullet('Shift times, present/absent marks, leave requests, and visit segments for multi-visit days.');
 bullet('Remote staff may be marked by supervisors without GPS.');
 
@@ -445,9 +447,11 @@ bullet('Location APIs require a secure context (HTTPS) — e.g. https://scorr.wa
 bullet('Attendance records are company-scoped; other tenants cannot read them.');
 bullet('Managers see team-relevant attendance; employees see their own history.');
 bullet('Scorr does not sell location data and does not expose it to other organizations.');
+bullet('Background GPS/Wi-Fi on mobile runs only during W (geofence + short foreground service), not 24/7 — not sold, not shared across companies, and not marketing tracking.');
 
 h1('10.3 Organizational recommendations');
-bullet('Publish an internal policy: when GPS is required and why.');
+bullet('Publish an internal policy: when GPS is required, that auto attendance runs after first sign-in, and why.');
+bullet('Ask staff to grant Always / background location on the phone app for Office GPS roles.');
 bullet('Assign Office GPS zones only to people who need them.');
 bullet('Use Remote/Hybrid work modes when GPS is not appropriate.');
 footer();
@@ -488,23 +492,25 @@ para('Scorr offers the same authenticated experience on Windows and Linux deskto
 h1('13.1 Shared security properties');
 bullet('Same Sign In, MFA (TOTP), backup codes, roles, and tenant isolation as the website.');
 bullet('Store/download CTAs are hidden inside an already-installed app shell.');
-bullet('Location permission is requested for attendance — grant “while using the app” for GPS modes.');
+bullet('Location permission is requested for Office GPS attendance — on phones, prefer Always / background so auto check-in/out works without opening the dashboard.');
+bullet('Manual Clock in / Clock out remain available; background GPS is attendance-only.');
 bullet('Session idle lock and privileged MFA gates apply on every client.');
 
 h1('13.2 Windows desktop (Scorr-Setup.exe)');
-bullet('Official installer from https://scorr.walfia.ai/#download-windows (GitHub Release asset Scorr-Setup.exe).');
+bullet('Official installer from https://scorr.walfia.ai/#download-windows (GitHub Release asset Scorr-Setup.exe, version 1.3.5+).');
 bullet('Installs permanently with Start Menu and Desktop shortcuts — not a portable unzip-only build.');
 bullet('Loads the live app shell (https://scorr.walfia.ai/?app=1) inside a locked-down Electron window (no marketing chrome).');
 bullet('If Windows SmartScreen warns, verify the download came from scorr.walfia.ai / the official GitHub Release before continuing.');
 bullet('Uninstall via Windows Settings → Apps when an employee leaves or a device is retired.');
 
 h1('13.3 Linux desktop (Scorr.deb)');
-bullet('Official package from https://scorr.walfia.ai/#download-linux (Scorr.deb).');
+bullet('Official package from https://scorr.walfia.ai/#download-linux (Scorr.deb, version 1.3.5+).');
 bullet('Install with: sudo apt install ./Scorr.deb — then open Scorr from the applications menu.');
 bullet('Same Electron shell and backend auth as Windows; keep packages updated from the official download page.');
 
 h1('13.4 Android & iOS');
 bullet('Android APK and iPhone Home Screen / native shell use the same Scorr backend and auth.');
+bullet('Android 1.3.5+ includes background attendance GPS after the first sign-in (foreground notification while location is checked).');
 bullet('Keep devices updated; install APKs only from https://scorr.walfia.ai/#download-app (official source).');
 
 warn('Do not install Scorr Setup.exe, .deb, or APKs from unknown websites. Official source: scorr.walfia.ai (and the linked GitHub Release).');
@@ -527,7 +533,7 @@ h2('Before go-live');
 bullet('Approve only real company admins; complete MFA enrollment for every production user.');
 bullet('Create departments; assign Managers and Employees with correct Reports to lines.');
 bullet('Set Work location (Office / Remote / Hybrid) per person.');
-bullet('Configure Office GPS only where needed; communicate the attendance policy.');
+bullet('Configure Office GPS only where needed; tell staff that auto attendance uses background location after first sign-in.');
 bullet('Train staff: never share passwords; store backup codes offline.');
 
 h2('Ongoing');

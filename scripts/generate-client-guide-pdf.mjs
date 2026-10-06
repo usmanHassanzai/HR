@@ -265,7 +265,7 @@ doc.setTextColor(203, 213, 225);
 [
   'Download & install · Register your organization · Sign up',
   'Admin, HR, Manager & Employee dashboards',
-  'Mark attendance · Assign tasks · Daily reports · Rewards',
+  'Auto GPS attendance · Assign tasks · Daily reports · Rewards',
 ].forEach((line, i) => doc.text(line, M, 96 + i * 7));
 
 doc.setFontSize(10);
@@ -317,7 +317,7 @@ para('Each registered company is private. Staff in one organization cannot see a
 h2('What you can do');
 bullet('Register your organization and invite Admin, HR, Managers, and Employees.');
 bullet('Assign KPI tasks with weightage (0–100% per person) and review completions.');
-bullet('Mark attendance with GPS, remote/hybrid modes, shifts, and leave.');
+bullet('Automatic attendance (phone GPS/Wi-Fi or laptop on/off) inside a fixed window: 1 hour before shift start through 1 hour after shift end, in the shift’s time zone. Manual clock in/out uses the same rules. Remote/hybrid day status and leave are separate.');
 bullet('Submit daily work reports (employees, managers, and HR report to admin).');
 bullet('Redeem company gifts with monthly weightage (Current / Used / Banked).');
 bullet('Track field teams live and export monthly/quarterly reports.');
@@ -333,12 +333,12 @@ para('Open the website on your phone or computer: https://scorr.walfia.ai. Scrol
 h1('2.1 Windows desktop');
 bullet('On the homepage, click Download for Windows (or open the Windows card under #download-app).');
 bullet('You get Scorr-Setup.exe — the permanent Windows installer (Start Menu + Desktop shortcuts).');
-bullet('Official release file: https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.4/Scorr-Setup.exe');
-bullet('Version is shown on the download card (e.g. 1.3.4). Same Sign In for Admin, HR, Manager, and Employee.');
+bullet('Official release file: https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.5/Scorr-Setup.exe');
+bullet('Version is shown on the download card (e.g. 1.3.5). Same Sign In for Admin, HR, Manager, and Employee.');
 
 h1('2.2 Linux desktop');
 bullet('Click Download for Linux to get Scorr.deb (Ubuntu / Debian style install).');
-bullet('Official release file: https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.4/Scorr.deb');
+bullet('Official release file: https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.5/Scorr.deb');
 bullet('After install, Scorr appears in your applications menu.');
 
 h1('2.3 Android');
@@ -371,7 +371,7 @@ step(2, 'Open the downloaded file Scorr-Setup.exe.');
 step(3, 'If Windows SmartScreen says “Windows protected your PC”, click More info → Run anyway (only when the file came from scorr.walfia.ai / the official GitHub Release).');
 step(4, 'Follow Next → choose install folder if asked → Install.');
 step(5, 'Finish the wizard; open Scorr from the Start Menu or Desktop shortcut.');
-step(6, 'Sign in with your company email and password → allow Location if you use GPS attendance.');
+step(6, 'Sign in with your company email and password → allow Location (Always / background) if you use GPS attendance.');
 bullet('To uninstall later: Windows Settings → Apps → Scorr → Uninstall (or use the uninstaller from the Start Menu).');
 bullet('Updating: download the latest Scorr-Setup.exe and run it again over the existing install.');
 
@@ -390,7 +390,7 @@ step(2, 'Open your phone’s Downloads folder (or the notification) and tap scor
 step(3, 'If Android asks “Install unknown apps?” or “Allow from this source?”, allow it for your browser or Files app.');
 step(4, 'Tap Install → Open.');
 step(5, 'Sign in with your company email and password.');
-step(6, 'When prompted, allow Location (while using the app) so GPS attendance can work.');
+step(6, 'When prompted, allow Location (Always / while using the app + background) so GPS attendance can auto check you in and out.');
 bullet('If install is blocked: Settings → Apps → Special access → Install unknown apps → enable for Chrome/Files.');
 bullet('If an older Scorr is installed, update by installing the new APK over it (same app ID).');
 
@@ -528,7 +528,7 @@ bullet('People, Assign Task, Daily Reports, Rewards, KPI & Rewards, Analytics, A
 bullet('Focus areas for HR day-to-day: Attendance, Daily Reports, People, Rewards, Shifts.');
 
 h1('8.2 Attendance (HR)');
-featureBlock('My day', 'Your own shift card, GPS clock in/out (or remote/hybrid), leave request to admin, and your leave history.');
+featureBlock('My day', 'Your own shift card, auto GPS attendance when you enter/leave the office (manual Clock in/out still available), leave request to admin, and your leave history.');
 featureBlock('Leave', 'Review pending leave from employees (admin still approves manager/HR leave).');
 featureBlock('Remote', 'Mark remote/hybrid staff Present or Absent.');
 featureBlock('History', 'Browse by department. HR staff appear under Human Resources (not “Unassigned”).');
@@ -555,13 +555,13 @@ h1('9.1 Menus');
 featureBlock('My KPIs', 'Your own assigned tasks and weightage scoreboard.');
 featureBlock('Assign Task', 'Create/assign KPIs to people in your department. Review team completions.');
 featureBlock('People', 'Team ranking; open a person for scoreboard details.');
-featureBlock('Attendance', 'Approvals (leave) · My day (your check-in) · Team · Shifts · History.');
+featureBlock('Attendance', 'Approvals (leave) · My day (auto + manual check-in) · Team · Shifts · History.');
 featureBlock('Rewards', 'Approve / Delivered / Reject team gift requests. Redeem your own gifts.');
 featureBlock('Daily report', 'Submit your daily work log for admin review.');
 featureBlock('Settings', 'Password, Account security, Delete my account.');
 
 h1('9.2 Typical daily flow');
-step(1, 'Open Attendance → My day → Clock in (GPS) when you arrive.');
+step(1, 'Open Attendance → My day. With Office GPS, Scorr auto checks you in when you enter the office during shift hours (you can also tap Clock in).');
 step(2, 'Work your My KPIs; Mark Complete when done.');
 step(3, 'Assign Task — give new work to the team with weightage and due dates.');
 step(4, 'Approvals — approve or reject employee leave.');
@@ -581,14 +581,14 @@ para('Eyebrow: Employee. You only see your own work, attendance, and rewards.');
 
 h1('10.1 Menus');
 featureBlock('My KPIs', 'Open and History. Scoreboard shows Left to use, Earned, Used, Banked. Open a task to start it, then Mark Complete.');
-featureBlock('Attendance', 'Mark attendance (GPS), Request leave, Attendance history. Download your month/year CSV.');
+featureBlock('Attendance', 'One-time Automatic attendance enrollment (no daily login): phone GPS or office Wi-Fi, or laptop on/off on the office network. Only active from 1 hour before your shift until 1 hour after. Manual Clock in/out, leave, and history still available.');
 featureBlock('Rewards', 'Redeem company gifts / catalog with weightage. Track Pending · Approved · Delivered · Rejected.');
 featureBlock('Daily report', 'What did you accomplish today? (20–8000 characters). Submit or Update.');
 featureBlock('Settings', 'Change password, backup codes, recovery email, Delete my account.');
 
 h1('10.2 Typical daily flow');
-step(1, 'Sign in on web or app → allow Location if you use Office GPS.');
-step(2, 'Attendance → Mark attendance → Clock in inside your office zone during your shift.');
+step(1, 'Sign in once on web or phone app → allow Location (Always / background on the phone) if you use Office GPS.');
+step(2, 'Attendance → Mark attendance / My day. During your shift, entering the office auto checks you in; you can also tap Clock in inside the zone.');
 step(3, 'My KPIs → open tasks, complete work, Mark Complete.');
 step(4, 'Daily report → write today’s summary → Submit.');
 step(5, 'Clock out when leaving. Request leave from Attendance when needed.');
@@ -610,21 +610,24 @@ tableRow('HR', 'Attendance → My day');
 tableRow('Admin', 'Does not self-clock like staff; reviews Leave, Remote, Shifts, History');
 spacer();
 
-h1('11.2 Office (GPS) — clock in / out');
+h1('11.2 Office (GPS) — auto + manual clock in / out');
 step(1, 'Admin assigns you an Office GPS zone and a shift.');
-step(2, 'On your phone, allow Location for Scorr.');
-step(3, 'Open Attendance (My day / Mark attendance) during your shift (check-in opens 1 hour before start).');
-step(4, 'Stand inside the geofence → Clock in. GPS is captured at that moment.');
-step(5, 'Work your day. You can leave and return (multi-visit) — each visit is recorded.');
-step(6, 'Clock out when done (allowed mid-shift if you need urgent leave). GPS is captured again.');
-bullet('If you forget to clock out, Scorr auto clock-out at shift end when Attendance/Live Tracking opens.');
+step(2, 'On your phone, allow Location for Scorr (prefer Always / background so attendance works without opening the dashboard).');
+step(3, 'Sign in once. After that you do not need to open the dashboard for auto attendance.');
+step(4, 'Enter the office during shift hours (check-in window opens 1 hour before start) → Scorr auto checks you in.');
+step(5, 'Leave the office → Scorr auto checks you out (GPS uses a small buffer so brief jumps do not flip status).');
+step(6, 'Manual Clock in / Clock out buttons remain available anytime you need them (including mid-shift leave).');
+bullet('Multi-visit days are supported — each enter/leave pair is saved; time away is not counted.');
+bullet('If you are still checked in when the shift ends and you have left the site, Scorr can auto close the visit.');
+bullet('On the phone app, GPS continues in the background after you leave the dashboard. On the web, keep the browser tab available if you rely on web GPS.');
+bullet('Logging out returns you to the normal Scorr landing page — the GPS status banner is not shown; attendance GPS still runs silently when enabled.');
 
 h1('11.3 Remote');
 bullet('You do not use GPS. Your supervisor (manager or admin) marks Present or Absent.');
 bullet('That record is saved in your attendance history.');
 
 h1('11.4 Hybrid');
-bullet('Office days: use GPS clock in/out.');
+bullet('Office days: auto GPS check-in/out (manual buttons still available).');
 bullet('Work-from-home days: mark Present / Absent on My day, or your supervisor marks you.');
 
 h1('11.5 Leave');
@@ -754,7 +757,8 @@ step(3, 'Manage offices — edit or deactivate zones.');
 
 h1('16.2 Live Tracking');
 bullet('Today’s board for GPS staff: At site / Away / Offline / No site.');
-bullet('Refreshes about every 2 minutes. Not continuous background spying — attendance events matter most.');
+bullet('Refreshes about every 2 minutes for the live board.');
+bullet('Attendance auto check-in/out uses periodic GPS on the phone app (about every 5 minutes in the background) and while the session is active — for attendance, not continuous surveillance.');
 bullet('Managers see their team scope; Admin/HR see the organization.');
 
 note('Location is stored as company attendance data — not sold, never shown to other companies.');
@@ -833,7 +837,7 @@ tableRow('Awaiting approval', 'Wait for Walfia to approve at /platform; email in
 tableRow('Stuck on MFA', 'Backup code, email recovery, or Admin → People → Reset authenticator.');
 tableRow('Wrong dashboard', 'Ask Admin to check your role on People.');
 tableRow('Cannot assign KPI', 'Department + person required; open weightage ≤ 100%.');
-tableRow('GPS check-in fails', 'Precise location on; assigned office; inside radius; within shift window.');
+tableRow('GPS check-in fails', 'Precise/Always location on; assigned office; inside radius; within shift window; reinstall latest app (1.3.5+) for background auto attendance.');
 tableRow('HR under wrong group', 'History shows Human Resources for HR; not Unassigned.');
 tableRow('Daily report not visible', 'Admin: Daily Reports → pick date. HR: Organization tab.');
 spacer();
