@@ -208,13 +208,21 @@ final class AttendanceEventClient {
             officeTime = formatInTz(occurredMs, AttendancePingStore.companyTz(app));
         }
 
-        StringBuilder text = new StringBuilder(checkIn ? "Auto check-in" : "Auto check-out");
-        if (localTime != null && officeTime != null && !localTime.equals(officeTime)) {
-            text.append(": ").append(localTime).append(" (local) / ").append(officeTime).append(" (office)");
-        } else if (localTime != null) {
-            text.append(" at ").append(localTime);
-        } else if (officeTime != null) {
-            text.append(" at ").append(officeTime).append(" (office)");
+        String notifyMsg = firstString(json, "notify_message");
+        StringBuilder text = new StringBuilder();
+        if (notifyMsg != null) {
+            text.append(notifyMsg);
+        } else if (!checkIn && localTime != null) {
+            text.append("Checked out at ").append(localTime).append(" — you left the office.");
+        } else {
+            text.append(checkIn ? "Auto check-in" : "Auto check-out");
+            if (localTime != null && officeTime != null && !localTime.equals(officeTime)) {
+                text.append(": ").append(localTime).append(" (local) / ").append(officeTime).append(" (office)");
+            } else if (localTime != null) {
+                text.append(" at ").append(localTime);
+            } else if (officeTime != null) {
+                text.append(" at ").append(officeTime).append(" (office)");
+            }
         }
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(app, NOTIFY_CHANNEL)

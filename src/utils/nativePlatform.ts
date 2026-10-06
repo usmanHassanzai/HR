@@ -15,6 +15,8 @@ type ScorrDesktopApi = {
   saveLoginCredentials?: (email: string, password: string) => Promise<boolean> | boolean;
   loadLoginCredentials?: () => Promise<{ email: string; password: string } | null> | { email: string; password: string } | null;
   clearLoginCredentials?: () => Promise<boolean> | boolean;
+  setAutoLaunch?: (enabled: boolean) => Promise<{ ok?: boolean; enabled?: boolean }> | { ok?: boolean; enabled?: boolean };
+  getAutoLaunch?: () => Promise<{ enabled?: boolean }> | { enabled?: boolean };
 };
 
 declare global {

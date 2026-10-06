@@ -25,6 +25,12 @@ public class AttendancePingPlugin: CAPPlugin, CAPBridgedPlugin {
         .init(name: "saveLoginCredentials", returnType: CAPPluginReturnPromise),
         .init(name: "loadLoginCredentials", returnType: CAPPluginReturnPromise),
         .init(name: "clearLoginCredentials", returnType: CAPPluginReturnPromise),
+        .init(name: "openAppSettings", returnType: CAPPluginReturnPromise),
+        .init(name: "openBatterySettings", returnType: CAPPluginReturnPromise),
+        .init(name: "openNotificationSettings", returnType: CAPPluginReturnPromise),
+        .init(name: "getPermissionSnapshot", returnType: CAPPluginReturnPromise),
+        .init(name: "requestNotifications", returnType: CAPPluginReturnPromise),
+        .init(name: "probeNetwork", returnType: CAPPluginReturnPromise),
         // Legacy aliases — map to the auto-attendance API
         .init(name: "start", returnType: CAPPluginReturnPromise),
         .init(name: "stop", returnType: CAPPluginReturnPromise),
@@ -88,6 +94,75 @@ public class AttendancePingPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func clearLoginCredentials(_ call: CAPPluginCall) {
         AttendanceKeychain.clearLoginCredentials()
         call.resolve(["ok": true])
+    }
+
+    @objc func openAppSettings(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            if let url = URL(string: UIApplication.openSettingsURLString) {
+                UIApplication.shared.open(url, options: [:], completionHandler: nil)
+            }
+            call.resolve(["ok": true])
+        }
+    }
+
+    @objc func openBatterySettings(_ call: CAPPluginCall) {
+        openAppSettings(call)
+    }
+
+    @objc func openNotificationSettings(_ call: CAPPluginCall) {
+        openAppSettings(call)
+    }
+
+    @objc func getPermissionSnapshot(_ call: CAPPluginCall) {
+        let status = CLLocationManager().authorizationStatus
+        let loc: String
+        let bg: String
+        switch status {
+        case .authorizedAlways:
+            loc = "granted"; bg = "granted"
+        case .authorizedWhenInUse:
+            loc = "granted"; bg = "denied"
+        case .denied, .restricted:
+            loc = "denied"; bg = "denied"
+        default:
+            loc = "prompt"; bg = "prompt"
+        }
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            var notif = "prompt"
+            switch settings.authorizationStatus {
+            case .authorized, .provisional, .ephemeral: notif = "granted"
+            case .denied: notif = "denied"
+            default: notif = "prompt"
+            }
+            call.resolve([
+                "location": loc,
+                "backgroundLocation": bg,
+                "precise": true,
+                "locationServicesEnabled": CLLocationManager.locationServicesEnabled(),
+                "notifications": notif,
+                "batteryUnrestricted": true,
+                "manufacturer": "Apple",
+            ])
+        }
+    }
+
+    @objc func requestNotifications(_ call: CAPPluginCall) {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+            call.resolve(["status": granted ? "granted" : "denied"])
+        }
+    }
+
+    @objc func probeNetwork(_ call: CAPPluginCall) {
+        if #available(iOS 14.0, *) {
+            NEHotspotNetwork.fetchCurrent { network in
+                call.resolve([
+                    "ssid": network?.ssid ?? "",
+                    "bssid": network?.bssid ?? "",
+                ])
+            }
+        } else {
+            call.resolve(["ssid": "", "bssid": ""])
+        }
     }
 
     @objc func syncSchedule(_ call: CAPPluginCall) {

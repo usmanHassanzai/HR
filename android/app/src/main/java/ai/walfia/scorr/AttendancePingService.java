@@ -134,24 +134,70 @@ public class AttendancePingService extends Service {
     }
 
     private void requestLocationPing() {
+        requestFreshLocation(this::onLocation, null);
+    }
+
+    /**
+     * R69: after office Wi-Fi disconnect, try a fresh GPS fix (≤30s) then send
+     * wifi_disconnected with coordinates so the server can immediate-checkout,
+     * stay-in (GPS inside), or start the 15-minute grace (GPS unavailable).
+     */
+    private void requestGpsThenWifiDisconnect(String ssid, String bssid) {
+        final boolean[] done = { false };
+        Runnable fallback = () -> {
+            if (done[0]) return;
+            done[0] = true;
+            AttendanceEventClient.sendWifiEvent(this, "wifi_disconnected", ssid, bssid);
+        };
+        handler.postDelayed(fallback, 30_000L);
+        requestFreshLocation(loc -> {
+            if (done[0]) return;
+            done[0] = true;
+            handler.removeCallbacks(fallback);
+            if (loc != null && !AttendanceEventClient.isMockLocation(loc)) {
+                String zoneId = nearestZoneId(loc);
+                Double lat = loc.getLatitude();
+                Double lng = loc.getLongitude();
+                Float acc = loc.hasAccuracy() ? loc.getAccuracy() : null;
+                AttendanceEventClient.send(
+                    this, "wifi_disconnected", zoneId, lat, lng, acc, ssid, bssid
+                );
+            } else {
+                AttendanceEventClient.sendWifiEvent(this, "wifi_disconnected", ssid, bssid);
+            }
+        }, fallback);
+    }
+
+    private void requestFreshLocation(
+        java.util.function.Consumer<Location> onResult,
+        @Nullable Runnable onDenied
+    ) {
         if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED
             && ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
+            if (onDenied != null) onDenied.run();
+            else onResult.accept(null);
             return;
         }
         LocationManager lm = (LocationManager) getSystemService(LOCATION_SERVICE);
-        if (lm == null) return;
+        if (lm == null) {
+            if (onDenied != null) onDenied.run();
+            else onResult.accept(null);
+            return;
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             String provider = lm.isProviderEnabled(LocationManager.GPS_PROVIDER)
                 ? LocationManager.GPS_PROVIDER
                 : LocationManager.NETWORK_PROVIDER;
-            lm.getCurrentLocation(provider, new CancellationSignal(), getMainExecutor(), this::onLocation);
+            CancellationSignal cancel = new CancellationSignal();
+            handler.postDelayed(cancel::cancel, 28_000L);
+            lm.getCurrentLocation(provider, cancel, getMainExecutor(), onResult::accept);
             return;
         }
         Location loc = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER);
         if (loc == null) loc = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-        onLocation(loc);
+        onResult.accept(loc);
     }
 
     private void onLocation(Location loc) {
@@ -260,7 +306,9 @@ public class AttendancePingService extends Service {
         } else if ((!connected || !matchesOffice) && was) {
             AttendancePingStore.setLastWifi(this, ssid, bssid, false);
             wifiWasOnOfficeNet = false;
-            AttendanceEventClient.sendWifiEvent(this, "wifi_disconnected", ssid, bssid);
+            // R69: on office Wi-Fi loss, get a fresh GPS fix within 30s and decide immediately.
+            // Do not attach last office SSID — that + a non-office IP trips fake-hotspot.
+            requestGpsThenWifiDisconnect(null, null);
         } else if (connected) {
             AttendancePingStore.setLastWifi(this, ssid, bssid, matchesOffice);
             wifiWasOnOfficeNet = matchesOffice;

@@ -166,4 +166,132 @@ public class AttendancePingPlugin extends Plugin {
         result.put("bssid", bssid != null ? bssid : "");
         call.resolve(result);
     }
+
+    @PluginMethod
+    public void openAppSettings(PluginCall call) {
+        try {
+            Context ctx = getContext();
+            android.content.Intent intent = new android.content.Intent(
+                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+            );
+            intent.setData(android.net.Uri.fromParts("package", ctx.getPackageName(), null));
+            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+            ctx.startActivity(intent);
+            call.resolve();
+        } catch (Exception e) {
+            call.reject(e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void openBatterySettings(PluginCall call) {
+        try {
+            Context ctx = getContext();
+            android.content.Intent intent;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                intent = new android.content.Intent(
+                    android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+                );
+                intent.setData(android.net.Uri.parse("package:" + ctx.getPackageName()));
+            } else {
+                intent = new android.content.Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+            }
+            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+            ctx.startActivity(intent);
+            call.resolve();
+        } catch (Exception e) {
+            try {
+                android.content.Intent fallback = new android.content.Intent(
+                    android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS
+                );
+                fallback.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+                getContext().startActivity(fallback);
+                call.resolve();
+            } catch (Exception e2) {
+                call.reject(e2.getMessage());
+            }
+        }
+    }
+
+    @PluginMethod
+    public void openNotificationSettings(PluginCall call) {
+        try {
+            Context ctx = getContext();
+            android.content.Intent intent = new android.content.Intent();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                intent.setAction(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS);
+                intent.putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, ctx.getPackageName());
+            } else {
+                intent.setAction(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                intent.setData(android.net.Uri.fromParts("package", ctx.getPackageName(), null));
+            }
+            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+            ctx.startActivity(intent);
+            JSObject result = new JSObject();
+            result.put("opened", true);
+            call.resolve(result);
+        } catch (Exception e) {
+            call.reject(e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void requestNotifications(PluginCall call) {
+        if (Build.VERSION.SDK_INT >= 33) {
+            bridge.getActivity().requestPermissions(
+                new String[]{ android.Manifest.permission.POST_NOTIFICATIONS },
+                9911
+            );
+        }
+        JSObject result = new JSObject();
+        result.put("status", "prompt");
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void getPermissionSnapshot(PluginCall call) {
+        Context ctx = getContext();
+        JSObject result = new JSObject();
+        boolean fine = androidx.core.content.ContextCompat.checkSelfPermission(
+            ctx, android.Manifest.permission.ACCESS_FINE_LOCATION
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED;
+        boolean coarse = androidx.core.content.ContextCompat.checkSelfPermission(
+            ctx, android.Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED;
+        boolean bg = true;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            bg = androidx.core.content.ContextCompat.checkSelfPermission(
+                ctx, android.Manifest.permission.ACCESS_BACKGROUND_LOCATION
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED;
+        }
+        boolean notif = true;
+        if (Build.VERSION.SDK_INT >= 33) {
+            notif = androidx.core.content.ContextCompat.checkSelfPermission(
+                ctx, android.Manifest.permission.POST_NOTIFICATIONS
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED;
+        }
+        Boolean batteryUnrestricted = null;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            android.os.PowerManager pm = (android.os.PowerManager) ctx.getSystemService(Context.POWER_SERVICE);
+            if (pm != null) {
+                batteryUnrestricted = pm.isIgnoringBatteryOptimizations(ctx.getPackageName());
+            }
+        }
+        android.location.LocationManager lm =
+            (android.location.LocationManager) ctx.getSystemService(Context.LOCATION_SERVICE);
+        boolean servicesOn = lm != null && (
+            lm.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)
+            || lm.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER)
+        );
+
+        result.put("location", fine || coarse ? "granted" : "denied");
+        result.put("coarseLocation", coarse ? "granted" : "denied");
+        result.put("backgroundLocation", bg ? "granted" : "denied");
+        result.put("precise", fine);
+        result.put("locationServicesEnabled", servicesOn);
+        result.put("notifications", notif ? "granted" : "denied");
+        if (batteryUnrestricted != null) result.put("batteryUnrestricted", batteryUnrestricted);
+        result.put("manufacturer", Build.MANUFACTURER != null ? Build.MANUFACTURER : "");
+        call.resolve(result);
+    }
 }

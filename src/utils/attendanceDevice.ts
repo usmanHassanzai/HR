@@ -89,51 +89,9 @@ export async function registerAttendanceDevice(appVersion?: string): Promise<{
   device_token?: string;
   error?: string;
 }> {
-  const platform = detectPlatform();
-  if (platform === 'web') {
-    return { ok: false, error: 'Automatic attendance needs the Android, iPhone or desktop app.' };
-  }
-
-  const { data: sessionData } = await supabase.auth.getSession();
-  const jwt = sessionData.session?.access_token;
-  if (!jwt || !supabaseUrl || !supabaseAnonKey) {
-    return { ok: false, error: 'Sign in once to enable automatic attendance.' };
-  }
-
-  const deviceId = await ensureDeviceId();
-  const deviceTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-  const res = await fetch(`${supabaseUrl}/functions/v1/register-attendance-device`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${jwt}`,
-      apikey: supabaseAnonKey,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      device_id: deviceId,
-      platform,
-      device_timezone: deviceTimezone,
-      app_version: appVersion || null,
-    }),
-  });
-
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok || !json?.device_token) {
-    return { ok: false, error: json?.error || 'Registration failed' };
-  }
-
-  await secureSet(TOKEN_KEY, json.device_token);
-
-  // Electron: also persist via safeStorage if preload exposes it
-  try {
-    (window as unknown as { scorrDesktop?: { saveAttendanceToken?: (t: string) => void } })
-      .scorrDesktop?.saveAttendanceToken?.(json.device_token);
-  } catch {
-    /* ignore */
-  }
-
-  return { ok: true, device_token: json.device_token };
+  // Prefer direct RPC (JWT) — edge function historically hit BOOT_ERROR and hung clients with no timeout.
+  const { registerDeviceViaRpc } = await import('./autoAttendanceSetup');
+  return registerDeviceViaRpc(appVersion || '1.3.7');
 }
 
 export async function disableAutoAttendanceOnDevice(kind: 'phone' | 'laptop' = 'phone'): Promise<void> {

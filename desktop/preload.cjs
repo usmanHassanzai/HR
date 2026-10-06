@@ -11,4 +11,6 @@ contextBridge.exposeInMainWorld('scorrDesktop', {
   saveLoginCredentials: (email, password) => ipcRenderer.invoke('scorr:saveLoginCredentials', email, password),
   loadLoginCredentials: () => ipcRenderer.invoke('scorr:loadLoginCredentials'),
   clearLoginCredentials: () => ipcRenderer.invoke('scorr:clearLoginCredentials'),
+  setAutoLaunch: (enabled) => ipcRenderer.invoke('scorr:setAutoLaunch', Boolean(enabled)),
+  getAutoLaunch: () => ipcRenderer.invoke('scorr:getAutoLaunch'),
 });

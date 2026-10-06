@@ -1,27 +1,41 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Loader2, Smartphone, Laptop, MapPin, ShieldAlert } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  AlertTriangle,
+  Bell,
+  Laptop,
+  Loader2,
+  MapPin,
+  Smartphone,
+  Users,
+} from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import TimeZonePicker from './TimeZonePicker';
+import AutoAttendanceSetupWizard from './AutoAttendanceSetupWizard';
 import {
-  PHONE_OPT_IN_TEXT,
-  LAPTOP_OPT_IN_TEXT,
-  registerAttendanceDevice,
-  disableAutoAttendanceOnDevice,
-  getAttendanceDeviceToken,
-  isAutoAttendanceClient,
-} from '../utils/attendanceDevice';
-import { isNativeApp, isDesktopApp } from '../utils/nativePlatform';
+  androidInstallHref,
+  DESKTOP_LINUX_DEB_PATH,
+  DESKTOP_WIN_PATH,
+  iosInstallHref,
+} from '../utils/appStoreLinks';
+import { getAttendanceDeviceToken, isAutoAttendanceClient } from '../utils/attendanceDevice';
+import { isDesktopApp } from '../utils/nativePlatform';
+import '../styles/auto-attendance-setup.css';
 
 type DeviceRow = {
   id: string;
   user_id: string;
+  full_name: string | null;
+  email: string;
+  role: string;
   platform: string;
-  device_timezone: string | null;
+  device_id: string | null;
   app_version: string | null;
+  device_timezone: string | null;
   last_seen_at: string | null;
   last_clock_skew_ms: number | null;
   revoked_at: string | null;
   presence_state: string | null;
+  last_matched_method: string | null;
 };
 
 type Unenrolled = {
@@ -55,6 +69,22 @@ const FLAG_REASONS = new Set([
   'event_too_old',
 ]);
 
+const QR_URL =
+  'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' +
+  encodeURIComponent('https://scorr.walfia.ai/#download-app');
+
+function deviceStatus(d: DeviceRow): { label: string; kind: 'ok' | 'warn' | 'bad' | 'muted' } {
+  if (d.revoked_at) return { label: 'Revoked', kind: 'muted' };
+  if (d.last_clock_skew_ms != null && Math.abs(d.last_clock_skew_ms) > 10 * 60 * 1000) {
+    return { label: 'Clock wrong', kind: 'bad' };
+  }
+  if (!d.last_seen_at) return { label: 'Permission missing', kind: 'warn' };
+  const age = Date.now() - new Date(d.last_seen_at).getTime();
+  if (age > 24 * 60 * 60 * 1000) return { label: 'Offline', kind: 'warn' };
+  if (d.presence_state === 'present') return { label: 'Active', kind: 'ok' };
+  return { label: 'Active', kind: 'ok' };
+}
+
 export default function AutoAttendanceSettings({ mode = 'admin' }: { mode?: 'admin' | 'self' }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -66,8 +96,12 @@ export default function AutoAttendanceSettings({ mode = 'admin' }: { mode?: 'adm
   const [unenrolled, setUnenrolled] = useState<Unenrolled[]>([]);
   const [flagged, setFlagged] = useState<FlaggedEvent[]>([]);
   const [hasToken, setHasToken] = useState(false);
-  const [enrolling, setEnrolling] = useState(false);
-  const [showDisclosure, setShowDisclosure] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
+  const [flagDate, setFlagDate] = useState('');
+  const [flagReason, setFlagReason] = useState('');
+  const [reminding, setReminding] = useState<string | null>(null);
+
+  const webBrowser = !isAutoAttendanceClient();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -85,8 +119,13 @@ export default function AutoAttendanceSettings({ mode = 'admin' }: { mode?: 'adm
           setTimezone(co.timezone || '');
         }
       }
-      const { data: devs } = await supabase.rpc('list_company_attendance_devices');
-      setDevices((devs || []) as DeviceRow[]);
+      const { data: detailed } = await supabase.rpc('list_company_attendance_devices_detailed');
+      if (detailed) {
+        setDevices(detailed as DeviceRow[]);
+      } else {
+        const { data: devs } = await supabase.rpc('list_company_attendance_devices');
+        setDevices((devs || []) as DeviceRow[]);
+      }
       const { data: missing } = await supabase.rpc('list_unenrolled_auto_attendance_users');
       setUnenrolled((missing || []) as Unenrolled[]);
       const { data: events } = await supabase
@@ -94,7 +133,7 @@ export default function AutoAttendanceSettings({ mode = 'admin' }: { mode?: 'adm
         .select('id, created_at, event, reason_code, matched_method, client_ip, user_id, clock_flagged')
         .or('accepted.eq.false,clock_flagged.eq.true')
         .order('created_at', { ascending: false })
-        .limit(80);
+        .limit(120);
       setFlagged(
         ((events || []) as FlaggedEvent[]).filter(
           (e) =>
@@ -115,6 +154,21 @@ export default function AutoAttendanceSettings({ mode = 'admin' }: { mode?: 'adm
         setPhoneOn(Boolean(me.auto_phone_attendance));
         setLaptopOn(Boolean(me.auto_laptop_attendance));
       }
+      const { data: myDevs } = await supabase
+        .from('attendance_devices')
+        .select(
+          'id, user_id, platform, device_id, app_version, device_timezone, last_seen_at, last_clock_skew_ms, revoked_at, presence_state, last_matched_method',
+        )
+        .is('revoked_at', null)
+        .order('last_seen_at', { ascending: false });
+      setDevices(
+        ((myDevs || []) as DeviceRow[]).map((d) => ({
+          ...d,
+          full_name: null,
+          email: '',
+          role: '',
+        })),
+      );
     }
     setHasToken(Boolean(await getAttendanceDeviceToken()));
     setLoading(false);
@@ -123,6 +177,36 @@ export default function AutoAttendanceSettings({ mode = 'admin' }: { mode?: 'adm
   useEffect(() => {
     void load();
   }, [load]);
+
+  const tiles = useMemo(() => {
+    const enrolled = devices.filter((d) => !d.revoked_at);
+    const activeNow = enrolled.filter((d) => d.presence_state === 'present').length;
+    const flaggedToday = flagged.filter((e) => {
+      const d = new Date(e.created_at);
+      const now = new Date();
+      return d.toDateString() === now.toDateString();
+    }).length;
+    return {
+      enrolled: enrolled.length,
+      notEnrolled: unenrolled.length,
+      activeNow,
+      flaggedToday,
+    };
+  }, [devices, flagged, unenrolled.length]);
+
+  const filteredFlagged = useMemo(() => {
+    return flagged.filter((e) => {
+      if (flagDate) {
+        const day = e.created_at.slice(0, 10);
+        if (day !== flagDate) return false;
+      }
+      if (flagReason) {
+        const r = e.reason_code || (e.clock_flagged ? 'device_clock_wrong' : e.event);
+        if (!r.includes(flagReason)) return false;
+      }
+      return true;
+    });
+  }, [flagDate, flagReason, flagged]);
 
   const saveCompany = async () => {
     setSaving(true);
@@ -137,37 +221,6 @@ export default function AutoAttendanceSettings({ mode = 'admin' }: { mode?: 'adm
     void load();
   };
 
-  const enroll = async () => {
-    if (!isAutoAttendanceClient()) {
-      setMsg('Automatic attendance needs the Android app or the desktop app.');
-      return;
-    }
-    if (isNativeApp() && !showDisclosure) {
-      setShowDisclosure(true);
-      return;
-    }
-    setEnrolling(true);
-    const res = await registerAttendanceDevice();
-    setEnrolling(false);
-    setShowDisclosure(false);
-    if (!res.ok) {
-      setMsg(res.error || 'Enrollment failed');
-      return;
-    }
-    setHasToken(true);
-    setMsg('Automatic attendance enabled on this device.');
-    void load();
-  };
-
-  const turnOff = async () => {
-    setEnrolling(true);
-    await disableAutoAttendanceOnDevice(isDesktopApp() ? 'laptop' : 'phone');
-    setEnrolling(false);
-    setHasToken(false);
-    setMsg('Automatic attendance turned off on this device.');
-    void load();
-  };
-
   const revoke = async (id: string) => {
     if (!confirm('Revoke this device? It will stop automatic attendance until re-enrolled.')) return;
     const { error } = await supabase.rpc('revoke_attendance_device', { p_device_row_id: id });
@@ -175,181 +228,379 @@ export default function AutoAttendanceSettings({ mode = 'admin' }: { mode?: 'adm
     void load();
   };
 
+  const remind = async (userId: string) => {
+    setReminding(userId);
+    const { error } = await supabase.rpc('send_auto_attendance_setup_reminder', { p_user_id: userId });
+    setReminding(null);
+    setMsg(error ? error.message : 'Reminder sent.');
+  };
+
+  const remindAll = async () => {
+    setReminding('all');
+    for (const u of unenrolled) {
+      await supabase.rpc('send_auto_attendance_setup_reminder', { p_user_id: u.user_id });
+    }
+    setReminding(null);
+    setMsg(`Reminders sent to ${unenrolled.length} people.`);
+  };
+
   if (loading) {
     return (
       <div className="rewards-loading">
         <Loader2 className="spin-icon" size={28} />
+        <span>Loading automatic attendance…</span>
       </div>
     );
   }
 
+  if (showWizard && isAutoAttendanceClient()) {
+    return (
+      <AutoAttendanceSetupWizard
+        onClose={() => {
+          setShowWizard(false);
+          void load();
+        }}
+        onFinished={() => {
+          setHasToken(true);
+          void load();
+        }}
+      />
+    );
+  }
+
   return (
-    <div className="glass-panel" style={{ padding: '1.25rem', display: 'grid', gap: '1rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-        <MapPin size={18} style={{ color: 'var(--accent-primary)' }} />
-        <h3 style={{ margin: 0 }}>Automatic attendance</h3>
+    <div className="aas-root">
+      <div className="glass-panel" style={{ padding: '1.25rem', display: 'grid', gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <MapPin size={18} style={{ color: 'var(--accent-primary)' }} />
+          <h3 style={{ margin: 0 }}>Automatic attendance</h3>
+        </div>
+        <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+          Window rules are fixed: 1 hour before shift start through 1 hour after shift end (shift time zone).
+        </p>
+
+        {mode === 'admin' && (
+          <>
+            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <input type="checkbox" checked={phoneOn} onChange={(e) => setPhoneOn(e.target.checked)} />
+              <Smartphone size={16} /> Automatic phone attendance
+            </label>
+            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <input type="checkbox" checked={laptopOn} onChange={(e) => setLaptopOn(e.target.checked)} />
+              <Laptop size={16} /> Laptop attendance (on = present, off = absent)
+            </label>
+            <div className="form-group">
+              <label>Company time zone (reports / defaults)</label>
+              <TimeZonePicker value={timezone} onChange={setTimezone} />
+            </div>
+            <button type="button" className="btn btn-primary" disabled={saving} onClick={() => void saveCompany()}>
+              {saving ? 'Saving…' : 'Save company settings'}
+            </button>
+          </>
+        )}
+
+        {/* Self / this-device */}
+        <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
+          <h4 style={{ marginTop: 0 }}>This device</h4>
+          {webBrowser ? (
+            <div className="aas-web-card">
+              <h4 style={{ margin: 0 }}>Set up automatic attendance on your phone or laptop</h4>
+              <div className="aas-web-card__grid">
+                <div style={{ display: 'grid', gap: '0.75rem' }}>
+                  <div className="aas-web-card__downloads">
+                    <a className="btn btn-primary" href={androidInstallHref()} download="scorr.apk">
+                      Android APK
+                    </a>
+                    <a className="btn btn-secondary" href={DESKTOP_WIN_PATH}>
+                      Windows
+                    </a>
+                    <a className="btn btn-secondary" href={DESKTOP_LINUX_DEB_PATH}>
+                      Linux
+                    </a>
+                    <a className="btn btn-secondary" href={iosInstallHref()}>
+                      iPhone
+                    </a>
+                  </div>
+                  <ol className="aas-web-card__steps">
+                    <li>Install the Scorr app for your phone or laptop</li>
+                    <li>Sign in with your work account</li>
+                    <li>Open Automatic attendance and follow the setup steps</li>
+                  </ol>
+                </div>
+                <img className="aas-web-card__qr" src={QR_URL} alt="QR code to download Scorr" width={132} height={132} />
+              </div>
+              {devices.length > 0 && (
+                <>
+                  <h4 style={{ margin: '0.5rem 0 0' }}>Your enrolled devices</h4>
+                  <ul className="aas-web-devices">
+                    {devices.map((d) => {
+                      const st = deviceStatus(d);
+                      return (
+                        <li key={d.id}>
+                          <strong>{d.platform}</strong> · v{d.app_version || '?'} ·{' '}
+                          <span className={`aas-badge aas-badge--${st.kind}`}>{st.label}</span>
+                          {d.last_seen_at ? ` · last seen ${new Date(d.last_seen_at).toLocaleString()}` : ''}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </>
+              )}
+            </div>
+          ) : hasToken ? (
+            <AutoAttendanceSetupWizard onFinished={() => void load()} />
+          ) : (
+            <>
+              <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>
+                {isDesktopApp()
+                  ? 'Follow a short setup to register this laptop for automatic attendance.'
+                  : 'Follow a short setup for location, notifications, and device registration.'}
+              </p>
+              <button type="button" className="btn btn-primary" onClick={() => setShowWizard(true)}>
+                Set up automatic attendance
+              </button>
+            </>
+          )}
+        </div>
+
+        {msg && <p style={{ margin: 0, fontSize: '0.88rem' }}>{msg}</p>}
       </div>
-      <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-        Window rules are fixed: 1 hour before shift start through 1 hour after shift end (shift time zone). They are not
-        configurable.
-      </p>
 
       {mode === 'admin' && (
-        <>
-          <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <input type="checkbox" checked={phoneOn} onChange={(e) => setPhoneOn(e.target.checked)} />
-            <Smartphone size={16} /> Automatic phone attendance
-          </label>
-          <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <input type="checkbox" checked={laptopOn} onChange={(e) => setLaptopOn(e.target.checked)} />
-            <Laptop size={16} /> Laptop attendance (on = present, off = absent)
-          </label>
-          <div className="form-group">
-            <label>Company time zone (reports / defaults)</label>
-            <TimeZonePicker value={timezone} onChange={setTimezone} />
-          </div>
-          <button type="button" className="btn btn-primary" disabled={saving} onClick={() => void saveCompany()}>
-            {saving ? 'Saving…' : 'Save company settings'}
-          </button>
-        </>
-      )}
-
-      <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
-        <h4 style={{ marginTop: 0 }}>This device</h4>
-        {!isAutoAttendanceClient() && (
-          <p style={{ color: 'var(--color-warning)' }}>
-            Automatic attendance needs the Android app or the desktop app.
-          </p>
-        )}
-        <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>
-          {isDesktopApp() ? LAPTOP_OPT_IN_TEXT : PHONE_OPT_IN_TEXT}
-        </p>
-        {showDisclosure && isNativeApp() && (
-          <div
-            style={{
-              border: '1px solid var(--border-color)',
-              borderRadius: 8,
-              padding: '1rem',
-              background: 'var(--bg-elevated, rgba(0,0,0,0.04))',
-              display: 'grid',
-              gap: '0.75rem',
-            }}
-          >
-            <h4 style={{ margin: 0 }}>Background location (Google Play disclosure)</h4>
-            <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.45 }}>
-              Scorr collects location data to enable automatic office check-in and check-out even when the app is closed
-              or not in use. Location is used only from 1 hour before your shift starts until 1 hour after it ends
-              (your shift time zone). Outside that window, Scorr does not use your location. You can turn this off any
-              time in Automatic attendance settings.
-            </p>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <button type="button" className="btn btn-primary" disabled={enrolling} onClick={() => void enroll()}>
-                {enrolling ? 'Enabling…' : 'I understand — continue'}
-              </button>
-              <button type="button" className="btn btn-secondary" onClick={() => setShowDisclosure(false)}>
-                Cancel
-              </button>
+        <div className="aas-admin glass-panel" style={{ padding: '1.25rem' }}>
+          <div className="aas-tiles">
+            <div className="aas-tile">
+              <span className="aas-tile__value">{tiles.enrolled}</span>
+              <span className="aas-tile__label">Enrolled devices</span>
+            </div>
+            <div className="aas-tile">
+              <span className="aas-tile__value">{tiles.notEnrolled}</span>
+              <span className="aas-tile__label">Not enrolled</span>
+            </div>
+            <div className="aas-tile">
+              <span className="aas-tile__value">{tiles.activeNow}</span>
+              <span className="aas-tile__label">Active now</span>
+            </div>
+            <div className="aas-tile">
+              <span className="aas-tile__value">{tiles.flaggedToday}</span>
+              <span className="aas-tile__label">Flagged today</span>
             </div>
           </div>
-        )}
-        {hasToken ? (
-          <button type="button" className="btn btn-secondary" disabled={enrolling} onClick={() => void turnOff()}>
-            Turn off automatic attendance
-          </button>
-        ) : (
-          !showDisclosure && (
-            <button type="button" className="btn btn-primary" disabled={enrolling || !isAutoAttendanceClient()} onClick={() => void enroll()}>
-              {enrolling ? 'Enabling…' : 'Enable automatic attendance (one-time)'}
-            </button>
-          )
-        )}
-        {isNativeApp() && (
-          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-            Android: allow location all the time, notifications, and unrestricted battery. iOS: allow Location Always.
-          </p>
-        )}
-      </div>
 
-      {mode === 'admin' && (
-        <>
-          <div>
-            <h4>Enrolled devices</h4>
-            {devices.length === 0 && <p style={{ color: 'var(--text-muted)' }}>No devices enrolled yet.</p>}
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: '0.5rem' }}>
-              {devices.map((d) => (
-                <li
-                  key={d.id}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    gap: '0.75rem',
-                    padding: '0.65rem 0.75rem',
-                    background: 'var(--bg-elevated, rgba(0,0,0,0.04))',
-                    borderRadius: 8,
-                  }}
-                >
-                  <div style={{ fontSize: '0.85rem' }}>
-                    <strong>{d.platform}</strong>
-                    {d.revoked_at ? ' · revoked' : d.presence_state ? ` · ${d.presence_state}` : ' · enrolled'}
-                    <br />
-                    TZ {d.device_timezone || '—'} · v{d.app_version || '?'}
-                    {d.last_clock_skew_ms != null && Math.abs(d.last_clock_skew_ms) > 10 * 60 * 1000 && (
-                      <span style={{ color: 'var(--color-warning)' }}>
-                        {' '}
-                        <ShieldAlert size={12} /> Device clock is wrong
+          <section className="aas-section">
+            <div className="aas-section__head">
+              <h4>Enrolled devices</h4>
+            </div>
+            {devices.filter((d) => !d.revoked_at).length === 0 ? (
+              <div className="aas-empty">
+                <Users size={28} />
+                <p>No devices enrolled yet. People can set up automatic attendance in the app.</p>
+              </div>
+            ) : (
+              <>
+                <div className="aas-table-wrap">
+                  <table className="aas-table">
+                    <thead>
+                      <tr>
+                        <th>Person</th>
+                        <th>Role</th>
+                        <th>Device</th>
+                        <th>Platform</th>
+                        <th>App</th>
+                        <th>Status</th>
+                        <th>Last seen</th>
+                        <th />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {devices
+                        .filter((d) => !d.revoked_at)
+                        .map((d) => {
+                          const st = deviceStatus(d);
+                          return (
+                            <tr key={d.id}>
+                              <td>{d.full_name || d.email || d.user_id.slice(0, 8)}</td>
+                              <td>{d.role || '—'}</td>
+                              <td>{d.device_id ? d.device_id.slice(0, 12) : '—'}</td>
+                              <td>{d.platform}</td>
+                              <td>v{d.app_version || '?'}</td>
+                              <td>
+                                <span className={`aas-badge aas-badge--${st.kind}`}>{st.label}</span>
+                              </td>
+                              <td>{d.last_seen_at ? new Date(d.last_seen_at).toLocaleString() : '—'}</td>
+                              <td>
+                                <button type="button" className="btn btn-secondary" onClick={() => void revoke(d.id)}>
+                                  Revoke
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="aas-mobile-cards">
+                  {devices
+                    .filter((d) => !d.revoked_at)
+                    .map((d) => {
+                      const st = deviceStatus(d);
+                      return (
+                        <div key={d.id} className="aas-mobile-card">
+                          <strong>{d.full_name || d.email || 'Device'}</strong>
+                          <span>
+                            {d.platform} · v{d.app_version || '?'} ·{' '}
+                            <span className={`aas-badge aas-badge--${st.kind}`}>{st.label}</span>
+                          </span>
+                          <div className="aas-mobile-card__actions">
+                            <button type="button" className="btn btn-secondary" onClick={() => void revoke(d.id)}>
+                              Revoke
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </>
+            )}
+          </section>
+
+          <section className="aas-section">
+            <div className="aas-section__head">
+              <h4>Not enrolled yet</h4>
+              {unenrolled.length > 0 && (
+                <button type="button" className="btn btn-secondary" disabled={reminding === 'all'} onClick={() => void remindAll()}>
+                  <Bell size={14} /> Remind all
+                </button>
+              )}
+            </div>
+            {unenrolled.length === 0 ? (
+              <div className="aas-empty">
+                <Smartphone size={28} />
+                <p>Everyone who needs automatic attendance is enrolled.</p>
+              </div>
+            ) : (
+              <>
+                <div className="aas-table-wrap">
+                  <table className="aas-table">
+                    <thead>
+                      <tr>
+                        <th>Person</th>
+                        <th>Role</th>
+                        <th />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {unenrolled.map((u) => (
+                        <tr key={u.user_id}>
+                          <td>{u.full_name || u.email}</td>
+                          <td>{u.role}</td>
+                          <td>
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              disabled={reminding === u.user_id}
+                              onClick={() => void remind(u.user_id)}
+                            >
+                              Send reminder
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="aas-mobile-cards">
+                  {unenrolled.map((u) => (
+                    <div key={u.user_id} className="aas-mobile-card">
+                      <strong>{u.full_name || u.email}</strong>
+                      <span>{u.role}</span>
+                      <div className="aas-mobile-card__actions">
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          disabled={reminding === u.user_id}
+                          onClick={() => void remind(u.user_id)}
+                        >
+                          Send reminder
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </section>
+
+          <section className="aas-section">
+            <div className="aas-section__head">
+              <h4>Flagged attendance</h4>
+              <div className="aas-filters">
+                <label>
+                  Date
+                  <input type="date" value={flagDate} onChange={(e) => setFlagDate(e.target.value)} />
+                </label>
+                <label>
+                  Reason
+                  <select value={flagReason} onChange={(e) => setFlagReason(e.target.value)}>
+                    <option value="">All</option>
+                    <option value="mock">Mock location</option>
+                    <option value="radius">Outside radius</option>
+                    <option value="window">Outside window</option>
+                    <option value="network">Wrong network</option>
+                    <option value="clock">Clock wrong</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+            {filteredFlagged.length === 0 ? (
+              <div className="aas-empty">
+                <AlertTriangle size={28} />
+                <p>No flagged events for this filter.</p>
+              </div>
+            ) : (
+              <>
+                <div className="aas-table-wrap">
+                  <table className="aas-table">
+                    <thead>
+                      <tr>
+                        <th>Time</th>
+                        <th>Person</th>
+                        <th>Reason</th>
+                        <th>Details</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredFlagged.slice(0, 60).map((e) => (
+                        <tr key={e.id}>
+                          <td>{new Date(e.created_at).toLocaleString()}</td>
+                          <td>{e.user_id ? e.user_id.slice(0, 8) : '—'}</td>
+                          <td>{e.reason_code || (e.clock_flagged ? 'device_clock_wrong' : e.event)}</td>
+                          <td>
+                            {e.matched_method || '—'}
+                            {e.client_ip ? ` · IP ${e.client_ip}` : ''}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="aas-mobile-cards">
+                  {filteredFlagged.slice(0, 40).map((e) => (
+                    <div key={e.id} className="aas-mobile-card">
+                      <strong>{e.reason_code || e.event}</strong>
+                      <span>{new Date(e.created_at).toLocaleString()}</span>
+                      <span>
+                        {e.matched_method || '—'}
+                        {e.client_ip ? ` · IP ${e.client_ip}` : ''}
                       </span>
-                    )}
-                  </div>
-                  {!d.revoked_at && (
-                    <button type="button" className="btn btn-secondary" onClick={() => void revoke(d.id)}>
-                      Revoke
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <h4>Not enrolled yet</h4>
-            {unenrolled.length === 0 && <p style={{ color: 'var(--text-muted)' }}>Everyone who needs it is enrolled.</p>}
-            <ul style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-              {unenrolled.slice(0, 40).map((u) => (
-                <li key={u.user_id}>
-                  {u.full_name || u.email} ({u.role})
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <h4>Flagged attendance</h4>
-            <p style={{ marginTop: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-              Mock location, outside radius, outside window, wrong network, and device clock wrong.
-            </p>
-            {flagged.length === 0 && <p style={{ color: 'var(--text-muted)' }}>No flagged events yet.</p>}
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: '0.4rem', maxHeight: 280, overflow: 'auto' }}>
-              {flagged.map((e) => (
-                <li
-                  key={e.id}
-                  style={{
-                    fontSize: '0.82rem',
-                    padding: '0.5rem 0.65rem',
-                    background: 'var(--bg-elevated, rgba(0,0,0,0.04))',
-                    borderRadius: 6,
-                  }}
-                >
-                  <strong>{e.reason_code || (e.clock_flagged ? 'device_clock_wrong' : e.event)}</strong>
-                  {' · '}
-                  {new Date(e.created_at).toLocaleString()}
-                  {e.client_ip ? ` · IP ${e.client_ip}` : ''}
-                  {e.matched_method ? ` · ${e.matched_method}` : ''}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </section>
+        </div>
       )}
-
-      {msg && <p style={{ margin: 0, fontSize: '0.88rem' }}>{msg}</p>}
     </div>
   );
 }

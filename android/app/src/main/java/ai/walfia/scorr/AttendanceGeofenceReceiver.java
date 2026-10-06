@@ -47,10 +47,29 @@ public class AttendanceGeofenceReceiver extends BroadcastReceiver {
             zoneId = triggering.get(0).getRequestId();
         }
 
+        // R69: on EXIT, attach current Wi-Fi identity immediately so the server can
+        // decide leave-confirmed vs GPS-drift (still on office Wi-Fi) without waiting
+        // for the next 5-minute backup ping.
+        String ssid = null;
+        String bssid = null;
+        if ("exit".equals(eventName)) {
+            String[] wifi = AttendancePingStore.readCurrentWifiIdentity(app);
+            ssid = wifi[0];
+            bssid = wifi[1];
+            if (ssid == null && bssid == null) {
+                ssid = AttendancePingStore.lastSsid(app);
+                bssid = AttendancePingStore.lastBssid(app);
+            }
+        }
+
         if (event.getTriggeringLocation() != null) {
-            AttendanceEventClient.sendLocationEvent(app, eventName, event.getTriggeringLocation(), zoneId);
+            android.location.Location loc = event.getTriggeringLocation();
+            Double lat = loc.getLatitude();
+            Double lng = loc.getLongitude();
+            Float acc = loc.hasAccuracy() ? loc.getAccuracy() : null;
+            AttendanceEventClient.send(app, eventName, zoneId, lat, lng, acc, ssid, bssid);
         } else {
-            AttendanceEventClient.send(app, eventName, zoneId, null, null, null, null, null);
+            AttendanceEventClient.send(app, eventName, zoneId, null, null, null, ssid, bssid);
         }
     }
 }

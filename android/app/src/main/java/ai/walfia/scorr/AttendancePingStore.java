@@ -2,11 +2,18 @@ package ai.walfia.scorr;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
+import android.os.Build;
 import android.util.Log;
 import androidx.security.crypto.EncryptedSharedPreferences;
 import androidx.security.crypto.MasterKeys;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import java.util.Locale;
 import java.util.TimeZone;
 
 /**
@@ -220,5 +227,57 @@ final class AttendancePingStore {
 
     static boolean wifiConnected(Context ctx) {
         return prefs(ctx).getBoolean("wifi_connected", false);
+    }
+
+    /** Best-effort current Wi-Fi SSID/BSSID for immediate EXIT / disconnect events (R69). */
+    @SuppressWarnings("deprecation")
+    static String[] readCurrentWifiIdentity(Context ctx) {
+        String ssid = null;
+        String bssid = null;
+        Context app = ctx.getApplicationContext();
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ConnectivityManager cm = (ConnectivityManager) app.getSystemService(Context.CONNECTIVITY_SERVICE);
+                if (cm != null) {
+                    Network net = cm.getActiveNetwork();
+                    if (net != null) {
+                        NetworkCapabilities caps = cm.getNetworkCapabilities(net);
+                        if (caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
+                            Object transport = caps.getTransportInfo();
+                            if (transport instanceof WifiInfo) {
+                                WifiInfo wi = (WifiInfo) transport;
+                                ssid = wi.getSSID();
+                                bssid = wi.getBSSID();
+                            }
+                        }
+                    }
+                }
+            }
+            if (ssid == null || bssid == null) {
+                WifiManager wm = (WifiManager) app.getSystemService(Context.WIFI_SERVICE);
+                if (wm != null) {
+                    WifiInfo info = wm.getConnectionInfo();
+                    if (info != null) {
+                        if (ssid == null) ssid = info.getSSID();
+                        if (bssid == null) bssid = info.getBSSID();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "readCurrentWifiIdentity", e);
+        }
+        if (ssid != null) {
+            String s = ssid.trim();
+            if (s.length() >= 2 && s.startsWith("\"") && s.endsWith("\"")) {
+                s = s.substring(1, s.length() - 1);
+            }
+            if ("<unknown ssid>".equalsIgnoreCase(s) || s.isEmpty()) s = null;
+            ssid = s;
+        }
+        if (bssid != null) {
+            bssid = bssid.trim().toLowerCase(Locale.US);
+            if (bssid.isEmpty() || "02:00:00:00:00:00".equals(bssid)) bssid = null;
+        }
+        return new String[] { ssid, bssid };
     }
 }

@@ -403,6 +403,14 @@ function wirePowerEvents() {
 app.setLoginItemSettings({ openAtLogin: true, openAsHidden: true });
 
 app.whenReady().then(async () => {
+  ipcMain.handle('scorr:setAutoLaunch', (_e, enabled) => {
+    app.setLoginItemSettings({ openAtLogin: Boolean(enabled), openAsHidden: true });
+    return { ok: true, enabled: Boolean(enabled) };
+  });
+  ipcMain.handle('scorr:getAutoLaunch', () => {
+    const s = app.getLoginItemSettings();
+    return { enabled: Boolean(s.openAtLogin) };
+  });
   session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
     const allow = permission === 'geolocation' || permission === 'notifications';
     callback(allow);
