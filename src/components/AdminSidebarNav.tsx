@@ -191,7 +191,7 @@ export function getAdminNavMeta(id: string): { label: string; description: strin
     kpiPoints: { label: 'KPI & Rewards', description: "Each person's weightage and gift progress." },
     analytics: { label: 'Analytics', description: 'Trends and attainment.' },
     attendance: { label: 'Attendance', description: 'Leave, check-ins, and live map.' },
-    office: { label: 'Office GPS', description: 'Geofence and check-ins.' },
+    office: { label: 'Office & Attendance', description: 'GPS zones, Wi-Fi networks, and automatic check-in.' },
     tracking: { label: 'Live Tracking', description: 'Field team locations.' },
     departments: { label: 'Departments', description: 'Org structure.' },
     rewards: { label: 'Rewards', description: 'Catalog, gift history, and redemptions.' },

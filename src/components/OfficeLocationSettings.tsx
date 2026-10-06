@@ -13,11 +13,13 @@ import {
   Users,
   Building2,
   Info,
+  Wifi,
 } from 'lucide-react';
 import { OfficeLocation, OfficeWifiNetwork } from '../utils/geoAttendance';
 import AssignManagerLocationPanel, { ManagerSiteRow } from './AssignManagerLocationPanel';
 import LiveGpsCapture from './LiveGpsCapture';
 import TimeZonePicker from './TimeZonePicker';
+import AutoAttendanceSettings from './AutoAttendanceSettings';
 import '../styles/attendance.css';
 import '../styles/admin-office.css';
 
@@ -101,6 +103,7 @@ export default function OfficeLocationSettings() {
   const [activeTab, setActiveTab] = useState<OfficeTab>('create');
   const [assignOfficeId, setAssignOfficeId] = useState('');
   const [assignKey, setAssignKey] = useState(0);
+  const [wifiNetworksByOffice, setWifiNetworksByOffice] = useState<Record<string, OfficeWifiNetwork[]>>({});
   const [wifiProbe, setWifiProbe] = useState('');
   const [wifiProbing, setWifiProbing] = useState(false);
   const [wifiNetworks, setWifiNetworks] = useState<OfficeWifiNetwork[]>([]);
@@ -132,7 +135,33 @@ export default function OfficeLocationSettings() {
       supabase.rpc('get_manager_work_sites'),
     ]);
     if (officesRes.error) showMsg(officesRes.error.message);
-    else setOffices((officesRes.data || []) as OfficeLocation[]);
+    else {
+      const list = (officesRes.data || []) as OfficeLocation[];
+      setOffices(list);
+      const netMap: Record<string, OfficeWifiNetwork[]> = {};
+      await Promise.all(
+        list.map(async (o) => {
+          const { data } = await supabase.rpc('list_office_wifi_networks', { p_office_id: o.id });
+          const rows = (data || []) as Array<{
+            id: string;
+            label: string;
+            ssids: string[] | null;
+            wifi_bssids: string[] | null;
+            public_ip_cidrs: string[] | null;
+            active: boolean;
+          }>;
+          netMap[o.id] = rows.map((r) => ({
+            id: r.id,
+            label: r.label,
+            ssid: (r.ssids || []).join(', '),
+            wifi_bssids: (r.wifi_bssids || []).join(', '),
+            public_ip_cidrs: (r.public_ip_cidrs || []).join(', '),
+            active: r.active,
+          }));
+        }),
+      );
+      setWifiNetworksByOffice(netMap);
+    }
     if (!sitesRes.error) setAssignments((sitesRes.data || []) as ManagerSiteRow[]);
     setLoading(false);
   }, [showMsg]);
@@ -475,10 +504,10 @@ export default function OfficeLocationSettings() {
             <MapPin size={22} />
           </div>
           <div>
-            <h2 className="admin-office-header__title">Office GPS zones</h2>
+            <h2 className="admin-office-header__title">Office &amp; Attendance</h2>
             <p className="admin-office-header__subtitle">
-              Define geofenced office locations for clock-in and clock-out. Capture live GPS, save the zone, then assign
-              it to all employees and managers, any individual, or a manager&apos;s team.
+              Define geofenced office locations, Wi-Fi networks, and automatic check-in. The same settings appear on web,
+              the desktop app, and the mobile app.
             </p>
           </div>
         </div>
@@ -864,7 +893,17 @@ export default function OfficeLocationSettings() {
                     {o.address && <p className="admin-office-item__meta">{o.address}</p>}
                     <div className="admin-office-item__coords">
                       {o.latitude.toFixed(5)}, {o.longitude.toFixed(5)} · {o.radius_meters}m radius
+                      {' · '}
+                      {(o.detection_mode || 'gps_or_wifi').replace(/_/g, ' ')}
                     </div>
+                    <p className="admin-office-item__meta">
+                      <Wifi size={12} style={{ verticalAlign: '-2px', marginRight: '0.25rem' }} />
+                      {(() => {
+                        const nets = (wifiNetworksByOffice[o.id] || []).filter((n) => n.active);
+                        if (nets.length === 0) return 'No active Wi-Fi networks';
+                        return `${nets.length} Wi-Fi network${nets.length === 1 ? '' : 's'}: ${nets.map((n) => n.label).join(', ')}`;
+                      })()}
+                    </p>
                     <p className="admin-office-item__meta">
                       <Users size={12} style={{ verticalAlign: '-2px', marginRight: '0.25rem' }} />
                       {assigned.length > 0
@@ -896,6 +935,17 @@ export default function OfficeLocationSettings() {
           )}
         </section>
       )}
+
+      <section className="admin-office-card glass-panel admin-office-auto-attendance">
+        <h3>
+          <Radio size={18} /> Automatic attendance
+        </h3>
+        <p>
+          Company toggles, enrolled devices, and flagged events — same controls on web, desktop, and mobile. Device
+          enrollment still requires the Android or desktop app.
+        </p>
+        <AutoAttendanceSettings mode="admin" />
+      </section>
     </div>
   );
 }

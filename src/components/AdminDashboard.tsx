@@ -24,7 +24,6 @@ const HrDailyReportsWorkspace = lazy(() => import('./HrDailyReportsWorkspace'));
 const AdminDailyWorkReports = lazy(() => import('./AdminDailyWorkReports'));
 const Analytics = lazy(() => import('./Analytics'));
 const BrandingSettings = lazy(() => import('./BrandingSettings'));
-const AutoAttendanceSettings = lazy(() => import('./AutoAttendanceSettings'));
 const AccountSecurityPanel = lazy(() => import('./AccountSecurityPanel'));
 const BackupCodesLowBanner = lazy(() => import('./BackupCodesLowBanner'));
 const AdminRewards = lazy(() => import('./AdminRewards'));
@@ -322,7 +321,7 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
       { id: 'kpiPoints', label: 'KPI & Rewards', icon: <Coins size={18} />, description: "Each person's score and points" },
       { id: 'analytics', label: 'Analytics', icon: <BarChart3 size={18} />, description: 'Trends & attainment' },
       { id: 'attendance', label: 'Attendance', icon: <CalendarCheck size={18} />, description: isHr ? 'My day, leave & history' : 'Leave & approvals' },
-      { id: 'office', label: 'Office GPS', icon: <MapPin size={18} />, description: 'Geofence & check-ins' },
+      { id: 'office', label: 'Office & Attendance', icon: <MapPin size={18} />, description: 'GPS, Wi-Fi networks & auto check-in' },
       { id: 'tracking', label: 'Live Tracking', icon: <Radio size={18} />, description: 'Field team locations' },
       { id: 'departments', label: 'Departments', icon: <Building2 size={18} />, description: 'Org structure only' },
       { id: 'export', label: 'Export', icon: <Download size={18} />, description: 'Monthly & quarterly exports' },
@@ -540,9 +539,12 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
       ) : activeTab === 'settings' ? (
         <div className="app-settings-stack">
           <details className="app-settings-block" open>
-            <summary>Automatic attendance</summary>
+            <summary>Office GPS, Wi-Fi &amp; automatic attendance</summary>
+            <p style={{ margin: '0 0 0.75rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+              Same settings as <strong>Office &amp; Attendance</strong> in the menu — identical on web, desktop, and mobile.
+            </p>
             <Suspense fallback={<Loader2 className="spin-icon" size={24} />}>
-              <AutoAttendanceSettings mode="admin" />
+              <OfficeLocationSettings />
             </Suspense>
           </details>
           <details className="app-settings-block" open>
