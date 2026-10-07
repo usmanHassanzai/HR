@@ -149,6 +149,8 @@ const MIGRATIONS = [
   'preserve_kpi_opened_on_edit.sql',
   'mfa_reset_requests.sql',
   'mfa_backup_recovery.sql',
+  'trusted_devices_mfa.sql',
+  'trusted_devices_mfa_reissue_fix_2026-10-07.sql',
   'admin_org_kpi_overall_vs_month_score.sql',
   'admin_org_kpi_board_weightage.sql',
   'fix_shift_end_admin_still_working.sql',

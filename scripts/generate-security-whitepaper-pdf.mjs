@@ -347,6 +347,11 @@ bullet('Backup codes are burned after use — store them offline.');
 h1('5.2 Daily login');
 bullet('Password (first factor) + authenticator code (second factor), or');
 bullet('Password + one unused backup code if the phone is unavailable.');
+bullet('Optional: “Trust this device” after a successful code — skip MFA on that device for a limited time (default 7 days; company policy).');
+bullet('Trusted-device tokens are hashed server-side, rotated on each use, and never slide past the original expiry.');
+bullet('Web: HttpOnly Secure SameSite=Strict cookie. Apps: Keystore / Keychain / desktop safeStorage.');
+bullet('Auto-revoked on password change/reset, admin authenticator reset, MFA re-enrollment, or user deletion.');
+bullet('Platform owners always ask for a code (no trust). Admins can set Always ask for staff or privileged roles.');
 
 h1('5.3 Lost device recovery');
 bullet('Email OTP recovery path (time-limited) to verify the user, then re-enroll a new authenticator.');
