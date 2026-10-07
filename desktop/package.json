@@ -8,5 +8,8 @@
   "license": "UNLICENSED",
   "private": true,
   "main": "main.cjs",
-  "desktopName": "scorr.desktop"
+  "desktopName": "scorr.desktop",
+  "dependencies": {
+    "electron-updater": "^6.6.2"
+  }
 }

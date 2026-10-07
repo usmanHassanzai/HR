@@ -100,7 +100,7 @@ const SECURITY_POINTS = [
   {
     icon: Shield,
     title: 'Account security settings',
-    desc: 'Inside Scorr, Account Security lets people regenerate backup codes, set a recovery email, and review recent recovery activity.',
+    desc: 'Inside Scorr, Account Security lets people regenerate backup codes, set a recovery email, manage trusted devices, and review recent recovery activity.',
   },
 ];
 

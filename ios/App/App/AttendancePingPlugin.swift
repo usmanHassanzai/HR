@@ -25,6 +25,9 @@ public class AttendancePingPlugin: CAPPlugin, CAPBridgedPlugin {
         .init(name: "saveLoginCredentials", returnType: CAPPluginReturnPromise),
         .init(name: "loadLoginCredentials", returnType: CAPPluginReturnPromise),
         .init(name: "clearLoginCredentials", returnType: CAPPluginReturnPromise),
+        .init(name: "saveTrustedDeviceToken", returnType: CAPPluginReturnPromise),
+        .init(name: "loadTrustedDeviceToken", returnType: CAPPluginReturnPromise),
+        .init(name: "clearTrustedDeviceToken", returnType: CAPPluginReturnPromise),
         .init(name: "openAppSettings", returnType: CAPPluginReturnPromise),
         .init(name: "openBatterySettings", returnType: CAPPluginReturnPromise),
         .init(name: "openNotificationSettings", returnType: CAPPluginReturnPromise),
@@ -94,6 +97,24 @@ public class AttendancePingPlugin: CAPPlugin, CAPBridgedPlugin {
 
     @objc func clearLoginCredentials(_ call: CAPPluginCall) {
         AttendanceKeychain.clearLoginCredentials()
+        call.resolve(["ok": true])
+    }
+
+    @objc func saveTrustedDeviceToken(_ call: CAPPluginCall) {
+        guard let token = call.getString("token"), !token.isEmpty else {
+            call.reject("Missing token")
+            return
+        }
+        AttendanceKeychain.saveTrustedDeviceToken(token)
+        call.resolve(["ok": true])
+    }
+
+    @objc func loadTrustedDeviceToken(_ call: CAPPluginCall) {
+        call.resolve(["token": AttendanceKeychain.loadTrustedDeviceToken() ?? ""])
+    }
+
+    @objc func clearTrustedDeviceToken(_ call: CAPPluginCall) {
+        AttendanceKeychain.clearTrustedDeviceToken()
         call.resolve(["ok": true])
     }
 
@@ -233,6 +254,7 @@ enum AttendanceKeychain {
     private static let deviceIdAccount = "device_id"
     private static let loginEmailAccount = "login_email"
     private static let loginPasswordAccount = "login_password"
+    private static let trustedDeviceTokenAccount = "trusted_device_token"
 
     static func saveToken(_ token: String) {
         save(account: tokenAccount, value: token)
@@ -273,6 +295,18 @@ enum AttendanceKeychain {
     static func clearLoginCredentials() {
         delete(account: loginEmailAccount)
         delete(account: loginPasswordAccount)
+    }
+
+    static func saveTrustedDeviceToken(_ token: String) {
+        save(account: trustedDeviceTokenAccount, value: token)
+    }
+
+    static func loadTrustedDeviceToken() -> String? {
+        load(account: trustedDeviceTokenAccount)
+    }
+
+    static func clearTrustedDeviceToken() {
+        delete(account: trustedDeviceTokenAccount)
     }
 
     private static func save(account: String, value: String) {

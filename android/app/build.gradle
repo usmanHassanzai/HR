@@ -1,5 +1,17 @@
 apply plugin: 'com.android.application'
 
+def keystoreEnvFile = new File(System.getProperty('user.home'), '.scorr/keystore.env')
+def keystoreProps = new Properties()
+if (keystoreEnvFile.exists()) {
+    keystoreEnvFile.withInputStream { keystoreProps.load(it) }
+}
+// Prefer env vars (CI / release scripts), then ~/.scorr/keystore.env (never commit).
+def releaseStoreFile = System.getenv('SCORR_ANDROID_KEYSTORE') ?: keystoreProps.getProperty('SCORR_ANDROID_KEYSTORE')
+def releaseStorePassword = System.getenv('SCORR_ANDROID_STORE_PASSWORD') ?: keystoreProps.getProperty('SCORR_ANDROID_STORE_PASSWORD')
+def releaseKeyAlias = System.getenv('SCORR_ANDROID_KEY_ALIAS') ?: keystoreProps.getProperty('SCORR_ANDROID_KEY_ALIAS') ?: 'scorr'
+def releaseKeyPassword = System.getenv('SCORR_ANDROID_KEY_PASSWORD') ?: keystoreProps.getProperty('SCORR_ANDROID_KEY_PASSWORD')
+def hasReleaseKey = releaseStoreFile && releaseStorePassword && releaseKeyPassword && file(releaseStoreFile).exists()
+
 android {
     namespace = "ai.walfia.scorr"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,19 +19,37 @@ android {
         applicationId "ai.walfia.scorr"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 11
+        versionCode 13
         versionName "1.3.7"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
-             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
-             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    signingConfigs {
+        release {
+            if (hasReleaseKey) {
+                storeFile file(releaseStoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
         }
     }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (hasReleaseKey) {
+                signingConfig signingConfigs.release
+            }
+        }
+        debug {
+            // Prefer the permanent release key even for local install-over-update testing
+            // so users never need to uninstall when graduating to Play / website APKs.
+            if (hasReleaseKey) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }

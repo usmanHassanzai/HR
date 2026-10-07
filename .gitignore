@@ -63,3 +63,9 @@ public/downloads/*.aab
 public/downloads/*.ipa
 public/downloads/*.blockmap
 .env.staging
+
+# Desktop updater binaries (hosted on GitHub Releases; keep only yml feeds in repo)
+public/downloads/desktop/*.exe
+public/downloads/desktop/*.AppImage
+public/downloads/desktop/*.deb
+public/downloads/desktop/*.blockmap

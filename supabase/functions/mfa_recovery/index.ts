@@ -168,6 +168,46 @@ async function createSessionGrant(
   }, { onConflict: 'user_id,session_id' });
 }
 
+async function hasSessionGrant(
+  admin: ReturnType<typeof createClient>,
+  userId: string,
+  _sessionId: string | null,
+): Promise<boolean> {
+  const { data } = await admin
+    .from('mfa_session_grants')
+    .select('id')
+    .eq('user_id', userId)
+    .gt('expires_at', new Date().toISOString())
+    .limit(1)
+    .maybeSingle();
+  return Boolean(data);
+}
+
+/** AAL2 JWT or active session grant (backup code / trusted device). */
+async function mfaSatisfied(
+  admin: ReturnType<typeof createClient>,
+  jwt: string,
+  userId: string,
+): Promise<boolean> {
+  if (tokenAal(jwt) === 'aal2') return true;
+  return hasSessionGrant(admin, userId, sessionIdFromJwt(jwt));
+}
+
+async function revokeTrustedDevices(
+  admin: ReturnType<typeof createClient>,
+  userId: string,
+  reason: string,
+) {
+  try {
+    await admin.rpc('revoke_trusted_devices_for_user', {
+      p_user_id: userId,
+      p_reason: reason,
+    });
+  } catch (e) {
+    console.warn('[mfa_recovery] revoke trusted devices', e);
+  }
+}
+
 async function deleteMfaFactors(admin: ReturnType<typeof createClient>, userId: string) {
   const listed = await admin.auth.admin.mfa.listFactors({ userId });
   if (listed.error) throw new Error(listed.error.message);
@@ -239,6 +279,7 @@ serve(async (req) => {
       // complete_email_recovery — wipe MFA so they can re-enroll
       const removed = await deleteMfaFactors(admin, row.user_id);
       await admin.from('mfa_session_grants').delete().eq('user_id', row.user_id);
+      await revokeTrustedDevices(admin, row.user_id, 'mfa_re_enroll_email');
       await admin.from('mfa_recovery_tokens').update({ used_at: new Date().toISOString() }).eq('id', row.id);
       await admin.from('mfa_reset_requests').update({
         resolved_at: new Date().toISOString(),
@@ -266,6 +307,7 @@ serve(async (req) => {
 
     const aal = tokenAal(jwt);
     const sid = sessionIdFromJwt(jwt);
+    const satisfied = await mfaSatisfied(admin, jwt, callerId);
 
     if (action === 'status') {
       const { count } = await admin
@@ -299,12 +341,12 @@ serve(async (req) => {
     if (action === 'generate_codes') {
       const password = String(body.password || '');
       const totpCode = String(body.totpCode || '').replace(/\s/g, '');
-      if (aal !== 'aal2' && !totpCode) {
+      if (!satisfied && !totpCode) {
         return json(req, { error: 'Verify your authenticator before regenerating backup codes.' }, 403);
       }
-      // Password required when not yet AAL2. After a fresh TOTP verify (AAL2),
-      // password is optional so first-time enroll can always show backup codes.
-      if (aal !== 'aal2') {
+      // Password required when not yet MFA-satisfied. After a fresh TOTP verify (AAL2)
+      // or trusted-device / backup grant, password is optional so enroll can show codes.
+      if (!satisfied) {
         if (!password) {
           return json(req, { error: 'Enter your password to regenerate backup codes.' }, 400);
         }
@@ -382,7 +424,7 @@ serve(async (req) => {
     }
 
     if (action === 'set_recovery_email') {
-      if (aal !== 'aal2') {
+      if (!satisfied) {
         return json(req, { error: 'Verify your authenticator before changing recovery email.' }, 403);
       }
       const password = String(body.password || '');
@@ -622,6 +664,7 @@ serve(async (req) => {
 
       const removed = await deleteMfaFactors(admin, callerId);
       await admin.from('mfa_session_grants').delete().eq('user_id', callerId);
+      await revokeTrustedDevices(admin, callerId, 'mfa_re_enroll_otp');
       await admin.from('backup_codes').delete().eq('user_id', callerId);
       await admin.from('users').update({ backup_codes_generated_at: null }).eq('id', callerId);
       await admin.from('mfa_recovery_tokens').update({ used_at: new Date().toISOString() }).eq('id', row.id);

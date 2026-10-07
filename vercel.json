@@ -2,18 +2,55 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
+  "redirects": [
+    {
+      "source": "/downloads/Scorr-Setup.exe",
+      "destination": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.7/Scorr-Setup.exe",
+      "permanent": false
+    },
+    {
+      "source": "/downloads/Scorr.deb",
+      "destination": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.7/Scorr.deb",
+      "permanent": false
+    },
+    {
+      "source": "/downloads/Scorr.AppImage",
+      "destination": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.7/Scorr.AppImage",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
-      "source": "/((?!assets/|downloads/|icons/|fonts/|robots\\.txt$|sitemap\\.xml$|sw\\.js$|manifest\\.webmanifest$|.*\\.[A-Za-z0-9]{1,8}$).*)",
+      "source": "/((?!api/|assets/|downloads/|icons/|fonts/|robots\\.txt$|sitemap\\.xml$|sw\\.js$|manifest\\.webmanifest$|.*\\.[A-Za-z0-9]{1,8}$).*)",
       "destination": "/index.html"
     }
   ],
   "headers": [
     {
+      "source": "/downloads/version.json",
+      "headers": [
+        { "key": "Content-Type", "value": "application/json" },
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/build-meta.json",
+      "headers": [
+        { "key": "Content-Type", "value": "application/json" },
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/downloads/desktop/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=60" }
+      ]
+    },
+    {
       "source": "/downloads/build-info.json",
       "headers": [
         { "key": "Content-Type", "value": "application/json" },
-        { "key": "Cache-Control", "value": "public, max-age=300" }
+        { "key": "Cache-Control", "value": "public, max-age=60" }
       ]
     },
     {

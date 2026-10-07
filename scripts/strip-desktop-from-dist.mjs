@@ -2,11 +2,11 @@
 /**
  * Remove Electron desktop packages from dist/downloads before Vercel upload.
  * They exceed Vercel's 100 MB file limit — host via GitHub Release instead.
+ * Keeps version.json, latest.yml feeds, and the Android APK.
  */
-import { existsSync, unlinkSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readdirSync, unlinkSync } from 'node:fs';
+import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { dirname } from 'node:path';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dir = join(root, 'dist', 'downloads');
@@ -26,6 +26,18 @@ for (const name of names) {
     removed += 1;
   }
 }
+
+const desktopDir = join(dir, 'desktop');
+if (existsSync(desktopDir)) {
+  for (const name of readdirSync(desktopDir)) {
+    if (/\.(exe|AppImage|deb|blockmap|zip)$/i.test(name)) {
+      unlinkSync(join(desktopDir, name));
+      console.log(`Removed dist/downloads/desktop/${name} (too large for Vercel)`);
+      removed += 1;
+    }
+  }
+}
+
 if (removed === 0) {
   console.log('No oversized desktop packages in dist/downloads.');
 }

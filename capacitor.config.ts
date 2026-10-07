@@ -1,25 +1,27 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 /**
- * Phase 3 — Native App (Capacitor)
- *
- * Wraps the existing Vite web build (webDir: "dist") into native iOS / Android
- * apps for the App Store and Google Play without a rewrite.
- *
- * One-time setup:
- *   npm install
- *   npm run build
- *   npx cap add android      # and/or: npx cap add ios
- *   npm run cap:sync
- *   npx cap open android     # build & run in Android Studio / Xcode
+ * Native shells load the live site so Vercel deploys update Android/iOS without a
+ * new store build for web-only changes. Override for local device debugging:
+ *   SCORR_CAP_SERVER_URL=http://10.0.2.2:5173/?app=1
+ * Set SCORR_CAP_BUNDLED=1 to ship a fully offline bundled webDir (rare).
  */
+const liveUrl = process.env.SCORR_CAP_SERVER_URL || 'https://scorr.walfia.ai/?app=1';
+const useBundledOnly = process.env.SCORR_CAP_BUNDLED === '1';
+
 const config: CapacitorConfig = {
   appId: 'ai.walfia.scorr',
   appName: 'Scorr',
   webDir: 'dist',
-  server: {
-    androidScheme: 'https',
-  },
+  server: useBundledOnly
+    ? {
+        androidScheme: 'https',
+      }
+    : {
+        url: liveUrl,
+        cleartext: liveUrl.startsWith('http://'),
+        androidScheme: 'https',
+      },
   plugins: {
     SplashScreen: {
       launchAutoHide: true,
@@ -36,7 +38,6 @@ const config: CapacitorConfig = {
     },
   },
   ios: {
-    // Let CSS env(safe-area-inset-*) own insets (viewport-fit=cover) — avoids double padding
     contentInset: 'never',
     scrollEnabled: true,
     backgroundColor: '#0b1120',

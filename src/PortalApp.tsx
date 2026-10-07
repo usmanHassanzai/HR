@@ -34,6 +34,7 @@ import { GEO_DASHBOARD_OPEN_EVENT } from './utils/geoAttendance';
 import { startPresenceHeartbeat } from './utils/presenceHeartbeat';
 import { roleRequiresMfa, currentMfaLevel, getVerifiedTotpFactorId } from './utils/mfaHelpers';
 import { confirmRecoveryEmailToken, completeEmailMfaRecovery, hasMfaSessionGrant } from './utils/mfaRecovery';
+import { tryVerifyTrustedDevice } from './utils/trustedDevice';
 import { Loader2, AlertCircle } from 'lucide-react';
 
 const AppLoginScreen = lazy(() => import('./components/AppLoginScreen'));
@@ -134,6 +135,8 @@ function PortalApp({ initialSession = null, onSignedOut }: PortalAppProps) {
     if (!session?.user?.id || !profile || !roleRequiresMfa(profile)) return;
     let cancelled = false;
     void (async () => {
+      // Trusted-device token → MFA session grant (same path as backup codes).
+      const trusted = await tryVerifyTrustedDevice().catch(() => false);
       const [grant, verifiedId, level] = await Promise.all([
         hasMfaSessionGrant().catch(() => false),
         getVerifiedTotpFactorId().catch(() => null),
@@ -144,7 +147,7 @@ function PortalApp({ initialSession = null, onSignedOut }: PortalAppProps) {
         setPrivilegedMfaOk(true);
         return;
       }
-      if (grant && verifiedId) {
+      if ((grant || trusted) && verifiedId) {
         setPrivilegedMfaOk(true);
         return;
       }

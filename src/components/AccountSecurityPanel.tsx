@@ -1,14 +1,21 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Loader2, Shield, KeyRound, Mail, RefreshCw } from 'lucide-react';
+import { Loader2, Shield, KeyRound, Mail, RefreshCw, Smartphone, Trash2 } from 'lucide-react';
 import {
   fetchMfaRecoveryStatus,
   generateBackupCodes,
   setRecoveryEmail,
   type MfaRecoveryStatus,
 } from '../utils/mfaRecovery';
+import {
+  listTrustedDevices,
+  revokeAllTrustedDevices,
+  revokeTrustedDevice,
+  type TrustedDeviceRow,
+} from '../utils/trustedDevice';
 import BackupCodesRevealModal from './BackupCodesRevealModal';
 import PasswordField from './PasswordField';
 import DeleteAccountSection from './DeleteAccountSection';
+import AboutUpdatesPanel from './AboutUpdatesPanel';
 import { supabase } from '../lib/supabase';
 
 interface AccountSecurityPanelProps {
@@ -26,19 +33,22 @@ export default function AccountSecurityPanel({ fullName }: AccountSecurityPanelP
   const [recoveryEmail, setRecoveryEmailInput] = useState('');
   const [freshCodes, setFreshCodes] = useState<string[] | null>(null);
   const [audit, setAudit] = useState<{ method: string; success: boolean; created_at: string; detail?: string | null; ip_address?: string | null }[]>([]);
+  const [devices, setDevices] = useState<TrustedDeviceRow[]>([]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    const [st, auditRes] = await Promise.all([
+    const [st, auditRes, deviceList] = await Promise.all([
       fetchMfaRecoveryStatus(),
       supabase
         .from('recovery_audit_log')
         .select('method, success, created_at, detail, ip_address')
         .order('created_at', { ascending: false })
         .limit(12),
+      listTrustedDevices().catch(() => [] as TrustedDeviceRow[]),
     ]);
     setStatus(st);
     setAudit(auditRes.data || []);
+    setDevices(deviceList);
     setLoading(false);
   }, []);
 
@@ -159,8 +169,98 @@ export default function AccountSecurityPanel({ fullName }: AccountSecurityPanelP
         </button>
       </div>
 
+      <div className="app-settings-block" style={{ marginBottom: '1rem' }}>
+        <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', margin: '0 0 0.5rem' }}>
+          <Smartphone size={18} /> Trusted devices
+        </h3>
+        <p style={{ margin: '0 0 0.75rem', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+          After you verify with an authenticator or backup code, you can trust a device so you skip codes
+          for a limited time (company policy). Tokens are stored as an HttpOnly cookie on the web, or in
+          the device Keystore / Keychain / desktop secure storage in apps. Password changes, authenticator
+          resets, and MFA re-enrollment revoke all trusted devices.
+        </p>
+        {devices.length === 0 ? (
+          <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>No trusted devices right now.</p>
+        ) : (
+          <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+            {devices.map((d) => (
+              <li
+                key={d.id}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  padding: '0.55rem 0',
+                  borderBottom: '1px solid var(--border-color)',
+                  fontSize: '0.85rem',
+                }}
+              >
+                <div>
+                  <strong>{d.label || d.platform}</strong>
+                  {' · expires '}
+                  {new Date(d.expires_at).toLocaleString()}
+                  {d.last_used_at ? ` · last used ${new Date(d.last_used_at).toLocaleString()}` : ''}
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ padding: '0.25rem 0.55rem', flexShrink: 0 }}
+                  disabled={busy}
+                  onClick={() => {
+                    void (async () => {
+                      setBusy(true);
+                      setError('');
+                      try {
+                        await revokeTrustedDevice(d.id);
+                        setNote('Device forgotten.');
+                        await refresh();
+                      } catch (e) {
+                        setError(e instanceof Error ? e.message : 'Could not forget device.');
+                      } finally {
+                        setBusy(false);
+                      }
+                    })();
+                  }}
+                >
+                  Forget
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {devices.length > 0 && (
+          <button
+            type="button"
+            className="btn btn-secondary"
+            style={{ marginTop: '0.75rem' }}
+            disabled={busy}
+            onClick={() => {
+              if (!confirm('Forget all trusted devices? You will need an authenticator code on every device.')) return;
+              void (async () => {
+                setBusy(true);
+                setError('');
+                try {
+                  await revokeAllTrustedDevices();
+                  setNote('All trusted devices forgotten.');
+                  await refresh();
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : 'Could not forget devices.');
+                } finally {
+                  setBusy(false);
+                }
+              })();
+            }}
+          >
+            <Trash2 size={16} /> Forget all trusted devices
+          </button>
+        )}
+      </div>
+
       {error && <p style={{ color: 'var(--color-danger)', fontSize: '0.85rem' }}>{error}</p>}
       {note && <p style={{ color: 'var(--color-success, #0f766e)', fontSize: '0.85rem' }}>{note}</p>}
+
+      <AboutUpdatesPanel />
 
       <DeleteAccountSection />
 

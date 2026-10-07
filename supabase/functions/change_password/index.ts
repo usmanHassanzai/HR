@@ -91,6 +91,17 @@ serve(async (req) => {
       return json(req, { error: updateErr.message || 'Could not update password.' }, 500);
     }
 
+    // Password change invalidates all trusted devices.
+    try {
+      await admin.rpc('revoke_trusted_devices_for_user', {
+        p_user_id: caller.id,
+        p_reason: 'password_change',
+      });
+      await admin.from('mfa_session_grants').delete().eq('user_id', caller.id).eq('method', 'trusted_device');
+    } catch (e) {
+      console.warn('[change_password] revoke trusted devices', e);
+    }
+
     return json(req, { ok: true });
   } catch (e) {
     console.error('[change_password]', e);

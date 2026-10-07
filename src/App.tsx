@@ -3,6 +3,7 @@ import { SpeedInsights } from '@vercel/speed-insights/react';
 import LandingPage from './components/LandingPage';
 import NativeScrollRoot from './components/NativeScrollRoot';
 import SilentGeoAttendance from './components/SilentGeoAttendance';
+import AppUpdateBanner from './components/AppUpdateBanner';
 import { isAppShell } from './utils/nativePlatform';
 import { isDeleteAccountRoute, isPlatformRoute } from './utils/companyHelpers';
 import { isGeoHold, clearGeoHold } from './utils/attendanceBackgroundSession';
@@ -215,6 +216,7 @@ function App() {
 
   return (
     <>
+      <AppUpdateBanner />
       {content}
       <SpeedInsights />
     </>

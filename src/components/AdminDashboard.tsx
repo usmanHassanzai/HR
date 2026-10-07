@@ -25,6 +25,7 @@ const AdminDailyWorkReports = lazy(() => import('./AdminDailyWorkReports'));
 const Analytics = lazy(() => import('./Analytics'));
 const BrandingSettings = lazy(() => import('./BrandingSettings'));
 const AccountSecurityPanel = lazy(() => import('./AccountSecurityPanel'));
+const CompanyMfaTrustSettings = lazy(() => import('./CompanyMfaTrustSettings'));
 const BackupCodesLowBanner = lazy(() => import('./BackupCodesLowBanner'));
 const AdminRewards = lazy(() => import('./AdminRewards'));
 const AdminOrgKpiPointsBoard = lazy(() => import('./AdminOrgKpiPointsBoard'));
@@ -545,6 +546,12 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
             </p>
             <Suspense fallback={<Loader2 className="spin-icon" size={24} />}>
               <OfficeLocationSettings />
+            </Suspense>
+          </details>
+          <details className="app-settings-block" open>
+            <summary>Security — MFA trusted devices (company)</summary>
+            <Suspense fallback={<Loader2 className="spin-icon" size={24} />}>
+              <CompanyMfaTrustSettings />
             </Suspense>
           </details>
           <details className="app-settings-block" open>

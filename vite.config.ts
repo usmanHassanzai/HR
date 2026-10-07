@@ -85,15 +85,25 @@ function moduleSizeReport(): Plugin {
   }
 }
 
+const appVersion = process.env.npm_package_version || '1.3.7'
+const webBuildId =
+  process.env.VITE_WEB_BUILD_ID ||
+  `${appVersion}-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '')}`
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), moduleSizeReport()],
+  define: {
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion),
+    'import.meta.env.VITE_WEB_BUILD_ID': JSON.stringify(webBuildId),
+  },
   optimizeDeps: {
     include: ['react', 'react-dom', '@supabase/supabase-js'],
   },
   build: {
     target: 'es2020',
     cssCodeSplit: true,
+    // Content-hashed assets already cache-bust; keep index.html no-cache via headers in vercel.json when present.
     // Avoid preloading async-only vendor chunks (jspdf/xlsx/etc.) on the landing entry.
     modulePreload: false,
     chunkSizeWarningLimit: 900,

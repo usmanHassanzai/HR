@@ -3,8 +3,10 @@
  * Build Scorr Electron installers and copy them into public/downloads/.
  *
  * Outputs:
- *   - Scorr-Setup.exe  (Windows NSIS installer — permanent install)
- *   - Scorr.deb        (Linux)
+ *   - Scorr-Setup.exe  (Windows NSIS — electron-updater)
+ *   - Scorr.deb        (Linux; in-app Download banner)
+ *   - Scorr.AppImage   (Linux; electron-updater)
+ *   - downloads/desktop/latest.yml + latest-linux.yml (+ versioned artifacts)
  *
  * Usage:
  *   node scripts/build-desktop.mjs
@@ -90,7 +92,7 @@ const buildLinux = !winOnly;
 const buildWin = !linuxOnly;
 
 if (buildLinux) {
-  console.log('Building Linux .deb…\n');
+  console.log('Building Linux .deb + AppImage…\n');
   run('npx', [
     'electron-builder',
     '--project',
@@ -98,6 +100,8 @@ if (buildLinux) {
     '--config',
     'electron-builder.yml',
     '--linux',
+    'deb',
+    'AppImage',
   ]);
 }
 
@@ -143,6 +147,9 @@ if (buildWin) {
 const exportedAt = new Date();
 const winSrc = findArtifact(outDir, (f) => /^Scorr-Setup.*\.exe$/i.test(f));
 const debSrc = findArtifact(outDir, (f) => /\.deb$/i.test(f));
+const appImageSrc = findArtifact(outDir, (f) => /\.AppImage$/i.test(f));
+const desktopFeedDir = join(downloadsDir, 'desktop');
+mkdirSync(desktopFeedDir, { recursive: true });
 
 const desktop = {
   available: false,
@@ -156,9 +163,19 @@ const desktop = {
 
 const publish = [];
 
+function copyUpdaterFeed(ymlName) {
+  const src = join(outDir, ymlName);
+  if (!existsSync(src)) return;
+  copyFileSync(src, join(desktopFeedDir, ymlName));
+  publish.push(`Updater → /downloads/desktop/${ymlName}`);
+}
+
 if (winSrc && existsSync(winSrc)) {
   const dest = join(downloadsDir, 'Scorr-Setup.exe');
   copyFileSync(winSrc, dest);
+  copyFileSync(winSrc, join(desktopFeedDir, winSrc.split(/[/\\]/).pop()));
+  // Canonical name for generic feed consumers that rewrite to Scorr-Setup.exe
+  copyFileSync(winSrc, join(desktopFeedDir, 'Scorr-Setup.exe'));
   const bytes = statSync(dest).size;
   desktop.platforms.windows = {
     available: true,
@@ -169,6 +186,11 @@ if (winSrc && existsSync(winSrc)) {
   };
   publish.push(`Windows → /downloads/Scorr-Setup.exe (${sizeLabel(bytes)})`);
   desktop.available = true;
+  const blockmap = `${winSrc}.blockmap`;
+  if (existsSync(blockmap)) {
+    copyFileSync(blockmap, join(desktopFeedDir, `${winSrc.split(/[/\\]/).pop()}.blockmap`));
+  }
+  copyUpdaterFeed('latest.yml');
 }
 
 if (debSrc && existsSync(debSrc)) {
@@ -185,13 +207,32 @@ if (debSrc && existsSync(debSrc)) {
   desktop.available = true;
 }
 
-// Remove obsolete AppImage / zip from downloads if present
-for (const stale of ['Scorr.AppImage', 'Scorr-Windows.zip']) {
+if (appImageSrc && existsSync(appImageSrc)) {
+  const dest = join(downloadsDir, 'Scorr.AppImage');
+  copyFileSync(appImageSrc, dest);
+  copyFileSync(appImageSrc, join(desktopFeedDir, appImageSrc.split(/[/\\]/).pop()));
+  copyFileSync(appImageSrc, join(desktopFeedDir, 'Scorr.AppImage'));
+  const bytes = statSync(dest).size;
+  desktop.platforms.linuxAppImage = {
+    available: true,
+    filename: 'Scorr.AppImage',
+    sizeBytes: bytes,
+    sizeLabel: sizeLabel(bytes),
+  };
+  publish.push(`Linux AppImage → /downloads/Scorr.AppImage (${sizeLabel(bytes)})`);
+  desktop.available = true;
+  const blockmap = `${appImageSrc}.blockmap`;
+  if (existsSync(blockmap)) {
+    copyFileSync(blockmap, join(desktopFeedDir, `${appImageSrc.split(/[/\\]/).pop()}.blockmap`));
+  }
+  copyUpdaterFeed('latest-linux.yml');
+}
+
+for (const stale of ['Scorr-Windows.zip']) {
   const p = join(downloadsDir, stale);
   if (existsSync(p)) {
     try {
       unlinkSync(p);
-      console.log(`Removed obsolete ${stale}`);
     } catch {
       /* ignore */
     }
@@ -200,8 +241,9 @@ for (const stale of ['Scorr.AppImage', 'Scorr-Windows.zip']) {
 
 writeBuildInfo(root, { desktop });
 
+// Keep root downloads clean of raw builder yml/blockmap; feeds live under desktop/
 for (const name of readdirSync(downloadsDir)) {
-  if (name.endsWith('.blockmap') || name.endsWith('.yml')) {
+  if (name.endsWith('.blockmap') || (name.endsWith('.yml') && name.startsWith('latest'))) {
     try {
       unlinkSync(join(downloadsDir, name));
     } catch {
@@ -217,5 +259,5 @@ if (publish.length === 0) {
 }
 console.log('Published:');
 for (const line of publish) console.log(`  ${line}`);
-console.log(`\nNext: npm run publish:desktop  (upload to GitHub Release)`);
+console.log(`\nUpdater feed: https://scorr.walfia.ai/downloads/desktop/`);
 console.log(`Version ${version}`);

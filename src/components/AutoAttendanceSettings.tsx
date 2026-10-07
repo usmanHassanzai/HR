@@ -18,6 +18,7 @@ import {
   iosInstallHref,
 } from '../utils/appStoreLinks';
 import { getAttendanceDeviceToken, isAutoAttendanceClient } from '../utils/attendanceDevice';
+import { fetchVersionManifest, isNewerVersion, packageVersion } from '../utils/appUpdate';
 import { isDesktopApp } from '../utils/nativePlatform';
 import '../styles/auto-attendance-setup.css';
 
@@ -73,7 +74,7 @@ const QR_URL =
   'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' +
   encodeURIComponent('https://scorr.walfia.ai/#download-app');
 
-function deviceStatus(d: DeviceRow): { label: string; kind: 'ok' | 'warn' | 'bad' | 'muted' } {
+function deviceStatus(d: DeviceRow): { label: string; kind: 'ok' | 'warn' | 'bad' | 'muted' | 'outdated' } {
   if (d.revoked_at) return { label: 'Revoked', kind: 'muted' };
   if (d.last_clock_skew_ms != null && Math.abs(d.last_clock_skew_ms) > 10 * 60 * 1000) {
     return { label: 'Clock wrong', kind: 'bad' };
@@ -83,6 +84,11 @@ function deviceStatus(d: DeviceRow): { label: string; kind: 'ok' | 'warn' | 'bad
   if (age > 24 * 60 * 60 * 1000) return { label: 'Offline', kind: 'warn' };
   if (d.presence_state === 'present') return { label: 'Active', kind: 'ok' };
   return { label: 'Active', kind: 'ok' };
+}
+
+function isDeviceOutdated(appVersion: string | null, latest: string): boolean {
+  if (!appVersion || !latest) return false;
+  return isNewerVersion(latest, appVersion);
 }
 
 export default function AutoAttendanceSettings({
@@ -107,8 +113,21 @@ export default function AutoAttendanceSettings({
   const [flagDate, setFlagDate] = useState('');
   const [flagReason, setFlagReason] = useState('');
   const [reminding, setReminding] = useState<string | null>(null);
+  const [latestAppVersion, setLatestAppVersion] = useState(packageVersion());
 
   const webBrowser = !isAutoAttendanceClient();
+
+  useEffect(() => {
+    void fetchVersionManifest().then((m) => {
+      const v =
+        m?.android?.versionName ||
+        m?.android?.version ||
+        m?.windows?.version ||
+        m?.ios?.version ||
+        packageVersion();
+      if (v) setLatestAppVersion(v);
+    });
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -351,10 +370,14 @@ export default function AutoAttendanceSettings({
                   <ul className="aas-web-devices">
                     {devices.map((d) => {
                       const st = deviceStatus(d);
+                      const outdated = isDeviceOutdated(d.app_version, latestAppVersion);
                       return (
                         <li key={d.id}>
                           <strong>{d.platform}</strong> · v{d.app_version || '?'} ·{' '}
                           <span className={`aas-badge aas-badge--${st.kind}`}>{st.label}</span>
+                          {outdated && (
+                            <span className="aas-badge aas-badge--outdated"> Outdated</span>
+                          )}
                           {d.last_seen_at ? ` · last seen ${new Date(d.last_seen_at).toLocaleString()}` : ''}
                         </li>
                       );
@@ -437,13 +460,22 @@ export default function AutoAttendanceSettings({
                         .filter((d) => !d.revoked_at)
                         .map((d) => {
                           const st = deviceStatus(d);
+                          const outdated = isDeviceOutdated(d.app_version, latestAppVersion);
                           return (
                             <tr key={d.id}>
                               <td>{d.full_name || d.email || d.user_id.slice(0, 8)}</td>
                               <td>{d.role || '—'}</td>
                               <td>{d.device_id ? d.device_id.slice(0, 12) : '—'}</td>
                               <td>{d.platform}</td>
-                              <td>v{d.app_version || '?'}</td>
+                              <td>
+                                v{d.app_version || '?'}
+                                {outdated && (
+                                  <>
+                                    {' '}
+                                    <span className="aas-badge aas-badge--outdated">Outdated</span>
+                                  </>
+                                )}
+                              </td>
                               <td>
                                 <span className={`aas-badge aas-badge--${st.kind}`}>{st.label}</span>
                               </td>
@@ -464,12 +496,16 @@ export default function AutoAttendanceSettings({
                     .filter((d) => !d.revoked_at)
                     .map((d) => {
                       const st = deviceStatus(d);
+                      const outdated = isDeviceOutdated(d.app_version, latestAppVersion);
                       return (
                         <div key={d.id} className="aas-mobile-card">
                           <strong>{d.full_name || d.email || 'Device'}</strong>
                           <span>
                             {d.platform} · v{d.app_version || '?'} ·{' '}
                             <span className={`aas-badge aas-badge--${st.kind}`}>{st.label}</span>
+                            {outdated && (
+                              <span className="aas-badge aas-badge--outdated"> Outdated</span>
+                            )}
                           </span>
                           <div className="aas-mobile-card__actions">
                             <button type="button" className="btn btn-danger btn-sm" onClick={() => void revoke(d.id)}>

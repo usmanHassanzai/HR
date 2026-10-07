@@ -35,6 +35,31 @@ function tokenAal(jwt: string): string {
   }
 }
 
+function sessionIdFromJwt(jwt: string): string | null {
+  try {
+    const payload = JSON.parse(atob(jwt.split('.')[1] || ''));
+    return payload.session_id ? String(payload.session_id) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function mfaSatisfied(
+  admin: ReturnType<typeof createClient>,
+  jwt: string,
+  userId: string,
+): Promise<boolean> {
+  if (tokenAal(jwt) === 'aal2') return true;
+  const { data } = await admin
+    .from('mfa_session_grants')
+    .select('id')
+    .eq('user_id', userId)
+    .gt('expires_at', new Date().toISOString())
+    .limit(1)
+    .maybeSingle();
+  return Boolean(data);
+}
+
 function roleLabel(role: string | null | undefined): string {
   if (role === 'admin') return 'Admin';
   if (role === 'manager') return 'Manager';
@@ -190,7 +215,7 @@ serve(async (req) => {
     if (!targetId) {
       return json(req, { error: 'Select a person.' }, 400);
     }
-    if (tokenAal(jwt) !== 'aal2') {
+    if (!(await mfaSatisfied(admin, jwt, caller.id))) {
       return json(req, { error: 'Verify your authenticator before resetting someone else’s.' }, 403);
     }
 
@@ -240,6 +265,14 @@ serve(async (req) => {
     }
 
     await admin.from('mfa_session_grants').delete().eq('user_id', target.id);
+    try {
+      await admin.rpc('revoke_trusted_devices_for_user', {
+        p_user_id: target.id,
+        p_reason: 'admin_reset_authenticator',
+      });
+    } catch (e) {
+      console.warn('[reset_authenticator] revoke trusted devices', e);
+    }
     await admin
       .from('mfa_reset_requests')
       .update({ resolved_at: new Date().toISOString(), resolved_by: caller.id })

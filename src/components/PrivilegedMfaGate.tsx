@@ -10,6 +10,12 @@ import {
   verifyBackupCode,
   verifyLoginEmailOtp,
 } from '../utils/mfaRecovery';
+import {
+  canTrustThisDevice,
+  defaultTrustThisDeviceChecked,
+  issueTrustedDevice,
+  tryVerifyTrustedDevice,
+} from '../utils/trustedDevice';
 import BackupCodesRevealModal from './BackupCodesRevealModal';
 import PasswordField from './PasswordField';
 import '../styles/mfa-gate.css';
@@ -43,10 +49,24 @@ export default function PrivilegedMfaGate({ onSatisfied, onCancel, fullName }: P
   const [needsBackupCodes, setNeedsBackupCodes] = useState(false);
   const [codesIssuePending, setCodesIssuePending] = useState(false);
   const [emailOtpSent, setEmailOtpSent] = useState(false);
+  const [trustDevice, setTrustDevice] = useState(() => defaultTrustThisDeviceChecked());
+  const [trustAllowed, setTrustAllowed] = useState(false);
+  const [trustDays, setTrustDays] = useState(7);
   const onSatisfiedRef = useRef(onSatisfied);
   onSatisfiedRef.current = onSatisfied;
+  const trustDeviceRef = useRef(trustDevice);
+  trustDeviceRef.current = trustDevice;
+  const trustAllowedRef = useRef(trustAllowed);
+  trustAllowedRef.current = trustAllowed;
 
-  const finishSatisfied = useCallback(() => {
+  const finishSatisfied = useCallback(async (opts?: { offerTrust?: boolean }) => {
+    if (opts?.offerTrust !== false && trustDeviceRef.current && trustAllowedRef.current) {
+      try {
+        await issueTrustedDevice();
+      } catch {
+        /* non-fatal — session already MFA-ok */
+      }
+    }
     onSatisfiedRef.current();
   }, []);
 
@@ -109,7 +129,7 @@ export default function PrivilegedMfaGate({ onSatisfied, onCancel, fullName }: P
         // AAL2 or backup-code grant only skip the gate when a verified TOTP still exists.
         // After authenticator reset there are no factors — always force re-enroll.
         if (level === 'aal2' && verifiedIdEarly) {
-          finishSatisfied();
+          await finishSatisfied({ offerTrust: false });
           return;
         }
 
@@ -119,13 +139,21 @@ export default function PrivilegedMfaGate({ onSatisfied, onCancel, fullName }: P
             p,
             new Promise<T>((resolve) => { setTimeout(() => resolve(fallback), ms); }),
           ]);
-        const [grant, st] = await Promise.all([
+        const [grant, st, trustPolicy, trustedOk] = await Promise.all([
           withTimeout(hasMfaSessionGrant().catch(() => false), 4000, false),
           withTimeout(fetchMfaRecoveryStatus().catch(() => null), 4000, null),
+          withTimeout(canTrustThisDevice().catch(() => ({ allowed: false, days: 0 })), 4000, { allowed: false, days: 0 }),
+          withTimeout(tryVerifyTrustedDevice().catch(() => false), 5000, false),
         ]);
         if (cancelled) return;
+        setTrustAllowed(Boolean(trustPolicy.allowed));
+        setTrustDays(trustPolicy.days || 7);
+        if (trustedOk && verifiedIdEarly) {
+          await finishSatisfied({ offerTrust: false });
+          return;
+        }
         if (grant && verifiedIdEarly) {
-          finishSatisfied();
+          await finishSatisfied({ offerTrust: false });
           return;
         }
         setLoginEmailMasked(st?.login_email || null);
@@ -207,7 +235,7 @@ export default function PrivilegedMfaGate({ onSatisfied, onCancel, fullName }: P
     const st = await fetchMfaRecoveryStatus().catch(() => null);
     const mustIssue = wasEnroll || Boolean(st?.needs_codes) || needsBackupCodes;
     if (!mustIssue) {
-      finishSatisfied();
+      await finishSatisfied({ offerTrust: true });
       return;
     }
     try {
@@ -290,7 +318,7 @@ export default function PrivilegedMfaGate({ onSatisfied, onCancel, fullName }: P
     setError('');
     try {
       await verifyBackupCode(code);
-      finishSatisfied();
+      await finishSatisfied({ offerTrust: true });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Invalid backup code.');
     } finally {
@@ -369,7 +397,7 @@ export default function PrivilegedMfaGate({ onSatisfied, onCancel, fullName }: P
           fullName={fullName}
           onDone={() => {
             setFreshCodes(null);
-            finishSatisfied();
+            void finishSatisfied({ offerTrust: true });
           }}
         />
       )}
@@ -511,6 +539,23 @@ export default function PrivilegedMfaGate({ onSatisfied, onCancel, fullName }: P
 
             {error && <p className="mfa-gate__error">{error}</p>}
             {requestNote && <p className="mfa-gate__note">{requestNote}</p>}
+
+            {trustAllowed && (phase === 'verify' || phase === 'enroll') && (mode === 'totp' || mode === 'backup') && (
+              <label className="mfa-gate__trust" style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', margin: '0.85rem 0 0.25rem', fontSize: '0.88rem', lineHeight: 1.4, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={trustDevice}
+                  onChange={(e) => setTrustDevice(e.target.checked)}
+                  style={{ marginTop: '0.2rem' }}
+                />
+                <span>
+                  Trust this device for {trustDays} day{trustDays === 1 ? '' : 's'}
+                  <span style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '0.15rem' }}>
+                    Skip authenticator codes on this device until then. Do not enable on shared computers.
+                  </span>
+                </span>
+              </label>
+            )}
 
             <div className="mfa-gate__actions">
               <button

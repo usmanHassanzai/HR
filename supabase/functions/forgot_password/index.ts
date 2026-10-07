@@ -96,6 +96,16 @@ serve(async (req) => {
       return json(req, { error: 'Could not reset password. Try again or ask your admin.' }, 500);
     }
 
+    try {
+      await admin.rpc('revoke_trusted_devices_for_user', {
+        p_user_id: person.id,
+        p_reason: 'password_reset',
+      });
+      await admin.from('mfa_session_grants').delete().eq('user_id', person.id).eq('method', 'trusted_device');
+    } catch (e) {
+      console.warn('[forgot_password] revoke trusted devices', e);
+    }
+
     const name = (person.full_name || 'there').trim();
     const body = [
       `Dear ${name},`,

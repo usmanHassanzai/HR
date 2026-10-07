@@ -43,6 +43,7 @@ interface AdminUserHubModalProps {
   onEditUser: (user: Profile) => void;
   onResetPassword: (user: { id: string; name: string }) => void;
   onResetMfa?: (user: Profile) => Promise<void>;
+  onForgetTrustedDevices?: (user: Profile) => Promise<void>;
   onEmailPassword?: (user: Profile) => Promise<void>;
   onDeleteUser?: (user: Profile) => Promise<void>;
   onNavigateToKpis: (user: Profile) => void;
@@ -107,6 +108,7 @@ export default function AdminUserHubModal({
   onEditUser,
   onResetPassword,
   onResetMfa,
+  onForgetTrustedDevices,
   onEmailPassword,
   onDeleteUser,
   onNavigateToKpis,
@@ -254,6 +256,20 @@ export default function AdminUserHubModal({
       setActionMsg({ type: 'success', text: 'Authenticator reset successfully.' });
     } catch (e) {
       setActionMsg({ type: 'error', text: e instanceof Error ? e.message : 'Failed to reset authenticator.' });
+    } finally {
+      setActionBusy(null);
+    }
+  };
+
+  const handleForgetTrusted = async () => {
+    if (!onForgetTrustedDevices) return;
+    setActionBusy('trust');
+    setActionMsg(null);
+    try {
+      await onForgetTrustedDevices(user);
+      setActionMsg({ type: 'success', text: 'Trusted devices revoked.' });
+    } catch (e) {
+      setActionMsg({ type: 'error', text: e instanceof Error ? e.message : 'Could not revoke trusted devices.' });
     } finally {
       setActionBusy(null);
     }
@@ -670,6 +686,17 @@ export default function AdminUserHubModal({
                 >
                   {actionBusy === 'mfa' ? <Loader2 size={14} className="spin-icon" /> : <ShieldOff size={14} />}
                   Reset Authenticator
+                </button>
+              )}
+              {!demo && onForgetTrustedDevices && (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  disabled={actionBusy === 'trust'}
+                  onClick={() => void handleForgetTrusted()}
+                >
+                  {actionBusy === 'trust' ? <Loader2 size={14} className="spin-icon" /> : <ShieldOff size={14} />}
+                  Forget trusted devices
                 </button>
               )}
               {!demo && onEmailPassword && user.email && (

@@ -17,6 +17,9 @@ type ScorrDesktopApi = {
   clearLoginCredentials?: () => Promise<boolean> | boolean;
   setAutoLaunch?: (enabled: boolean) => Promise<{ ok?: boolean; enabled?: boolean }> | { ok?: boolean; enabled?: boolean };
   getAutoLaunch?: () => Promise<{ enabled?: boolean }> | { enabled?: boolean };
+  checkForUpdates?: () => Promise<{ ok?: boolean; message?: string }>;
+  quitAndInstall?: () => Promise<{ ok?: boolean }> | { ok?: boolean };
+  onUpdateReady?: (cb: (payload: { version?: string; message?: string }) => void) => () => void;
 };
 
 declare global {

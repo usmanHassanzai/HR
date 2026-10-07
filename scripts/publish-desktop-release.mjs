@@ -39,6 +39,12 @@ const assets = [
     key: 'linuxDeb',
     env: 'VITE_DESKTOP_LINUX_DEB_URL',
   },
+  {
+    file: 'Scorr.AppImage',
+    key: 'linuxAppImage',
+    env: 'VITE_DESKTOP_LINUX_APPIMAGE_URL',
+    optional: true,
+  },
 ];
 
 function run(cmd, args) {
@@ -56,7 +62,7 @@ function sizeLabel(bytes) {
 
 console.log(`Publishing desktop ${tag} to ${repoArg}\n`);
 
-const missing = assets.filter((a) => !existsSync(join(downloads, a.file)));
+const missing = assets.filter((a) => !a.optional && !existsSync(join(downloads, a.file)));
 if (missing.length) {
   console.error('Missing local packages. Run: npm run build:desktop');
   for (const m of missing) console.error(`  - public/downloads/${m.file}`);
@@ -93,15 +99,27 @@ if (!hasTag) {
 const urls = {};
 for (const asset of assets) {
   const path = join(downloads, asset.file);
+  if (!existsSync(path)) {
+    console.log(`Skipping missing optional ${asset.file}`);
+    continue;
+  }
   console.log(`Uploading ${asset.file}…`);
   // clobber replaces existing asset with same name
   run('gh', ['release', 'upload', tag, path, '-R', repoArg, '--clobber']);
   urls[asset.env] = `https://github.com/${repoArg}/releases/download/${tag}/${asset.file}`;
 }
 
+// Rewrite updater feeds with absolute GitHub URLs (Vercel hosts only the yml).
+try {
+  run('node', ['scripts/write-version-json.mjs']);
+} catch (e) {
+  console.warn('write-version-json after publish:', e?.message || e);
+}
+
 const exportedAt = new Date();
 const platforms = {};
 for (const asset of assets) {
+  if (!urls[asset.env]) continue;
   const bytes = statSync(join(downloads, asset.file)).size;
   platforms[asset.key] = {
     available: true,

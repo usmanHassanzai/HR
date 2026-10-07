@@ -121,6 +121,31 @@ public class AttendancePingPlugin extends Plugin {
         call.resolve();
     }
 
+    @PluginMethod
+    public void saveTrustedDeviceToken(PluginCall call) {
+        String token = call.getString("token");
+        if (token == null || token.isEmpty()) {
+            call.reject("Missing token");
+            return;
+        }
+        AttendancePingStore.saveTrustedDeviceToken(getContext(), token);
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void loadTrustedDeviceToken(PluginCall call) {
+        JSObject result = new JSObject();
+        String token = AttendancePingStore.trustedDeviceToken(getContext());
+        result.put("token", token != null ? token : "");
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void clearTrustedDeviceToken(PluginCall call) {
+        AttendancePingStore.clearTrustedDeviceToken(getContext());
+        call.resolve();
+    }
+
     /** Admin "Test office Wi-Fi" — SSID/BSSID seen on this device. */
     @PluginMethod
     public void probeNetwork(PluginCall call) {

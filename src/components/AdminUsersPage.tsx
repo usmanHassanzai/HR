@@ -5,6 +5,7 @@ import { Profile, UserRole, displayRoleLabel, roleNeedsDepartment, roleNeedsJobT
 import { Department } from '../utils/departmentHelpers';
 import { isDemoProfile } from '../utils/demoMode';
 import { resetAuthenticatorForUser } from '../utils/mfaHelpers';
+import { adminRevokeAllTrustedDevices } from '../utils/trustedDevice';
 import AdminEmailPasswordsPanel from './AdminEmailPasswordsPanel';
 import AdminUserHubModal from './AdminUserHubModal';
 import PasswordField from './PasswordField';
@@ -452,6 +453,23 @@ export default function AdminUsersPage({
     }
   };
 
+  const handleForgetTrustedDevices = async (user: Profile) => {
+    setMenuId(null);
+    if (
+      !confirm(
+        `Forget all trusted devices for ${user.full_name}? They will need an authenticator code on every device. This is audited.`,
+      )
+    ) {
+      return;
+    }
+    try {
+      const n = await adminRevokeAllTrustedDevices(user.id);
+      alert(`Revoked ${n} trusted device(s) for ${user.full_name}.`);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Could not revoke trusted devices.');
+    }
+  };
+
   const handleResetFromRequest = async (userId: string) => {
     const person = users.find((u) => u.id === userId);
     if (!person) {
@@ -595,6 +613,16 @@ export default function AdminUsersPage({
         >
           {resettingMfaId === u.id ? <Loader2 size={16} className="spin-icon" /> : <ShieldOff size={16} />}
           Reset authenticator
+        </button>
+      )}
+      {!demo && (
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => void handleForgetTrustedDevices(u)}
+        >
+          <ShieldOff size={16} />
+          Forget all trusted devices
         </button>
       )}
       {!demo && (
@@ -1494,6 +1522,7 @@ export default function AdminUsersPage({
             onResetPassword(u);
           }}
           onResetMfa={handleResetAuthenticator}
+          onForgetTrustedDevices={handleForgetTrustedDevices}
           onEmailPassword={handleEmailPassword}
           onDeleteUser={handleDeleteUser}
           onNavigateToKpis={(u) => {

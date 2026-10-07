@@ -111,6 +111,19 @@ final class AttendancePingStore {
             .apply();
     }
 
+    /** MFA trusted-device token — Keystore-backed EncryptedSharedPreferences. */
+    static void saveTrustedDeviceToken(Context ctx, String token) {
+        prefs(ctx).edit().putString("trusted_device_token", token).apply();
+    }
+
+    static String trustedDeviceToken(Context ctx) {
+        return prefs(ctx).getString("trusted_device_token", null);
+    }
+
+    static void clearTrustedDeviceToken(Context ctx) {
+        prefs(ctx).edit().remove("trusted_device_token").apply();
+    }
+
     static String deviceId(Context ctx) {
         return prefs(ctx).getString("device_id", null);
     }

@@ -12,10 +12,16 @@ files:
   - preload.cjs
   - icon.png
   - package.json
+  - node_modules/**/*
 asar: true
+publish:
+  - provider: generic
+    url: https://scorr.walfia.ai/downloads/desktop/
+    useMultipleRangeRequest: false
 linux:
   target:
     - deb
+    - AppImage
   category: Office
   icon: icon.png
   maintainer: Walfia <hello@walfia.ai>
@@ -39,6 +45,7 @@ nsis:
   uninstallDisplayName: Scorr
   deleteAppDataOnUninstall: false
   runAfterFinish: true
+  # Keep appData so login / attendance tokens survive updates
 mac:
   target:
     - dmg

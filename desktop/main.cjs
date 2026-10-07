@@ -27,12 +27,20 @@ const SUPABASE_ANON =
   process.env.VITE_SUPABASE_ANON_KEY ||
   '';
 
+let autoUpdater = null;
+try {
+  ({ autoUpdater } = require('electron-updater'));
+} catch {
+  autoUpdater = null;
+}
+
 const LOGIN_SIZE = { width: 480, height: 780 };
 const WORKSPACE_SIZE = { width: 1280, height: 840 };
 const TOKEN_FILE = () => path.join(app.getPath('userData'), 'attendance-token.bin');
 const DEVICE_ID_FILE = () => path.join(app.getPath('userData'), 'attendance-device-id.txt');
 const SCHEDULE_FILE = () => path.join(app.getPath('userData'), 'attendance-schedule.json');
 const LOGIN_CREDS_FILE = () => path.join(app.getPath('userData'), 'login-credentials.bin');
+const TRUSTED_DEVICE_FILE = () => path.join(app.getPath('userData'), 'trusted-device.bin');
 
 /** @type {BrowserWindow | null} */
 let mainWindow = null;
@@ -125,6 +133,39 @@ function loadLoginCredentials() {
 function clearLoginCredentials() {
   try {
     if (fs.existsSync(LOGIN_CREDS_FILE())) fs.unlinkSync(LOGIN_CREDS_FILE());
+  } catch {
+    /* ignore */
+  }
+  return true;
+}
+
+function saveTrustedDeviceToken(token) {
+  if (!token) return false;
+  try {
+    if (safeStorage.isEncryptionAvailable()) {
+      fs.writeFileSync(TRUSTED_DEVICE_FILE(), safeStorage.encryptString(String(token)));
+      return true;
+    }
+  } catch {
+    /* fall through */
+  }
+  return false;
+}
+
+function loadTrustedDeviceToken() {
+  try {
+    if (fs.existsSync(TRUSTED_DEVICE_FILE()) && safeStorage.isEncryptionAvailable()) {
+      return safeStorage.decryptString(fs.readFileSync(TRUSTED_DEVICE_FILE()));
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+function clearTrustedDeviceToken() {
+  try {
+    if (fs.existsSync(TRUSTED_DEVICE_FILE())) fs.unlinkSync(TRUSTED_DEVICE_FILE());
   } catch {
     /* ignore */
   }
@@ -402,6 +443,39 @@ function wirePowerEvents() {
 
 app.setLoginItemSettings({ openAtLogin: true, openAsHidden: true });
 
+function setupAutoUpdater() {
+  if (!autoUpdater || !app.isPackaged) return;
+  try {
+    autoUpdater.autoDownload = true;
+    autoUpdater.autoInstallOnAppQuit = true;
+    autoUpdater.setFeedURL({
+      provider: 'generic',
+      url: 'https://scorr.walfia.ai/downloads/desktop/',
+    });
+    autoUpdater.on('update-downloaded', (info) => {
+      if (Notification.isSupported()) {
+        new Notification({
+          title: 'Scorr update ready',
+          body: `Version ${info.version || ''} downloaded. Restart Scorr to finish updating.`,
+        }).show();
+      }
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('scorr:update-ready', {
+          version: info.version,
+          message: 'Restart to update',
+        });
+      }
+    });
+    const check = () => {
+      void autoUpdater.checkForUpdatesAndNotify().catch(() => {});
+    };
+    check();
+    setInterval(check, 6 * 60 * 60 * 1000);
+  } catch (e) {
+    console.warn('autoUpdater setup failed', e);
+  }
+}
+
 app.whenReady().then(async () => {
   ipcMain.handle('scorr:setAutoLaunch', (_e, enabled) => {
     app.setLoginItemSettings({ openAtLogin: Boolean(enabled), openAsHidden: true });
@@ -410,6 +484,26 @@ app.whenReady().then(async () => {
   ipcMain.handle('scorr:getAutoLaunch', () => {
     const s = app.getLoginItemSettings();
     return { enabled: Boolean(s.openAtLogin) };
+  });
+  ipcMain.handle('scorr:checkForUpdates', async () => {
+    if (!autoUpdater || !app.isPackaged) {
+      return { ok: false, message: 'Updates run in the installed desktop app.' };
+    }
+    try {
+      const result = await autoUpdater.checkForUpdates();
+      return {
+        ok: true,
+        message: result?.updateInfo?.version
+          ? `Update ${result.updateInfo.version} available — downloading in the background.`
+          : 'Checked for updates.',
+      };
+    } catch (e) {
+      return { ok: false, message: e instanceof Error ? e.message : String(e) };
+    }
+  });
+  ipcMain.handle('scorr:quitAndInstall', () => {
+    if (autoUpdater) autoUpdater.quitAndInstall(false, true);
+    return { ok: true };
   });
   session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
     const allow = permission === 'geolocation' || permission === 'notifications';
@@ -432,10 +526,14 @@ app.whenReady().then(async () => {
   ipcMain.handle('scorr:saveLoginCredentials', (_e, email, password) => saveLoginCredentials(email, password));
   ipcMain.handle('scorr:loadLoginCredentials', () => loadLoginCredentials());
   ipcMain.handle('scorr:clearLoginCredentials', () => clearLoginCredentials());
+  ipcMain.handle('scorr:saveTrustedDeviceToken', (_e, token) => saveTrustedDeviceToken(token));
+  ipcMain.handle('scorr:loadTrustedDeviceToken', () => loadTrustedDeviceToken());
+  ipcMain.handle('scorr:clearTrustedDeviceToken', () => clearTrustedDeviceToken());
 
   setupTray();
   wirePowerEvents();
   createWindow();
+  setupAutoUpdater();
 
   if (loadToken()) {
     await syncSchedule();

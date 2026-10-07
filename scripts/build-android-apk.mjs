@@ -6,17 +6,12 @@
  *   - JDK 17+  (sudo apt install openjdk-17-jdk)
  *   - Android SDK (Android Studio or cmdline-tools)
  *   - ANDROID_HOME set, or SDK at ~/Android/Sdk
- *
- * Optional release signing — create android/keystore.properties:
- *   storeFile=../scorr-release.keystore
- *   storePassword=your_password
- *   keyAlias=scorr
- *   keyPassword=your_password
- *
- * Generate keystore:
- *   keytool -genkey -v -keystore scorr-release.keystore -alias scorr -keyalg RSA -keysize 2048 -validity 10000
+ *   - Permanent release keystore: node scripts/ensure-android-keystore.mjs
+ *     → ~/.scorr/scorr-release.keystore + ~/.scorr/keystore.env
+ *     → backup ~/Scorr-keystore-backup/
  *
  * Usage: node scripts/build-android-apk.mjs [--release] [--skip-web]
+ *   --release (default when keystore present) signs with the permanent release key.
  */
 import { execSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
@@ -27,12 +22,36 @@ import { formatUpdatedLabel, packageVersion, readBuildInfo, writeBuildInfo } fro
 const root = new URL('..', import.meta.url).pathname;
 const androidDir = join(root, 'android');
 const downloadsDir = join(root, 'public', 'downloads');
-const release = process.argv.includes('--release');
 const skipWeb = process.argv.includes('--skip-web');
+const forceDebug = process.argv.includes('--debug');
 const androidSdk = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT || join(homedir(), 'Android', 'Sdk');
 const localProps = join(androidDir, 'local.properties');
-const keystoreProps = join(androidDir, 'keystore.properties');
 const portableJdk = join(root, '.tools', 'jdk-21');
+
+function loadKeystoreEnv() {
+  const envFile = join(homedir(), '.scorr', 'keystore.env');
+  if (!existsSync(envFile)) return {};
+  const out = {};
+  for (const line of readFileSync(envFile, 'utf8').split('\n')) {
+    const m = line.match(/^([A-Z0-9_]+)=(.*)$/);
+    if (m) out[m[1]] = m[2].trim();
+  }
+  return out;
+}
+
+const ksEnv = loadKeystoreEnv();
+for (const [k, v] of Object.entries(ksEnv)) {
+  if (!process.env[k]) process.env[k] = v;
+}
+function keystoreReady() {
+  return (
+    Boolean(process.env.SCORR_ANDROID_KEYSTORE) &&
+    existsSync(process.env.SCORR_ANDROID_KEYSTORE) &&
+    Boolean(process.env.SCORR_ANDROID_STORE_PASSWORD) &&
+    Boolean(process.env.SCORR_ANDROID_KEY_PASSWORD)
+  );
+}
+let release = !forceDebug && (process.argv.includes('--release') || keystoreReady());
 
 function javaHome() {
   if (existsSync(join(portableJdk, 'bin', 'java'))) return portableJdk;
@@ -95,38 +114,14 @@ function ensureSdk() {
   }
 }
 
-function patchReleaseSigning() {
-  if (!release || !existsSync(keystoreProps)) return;
-  const gradlePath = join(androidDir, 'app', 'build.gradle');
-  let gradle = readFileSync(gradlePath, 'utf8');
-  if (gradle.includes('signingConfigs')) return;
-
-  const signingBlock = `
-    signingConfigs {
-        release {
-            def keystorePropertiesFile = rootProject.file("keystore.properties")
-            def keystoreProperties = new Properties()
-            keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
-            storeFile file(keystoreProperties['storeFile'])
-            storePassword keystoreProperties['storePassword']
-            keyAlias keystoreProperties['keyAlias']
-            keyPassword keystoreProperties['keyPassword']
-        }
-    }`;
-
-  gradle = gradle.replace(
-    'buildTypes {',
-    `${signingBlock}\n    buildTypes {`
-  );
-  gradle = gradle.replace(
-    'release {\n            minifyEnabled false',
-    'release {\n            signingConfig signingConfigs.release\n            minifyEnabled false'
-  );
-  writeFileSync(gradlePath, gradle);
-  console.log('Applied release signing from keystore.properties');
-}
-
 console.log('Building Scorr mobile app…\n');
+
+if (!keystoreReady() && !forceDebug) {
+  console.log('Ensuring permanent release keystore…');
+  run('node scripts/ensure-android-keystore.mjs');
+  Object.assign(process.env, loadKeystoreEnv());
+  release = process.argv.includes('--release') || keystoreReady();
+}
 
 ensureJava();
 ensureSdk();
@@ -151,19 +146,23 @@ if (!skipWeb) {
 stripDownloadBinariesFromWebDir();
 run('npx cap sync android');
 
-if (release) patchReleaseSigning();
-
-const task = release && existsSync(keystoreProps) ? 'assembleRelease' : 'assembleDebug';
-if (release && !existsSync(keystoreProps)) {
-  console.log('\nNo keystore.properties — building debug APK (fine for testing).');
-  console.log('For Play Store / production, add android/keystore.properties and re-run with --release\n');
+const canSign = keystoreReady();
+const task = release && canSign ? 'assembleRelease' : 'assembleDebug';
+if (release && !canSign) {
+  console.log('\nNo ~/.scorr keystore — building debug APK.');
+  console.log('Run: node scripts/ensure-android-keystore.mjs\n');
+} else if (canSign) {
+  console.log(`\nSigning with permanent release key: ${process.env.SCORR_ANDROID_KEYSTORE}`);
 }
 
-console.log(`\nStep 3/4: Gradle ${task}`);
-try {
-  run(process.platform === 'win32' ? 'gradlew.bat --stop' : './gradlew --stop', androidDir);
-} catch { /* no daemon yet */ }
-run(process.platform === 'win32' ? `gradlew.bat ${task}` : `./gradlew ${task}`, androidDir);
+console.log(`\nStep 3/4: Gradle ${task} (--no-daemon, no mid-build --stop)`);
+// Never call `./gradlew --stop` here — concurrent APK builds racing each other
+// used to kill the other process's daemon mid-flight. Prefer a one-shot JVM.
+const gradleCmd =
+  process.platform === 'win32'
+    ? `gradlew.bat ${task} --no-daemon`
+    : `./gradlew ${task} --no-daemon`;
+run(gradleCmd, androidDir);
 
 const apkName = task === 'assembleRelease' ? 'app-release.apk' : 'app-debug.apk';
 const apkSrc = join(androidDir, 'app', 'build', 'outputs', 'apk', task === 'assembleRelease' ? 'release' : 'debug', apkName);
