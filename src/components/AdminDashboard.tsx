@@ -539,7 +539,7 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
       ) : activeTab === 'settings' ? (
         <div className="app-settings-stack">
           <details className="app-settings-block" open>
-            <summary>Office GPS, Wi-Fi &amp; automatic attendance</summary>
+            <summary>Office &amp; Attendance — GPS, Wi-Fi &amp; automatic</summary>
             <p style={{ margin: '0 0 0.75rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
               Same settings as <strong>Office &amp; Attendance</strong> in the menu — identical on web, desktop, and mobile.
             </p>

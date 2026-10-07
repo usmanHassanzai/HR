@@ -177,7 +177,7 @@ export default function AssignManagerLocationPanel({
   };
 
   const removeEmployee = async (id: string, name: string) => {
-    if (!confirm(`Remove office GPS assignment for ${name}?`)) return;
+    if (!confirm(`Remove office location assignment for ${name}?`)) return;
     const { error } = await supabase.rpc('remove_employee_work_site', { p_user_id: id });
     if (error) setMsg(error.message);
     else {
@@ -271,7 +271,7 @@ export default function AssignManagerLocationPanel({
       {!embedded && (
         <>
           <h3 className="attendance-card__title">
-            <UserCheck size={18} /> Step 2 — Assign office GPS
+            <UserCheck size={18} /> Step 2 — Assign office location
           </h3>
           <p className="attendance-card__subtitle">
             Assign an office zone to all employees, managers, and HR at once, or to any individual. You can also assign by
@@ -338,7 +338,7 @@ export default function AssignManagerLocationPanel({
             </h4>
             <p className="attendance-card__subtitle" style={{ marginBottom: '1rem' }}>
               Personal assignment overrides the manager team zone for that person. Assign to all gives every employee,
-              manager, and HR this office GPS.
+              manager, and HR this office location.
             </p>
 
             <form onSubmit={assignEmployee} className="attendance-form-grid attendance-form-grid--wide">

@@ -5,6 +5,131 @@
   gap: 1rem;
 }
 
+.aas-panel {
+  padding: 1.25rem 1.35rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.aas-panel__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+}
+
+.aas-panel__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: var(--border-radius-sm, 8px);
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  color: var(--accent-primary);
+  flex-shrink: 0;
+}
+
+.aas-panel__title {
+  margin: 0;
+  font-family: var(--font-display, inherit);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.aas-panel__subtitle {
+  margin: 0.25rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.aas-toggles {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.aas-toggle {
+  display: flex;
+  gap: 0.55rem;
+  align-items: center;
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  border-radius: var(--border-radius-sm, 8px);
+  border: 1px solid var(--border-color);
+  background: color-mix(in srgb, var(--bg-elevated, rgba(0, 0, 0, 0.03)) 90%, transparent);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.aas-toggle input {
+  accent-color: var(--accent-primary);
+}
+
+.aas-device-block {
+  display: grid;
+  gap: 0.75rem;
+  border-top: 1px solid var(--border-color);
+  padding-top: 1rem;
+}
+
+.aas-device-block h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-family: var(--font-display, inherit);
+}
+
+.aas-device-block__lead {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.aas-msg {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.aas-msg--ok {
+  color: var(--color-success, #047857);
+}
+
+.aas-msg--err {
+  color: var(--color-danger, #b91c1c);
+}
+
+.aas-admin-panel {
+  padding: 1.25rem 1.35rem;
+}
+
+.aas-web-card__body {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.aas-web-card h4 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.aas-web-card__devices-title {
+  margin: 0.35rem 0 0;
+  font-size: 0.9rem;
+}
+
+.aas-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2.5rem 1rem;
+  color: var(--text-muted);
+}
+
 .aas-wizard {
   position: relative;
   display: flex;
@@ -383,15 +508,24 @@
   display: grid;
   place-items: center;
   gap: 0.45rem;
-  padding: 1.5rem 1rem;
+  padding: 1.75rem 1.15rem;
   text-align: center;
   color: var(--text-muted);
   border: 1px dashed var(--border-color);
   border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-muted, rgba(15, 23, 42, 0.04)) 90%, transparent);
 }
 
 .aas-empty svg {
-  opacity: 0.7;
+  opacity: 0.55;
+  color: var(--accent-primary);
+}
+
+.aas-empty p {
+  margin: 0;
+  max-width: 26rem;
+  font-size: 0.88rem;
+  line-height: 1.45;
 }
 
 .aas-filters {

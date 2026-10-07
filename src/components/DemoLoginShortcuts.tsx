@@ -45,6 +45,8 @@ export default function DemoLoginShortcuts({
         setError(loginFailureMessage(authError.message));
       } else if (data.session) {
         await recordLoginAttempt({ email, success: true, acceptedPolicy: true });
+        const { markPortalSessionStart } = await import('../utils/usePortalSessionGuard');
+        markPortalSessionStart(true);
         onLoginSuccess(data.session);
       }
     } catch (err: unknown) {

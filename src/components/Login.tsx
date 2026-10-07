@@ -15,6 +15,7 @@ import {
   migrateClearInsecureRememberedLogin,
   saveRememberedLogin,
 } from '../utils/rememberedLogin';
+import { authNoticeMessage, consumeAuthNotice, markPortalSessionStart } from '../utils/usePortalSessionGuard';
 
 interface LoginProps {
   onLoginSuccess: (session: any) => void;
@@ -94,10 +95,19 @@ export default function Login({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
+  const [infoKind, setInfoKind] = useState<'success' | 'session'>('success');
   const [forgotMode, setForgotMode] = useState(false);
   const [acceptedPolicy, setAcceptedPolicy] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const showRememberMe = isAppShell();
+
+  useEffect(() => {
+    const notice = consumeAuthNotice();
+    if (notice) {
+      setInfoKind('session');
+      setInfo(authNoticeMessage(notice));
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -141,6 +151,7 @@ export default function Login({
         setError(loginFailureMessage(authError.message));
       } else if (data.session) {
         await recordLoginAttempt({ email, success: true, acceptedPolicy: true });
+        markPortalSessionStart(true);
         if (showRememberMe) {
           if (rememberMe) await saveRememberedLogin(email, password);
           else await clearRememberedLogin();
@@ -170,6 +181,7 @@ export default function Login({
       setEmail('');
       setPassword('');
       setError('');
+      setInfoKind('success');
       setInfo('A new password has been sent if that email is registered. You can enter another email if needed.');
     } catch (err: any) {
       setError(err.message || 'Could not send the password. Try again.');
@@ -216,7 +228,9 @@ export default function Login({
             <div className="login-error-banner">{error}</div>
           )}
           {info && (
-            <div className="login-success-banner">{info}</div>
+            <div className={infoKind === 'session' ? 'login-info-banner' : 'login-success-banner'} role="status">
+              {info}
+            </div>
           )}
 
           {forgotMode ? (

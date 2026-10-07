@@ -1108,6 +1108,16 @@ svg.brand-logo {
   border-left: 3px solid var(--color-success, #059669);
 }
 
+.login-info-banner {
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+  color: var(--text-primary);
+  padding: 0.75rem 1rem;
+  border-radius: var(--border-radius-sm);
+  font-size: 0.875rem;
+  margin-bottom: 1.25rem;
+  border-left: 3px solid var(--accent-primary);
+}
+
 .login-forgot-link {
   background: none;
   border: none;

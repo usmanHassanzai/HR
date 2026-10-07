@@ -28,6 +28,7 @@ import {
   openNativeBatterySettings,
   probeOfficeNetworkMatch,
   registerDeviceViaRpc,
+  requestAlwaysLocation,
   requestNativeNotifications,
   requestWhileUsingLocation,
   saveSetupProgress,
@@ -80,7 +81,6 @@ export default function AutoAttendanceSetupWizard({
   const native = isNativeApp();
   const desktop = isDesktopApp();
   const mobile = native;
-  const totalSteps = mobile ? 6 : desktop ? 4 : 1;
 
   const steps: StepDef[] = useMemo(() => {
     if (desktop) {
@@ -92,9 +92,23 @@ export default function AutoAttendanceSetupWizard({
       ];
     }
     const base: StepDef[] = [
-      { id: 'disclosure', title: 'Why Scorr needs your location', explanation: 'Google Play prominent disclosure — read before continuing.', icon: MapPin },
+      {
+        id: 'disclosure',
+        title: 'Why Scorr needs your location',
+        explanation: isIosApp()
+          ? 'Apple requires a clear explanation before Always location — read before continuing.'
+          : 'Google Play prominent disclosure — read before continuing.',
+        icon: MapPin,
+      },
       { id: 'account', title: 'Your account is ready', explanation: 'Checking company settings, office zone, and shift.', icon: Shield },
-      { id: 'location', title: 'Location access', explanation: 'While using the app, then Allow all the time / Always.', icon: MapPin },
+      {
+        id: 'location',
+        title: 'Location access',
+        explanation: isIosApp()
+          ? 'Allow While Using, then Always, so check-in works when the app is closed.'
+          : 'While using the app, then Allow all the time.',
+        icon: MapPin,
+      },
       { id: 'notifications', title: 'Notifications', explanation: 'So you know when you are checked in or out.', icon: Bell },
     ];
     if (isAndroidApp()) {
@@ -114,6 +128,7 @@ export default function AutoAttendanceSetupWizard({
     return base;
   }, [desktop]);
 
+  const totalSteps = steps.length;
   const [stepIndex, setStepIndex] = useState(() => Math.min(loadSetupProgress(), Math.max(0, totalSteps - 1)));
   const [statuses, setStatuses] = useState<Record<string, StepStatus>>({});
   const [busyText, setBusyText] = useState('');
@@ -261,16 +276,14 @@ export default function AutoAttendanceSetupWizard({
         return;
       }
       if (isIosApp()) {
-        // Always is requested via native location manager when monitoring starts;
-        // open settings if not yet Always.
-        const snap = await getNativePermissionSnapshot();
-        if (snap.backgroundLocation === 'granted') {
+        const always = await requestAlwaysLocation();
+        if (always.ok) {
           setStepStatus('location', 'done');
           goTo(stepIndex + 1);
           return;
         }
         setStepStatus('location', 'action');
-        setError('Allow Location → Always for Scorr, then return here.');
+        setError(always.detail || 'Open Settings → Scorr → Location → Always, then return here.');
         return;
       }
       // Android 10+: Always cannot be granted from a dialog — open settings.

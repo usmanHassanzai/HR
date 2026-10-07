@@ -1338,7 +1338,7 @@ export default function AttendanceLeavePanel({
               {isRemoteWorker
                 ? (todayRecord ? ATTENDANCE_STATUS_LABEL[todayRecord.status] : 'Waiting on manager')
                 : isHybridWorker
-                  ? (todayRecord ? ATTENDANCE_STATUS_LABEL[todayRecord.status] : 'Office GPS or WFH')
+                  ? (todayRecord ? ATTENDANCE_STATUS_LABEL[todayRecord.status] : 'Office or WFH')
                 : checkedInToday ? 'Checked in' : 'Not yet'}
             </strong>
           </div>

@@ -24,8 +24,8 @@
   width: 2.75rem;
   height: 2.75rem;
   border-radius: var(--border-radius-sm);
-  background: color-mix(in srgb, #3b82f6 12%, transparent);
-  color: #3b82f6;
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  color: var(--accent-primary);
   flex-shrink: 0;
 }
 
@@ -342,6 +342,50 @@
   grid-column: 1 / -1;
 }
 
+.admin-office-wifi-block {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.admin-office-wifi-block__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.admin-office-wifi-block__head > label {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.admin-office-wifi-block__actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.admin-office-wifi-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.admin-office-wifi-probe {
+  margin: 0;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--border-radius-sm);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 22%, var(--border-color));
+  background: color-mix(in srgb, var(--accent-primary) 6%, transparent);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
 .admin-office-wifi-list {
   display: flex;
   flex-direction: column;
@@ -361,6 +405,103 @@
   align-items: center;
   gap: 0.75rem;
   margin-bottom: 0.65rem;
+}
+
+.admin-office-wifi-row__active {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.admin-office-wifi-row__footer {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.65rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.admin-office-wifi-empty {
+  text-align: center;
+  padding: 1.5rem 1rem;
+  color: var(--text-muted);
+  border: 1px dashed var(--border-color);
+  border-radius: var(--border-radius-sm);
+  background: var(--surface-muted);
+}
+
+.admin-office-wifi-empty svg {
+  opacity: 0.5;
+  margin-bottom: 0.5rem;
+}
+
+.admin-office-wifi-empty h4 {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+}
+
+.admin-office-wifi-empty p {
+  margin: 0 0 0.85rem;
+  font-size: 0.85rem;
+  max-width: 28rem;
+  margin-inline: auto;
+  line-height: 1.45;
+}
+
+.admin-office-form-help {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.admin-office-span-full {
+  grid-column: 1 / -1;
+}
+
+.admin-office-form-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+}
+
+.admin-office-checkbox-end {
+  display: flex;
+  align-items: flex-end;
+}
+
+.admin-office-checkbox-end label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  cursor: pointer;
+}
+
+.admin-office-stat__value--sm {
+  font-size: 0.88rem !important;
+}
+
+.admin-office-map-fallback {
+  min-height: 160px;
+}
+
+.admin-office-item__meta-icon {
+  vertical-align: -2px;
+  margin-right: 0.25rem;
+}
+
+.admin-office-alert--tight {
+  margin-bottom: 0.75rem;
 }
 
 .admin-office-auto-attendance {
@@ -393,5 +534,20 @@
   .admin-office-wifi-row input,
   .admin-office-wifi-row select {
     max-width: 100%;
+  }
+
+  .admin-office-wifi-block__actions {
+    width: 100%;
+  }
+
+  .admin-office-wifi-block__actions .btn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .admin-office-wifi-row__footer .btn {
+    flex: 1;
+    justify-content: center;
+    min-height: var(--touch-min, 44px);
   }
 }

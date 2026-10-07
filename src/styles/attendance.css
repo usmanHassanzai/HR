@@ -500,6 +500,41 @@
   vertical-align: middle;
 }
 
+.geo-attendance-panel__badge {
+  margin-left: 0.5rem;
+  font-size: 0.65rem;
+}
+
+.geo-hint--spaced,
+.attendance-present-banner--spaced {
+  margin-bottom: 0.75rem;
+}
+
+.geo-empty-assign {
+  display: grid;
+  place-items: center;
+  gap: 0.45rem;
+  margin: 0.75rem 0 1rem;
+  padding: 1.25rem 1rem;
+  text-align: center;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--border-radius-sm);
+  background: var(--surface-muted, rgba(15, 23, 42, 0.04));
+  color: var(--text-muted);
+}
+
+.geo-empty-assign svg {
+  opacity: 0.55;
+  color: var(--accent-primary);
+}
+
+.geo-empty-assign p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  max-width: 28rem;
+}
+
 .geo-nearby,
 .geo-last-action,
 .geo-hint {

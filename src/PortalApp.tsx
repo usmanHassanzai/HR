@@ -14,7 +14,13 @@ import { applyBranding, fetchCompanyBranding, loadBranding } from './lib/brandin
 import { isDemoProfile } from './utils/demoMode';
 import { fetchMyCompany, Company, isPlatformOwner } from './utils/companyHelpers';
 import { useSupabaseRealtime } from './utils/useSupabaseRealtime';
-import { usePortalSessionGuard, useShiftEndSessionLogout } from './utils/usePortalSessionGuard';
+import {
+  isPortalSessionExpired,
+  lockPortalSession,
+  markPortalSessionStart,
+  usePortalSessionGuard,
+  useShiftEndSessionLogout,
+} from './utils/usePortalSessionGuard';
 import {
   clearGeoHold,
   isGeoHold,
@@ -61,7 +67,8 @@ function PortalApp({ initialSession = null, onSignedOut }: PortalAppProps) {
   const [geoHold, setGeoHold] = useState(() => isGeoHold());
   const [privilegedMfaOk, setPrivilegedMfaOk] = useState(false);
   const [mfaLinkMsg, setMfaLinkMsg] = useState('');
-  usePortalSessionGuard(Boolean(session), { idle: Boolean(session) && !geoHold });
+  // Absolute 1h from login on web, Capacitor, and Electron (not idle / sliding).
+  usePortalSessionGuard(Boolean(session));
   const shiftStaff =
     Boolean(session && profile) &&
     (profile?.role === 'employee' || profile?.role === 'manager' || profile?.role === 'hr');
@@ -215,6 +222,13 @@ function PortalApp({ initialSession = null, onSignedOut }: PortalAppProps) {
     void (async () => {
       const activeSession = initialSession ?? (await supabase.auth.getSession()).data.session;
       if (cancelled) return;
+      if (activeSession?.user && isPortalSessionExpired()) {
+        await lockPortalSession({ force: true, reason: 'session_expired' });
+        setSession(null);
+        if (!cancelled) setLoading(false);
+        return;
+      }
+      if (activeSession?.user) markPortalSessionStart(false);
       setSession(activeSession);
       if (activeSession?.user) {
         await fetchUserProfile(activeSession.user.id);
@@ -225,6 +239,11 @@ function PortalApp({ initialSession = null, onSignedOut }: PortalAppProps) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, activeSession) => {
       setSession(activeSession);
       if (event === 'TOKEN_REFRESHED') {
+        // Refresh must not extend past the absolute 1-hour login window.
+        if (isPortalSessionExpired()) {
+          void lockPortalSession({ force: true, reason: 'session_expired' });
+          return;
+        }
         void refreshNativeAttendanceSession();
         return;
       }
@@ -233,6 +252,7 @@ function PortalApp({ initialSession = null, onSignedOut }: PortalAppProps) {
       }
       if (activeSession?.user) {
         if (event === 'SIGNED_IN') {
+          markPortalSessionStart(true);
           clearGeoHold();
           setGeoHold(false);
           try {
@@ -309,6 +329,7 @@ function PortalApp({ initialSession = null, onSignedOut }: PortalAppProps) {
   );
 
   const handleLoginSuccess = async (activeSession: any) => {
+    markPortalSessionStart(true);
     clearGeoHold();
     setGeoHold(false);
     setSession(activeSession);

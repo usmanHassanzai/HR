@@ -30,6 +30,7 @@ public class AttendancePingPlugin: CAPPlugin, CAPBridgedPlugin {
         .init(name: "openNotificationSettings", returnType: CAPPluginReturnPromise),
         .init(name: "getPermissionSnapshot", returnType: CAPPluginReturnPromise),
         .init(name: "requestNotifications", returnType: CAPPluginReturnPromise),
+        .init(name: "requestAlwaysLocation", returnType: CAPPluginReturnPromise),
         .init(name: "probeNetwork", returnType: CAPPluginReturnPromise),
         // Legacy aliases — map to the auto-attendance API
         .init(name: "start", returnType: CAPPluginReturnPromise),
@@ -152,12 +153,41 @@ public class AttendancePingPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
+    /// Wizard step: escalate When-In-Use → Always (iOS shows the Always prompt after When-In-Use).
+    @objc func requestAlwaysLocation(_ call: CAPPluginCall) {
+        engine.requestAlwaysAuthorizationForSetup { status in
+            let loc: String
+            let bg: String
+            let overall: String
+            switch status {
+            case .authorizedAlways:
+                loc = "granted"; bg = "granted"; overall = "granted"
+            case .authorizedWhenInUse:
+                loc = "granted"; bg = "denied"; overall = "when_in_use"
+            case .denied, .restricted:
+                loc = "denied"; bg = "denied"; overall = "denied"
+            default:
+                loc = "prompt"; bg = "prompt"; overall = "prompt"
+            }
+            call.resolve([
+                "status": overall,
+                "location": loc,
+                "backgroundLocation": bg,
+            ])
+        }
+    }
+
     @objc func probeNetwork(_ call: CAPPluginCall) {
         if #available(iOS 14.0, *) {
             NEHotspotNetwork.fetchCurrent { network in
+                let ssid = network?.ssid ?? ""
+                let bssid = network?.bssid ?? ""
+                if !ssid.isEmpty || !bssid.isEmpty {
+                    AttendanceAutoEngine.shared.rememberWifi(ssid: ssid.isEmpty ? nil : ssid, bssid: bssid.isEmpty ? nil : bssid)
+                }
                 call.resolve([
-                    "ssid": network?.ssid ?? "",
-                    "bssid": network?.bssid ?? "",
+                    "ssid": ssid,
+                    "bssid": bssid,
                 ])
             }
         } else {
@@ -414,6 +444,10 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
     private var regionIds = Set<String>()
     private let lock = NSLock()
     private var posting = false
+    /// Last SSID/BSSID seen (R69 EXIT fallback when fetchCurrent is empty mid-transition).
+    private var lastSsid: String?
+    private var lastBssid: String?
+    private var alwaysAuthCompletions: [(CLAuthorizationStatus) -> Void] = []
 
     private override init() {
         super.init()
@@ -427,7 +461,34 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
         if let data = AttendanceStore.loadScheduleJSON() {
             schedule = try? JSONDecoder().decode(AttendanceSchedule.self, from: data)
         }
+        lastSsid = AttendanceStore.defaults.string(forKey: "scorr_att_last_ssid")
+        lastBssid = AttendanceStore.defaults.string(forKey: "scorr_att_last_bssid")
         requestNotificationPermission()
+    }
+
+    func rememberWifi(ssid: String?, bssid: String?) {
+        if let ssid, !ssid.isEmpty {
+            lastSsid = ssid
+            AttendanceStore.defaults.set(ssid, forKey: "scorr_att_last_ssid")
+        }
+        if let bssid, !bssid.isEmpty {
+            lastBssid = bssid
+            AttendanceStore.defaults.set(bssid, forKey: "scorr_att_last_bssid")
+        }
+    }
+
+    func requestAlwaysAuthorizationForSetup(completion: @escaping (CLAuthorizationStatus) -> Void) {
+        let status = manager.authorizationStatus
+        if status == .authorizedAlways {
+            completion(status)
+            return
+        }
+        alwaysAuthCompletions.append(completion)
+        if status == .notDetermined {
+            manager.requestWhenInUseAuthorization()
+        } else {
+            manager.requestAlwaysAuthorization()
+        }
     }
 
     /// Resume after process launch if auto attendance was enabled.
@@ -681,8 +742,18 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
     // MARK: CLLocationManagerDelegate
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        if manager.authorizationStatus == .authorizedAlways
-            || manager.authorizationStatus == .authorizedWhenInUse {
+        let status = manager.authorizationStatus
+        if status == .authorizedWhenInUse && !alwaysAuthCompletions.isEmpty {
+            // Escalate to Always after When-In-Use for the setup wizard.
+            manager.requestAlwaysAuthorization()
+            return
+        }
+        if !alwaysAuthCompletions.isEmpty {
+            let pending = alwaysAuthCompletions
+            alwaysAuthCompletions.removeAll()
+            for cb in pending { cb(status) }
+        }
+        if status == .authorizedAlways || status == .authorizedWhenInUse {
             applyMonitoringFromSchedule()
         }
     }
@@ -692,7 +763,8 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
     }
 
     func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
-        handleRegionEvent(region: region, event: "exit")
+        // R69: EXIT must attach Wi-Fi promptly so the server can confirm leave vs GPS drift.
+        handleRegionEvent(region: region, event: "exit", prioritizeWifi: true)
     }
 
     func locationManager(_ manager: CLLocationManager, didDetermineState state: CLRegionState, for region: CLRegion) {
@@ -714,8 +786,9 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
     }
 
     private var lastEnterSentAt: [String: Date] = [:]
+    private var lastExitSentAt: [String: Date] = [:]
 
-    private func handleRegionEvent(region: CLRegion, event: String) {
+    private func handleRegionEvent(region: CLRegion, event: String, prioritizeWifi: Bool = false) {
         // R10 / R44: drop anything outside W — send nothing
         guard isInsideWindow() else { return }
         guard AttendanceStore.enabled else { return }
@@ -728,6 +801,14 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
             }
             lastEnterSentAt[region.identifier] = Date()
         }
+        // R69: allow EXIT promptly; light debounce only against duplicate wakes.
+        if event == "exit" {
+            let last = lastExitSentAt[region.identifier] ?? .distantPast
+            if Date().timeIntervalSince(last) < 8 {
+                return
+            }
+            lastExitSentAt[region.identifier] = Date()
+        }
 
         let loc = manager.location
         let isMock: Bool
@@ -737,7 +818,7 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
             isMock = false
         }
 
-        fetchWifi { [weak self] ssid, bssid in
+        let finish: (String?, String?) -> Void = { [weak self] ssid, bssid in
             guard let self else { return }
             let payload = QueuedEvent(
                 event: event,
@@ -752,6 +833,11 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
             )
             self.postEvent(payload)
         }
+
+        // R69 EXIT: read Wi-Fi immediately; fall back to last known if fetch is empty.
+        fetchWifi(preferCachedFallback: prioritizeWifi) { ssid, bssid in
+            finish(ssid, bssid)
+        }
     }
 
     // MARK: Wi-Fi supporting signal (R71)
@@ -760,13 +846,26 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
     // Only callable while the app has execution time (e.g. region wake).
     // iOS cannot subscribe to Wi-Fi connect/disconnect in the background.
 
-    private func fetchWifi(completion: @escaping (_ ssid: String?, _ bssid: String?) -> Void) {
+    private func fetchWifi(
+        preferCachedFallback: Bool = false,
+        completion: @escaping (_ ssid: String?, _ bssid: String?) -> Void
+    ) {
         if #available(iOS 14.0, *) {
-            NEHotspotNetwork.fetchCurrent { network in
-                completion(network?.ssid, network?.bssid)
+            NEHotspotNetwork.fetchCurrent { [weak self] network in
+                let ssid = network?.ssid
+                let bssid = network?.bssid
+                if let self {
+                    if let ssid, !ssid.isEmpty { self.rememberWifi(ssid: ssid, bssid: bssid) }
+                    else if let bssid, !bssid.isEmpty { self.rememberWifi(ssid: nil, bssid: bssid) }
+                    if preferCachedFallback, (ssid == nil || ssid?.isEmpty == true), (bssid == nil || bssid?.isEmpty == true) {
+                        completion(self.lastSsid, self.lastBssid)
+                        return
+                    }
+                }
+                completion(ssid, bssid)
             }
         } else {
-            completion(nil, nil)
+            completion(preferCachedFallback ? lastSsid : nil, preferCachedFallback ? lastBssid : nil)
         }
     }
 

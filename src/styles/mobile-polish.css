@@ -315,7 +315,8 @@
   .studio-empty,
   .studio-empty--board,
   .login-error-banner,
-  .login-success-banner {
+  .login-success-banner,
+  .login-info-banner {
     border-radius: var(--radius-card);
   }
 

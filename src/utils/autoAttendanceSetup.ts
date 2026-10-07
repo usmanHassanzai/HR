@@ -51,6 +51,11 @@ interface SetupPlugin {
     manufacturer?: string;
   }>;
   requestNotifications(): Promise<{ status?: string }>;
+  requestAlwaysLocation(): Promise<{
+    status?: string;
+    location?: string;
+    backgroundLocation?: string;
+  }>;
   setAutoLaunch?(enabled: boolean): Promise<{ ok?: boolean }>;
   getAutoLaunch?(): Promise<{ enabled?: boolean }>;
 }
@@ -178,6 +183,35 @@ export async function registerDeviceViaRpc(appVersion = '1.3.7'): Promise<{
     return { ok: true, device_token: token };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** iOS: escalate to Always after When-In-Use (no-op / settings hint on Android). */
+export async function requestAlwaysLocation(): Promise<{ ok: boolean; detail: string; status?: string }> {
+  if (!isNativeApp()) return { ok: true, detail: 'Not required' };
+  try {
+    const res = await withTimeout(
+      AttendancePing.requestAlwaysLocation(),
+      20_000,
+      'Waiting for Always location',
+    );
+    if (res.status === 'granted' || res.backgroundLocation === 'granted') {
+      return { ok: true, detail: 'Always location allowed', status: 'granted' };
+    }
+    if (res.status === 'when_in_use' || res.location === 'granted') {
+      return {
+        ok: false,
+        detail: 'Open Settings → Scorr → Location → Always, then return here.',
+        status: 'when_in_use',
+      };
+    }
+    return {
+      ok: false,
+      detail: 'Location was not allowed. Open Settings → Scorr → Location → Always.',
+      status: res.status || 'denied',
+    };
+  } catch (e) {
+    return { ok: false, detail: e instanceof Error ? e.message : String(e) };
   }
 }
 

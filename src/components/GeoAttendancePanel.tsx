@@ -220,7 +220,7 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
       setLastResult(result);
       if (result.action === 'outside_office') {
         if (!workSite && offices.filter((o) => o.active).length === 0) {
-          setError('No work location assigned. Ask admin: Office GPS → Assign people.');
+          setError('No work location assigned. Ask admin: Office & Attendance → Assign people.');
         } else if (intent === 'clock_in') {
           setError('You must be inside the office zone to clock in.');
         } else {
@@ -258,9 +258,7 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
     <div className="attendance-card geo-attendance-panel">
       <h3 className="attendance-card__title">
         <MapPin size={18} /> Shift location
-        <span className="badge badge-on-track" style={{ marginLeft: '0.5rem', fontSize: '0.65rem' }}>
-          Entry + exit
-        </span>
+        <span className="badge badge-on-track geo-attendance-panel__badge">Entry + exit</span>
       </h3>
       <p className="attendance-card__subtitle">
         GPS auto check-in when you enter the office during shift hours, and auto check-out when you leave — no need to open the dashboard each time (phone app runs in the background after you sign in once).
@@ -271,7 +269,7 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
       </p>
 
       {workSite && (
-        <p className="geo-hint" style={{ marginBottom: '0.75rem' }}>
+        <p className="geo-hint geo-hint--spaced">
           <Radio size={14} /> Your team site: <strong>{workSite.site_name}</strong>
           {' '}({workSite.radius_meters}m zone
           {lastAccuracy != null ? ` + ~${Math.round(lastAccuracy)}m GPS buffer` : ''})
@@ -279,23 +277,23 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
       )}
 
       {!inWindow && !openShift && windowInfo && (
-        <p className="geo-hint" style={{ marginBottom: '0.75rem' }}>
+        <p className="geo-hint geo-hint--spaced">
           Clock-in opens 1 hour before{' '}
           {formatShiftTimeRange(windowInfo.start_time, windowInfo.end_time, windowInfo.crosses_midnight)}.
         </p>
       )}
       {openShift && (
-        <p className="attendance-present-banner" role="status" style={{ marginBottom: '0.75rem' }}>
+        <p className="attendance-present-banner attendance-present-banner--spaced" role="status">
           You are still present in the office and working. Check out when you leave — you can check in again any time during the shift.
         </p>
       )}
       {!openShift && clockIn && clockOut && inWindow && (
-        <p className="attendance-present-banner attendance-present-banner--out" role="status" style={{ marginBottom: '0.75rem' }}>
+        <p className="attendance-present-banner attendance-present-banner--out attendance-present-banner--spaced" role="status">
           Checked out. Clock in again if you return before the shift ends.
         </p>
       )}
       {openShift && !inWindow && inExitWindow && (
-        <p className="geo-hint" style={{ marginBottom: '0.75rem' }}>
+        <p className="geo-hint geo-hint--spaced">
           Shift has ended. You still have 1 hour to clock out — that extra time is counted.
         </p>
       )}
@@ -374,7 +372,13 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
       {error && <p className="geo-error">{error}</p>}
 
       {!hasAnySite && !lastResult && (
-        <p className="geo-hint">No work location assigned yet. Ask admin to assign an office under Office GPS → Assign people.</p>
+        <div className="geo-empty-assign">
+          <MapPin size={28} strokeWidth={1.25} />
+          <p>
+            No work location assigned yet. Ask your admin to assign an office under{' '}
+            <strong>Office &amp; Attendance → Assign people</strong>.
+          </p>
+        </div>
       )}
 
       <div className="geo-attendance-panel__actions">

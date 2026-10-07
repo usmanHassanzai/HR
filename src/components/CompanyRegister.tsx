@@ -137,7 +137,9 @@ export default function CompanyRegister({ onBack, onSession, embedded = false }:
   };
 
   const finishLogin = async (session: unknown) => {
+    const { markPortalSessionStart } = await import('../utils/usePortalSessionGuard');
     if (session && onSession) {
+      markPortalSessionStart(true);
       onSession(session);
       return;
     }
@@ -145,7 +147,10 @@ export default function CompanyRegister({ onBack, onSession, embedded = false }:
       email: form.email.trim(),
       password: form.password,
     });
-    if (data.session && onSession) onSession(data.session);
+    if (data.session && onSession) {
+      markPortalSessionStart(true);
+      onSession(data.session);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

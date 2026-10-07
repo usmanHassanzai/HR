@@ -364,13 +364,13 @@ export default function MobileAppDownload() {
           <h3>iPhone &amp; iPad app</h3>
           {iosInstallIsAppStore() ? (
             <p>
-              Install <strong>Scorr</strong> from the App Store for the native iOS experience —
-              Sign In, MFA, KPIs, and GPS attendance.
+              Install <strong>Scorr</strong> from the App Store for the native iPhone experience —
+              Sign In, MFA, KPIs, GPS attendance, and automatic attendance (Always location + office geofences), same as Android.
             </p>
           ) : (
             <p>
-              Install from <strong>Safari</strong> → <strong>Add to Home Screen</strong>. The iOS app opens to
-              <strong> Sign In / Register Company</strong> only — same login, MFA, KPI scoreboard, and attendance as Android.
+              Install from <strong>Safari</strong> → <strong>Add to Home Screen</strong> for Sign In, MFA, KPIs, and GPS attendance.
+              The native Capacitor iPhone build (when published) adds Always location, region monitoring, and automatic attendance setup — same path as Android.
             </p>
           )}
 

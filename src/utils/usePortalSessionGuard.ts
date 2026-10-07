@@ -11,27 +11,28 @@ import {
   type LocationWindow,
 } from './shiftHelpers';
 
-/** Idle time before the portal signs the user out (1 hour). */
-export const PORTAL_IDLE_MS = 60 * 60 * 1000;
+/**
+ * Absolute portal session lifetime from login (not idle / sliding).
+ * Refresh tokens may renew JWTs inside this window; at 1 hour the client
+ * forcibly signs out on web, Capacitor, and Electron.
+ */
+export const PORTAL_SESSION_MAX_MS = 60 * 60 * 1000;
 
-const LAST_ACTIVITY_KEY = 'scorr-last-activity';
+/** @deprecated Use PORTAL_SESSION_MAX_MS — kept for any older imports. */
+export const PORTAL_IDLE_MS = PORTAL_SESSION_MAX_MS;
+
+const SESSION_STARTED_KEY = 'scorr-session-started-at';
+const AUTH_NOTICE_KEY = 'scorr-auth-notice';
 const SHIFT_SESSION_KEY = 'scorr-shift-session';
 
-const ACTIVITY_EVENTS: (keyof WindowEventMap)[] = [
-  'pointerdown',
-  'keydown',
-  'touchstart',
-  'click',
-  'mousemove',
-  'scroll',
-];
+export type AuthNotice = 'session_expired' | 'shift_ended';
 
 let lockingSession = false;
 
 function clearAuthStorageSync() {
   try {
-    localStorage.removeItem(LAST_ACTIVITY_KEY);
-    sessionStorage.removeItem(LAST_ACTIVITY_KEY);
+    localStorage.removeItem(SESSION_STARTED_KEY);
+    sessionStorage.removeItem(SESSION_STARTED_KEY);
     sessionStorage.removeItem('scorr-browser-epoch');
     localStorage.removeItem('scorr-browser-epoch');
     localStorage.removeItem('scorr-open-tabs');
@@ -40,6 +41,9 @@ function clearAuthStorageSync() {
     sessionStorage.removeItem('scorr-tab-id');
     sessionStorage.removeItem('scorr-mfa-ok');
     sessionStorage.removeItem(SHIFT_SESSION_KEY);
+    // Legacy idle key from pre-1.3.7 sliding timeout
+    localStorage.removeItem('scorr-last-activity');
+    sessionStorage.removeItem('scorr-last-activity');
   } catch {
     /* ignore */
   }
@@ -59,10 +63,74 @@ function clearAuthStorageSync() {
   }
 }
 
-export async function lockPortalSession(_options?: { force?: boolean }) {
+function setAuthNotice(notice: AuthNotice) {
+  try {
+    sessionStorage.setItem(AUTH_NOTICE_KEY, notice);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Consume one-shot banner after forced logout (login / landing). */
+export function consumeAuthNotice(): AuthNotice | null {
+  try {
+    const v = sessionStorage.getItem(AUTH_NOTICE_KEY);
+    sessionStorage.removeItem(AUTH_NOTICE_KEY);
+    if (v === 'session_expired' || v === 'shift_ended') return v;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+export function authNoticeMessage(notice: AuthNotice): string {
+  if (notice === 'shift_ended') {
+    return 'Your shift ended, so you were signed out. Sign in again to continue.';
+  }
+  return 'Your session expired after 1 hour. Please sign in again.';
+}
+
+/** Record login time. Pass reset=true on fresh SIGNED_IN. */
+export function markPortalSessionStart(reset = false) {
+  try {
+    if (!reset && localStorage.getItem(SESSION_STARTED_KEY)) return;
+    localStorage.setItem(SESSION_STARTED_KEY, String(Date.now()));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function readPortalSessionStartedAt(): number | null {
+  try {
+    const raw = localStorage.getItem(SESSION_STARTED_KEY);
+    const n = raw ? Number(raw) : NaN;
+    return Number.isFinite(n) ? n : null;
+  } catch {
+    return null;
+  }
+}
+
+export function portalSessionRemainingMs(): number {
+  const started = readPortalSessionStartedAt();
+  if (started == null) return PORTAL_SESSION_MAX_MS;
+  return Math.max(0, PORTAL_SESSION_MAX_MS - (Date.now() - started));
+}
+
+export function isPortalSessionExpired(): boolean {
+  const started = readPortalSessionStartedAt();
+  if (started == null) return false;
+  return Date.now() - started >= PORTAL_SESSION_MAX_MS;
+}
+
+/**
+ * Sign out locally, clear Supabase auth persistence.
+ * Does NOT clear remember-me credentials or device-token auto attendance.
+ */
+export async function lockPortalSession(options?: { force?: boolean; reason?: AuthNotice }) {
   if (lockingSession) return;
   lockingSession = true;
   try {
+    if (options?.reason) setAuthNotice(options.reason);
     clearGeoHold();
     // R32: shift-end / session lock must NOT stop device-token auto attendance.
     clearAuthStorageSync();
@@ -77,27 +145,6 @@ export async function lockPortalSession(_options?: { force?: boolean }) {
     }
   } finally {
     lockingSession = false;
-  }
-}
-
-function readLastActivity(): number {
-  try {
-    const raw = localStorage.getItem(LAST_ACTIVITY_KEY);
-    const n = raw ? Number(raw) : NaN;
-    if (Number.isFinite(n)) return n;
-    const now = Date.now();
-    writeLastActivity(now);
-    return now;
-  } catch {
-    return Date.now();
-  }
-}
-
-function writeLastActivity(ts = Date.now()) {
-  try {
-    localStorage.setItem(LAST_ACTIVITY_KEY, String(ts));
-  } catch {
-    /* ignore */
   }
 }
 
@@ -154,7 +201,7 @@ export function useShiftEndSessionLogout(enabled: boolean) {
 
     const logoutForShiftEnd = async () => {
       if (cancelled || !enabledRef.current) return;
-      await lockPortalSession({ force: true });
+      await lockPortalSession({ force: true, reason: 'shift_ended' });
     };
 
     const sync = async () => {
@@ -205,22 +252,19 @@ export function useShiftEndSessionLogout(enabled: boolean) {
 }
 
 /**
- * Auto-logout only after true idle (PORTAL_IDLE_MS) with no input.
- *
- * Refresh / tab switch / page reload must NOT sign out — browsers fire the same
- * unload events for refresh as for close, so we never clear the session on unload.
- * Native: when returning to the app, expire only if the idle window already passed.
+ * Absolute 1-hour session from login across web, Capacitor, and Electron.
+ * Activity does not extend the session. Token refresh is allowed only while
+ * inside the window; past 1 hour the client signs out and returns to login.
  */
-export function usePortalSessionGuard(enabled: boolean, options?: { idle?: boolean }) {
+export function usePortalSessionGuard(enabled: boolean, _options?: { idle?: boolean }) {
   const enabledRef = useRef(enabled);
   enabledRef.current = enabled;
-  const idleEnabled = options?.idle ?? enabled;
-  const idleRef = useRef(idleEnabled);
-  idleRef.current = idleEnabled;
   const timerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!enabled) return;
+
+    markPortalSessionStart(false);
 
     const clearTimer = () => {
       if (timerRef.current != null) {
@@ -229,42 +273,39 @@ export function usePortalSessionGuard(enabled: boolean, options?: { idle?: boole
       }
     };
 
-    const remainingMs = () => Math.max(0, PORTAL_IDLE_MS - (Date.now() - readLastActivity()));
+    const expireNow = () => {
+      if (!enabledRef.current) return;
+      void lockPortalSession({ force: true, reason: 'session_expired' });
+    };
 
-    const armIdleTimer = () => {
-      if (!idleRef.current) {
-        clearTimer();
+    const armAbsoluteTimer = () => {
+      clearTimer();
+      if (!enabledRef.current) return;
+      if (isPortalSessionExpired()) {
+        expireNow();
         return;
       }
-      clearTimer();
-      const wait = remainingMs() || PORTAL_IDLE_MS;
+      const wait = Math.max(1_000, portalSessionRemainingMs());
       timerRef.current = window.setTimeout(() => {
-        if (!enabledRef.current || !idleRef.current) return;
-        if (Date.now() - readLastActivity() >= PORTAL_IDLE_MS) {
-          void lockPortalSession();
+        if (!enabledRef.current) return;
+        if (isPortalSessionExpired()) {
+          expireNow();
           return;
         }
-        armIdleTimer();
+        armAbsoluteTimer();
       }, wait);
     };
 
-    const expireIfIdle = () => {
-      if (!enabledRef.current || !idleRef.current) return;
-      if (Date.now() - readLastActivity() >= PORTAL_IDLE_MS) {
-        void lockPortalSession();
+    const checkExpiry = () => {
+      if (!enabledRef.current) return;
+      if (isPortalSessionExpired()) {
+        expireNow();
         return;
       }
-      armIdleTimer();
+      armAbsoluteTimer();
     };
 
-    const onActivity = () => {
-      if (!enabledRef.current) return;
-      writeLastActivity();
-      armIdleTimer();
-    };
-
-    // Block Backspace from navigating browser history when focus is not in a field
-    // (avoids wiping the current Assign Task / form page).
+    // Block Backspace from navigating browser history when focus is not in a field.
     const onBackspaceNav = (e: KeyboardEvent) => {
       if (e.key !== 'Backspace' && e.key !== 'BrowserBack') return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -272,24 +313,17 @@ export function usePortalSessionGuard(enabled: boolean, options?: { idle?: boole
       e.preventDefault();
     };
 
-    writeLastActivity();
-    if (idleEnabled) armIdleTimer();
-
-    for (const ev of ACTIVITY_EVENTS) {
-      window.addEventListener(ev, onActivity, { passive: true });
-    }
+    armAbsoluteTimer();
 
     const onVisible = () => {
-      if (document.visibilityState !== 'visible') return;
-      // Coming back to the tab is not idle by itself — only expire if timer already elapsed.
-      expireIfIdle();
+      if (document.visibilityState === 'visible') checkExpiry();
     };
     document.addEventListener('visibilitychange', onVisible);
-    window.addEventListener('focus', expireIfIdle);
+    window.addEventListener('focus', checkExpiry);
     window.addEventListener('keydown', onBackspaceNav, true);
 
     const onStorage = (e: StorageEvent) => {
-      if (e.key === LAST_ACTIVITY_KEY) armIdleTimer();
+      if (e.key === SESSION_STARTED_KEY) armAbsoluteTimer();
     };
     window.addEventListener('storage', onStorage);
 
@@ -297,26 +331,26 @@ export function usePortalSessionGuard(enabled: boolean, options?: { idle?: boole
     if (isNativeApp()) {
       void CapApp.addListener('appStateChange', ({ isActive }) => {
         if (!enabledRef.current) return;
-        if (isActive) {
-          // Returning to the app — logout only if they were idle long enough.
-          expireIfIdle();
-        }
-        // Do not sign out merely for backgrounding; refresh/resume must keep the session.
+        if (isActive) checkExpiry();
       }).then((h) => {
         appStateHandle = h;
       });
     }
 
+    // Periodic check covers Background tabs / suspended timers.
+    const pollId = window.setInterval(() => {
+      if (!enabledRef.current) return;
+      if (isPortalSessionExpired()) expireNow();
+    }, 30_000);
+
     return () => {
       clearTimer();
-      for (const ev of ACTIVITY_EVENTS) {
-        window.removeEventListener(ev, onActivity);
-      }
+      window.clearInterval(pollId);
       document.removeEventListener('visibilitychange', onVisible);
-      window.removeEventListener('focus', expireIfIdle);
+      window.removeEventListener('focus', checkExpiry);
       window.removeEventListener('keydown', onBackspaceNav, true);
       window.removeEventListener('storage', onStorage);
       void appStateHandle?.remove();
     };
-  }, [enabled, idleEnabled]);
+  }, [enabled]);
 }

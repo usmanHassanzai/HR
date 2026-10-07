@@ -346,12 +346,12 @@ export default function AdminLiveTracking({ mode = 'admin', profile }: AdminLive
         <span>
           {isManagerView ? (
             <>
-              Showing everyone in <strong>{departmentName}</strong> only. Office GPS zones are assigned by your admin
-              under <strong>Office GPS</strong>.
+              Showing everyone in <strong>{departmentName}</strong> only. Office zones are assigned by your admin
+              under <strong>Office &amp; Attendance</strong>.
             </>
           ) : (
             <>
-              Assign office GPS zones under the <strong>Office GPS</strong> tab first. Demo accounts are not shown here.
+              Assign office zones under the <strong>Office &amp; Attendance</strong> tab first. Demo accounts are not shown here.
             </>
           )}
         </span>
@@ -461,7 +461,7 @@ export default function AdminLiveTracking({ mode = 'admin', profile }: AdminLive
               {rows.length === 0
                 ? isManagerView
                   ? `No managers or employees in ${departmentName} yet.`
-                  : 'Add employees under Users and assign managers to office GPS zones.'
+                  : 'Add employees under Users and assign managers to office zones.'
                 : 'Try changing filters or search.'}
             </p>
           </div>

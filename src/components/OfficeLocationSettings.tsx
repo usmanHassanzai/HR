@@ -67,15 +67,34 @@ function networkDuplicateWarnings(networks: OfficeWifiNetwork[]): string[] {
   return warnings;
 }
 
-async function probeDeviceWifi(): Promise<{ publicIp: string; ssid: string; bssid: string }> {
-  let publicIp = 'unknown';
+function looksLikeIp(value: string): boolean {
+  return Boolean(value) && value !== 'unknown' && !value.startsWith('unavailable');
+}
+
+async function fetchPublicIp(url: string): Promise<string | null> {
   try {
-    const r = await fetch('https://api.ipify.org?format=json', { signal: AbortSignal.timeout(8000) });
+    const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
     const j = (await r.json()) as { ip?: string };
-    if (j.ip) publicIp = j.ip;
+    return j.ip || null;
   } catch {
-    publicIp = 'unavailable (network)';
+    return null;
   }
+}
+
+/** Prefer IPv4; also capture IPv6 when the browser/network exposes it (api6 / api64). */
+async function probeDeviceWifi(): Promise<{
+  publicIp: string;
+  publicIps: string[];
+  ssid: string;
+  bssid: string;
+}> {
+  const [v4, v6, dual] = await Promise.all([
+    fetchPublicIp('https://api.ipify.org?format=json'),
+    fetchPublicIp('https://api6.ipify.org?format=json'),
+    fetchPublicIp('https://api64.ipify.org?format=json'),
+  ]);
+  const publicIps = [...new Set([v4, v6, dual].filter((ip): ip is string => Boolean(ip)))];
+  const publicIp = v4 || dual || v6 || 'unavailable (network)';
   let ssid = '';
   let bssid = '';
   try {
@@ -91,7 +110,7 @@ async function probeDeviceWifi(): Promise<{ publicIp: string; ssid: string; bssi
   } catch {
     /* web / plugin missing */
   }
-  return { publicIp, ssid, bssid };
+  return { publicIp, publicIps, ssid, bssid };
 }
 
 export default function OfficeLocationSettings() {
@@ -218,6 +237,11 @@ export default function OfficeLocationSettings() {
     setWifiProbing(true);
     try {
       const probed = await probeDeviceWifi();
+      const ipsToAdd = probed.publicIps.length
+        ? probed.publicIps
+        : looksLikeIp(probed.publicIp)
+          ? [probed.publicIp]
+          : [];
       setWifiNetworks((rows) => {
         const next = [...rows];
         while (next.length <= index) next.push(emptyWifiNetwork());
@@ -229,16 +253,19 @@ export default function OfficeLocationSettings() {
           wifi_bssids: probed.bssid
             ? [...new Set([...splitList(cur.wifi_bssids), probed.bssid])].join(', ')
             : cur.wifi_bssids,
-          public_ip_cidrs:
-            probed.publicIp && !probed.publicIp.startsWith('unavailable') && probed.publicIp !== 'unknown'
-              ? [...new Set([...splitList(cur.public_ip_cidrs), probed.publicIp])].join(', ')
-              : cur.public_ip_cidrs,
+          public_ip_cidrs: ipsToAdd.length
+            ? [...new Set([...splitList(cur.public_ip_cidrs), ...ipsToAdd])].join(', ')
+            : cur.public_ip_cidrs,
         };
         setWifiWarnings(networkDuplicateWarnings(next));
         return next;
       });
+      const ipLabel = ipsToAdd.length ? ipsToAdd.join(', ') : probed.publicIp;
+      const hasV6 = ipsToAdd.some((ip) => ip.includes(':'));
       setWifiProbe(
-        `Filled from device — IP: ${probed.publicIp}. BSSID: ${probed.bssid || 'n/a'}. SSID: ${probed.ssid || 'n/a'}.`,
+        `Filled from this device — IP${ipsToAdd.length > 1 ? 's' : ''}: ${ipLabel}${
+          hasV6 ? ' (includes IPv6)' : ''
+        }. BSSID: ${probed.bssid || 'n/a'}. SSID: ${probed.ssid || 'n/a'}.`,
       );
     } finally {
       setWifiProbing(false);
@@ -252,13 +279,17 @@ export default function OfficeLocationSettings() {
       const probed = await probeDeviceWifi();
       if (!form.id) {
         // Client-side match against draft networks
-        const ip = probed.publicIp;
+        const candidateIps = probed.publicIps.length
+          ? probed.publicIps
+          : looksLikeIp(probed.publicIp)
+            ? [probed.publicIp]
+            : [];
         let matchedLabel: string | null = null;
         for (const n of wifiNetworks) {
           if (!n.active) continue;
           const ips = splitList(n.public_ip_cidrs);
           // Draft test: exact IP only; full CIDR matching runs server-side after save
-          if (!ips.includes(ip)) continue;
+          if (!candidateIps.some((ip) => ips.includes(ip))) continue;
           const bssids = splitList(n.wifi_bssids).map((b) => b.toLowerCase());
           const ssids = splitList(n.ssid);
           if (bssids.length) {
@@ -276,16 +307,21 @@ export default function OfficeLocationSettings() {
             break;
           }
         }
+        const ipShown = candidateIps.length ? candidateIps.join(', ') : probed.publicIp;
         setWifiProbe(
           matchedLabel
-            ? `Matched network: ${matchedLabel} (draft). IP: ${probed.publicIp}. BSSID: ${probed.bssid || 'n/a'}.`
-            : `No network matched (draft). IP: ${probed.publicIp}. BSSID: ${probed.bssid || 'n/a'}. SSID: ${probed.ssid || 'n/a'}.`,
+            ? `Matched network: ${matchedLabel} (draft). IP: ${ipShown}. BSSID: ${probed.bssid || 'n/a'}.`
+            : `No network matched (draft). IP: ${ipShown}. BSSID: ${probed.bssid || 'n/a'}. SSID: ${probed.ssid || 'n/a'}.`,
         );
         return;
       }
+      const testIp =
+        probed.publicIps.find((ip) => !ip.includes(':')) ||
+        probed.publicIps[0] ||
+        (looksLikeIp(probed.publicIp) ? probed.publicIp : null);
       const { data, error } = await supabase.rpc('test_office_wifi_match', {
         p_office_id: form.id,
-        p_client_ip: probed.publicIp.startsWith('unavailable') || probed.publicIp === 'unknown' ? null : probed.publicIp,
+        p_client_ip: testIp,
         p_ssid: probed.ssid || null,
         p_bssid: probed.bssid || null,
       });
@@ -294,8 +330,9 @@ export default function OfficeLocationSettings() {
         return;
       }
       const row = data as { message?: string; client_ip?: string; bssid?: string; ssid?: string };
+      const ipShown = row.client_ip || (probed.publicIps.length ? probed.publicIps.join(', ') : probed.publicIp);
       setWifiProbe(
-        `${row.message || 'No network matched'}. IP: ${row.client_ip || probed.publicIp}. BSSID: ${row.bssid || probed.bssid || 'n/a'}. SSID: ${row.ssid || probed.ssid || 'n/a'}.`,
+        `${row.message || 'No network matched'}. IP: ${ipShown}. BSSID: ${row.bssid || probed.bssid || 'n/a'}. SSID: ${row.ssid || probed.ssid || 'n/a'}.`,
       );
     } finally {
       setWifiProbing(false);
@@ -491,7 +528,7 @@ export default function OfficeLocationSettings() {
     return (
       <div className="admin-office-loading">
         <Loader2 size={32} className="spin-icon" />
-        <span>Loading office GPS zones…</span>
+        <span>Loading office &amp; attendance settings…</span>
       </div>
     );
   }
@@ -531,7 +568,7 @@ export default function OfficeLocationSettings() {
           <div className="admin-office-stat">
             <Radio size={16} />
             <span className="admin-office-stat__label">GPS check-in</span>
-            <strong style={{ fontSize: '0.88rem' }}>Enabled</strong>
+            <strong className="admin-office-stat__value--sm">Enabled</strong>
           </div>
         </div>
       </header>
@@ -594,7 +631,7 @@ export default function OfficeLocationSettings() {
 
           <div className="admin-office-form-section">
             <p className="admin-office-form-section__title">Step 1 · Stand at office &amp; capture live GPS</p>
-            <p style={{ margin: '0 0 0.75rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            <p className="admin-office-form-help">
               The location where you stand becomes the center of the check-in zone. Saving updates everyone already
               assigned to this office.
             </p>
@@ -606,7 +643,7 @@ export default function OfficeLocationSettings() {
             <div className="admin-office-map-wrap">
               <Suspense
                 fallback={
-                  <div className="dash-loading" style={{ minHeight: 160 }}>
+                  <div className="dash-loading admin-office-map-fallback">
                     <Loader2 size={24} className="spin-icon" /> Loading map…
                   </div>
                 }
@@ -667,7 +704,7 @@ export default function OfficeLocationSettings() {
                   required
                 />
               </div>
-              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+              <div className="form-group admin-office-span-full">
                 <label htmlFor="office-detect">Detection mode</label>
                 <select
                   id="office-detect"
@@ -685,10 +722,10 @@ export default function OfficeLocationSettings() {
                 </select>
               </div>
 
-              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                  <label style={{ margin: 0 }}>Office Wi-Fi networks</label>
-                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <div className="form-group admin-office-span-full admin-office-wifi-block">
+                <div className="admin-office-wifi-block__head">
+                  <label>Office Wi-Fi networks</label>
+                  <div className="admin-office-wifi-block__actions">
                     <button type="button" className="btn btn-secondary btn-sm" disabled={wifiProbing} onClick={() => void testOfficeWifi()}>
                       {wifiProbing ? 'Testing…' : 'Test office Wi-Fi'}
                     </button>
@@ -697,29 +734,37 @@ export default function OfficeLocationSettings() {
                     </button>
                   </div>
                 </div>
-                <p style={{ margin: '0.35rem 0 0.75rem', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                  A device matches if it is on <strong>any active</strong> network (public IP required; BSSID required when listed).
+                <p className="admin-office-wifi-hint">
+                  A device matches if it is on <strong>any active</strong> network. Public IP is required (IPv4 and/or
+                  IPv6, or a CIDR like <code>2001:db8::/32</code>). When BSSIDs are listed, the device must also match
+                  one of them.
                 </p>
-                {wifiProbe && (
-                  <p style={{ margin: '0 0 0.75rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{wifiProbe}</p>
-                )}
+                {wifiProbe && <p className="admin-office-wifi-probe" role="status">{wifiProbe}</p>}
                 {wifiWarnings.length > 0 && (
-                  <div className="admin-office-alert admin-office-alert--error" style={{ marginBottom: '0.75rem' }} role="status">
+                  <div className="admin-office-alert admin-office-alert--error admin-office-alert--tight" role="status">
                     <AlertCircle size={16} />
                     <span>{wifiWarnings.join(' · ')}</span>
                   </div>
                 )}
                 {wifiNetworks.length === 0 ? (
-                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                    No Wi-Fi networks yet. Add one for automatic Wi-Fi check-in (e.g. Main floor, Conference room).
-                  </p>
+                  <div className="admin-office-wifi-empty">
+                    <Wifi size={32} strokeWidth={1.25} />
+                    <h4>No Wi-Fi networks yet</h4>
+                    <p>
+                      Add Main floor, Guest, or Conference room networks so automatic attendance can match office Wi-Fi.
+                      On phone or desktop, use <strong>Use current Wi-Fi</strong> after adding a row.
+                    </p>
+                    <button type="button" className="btn btn-primary btn-sm" onClick={addWifiNetwork}>
+                      <Plus size={14} /> Add first network
+                    </button>
+                  </div>
                 ) : (
                   <div className="admin-office-wifi-list">
                     {wifiNetworks.map((n, index) => (
                       <article key={n.id || `new-${index}`} className="admin-office-wifi-row">
                         <div className="admin-office-wifi-row__head">
                           <strong>{n.label.trim() || `Network ${index + 1}`}</strong>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', margin: 0, fontSize: '0.85rem' }}>
+                          <label className="admin-office-wifi-row__active">
                             <input
                               type="checkbox"
                               checked={n.active}
@@ -745,7 +790,7 @@ export default function OfficeLocationSettings() {
                               placeholder="OfficeWiFi"
                             />
                           </div>
-                          <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                          <div className="form-group admin-office-span-full">
                             <label>Router IDs (BSSIDs)</label>
                             <input
                               value={n.wifi_bssids}
@@ -753,30 +798,29 @@ export default function OfficeLocationSettings() {
                               placeholder="aa:bb:cc:dd:ee:ff, 11:22:33:44:55:66"
                             />
                           </div>
-                          <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                            <label>Public IP(s) / CIDR</label>
+                          <div className="form-group admin-office-span-full">
+                            <label>Public IP(s) / CIDR (IPv4 or IPv6)</label>
                             <input
                               value={n.public_ip_cidrs}
                               onChange={(e) => updateWifiNetwork(index, { public_ip_cidrs: e.target.value })}
-                              placeholder="203.0.113.10 or 203.0.113.0/24"
+                              placeholder="203.0.113.10, 2001:db8::1, or 203.0.113.0/24"
                               required={Boolean(n.label.trim() || n.ssid.trim() || n.wifi_bssids.trim())}
                             />
                           </div>
                         </div>
-                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+                        <div className="admin-office-wifi-row__footer">
                           <button
                             type="button"
                             className="btn btn-secondary btn-sm"
                             disabled={wifiProbing}
                             onClick={() => void useCurrentWifiOnRow(index)}
                           >
-                            Use current Wi-Fi
+                            <Wifi size={14} /> Use current Wi-Fi
                           </button>
                           <button
                             type="button"
-                            className="btn btn-secondary btn-sm"
+                            className="btn btn-danger btn-sm"
                             onClick={() => removeWifiNetwork(index)}
-                            style={{ color: 'var(--color-danger)' }}
                           >
                             <Trash2 size={14} /> Delete
                           </button>
@@ -786,14 +830,14 @@ export default function OfficeLocationSettings() {
                   </div>
                 )}
               </div>
-              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+              <div className="form-group admin-office-span-full">
                 <label>Default shift time zone (pre-fill when creating shifts)</label>
                 <TimeZonePicker
                   value={form.default_timezone}
                   onChange={(tz) => setForm({ ...form, default_timezone: tz })}
                 />
               </div>
-              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+              <div className="form-group admin-office-span-full">
                 <label>Default extra display zones (IANA ids, comma-separated)</label>
                 <input
                   value={form.default_display_timezones}
@@ -812,13 +856,13 @@ export default function OfficeLocationSettings() {
                   onChange={(e) => setForm({ ...form, radius_meters: e.target.value })}
                 />
               </div>
-              <div className="form-group" style={{ display: 'flex', alignItems: 'flex-end' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', margin: 0, cursor: 'pointer' }}>
+              <div className="form-group admin-office-checkbox-end">
+                <label>
                   <input type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} />
                   Active zone
                 </label>
               </div>
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', gridColumn: '1 / -1' }}>
+              <div className="admin-office-form-actions">
                 <button type="submit" className="btn btn-primary" disabled={saving}>
                   {saving ? (
                     <Loader2 size={16} className="spin-icon" />
@@ -844,7 +888,7 @@ export default function OfficeLocationSettings() {
       {activeTab === 'assign' && (
         <section className="admin-office-card glass-panel">
           <h3>
-            <UserCheck size={18} /> Assign office GPS
+            <UserCheck size={18} /> Assign office location
           </h3>
           <p>
             Assign a zone to every employee at once, to any individual, or to a manager so their team inherits it.
@@ -897,7 +941,7 @@ export default function OfficeLocationSettings() {
                       {(o.detection_mode || 'gps_or_wifi').replace(/_/g, ' ')}
                     </div>
                     <p className="admin-office-item__meta">
-                      <Wifi size={12} style={{ verticalAlign: '-2px', marginRight: '0.25rem' }} />
+                      <Wifi size={12} className="admin-office-item__meta-icon" />
                       {(() => {
                         const nets = (wifiNetworksByOffice[o.id] || []).filter((n) => n.active);
                         if (nets.length === 0) return 'No active Wi-Fi networks';
@@ -905,7 +949,7 @@ export default function OfficeLocationSettings() {
                       })()}
                     </p>
                     <p className="admin-office-item__meta">
-                      <Users size={12} style={{ verticalAlign: '-2px', marginRight: '0.25rem' }} />
+                      <Users size={12} className="admin-office-item__meta-icon" />
                       {assigned.length > 0
                         ? `${assigned.length} manager${assigned.length !== 1 ? 's' : ''} (team zone)`
                         : 'No manager team zone yet'}
@@ -921,9 +965,9 @@ export default function OfficeLocationSettings() {
                       </button>
                       <button
                         type="button"
-                        className="btn btn-secondary btn-sm"
+                        className="btn btn-danger btn-sm"
                         onClick={() => void remove(o.id, o.name)}
-                        style={{ color: 'var(--color-danger)' }}
+                        aria-label={`Delete ${o.name}`}
                       >
                         <Trash2 size={14} />
                       </button>
@@ -936,15 +980,8 @@ export default function OfficeLocationSettings() {
         </section>
       )}
 
-      <section className="admin-office-card glass-panel admin-office-auto-attendance">
-        <h3>
-          <Radio size={18} /> Automatic attendance
-        </h3>
-        <p>
-          Company toggles, enrolled devices, and flagged events — same controls on web, desktop, and mobile. Device
-          enrollment still requires the Android or desktop app.
-        </p>
-        <AutoAttendanceSettings mode="admin" />
+      <section className="admin-office-auto-attendance">
+        <AutoAttendanceSettings mode="admin" embedded />
       </section>
     </div>
   );

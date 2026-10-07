@@ -129,18 +129,30 @@ function WebMarketingRoot() {
       }
       if (cancelled) return;
 
+      const {
+        isPortalSessionExpired,
+        lockPortalSession,
+        markPortalSessionStart,
+      } = await import('./utils/usePortalSessionGuard');
+
       const { data: { session } } = await supabase.auth.getSession();
       if (cancelled) return;
-      // Geo-hold logout: keep session for background GPS, stay on landing page.
-      if (session?.user && !isGeoHold()) {
+      if (session?.user && isPortalSessionExpired()) {
+        await lockPortalSession({ force: true, reason: 'session_expired' });
+      } else if (session?.user && !isGeoHold()) {
+        // Geo-hold logout: keep session for background GPS, stay on landing page.
+        markPortalSessionStart(false);
         enterPortal(session);
       }
 
       const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
         if (event === 'SIGNED_IN' && nextSession?.user) {
+          markPortalSessionStart(true);
           enterPortal(nextSession);
         } else if (event === 'SIGNED_OUT') {
           exitPortal();
+        } else if (event === 'TOKEN_REFRESHED' && isPortalSessionExpired()) {
+          void lockPortalSession({ force: true, reason: 'session_expired' });
         }
       });
       unsubscribe = () => subscription.unsubscribe();

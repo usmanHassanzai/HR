@@ -85,7 +85,14 @@ function deviceStatus(d: DeviceRow): { label: string; kind: 'ok' | 'warn' | 'bad
   return { label: 'Active', kind: 'ok' };
 }
 
-export default function AutoAttendanceSettings({ mode = 'admin' }: { mode?: 'admin' | 'self' }) {
+export default function AutoAttendanceSettings({
+  mode = 'admin',
+  embedded = false,
+}: {
+  mode?: 'admin' | 'self';
+  /** When true (Office & Attendance page), skip nested glass on the intro panel. */
+  embedded?: boolean;
+}) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
@@ -246,7 +253,7 @@ export default function AutoAttendanceSettings({ mode = 'admin' }: { mode?: 'adm
 
   if (loading) {
     return (
-      <div className="rewards-loading">
+      <div className="aas-loading">
         <Loader2 className="spin-icon" size={28} />
         <span>Loading automatic attendance…</span>
       </div>
@@ -268,27 +275,37 @@ export default function AutoAttendanceSettings({ mode = 'admin' }: { mode?: 'adm
     );
   }
 
+  const msgLooksError = /fail|error|denied|cannot|must|please/i.test(msg);
+
   return (
     <div className="aas-root">
-      <div className="glass-panel" style={{ padding: '1.25rem', display: 'grid', gap: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-          <MapPin size={18} style={{ color: 'var(--accent-primary)' }} />
-          <h3 style={{ margin: 0 }}>Automatic attendance</h3>
+      <div className={`${embedded ? 'admin-office-card glass-panel' : 'glass-panel'} aas-panel`}>
+        <div className="aas-panel__head">
+          <div className="aas-panel__icon">
+            <MapPin size={18} />
+          </div>
+          <div>
+            <h3 className="aas-panel__title">Automatic attendance</h3>
+            <p className="aas-panel__subtitle">
+              {mode === 'admin'
+                ? 'Company toggles, enrolled devices, and flagged events — same controls on web, desktop, and mobile. Device enrollment uses the Android, iPhone, or desktop app. Window: 1 hour before shift start through 1 hour after shift end.'
+                : 'Window rules are fixed: 1 hour before shift start through 1 hour after shift end (shift time zone).'}
+            </p>
+          </div>
         </div>
-        <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-          Window rules are fixed: 1 hour before shift start through 1 hour after shift end (shift time zone).
-        </p>
 
         {mode === 'admin' && (
           <>
-            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <input type="checkbox" checked={phoneOn} onChange={(e) => setPhoneOn(e.target.checked)} />
-              <Smartphone size={16} /> Automatic phone attendance
-            </label>
-            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <input type="checkbox" checked={laptopOn} onChange={(e) => setLaptopOn(e.target.checked)} />
-              <Laptop size={16} /> Laptop attendance (on = present, off = absent)
-            </label>
+            <div className="aas-toggles">
+              <label className="aas-toggle">
+                <input type="checkbox" checked={phoneOn} onChange={(e) => setPhoneOn(e.target.checked)} />
+                <Smartphone size={16} /> Automatic phone attendance
+              </label>
+              <label className="aas-toggle">
+                <input type="checkbox" checked={laptopOn} onChange={(e) => setLaptopOn(e.target.checked)} />
+                <Laptop size={16} /> Laptop attendance (on = present, off = absent)
+              </label>
+            </div>
             <div className="form-group">
               <label>Company time zone (reports / defaults)</label>
               <TimeZonePicker value={timezone} onChange={setTimezone} />
@@ -299,14 +316,13 @@ export default function AutoAttendanceSettings({ mode = 'admin' }: { mode?: 'adm
           </>
         )}
 
-        {/* Self / this-device */}
-        <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
-          <h4 style={{ marginTop: 0 }}>This device</h4>
+        <div className="aas-device-block">
+          <h4>This device</h4>
           {webBrowser ? (
             <div className="aas-web-card">
-              <h4 style={{ margin: 0 }}>Set up automatic attendance on your phone or laptop</h4>
+              <h4>Set up automatic attendance on your phone or laptop</h4>
               <div className="aas-web-card__grid">
-                <div style={{ display: 'grid', gap: '0.75rem' }}>
+                <div className="aas-web-card__body">
                   <div className="aas-web-card__downloads">
                     <a className="btn btn-primary" href={androidInstallHref()} download="scorr.apk">
                       Android APK
@@ -331,7 +347,7 @@ export default function AutoAttendanceSettings({ mode = 'admin' }: { mode?: 'adm
               </div>
               {devices.length > 0 && (
                 <>
-                  <h4 style={{ margin: '0.5rem 0 0' }}>Your enrolled devices</h4>
+                  <h4 className="aas-web-card__devices-title">Your enrolled devices</h4>
                   <ul className="aas-web-devices">
                     {devices.map((d) => {
                       const st = deviceStatus(d);
@@ -351,7 +367,7 @@ export default function AutoAttendanceSettings({ mode = 'admin' }: { mode?: 'adm
             <AutoAttendanceSetupWizard onFinished={() => void load()} />
           ) : (
             <>
-              <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>
+              <p className="aas-device-block__lead">
                 {isDesktopApp()
                   ? 'Follow a short setup to register this laptop for automatic attendance.'
                   : 'Follow a short setup for location, notifications, and device registration.'}
@@ -363,11 +379,15 @@ export default function AutoAttendanceSettings({ mode = 'admin' }: { mode?: 'adm
           )}
         </div>
 
-        {msg && <p style={{ margin: 0, fontSize: '0.88rem' }}>{msg}</p>}
+        {msg && (
+          <p className={`aas-msg ${msgLooksError ? 'aas-msg--err' : 'aas-msg--ok'}`} role="status">
+            {msg}
+          </p>
+        )}
       </div>
 
       {mode === 'admin' && (
-        <div className="aas-admin glass-panel" style={{ padding: '1.25rem' }}>
+        <div className="aas-admin aas-admin-panel glass-panel">
           <div className="aas-tiles">
             <div className="aas-tile">
               <span className="aas-tile__value">{tiles.enrolled}</span>
@@ -393,8 +413,8 @@ export default function AutoAttendanceSettings({ mode = 'admin' }: { mode?: 'adm
             </div>
             {devices.filter((d) => !d.revoked_at).length === 0 ? (
               <div className="aas-empty">
-                <Users size={28} />
-                <p>No devices enrolled yet. People can set up automatic attendance in the app.</p>
+                <Users size={32} strokeWidth={1.25} />
+                <p>No devices enrolled yet. People set up automatic attendance in the Android, iPhone, or desktop app under Settings.</p>
               </div>
             ) : (
               <>
@@ -429,7 +449,7 @@ export default function AutoAttendanceSettings({ mode = 'admin' }: { mode?: 'adm
                               </td>
                               <td>{d.last_seen_at ? new Date(d.last_seen_at).toLocaleString() : '—'}</td>
                               <td>
-                                <button type="button" className="btn btn-secondary" onClick={() => void revoke(d.id)}>
+                                <button type="button" className="btn btn-danger btn-sm" onClick={() => void revoke(d.id)}>
                                   Revoke
                                 </button>
                               </td>
@@ -452,7 +472,7 @@ export default function AutoAttendanceSettings({ mode = 'admin' }: { mode?: 'adm
                             <span className={`aas-badge aas-badge--${st.kind}`}>{st.label}</span>
                           </span>
                           <div className="aas-mobile-card__actions">
-                            <button type="button" className="btn btn-secondary" onClick={() => void revoke(d.id)}>
+                            <button type="button" className="btn btn-danger btn-sm" onClick={() => void revoke(d.id)}>
                               Revoke
                             </button>
                           </div>
@@ -475,7 +495,7 @@ export default function AutoAttendanceSettings({ mode = 'admin' }: { mode?: 'adm
             </div>
             {unenrolled.length === 0 ? (
               <div className="aas-empty">
-                <Smartphone size={28} />
+                <Smartphone size={32} strokeWidth={1.25} />
                 <p>Everyone who needs automatic attendance is enrolled.</p>
               </div>
             ) : (
@@ -554,8 +574,12 @@ export default function AutoAttendanceSettings({ mode = 'admin' }: { mode?: 'adm
             </div>
             {filteredFlagged.length === 0 ? (
               <div className="aas-empty">
-                <AlertTriangle size={28} />
-                <p>No flagged events for this filter.</p>
+                <AlertTriangle size={32} strokeWidth={1.25} />
+                <p>
+                  {flagDate || flagReason
+                    ? 'No flagged events match this filter. Clear the date or reason to see more.'
+                    : 'No flagged attendance events yet. Suspicious check-ins will appear here.'}
+                </p>
               </div>
             ) : (
               <>
