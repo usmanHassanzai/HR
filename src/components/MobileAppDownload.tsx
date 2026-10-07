@@ -365,7 +365,7 @@ export default function MobileAppDownload() {
           {iosInstallIsAppStore() ? (
             <p>
               Install <strong>Scorr</strong> from the App Store for the native iPhone experience —
-              Sign In, MFA, KPIs, GPS attendance, and automatic attendance (Always location + office geofences), same as Android.
+              Sign In, MFA (trusted devices), KPIs, and automatic attendance (Always location + office Wi-Fi), same as Android.
             </p>
           ) : (
             <p>
@@ -628,8 +628,8 @@ export default function MobileAppDownload() {
         <div className="landing-guide-strip__copy">
           <h3>Scorr user guide (PDF)</h3>
           <p>
-            Roles, KPIs, weightage rewards (Current / Used / Banked), attendance, mobile apps,
-            and MFA — Scorr-only, step by step.
+            Roles, KPIs, automatic attendance (GPS + Wi-Fi), trusted devices, 1-hour sessions,
+            app updates, and MFA — Scorr-only, step by step.
           </p>
         </div>
         <a
@@ -650,8 +650,8 @@ export default function MobileAppDownload() {
         <div className="landing-guide-strip__copy">
           <h3>Security overview for organizations (PDF)</h3>
           <p>
-            How Scorr protects company data — multi-tenant isolation, MFA, sessions, roles,
-            database access control, and location privacy. Share with IT and leadership.
+            How Scorr protects company data — multi-tenant isolation, MFA & trusted devices,
+            1-hour sessions, attendance location privacy, and app update integrity. Share with IT.
           </p>
         </div>
         <a

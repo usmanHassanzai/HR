@@ -105,7 +105,7 @@ endobj
 endobj
 6 0 obj
 <<
-/Length 3339
+/Length 3346
 >>
 stream
 0.5670000000000001 w
@@ -190,7 +190,7 @@ BT
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 659.0553543307086102 Td
-(6.  Session security & idle lock) Tj
+(6.  Session security & absolute timeout) Tj
 ET
 BT
 /F1 9.8 Tf
@@ -288,7 +288,7 @@ endobj
 endobj
 8 0 obj
 <<
-/Length 4185
+/Length 4200
 >>
 stream
 1.5590551181102366 w
@@ -401,14 +401,14 @@ BT
 10.4649999999999981 TL
 0.059 0.463 0.431 rg
 56.6929133858267775 624.1892125984251152 Td
-(your data — over encrypted HTTPS — with MFA, rate limits, idle session lock, and company-scoped) Tj
+(your data — over encrypted HTTPS — with MFA, trusted devices, rate limits, 1-hour sessions, and) Tj
 ET
 BT
 /F1 9.1 Tf
 10.4649999999999981 TL
 0.059 0.463 0.431 rg
 56.6929133858267775 609.4490551181100955 Td
-(storage.) Tj
+(company-scoped storage.) Tj
 ET
 BT
 /F2 10 Tf
@@ -1227,7 +1227,7 @@ endobj
 endobj
 18 0 obj
 <<
-/Length 2969
+/Length 3702
 >>
 stream
 0.9921259842519685 w
@@ -1265,7 +1265,7 @@ BT
 16.0999999999999979 TL
 0.059 0.09 0.165 rg
 45.354330708661422 779.5277952755905062 Td
-(6. Session security & idle lock) Tj
+(6. Session security & absolute timeout) Tj
 ET
 0.05 0.58 0.53 RG
 1.5590551181102366 w
@@ -1284,69 +1284,97 @@ BT
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 725.1025984251967884 Td
-(•  After successful auth + MFA, Scorr issues a session for the browser or native app.) Tj
+(•  After successful auth + MFA \(or a valid trusted-device token\), Scorr issues a session for the browser or native) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 710.3624409448818824 Td
+(app.) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 695.6222834645668627 Td
 (•  Sessions are bound to the authenticated user; API calls use that identity \(auth.uid\(\)\).) Tj
 ET
 BT
 /F2 11 Tf
 12.6499999999999986 TL
 0.051 0.58 0.533 rg
-45.354330708661422 695.6222834645668627 Td
-(6.2 Idle auto-logout) Tj
-ET
-BT
-/F1 9.8 Tf
-11.2699999999999996 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 678.0474803149605805 Td
-(•  If there is no user activity for 60 minutes, the portal locks / signs out.) Tj
+45.354330708661422 680.882125984251843 Td
+(6.2 Absolute 1-hour logout) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 663.3073228346455608 Td
-(•  Activity includes normal interaction \(mouse, keyboard, touch\).) Tj
+(•  Sessions last one hour from sign-in on web, Capacitor \(Android/iOS\), and Electron desktop — not a sliding idle) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 648.5671653543306547 Td
-(•  This reduces risk on shared or unattended office devices.) Tj
+(timer.) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 633.827007874015635 Td
+(•  After one hour the portal signs out and returns the user to Sign In with a clear “session expired” message.) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 619.0868503937006153 Td
+(•  JWT refresh may continue inside that hour; past one hour the client forces logout.) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 604.3466929133857093 Td
+(•  Remember-me credentials and attendance device tokens are not cleared by session expiry \(separate secure) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 589.6065354330708033 Td
+(storage\).) Tj
 ET
 BT
 /F2 11 Tf
 12.6499999999999986 TL
 0.051 0.58 0.533 rg
-45.354330708661422 633.827007874015635 Td
+45.354330708661422 574.8663779527557836 Td
 (6.3 Practical guidance for organizations) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 616.2522047244093528 Td
-(•  Require staff to lock phones and laptops when away from desk.) Tj
+48.1889763779527627 557.2915748031493877 Td
+(•  On shared PCs use Sign out & forget this device so the next person must enter MFA.) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 601.5120472440944468 Td
+48.1889763779527627 542.5514173228344816 Td
 (•  Do not share login credentials between people — create one account per person.) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 586.7718897637794271 Td
+48.1889763779527627 527.8112598425195756 Td
 (•  Revoke access promptly in People when someone leaves the company.) Tj
 ET
 BT
@@ -1920,7 +1948,7 @@ endobj
 endobj
 26 0 obj
 <<
-/Length 5264
+/Length 6580
 >>
 stream
 1.5590551181102366 w
@@ -1984,139 +2012,188 @@ BT
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 710.3624409448818824 Td
-( \( p u b l i c   I P   +   B S S I D \) ,   o r   l a p t o p   o n / o f f   o n   t h e   o f f i c e   n e t w o r k .   C h e c k - i n / o u t   o n l y   i n s i d e   W   =   [ s h i f t   s t a r t  "   6 0   m i n ,   s h i f t) Tj
+( n e t w o r k s   \( S S I D / B S S I D ,   I P v 4 / I P v 6 \) ,   o r   l a p t o p   o n / o f f   o n   t h e   o f f i c e   n e t w o r k .   C h e c k - i n / o u t   o n l y   i n s i d e   W   =   [ s h i f t   s t a r t  ") Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 695.6222834645668627 Td
-(end + 60 min] in the shift’s IANA time zone \(e.g. America/Chicago\). Outside W nothing is recorded.) Tj
+(60 min, shift end + 60 min] in the shift’s IANA time zone. Outside W nothing is recorded.) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 680.882125984251843 Td
-(•  Server clock \(UTC\) is authoritative; device clock skew is corrected. Raw location pings outside W are rejected) Tj
+(•  Immediate check-out when GPS confirms exit \(geofence EXIT or two accurate outside readings\) AND the device) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 666.1419685039369369 Td
-(and pings older than 90 days are deleted.) Tj
+(is not on any active office Wi-Fi. Fifteen-minute grace only when leaving cannot be confirmed \(e.g. Wi-Fi gone but) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 651.4018110236220309 Td
-(•  Optional manual clock-in/out uses the same window rules. Leave days and supervisor remote/hybrid day status) Tj
+(GPS unavailable\).) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 636.6616535433070112 Td
-(do not write clock times.) Tj
+(•  Multi-device: check-out only when all enrolled devices for that person confirm leave \(e.g. phone left but laptop still) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 621.9214960629919915 Td
-(•  Shift times, present/absent marks, leave requests, and visit segments for multi-visit days.) Tj
+( o n   o f f i c e   n e t w o r k  !’   s t a y   p r e s e n t \) .) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 607.1813385826770855 Td
+(•  Server clock \(UTC\) is authoritative; device clock skew is corrected. Raw location pings outside W are rejected) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 592.4411811023620658 Td
+(and pings older than 90 days are deleted.) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 577.7010236220471597 Td
+(•  Optional manual clock-in/out uses the same window rules. Leave days and supervisor remote/hybrid day status) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 562.96086614173214 Td
+(do not write clock times.) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 548.2207086614171203 Td
 (•  Remote staff may be marked by supervisors without GPS.) Tj
 ET
 BT
 /F2 11 Tf
 12.6499999999999986 TL
 0.051 0.58 0.533 rg
-45.354330708661422 592.4411811023620658 Td
+45.354330708661422 533.4805511811022143 Td
 (10.2 How it is protected) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 574.8663779527557836 Td
+48.1889763779527627 515.9057480314959321 Td
 (•  Location APIs require a secure context \(HTTPS\) — e.g. https://scorr.walfia.ai.) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 560.1262204724407638 Td
+48.1889763779527627 501.1655905511809124 Td
 (•  Attendance records are company-scoped; other tenants cannot read them.) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 545.3860629921258578 Td
+48.1889763779527627 486.4254330708659495 Td
 (•  Managers see team-relevant attendance; employees see their own history.) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 530.6459055118108381 Td
+48.1889763779527627 471.6852755905509866 Td
 (•  Scorr does not sell location data and does not expose it to other organizations.) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 515.9057480314959321 Td
+48.1889763779527627 456.9451181102360806 Td
 (•  Background GPS/Wi-Fi on mobile runs only during W \(geofence + short foreground service\), not 24/7 — not sold,) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 501.1655905511809124 Td
+48.1889763779527627 442.2049606299211177 Td
 (not shared across companies, and not marketing tracking.) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 427.4648031496062117 Td
+(•  Prominent disclosure + Always location on phones; setup wizard explains permissions before enrollment.) Tj
 ET
 BT
 /F2 11 Tf
 12.6499999999999986 TL
 0.051 0.58 0.533 rg
-45.354330708661422 486.4254330708659495 Td
+45.354330708661422 412.7246456692912489 Td
 (10.3 Organizational recommendations) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 468.8506299212596673 Td
-(•  Publish an internal policy: when GPS is required, that auto attendance runs after first sign-in, and why.) Tj
+48.1889763779527627 395.1498425196850235 Td
+(•  Publish an internal policy: MFA required on first sign-in per device; trusted devices skip the code for up to 7 days) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 454.1104724409447044 Td
-(•  Ask staff to grant Always / background location on the phone app for Office GPS roles.) Tj
+48.1889763779527627 380.4096850393700606 Td
+(\(configurable\); auto attendance uses background location after setup.) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 439.3703149606297984 Td
-(•  Assign Office GPS zones only to people who need them.) Tj
+48.1889763779527627 365.6695275590551546 Td
+(•  Ask staff to complete the automatic attendance wizard on phone or laptop and grant Always / background) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 424.6301574803148355 Td
+48.1889763779527627 350.9293700787401917 Td
+(location.) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 336.1892125984252857 Td
+(•  Assign office zones and Wi-Fi networks only to people who need them.) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 321.4490551181103228 Td
 (•  Use Remote/Hybrid work modes when GPS is not appropriate.) Tj
 ET
 BT
@@ -2272,7 +2349,7 @@ endobj
 endobj
 30 0 obj
 <<
-/Length 3167
+/Length 3195
 >>
 stream
 0.9921259842519685 w
@@ -2343,14 +2420,14 @@ BT
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 695.6222834645668627 Td
-( •     S e t t i n g s  !’   A c c o u n t   s e c u r i t y :   r e g e n e r a t e   b a c k u p   c o d e s ,   s e t   r e c o v e r y   e m a i l ,   v i e w   r e c o v e r y - r e l a t e d   a c t i v i t y   w h e r e) Tj
+( •     S e t t i n g s  !’   A c c o u n t   s e c u r i t y :   r e g e n e r a t e   b a c k u p   c o d e s ,   s e t   r e c o v e r y   e m a i l ,   m a n a g e   T r u s t e d   d e v i c e s   \( F o r g e t   /) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 680.882125984251843 Td
-(available.) Tj
+(Forget all\), view recovery-related activity.) Tj
 ET
 BT
 /F2 11 Tf
@@ -2420,7 +2497,7 @@ endobj
 endobj
 32 0 obj
 <<
-/Length 7399
+/Length 8290
 >>
 stream
 1.5590551181102366 w
@@ -2498,7 +2575,7 @@ BT
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 676.346692913385823 Td
-(•  Same Sign In, MFA \(TOTP\), backup codes, roles, and tenant isolation as the website.) Tj
+(•  Same Sign In, MFA \(TOTP\), trusted devices, backup codes, roles, and tenant isolation as the website.) Tj
 ET
 BT
 /F1 9.8 Tf
@@ -2526,168 +2603,203 @@ BT
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 617.3860629921258578 Td
-(•  Manual Clock in / Clock out remain available; background GPS is attendance-only.) Tj
+(•  Manual Clock in / Clock out remain available; background GPS/Wi-Fi is attendance-only inside W.) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 602.6459055118109518 Td
-(•  Session idle lock and privileged MFA gates apply on every client.) Tj
+(•  Absolute 1-hour session timeout and privileged MFA gates apply on every client.) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 587.9057480314959321 Td
+(•  Apps load https://scorr.walfia.ai/?app=1 so most product updates ship with the website; native changes use) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 573.1655905511809124 Td
+(in-app / auto-updaters.) Tj
 ET
 BT
 /F2 11 Tf
 12.6499999999999986 TL
 0.051 0.58 0.533 rg
-45.354330708661422 587.9057480314959321 Td
+45.354330708661422 558.4254330708660063 Td
 (13.2 Windows desktop \(Scorr-Setup.exe\)) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 570.3309448818896499 Td
-(•  Official installer from https://scorr.walfia.ai/#download-windows \(GitHub Release asset Scorr-Setup.exe, version) Tj
-ET
-BT
-/F1 9.8 Tf
-11.2699999999999996 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 555.5907874015747439 Td
-(1.3.5+\).) Tj
-ET
-BT
-/F1 9.8 Tf
-11.2699999999999996 TL
-0.2 0.255 0.333 rg
 48.1889763779527627 540.8506299212597241 Td
-(•  Installs permanently with Start Menu and Desktop shortcuts — not a portable unzip-only build.) Tj
+(•  Official installer from https://scorr.walfia.ai/#download-windows \(GitHub Release / downloads, version 1.3.7+\).) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 526.1104724409447044 Td
-(•  Loads the live app shell \(https://scorr.walfia.ai/?app=1\) inside a locked-down Electron window \(no marketing) Tj
+(•  Installs permanently with Start Menu and Desktop shortcuts — not a portable unzip-only build.) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 511.3703149606297416 Td
-(chrome\).) Tj
+(•  Loads the live app shell \(https://scorr.walfia.ai/?app=1\) inside a locked-down Electron window \(no marketing) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 496.6301574803147787 Td
-(•  If Windows SmartScreen warns, verify the download came from scorr.walfia.ai / the official GitHub Release) Tj
+(chrome\).) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 481.8899999999998158 Td
-(before continuing.) Tj
+(•  electron-updater checks for updates on start and periodically; install on restart. Login and attendance enrollment) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 467.149842519684853 Td
-( •     U n i n s t a l l   v i a   W i n d o w s   S e t t i n g s  !’   A p p s   w h e n   a n   e m p l o y e e   l e a v e s   o r   a   d e v i c e   i s   r e t i r e d .) Tj
+(survive updates.) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 452.4096850393699469 Td
+(•  If Windows SmartScreen warns, verify the download came from scorr.walfia.ai / the official GitHub Release) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 437.6695275590549841 Td
+(before continuing.) Tj
 ET
 BT
 /F2 11 Tf
 12.6499999999999986 TL
 0.051 0.58 0.533 rg
-45.354330708661422 452.4096850393699469 Td
-(13.3 Linux desktop \(Scorr.deb\)) Tj
-ET
-BT
-/F1 9.8 Tf
-11.2699999999999996 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 434.8348818897636647 Td
-(•  Official package from https://scorr.walfia.ai/#download-linux \(Scorr.deb, version 1.3.5+\).) Tj
-ET
-BT
-/F1 9.8 Tf
-11.2699999999999996 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 420.0947244094487019 Td
-(•  Install with: sudo apt install ./Scorr.deb — then open Scorr from the applications menu.) Tj
+45.354330708661422 422.929370078740078 Td
+(13.3 Linux desktop \(.deb + AppImage\)) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 405.3545669291337958 Td
-(•  Same Electron shell and backend auth as Windows; keep packages updated from the official download page.) Tj
+(•  Official packages from https://scorr.walfia.ai/#download-linux \(Scorr.deb and AppImage, version 1.3.7+\).) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 390.6144094488188898 Td
+(•  Install .deb with: sudo apt install ./Scorr.deb — AppImage supports automatic updates; .deb shows an in-app) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 375.8742519685039269 Td
+(download banner when newer.) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 361.1340944881890209 Td
+(•  Same Electron shell and backend auth as Windows.) Tj
 ET
 BT
 /F2 11 Tf
 12.6499999999999986 TL
 0.051 0.58 0.533 rg
-45.354330708661422 390.6144094488188898 Td
+45.354330708661422 346.3939370078740581 Td
 (13.4 Android & iOS) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 373.0396062992126076 Td
+48.1889763779527627 328.8191338582678327 Td
 (•  Android APK and iPhone Home Screen / native shell use the same Scorr backend and auth.) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 358.2994488188976447 Td
-(•  Android 1.3.5+ includes background attendance GPS after the first sign-in \(foreground notification while location) Tj
+48.1889763779527627 314.0789763779529267 Td
+(•  Android 1.3.7+ is release-signed with in-app update from version.json \(install over previous release without) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 343.5592913385827387 Td
-(is checked\).) Tj
+48.1889763779527627 299.338818897637907 Td
+(uninstall\). One last uninstall only if migrating from an old debug-signed APK.) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 328.8191338582678327 Td
-(•  Keep devices updated; install APKs only from https://scorr.walfia.ai/#download-app \(official source\).) Tj
+48.1889763779527627 284.5986614173230009 Td
+(•  iOS: Home Screen / PWA updates with the website; native builds check version.json and open TestFlight / App) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 269.8585039370080949 Td
+(Store when available.) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 255.1183464566931889 Td
+(•  Install APKs only from https://scorr.walfia.ai/#download-app \(official source\). Manifest: /downloads/version.json.) Tj
 ET
 1. 0.98 0.92 rg
 0.85 0.47 0.02 RG
 0.9921259842519685 w
-49.6062992125984294 322.5829133858268847 m
-545.6692913385827524 322.5829133858268847 l
-548.0175887000680177 322.5829133858268847 549.9212598425197029 320.6792422433751426 549.9212598425197029 318.3309448818898773 c
-549.9212598425197029 280.3466929133859367 l
-549.9212598425197029 277.9983955519006713 547.5729624810344376 276.0947244094489292 545.6692913385827524 276.0947244094489292 c
-49.6062992125984294 276.0947244094489292 l
-47.2580018511131641 276.0947244094489292 45.354330708661422 278.4430217709341377 45.354330708661422 280.3466929133859367 c
-45.354330708661422 318.3309448818898773 l
-45.354330708661422 320.6792422433751426 47.7026280701466874 322.5829133858268847 49.6062992125984294 322.5829133858268847 c
+49.6062992125984294 248.8821259842522409 m
+545.6692913385827524 248.8821259842522409 l
+548.0175887000680177 248.8821259842522409 549.9212598425197029 246.9784548418004704 549.9212598425197029 244.6301574803152334 c
+549.9212598425197029 206.6459055118112644 l
+549.9212598425197029 204.2976081503260275 547.5729624810344376 202.393937007874257 545.6692913385827524 202.393937007874257 c
+49.6062992125984294 202.393937007874257 l
+47.2580018511131641 202.393937007874257 45.354330708661422 204.7422343693595224 45.354330708661422 206.6459055118112644 c
+45.354330708661422 244.6301574803152334 l
+45.354330708661422 246.9784548418004704 47.7026280701466874 248.8821259842522409 49.6062992125984294 248.8821259842522409 c
 h
 B
 BT
 /F1 9.1 Tf
 10.4649999999999981 TL
 0.573 0.251 0.055 rg
-56.6929133858267775 308.4096850393701743 Td
-(Do not install Scorr Setup.exe, .deb, or APKs from unknown websites. Official source: scorr.walfia.ai \(and the) Tj
+56.6929133858267775 234.7088976377955305 Td
+(Do not install Scorr Setup.exe, .deb, AppImage, or APKs from unknown websites. Official source: scorr.walfia.ai) Tj
 ET
 BT
 /F1 9.1 Tf
 10.4649999999999981 TL
 0.573 0.251 0.055 rg
-56.6929133858267775 293.6695275590552683 Td
-(linked GitHub Release\).) Tj
+56.6929133858267775 219.9687401574806245 Td
+(\(and the linked GitHub Release\).) Tj
 ET
 BT
 /F1 8 Tf
@@ -3392,7 +3504,7 @@ endobj
 53 0 obj
 <<
 /Producer (jsPDF 4.2.1)
-/CreationDate (D:20261007192023+05'00')
+/CreationDate (D:20261007203810+05'00')
 >>
 endobj
 54 0 obj
@@ -3406,67 +3518,67 @@ endobj
 xref
 0 55
 0000000000 65535 f 
-0000073807 00000 n 
-0000075746 00000 n 
+0000076797 00000 n 
+0000078736 00000 n 
 0000000015 00000 n 
 0000000152 00000 n 
 0000001913 00000 n 
 0000002050 00000 n 
-0000005441 00000 n 
-0000005578 00000 n 
-0000009815 00000 n 
-0000009953 00000 n 
-0000012913 00000 n 
-0000013052 00000 n 
-0000017302 00000 n 
-0000017441 00000 n 
-0000022123 00000 n 
-0000022262 00000 n 
-0000028048 00000 n 
-0000028187 00000 n 
-0000031209 00000 n 
-0000031348 00000 n 
-0000035655 00000 n 
-0000035794 00000 n 
-0000040547 00000 n 
-0000040686 00000 n 
-0000043368 00000 n 
-0000043507 00000 n 
-0000048824 00000 n 
-0000048963 00000 n 
-0000051976 00000 n 
-0000052115 00000 n 
-0000055335 00000 n 
-0000055474 00000 n 
-0000062926 00000 n 
-0000063065 00000 n 
-0000065570 00000 n 
-0000065709 00000 n 
-0000069044 00000 n 
-0000069183 00000 n 
-0000073981 00000 n 
-0000074107 00000 n 
-0000074238 00000 n 
-0000074372 00000 n 
-0000074510 00000 n 
-0000074634 00000 n 
-0000074763 00000 n 
-0000074895 00000 n 
-0000075031 00000 n 
-0000075159 00000 n 
-0000075286 00000 n 
-0000075415 00000 n 
-0000075548 00000 n 
-0000075650 00000 n 
-0000075999 00000 n 
-0000076085 00000 n 
+0000005448 00000 n 
+0000005585 00000 n 
+0000009837 00000 n 
+0000009975 00000 n 
+0000012935 00000 n 
+0000013074 00000 n 
+0000017324 00000 n 
+0000017463 00000 n 
+0000022145 00000 n 
+0000022284 00000 n 
+0000028070 00000 n 
+0000028209 00000 n 
+0000031964 00000 n 
+0000032103 00000 n 
+0000036410 00000 n 
+0000036549 00000 n 
+0000041302 00000 n 
+0000041441 00000 n 
+0000044123 00000 n 
+0000044262 00000 n 
+0000050895 00000 n 
+0000051034 00000 n 
+0000054047 00000 n 
+0000054186 00000 n 
+0000057434 00000 n 
+0000057573 00000 n 
+0000065916 00000 n 
+0000066055 00000 n 
+0000068560 00000 n 
+0000068699 00000 n 
+0000072034 00000 n 
+0000072173 00000 n 
+0000076971 00000 n 
+0000077097 00000 n 
+0000077228 00000 n 
+0000077362 00000 n 
+0000077500 00000 n 
+0000077624 00000 n 
+0000077753 00000 n 
+0000077885 00000 n 
+0000078021 00000 n 
+0000078149 00000 n 
+0000078276 00000 n 
+0000078405 00000 n 
+0000078538 00000 n 
+0000078640 00000 n 
+0000078989 00000 n 
+0000079075 00000 n 
 trailer
 <<
 /Size 55
 /Root 54 0 R
 /Info 53 0 R
-/ID [ <A4CFF48DB0CA6F700B43239AF76541D0> <A4CFF48DB0CA6F700B43239AF76541D0> ]
+/ID [ <1BC7045C0A566A6778F2426E2811A9B2> <1BC7045C0A566A6778F2426E2811A9B2> ]
 >>
 startxref
-76189
+79179
 %%EOF

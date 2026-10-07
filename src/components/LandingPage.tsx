@@ -39,14 +39,14 @@ const FEATURES = [
   },
   {
     icon: CalendarCheck,
-    title: 'Shifts & Attendance',
-    desc: 'Day and overnight shifts, GPS check-in/out, multi-visit days, and automatic clock-out when the shift ends — with admin history that stays accurate.',
+    title: 'Shifts & Automatic Attendance',
+    desc: 'Day and overnight shifts with a guided phone/laptop setup. GPS + office Wi-Fi (multiple networks, IPv6) check people in and out during the shift window — immediate check-out when leaving is confirmed.',
     color: '#38bdf8',
   },
   {
     icon: Radio,
-    title: 'Live GPS Tracking',
-    desc: 'Geofenced office sites, live location for managers, and attendance tied to approved work locations.',
+    title: 'Live GPS & Office Networks',
+    desc: 'Geofenced offices, live location for managers, and multi-network Wi-Fi matching so attendance stays accurate even when GPS drifts.',
     color: '#34d399',
   },
   {
@@ -85,22 +85,22 @@ const SECURITY_POINTS = [
   {
     icon: Smartphone,
     title: 'Authenticator app (TOTP)',
-    desc: 'Admins, managers, HR, and employees enroll Google Authenticator or Microsoft Authenticator after sign-in. Every privileged session requires a fresh 6-digit code.',
+    desc: 'Admins, managers, HR, and employees enroll Google Authenticator or Microsoft Authenticator after sign-in. MFA is required on first sign-in per device.',
   },
   {
     icon: KeyRound,
-    title: 'Backup recovery codes',
-    desc: 'One-time backup codes are generated after setup. Store them offline — each code works once if the phone is unavailable.',
+    title: 'Trusted devices (up to 7 days)',
+    desc: 'After a correct authenticator or backup code, optionally trust this device. Skip the code on that phone, laptop, or browser for up to 7 days (company-configurable). Always ask for platform owners.',
   },
   {
     icon: Lock,
-    title: 'Email OTP recovery',
-    desc: 'No authenticator or codes left? Verify with a code sent to the login email, then re-enroll MFA and save new backup codes.',
+    title: 'Backup codes & email recovery',
+    desc: 'One-time backup codes and login-email OTP recovery if the phone is lost — then re-enroll MFA and save new codes.',
   },
   {
-    icon: Shield,
-    title: 'Account security settings',
-    desc: 'Inside Scorr, Account Security lets people regenerate backup codes, set a recovery email, manage trusted devices, and review recent recovery activity.',
+    icon: Clock,
+    title: '1-hour sessions',
+    desc: 'Web, Android, iPhone, and desktop sessions end after one hour from sign-in. Sign out & forget this device clears a trusted-device token when you leave a shared computer.',
   },
 ];
 
@@ -114,7 +114,7 @@ const PLANS = [
       '3-day full platform trial',
       'Up to 25 employees',
       'KPI weightage & scoreboards',
-      'Authenticator MFA & backup codes',
+      'Authenticator MFA & trusted devices',
       'Basic rewards catalog',
       'Mobile-friendly PWA',
     ],
@@ -127,7 +127,7 @@ const PLANS = [
     features: [
       'Everything after trial',
       'Unlimited employees',
-      'Shifts, leave & GPS attendance',
+      'Auto attendance (GPS + office Wi-Fi)',
       'Completion emails to managers',
       'Analytics & exports',
       'Priority email support',
@@ -154,21 +154,21 @@ const FEE_STEPS = [
   { icon: Users, title: 'Pay per active seat', desc: 'You are billed only for active users (employees, managers, admins) each month. Remove seats anytime.' },
   { icon: CreditCard, title: 'Simple monthly billing', desc: 'Invoices are generated on the 1st of each month. Pay by card or bank transfer. Receipts sent automatically.' },
   { icon: TrendingUp, title: 'Scale as you grow', desc: 'Upgrade from Starter to Professional instantly. Add users without contracts — pricing adjusts on your next cycle.' },
-  { icon: Award, title: 'Security included', desc: 'Authenticator MFA, backup codes, email recovery, and company data isolation ship with every plan — no add-on fee.' },
+  { icon: Award, title: 'Security included', desc: 'Authenticator MFA, trusted devices, backup codes, email recovery, 1-hour sessions, and company data isolation — included on every plan.' },
 ];
 
 const MARQUEE_ITEMS = [
   'KPI Weightage', 'Score Index', 'Rewards Points', 'Night Shifts',
-  'GPS Check-in', 'Auto Clock-out', 'Completion Emails', 'Authenticator MFA',
-  'Backup Codes', 'Email OTP Recovery', 'Team Scoreboards', 'Attendance Export',
+  'Auto Attendance', 'Office Wi-Fi', 'Immediate Check-out', 'Authenticator MFA',
+  'Trusted Devices', '1-Hour Sessions', 'Auto App Updates', 'Attendance Export',
 ];
 
 const TRUST_ITEMS = [
   '3-day free trial',
   'Authenticator MFA',
-  'Backup recovery codes',
+  'Trusted devices (7 days)',
   'Company data isolation',
-  'Android APK download',
+  'Android + desktop auto-update',
   'iPhone Home Screen app',
   'Demo sandbox available',
 ];
@@ -418,7 +418,7 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
         <div className="landing-hero__inner">
           <div>
             <div className="landing-hero__badge">
-              <Shield size={14} /> Authenticator MFA · Backup codes · 3-day free trial
+              <Shield size={14} /> Authenticator MFA · Trusted devices · 3-day free trial
             </div>
             <h1 className="landing-hero__title">
               Performance, attendance &amp; secure access — <span>one platform</span>
@@ -514,7 +514,7 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
           <div className="landing-section__eyebrow">What We Offer</div>
           <h2 className="landing-section__title">Built for how teams work now</h2>
           <p>
-            Clear KPI math, shift-aware attendance, completion emails, and authenticator security —
+            Clear KPI math, automatic office attendance, completion emails, and authenticator security —
             so admins, managers, and employees stay aligned without spreadsheet chaos.
           </p>
         </div>
@@ -540,8 +540,8 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
         <div className="landing-steps" style={{ maxWidth: 1200, margin: '0 auto' }}>
           {[
             { n: 1, title: 'Register & verify', desc: 'Create the company, confirm email, then wait for approval from info@walfia.ai before using Scorr.' },
-            { n: 2, title: 'Secure the account', desc: 'Enroll an authenticator, save backup codes, and optionally set recovery email — required for privileged roles.' },
-            { n: 3, title: 'Assign & deliver', desc: 'Managers assign weighted KPIs. People check in with GPS, work overnight shifts, and mark tasks complete.' },
+            { n: 2, title: 'Secure the account', desc: 'Enroll an authenticator, save backup codes, and optionally trust this device for up to 7 days — required for privileged roles.' },
+            { n: 3, title: 'Assign & deliver', desc: 'Managers assign weighted KPIs. Staff set up automatic attendance once (GPS + office Wi-Fi), work overnight shifts, and mark tasks complete.' },
             { n: 4, title: 'Score, notify & reward', desc: 'Scoreboards update Overall / Month / Year. Managers and assigners get completion emails. Points convert to catalog rewards.' },
           ].map((s, i) => (
             <div key={s.n} className={`landing-step landing-reveal landing-reveal--delay-${i + 1}`}>
@@ -558,8 +558,9 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
           <div className="landing-section__eyebrow">Security &amp; credentials</div>
           <h2 className="landing-section__title">Sign-in that protects the whole company</h2>
           <p>
-            Password alone is not enough for privileged work. Scorr requires authenticator MFA,
-            issues backup codes, and offers login-email recovery when a device is lost.
+            Password alone is not enough. Scorr requires authenticator MFA on first sign-in per device,
+            lets people trust a device for up to 7 days (configurable), issues backup codes, and
+            ends sessions after one hour.
           </p>
         </div>
         <div className="landing-features landing-features--security">
@@ -578,8 +579,8 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
           <div>
             <strong>What you need to sign in</strong>
             <span>
-              Company login email and password, plus a current authenticator code (or one unused backup code).
-              If both are gone, request an email OTP to your login address, then re-enroll MFA and save new codes.
+              Company email and password, plus an authenticator or backup code on new or untrusted devices.
+              Trusted devices skip the code until expiry. Sessions last one hour. Lost phone? Use email OTP recovery, then re-enroll MFA.
             </span>
           </div>
         </div>

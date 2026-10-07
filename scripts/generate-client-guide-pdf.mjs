@@ -299,7 +299,7 @@ title('Table of Contents');
   ['13.', 'KPI completion & review'],
   ['14.', 'Rewards & gifts'],
   ['15.', 'Daily work reports'],
-  ['16.', 'Office GPS & live tracking'],
+  ['16.', 'Office & Attendance / live tracking'],
   ['17.', 'Analytics, exports & notifications'],
   ['18.', 'Security & account deletion'],
   ['19.', 'Plans, trial & demo'],
@@ -317,7 +317,7 @@ para('Each registered company is private. Staff in one organization cannot see a
 h2('What you can do');
 bullet('Register your organization and invite Admin, HR, Managers, and Employees.');
 bullet('Assign KPI tasks with weightage (0–100% per person) and review completions.');
-bullet('Automatic attendance (phone GPS/Wi-Fi or laptop on/off) inside a fixed window: 1 hour before shift start through 1 hour after shift end, in the shift’s time zone. Manual clock in/out uses the same rules. Remote/hybrid day status and leave are separate.');
+bullet('Automatic attendance (phone GPS + office Wi-Fi, or laptop on/off) inside a fixed window: 1 hour before shift start through 1 hour after shift end, in the shift’s time zone. Immediate check-out when GPS confirms you left and you are off office Wi-Fi; 15-minute grace only when leaving cannot be confirmed. Manual clock in/out uses the same window. Remote/hybrid day status and leave are separate.');
 bullet('Submit daily work reports (employees, managers, and HR report to admin).');
 bullet('Redeem company gifts with monthly weightage (Current / Used / Banked).');
 bullet('Track field teams live and export monthly/quarterly reports.');
@@ -333,12 +333,12 @@ para('Open the website on your phone or computer: https://scorr.walfia.ai. Scrol
 h1('2.1 Windows desktop');
 bullet('On the homepage, click Download for Windows (or open the Windows card under #download-app).');
 bullet('You get Scorr-Setup.exe — the permanent Windows installer (Start Menu + Desktop shortcuts).');
-bullet('Official release file: https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.5/Scorr-Setup.exe');
-bullet('Version is shown on the download card (e.g. 1.3.5). Same Sign In for Admin, HR, Manager, and Employee.');
+bullet('Official release: https://github.com/usmanHassanzai/HR/releases/tag/desktop-v1.3.7 (also linked from scorr.walfia.ai/downloads).');
+bullet('Version 1.3.7+. Desktop apps auto-update (Windows / Linux AppImage). Same Sign In for Admin, HR, Manager, and Employee.');
 
 h1('2.2 Linux desktop');
 bullet('Click Download for Linux to get Scorr.deb (Ubuntu / Debian style install).');
-bullet('Official release file: https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.5/Scorr.deb');
+bullet('Official release: https://github.com/usmanHassanzai/HR/releases/tag/desktop-v1.3.7 — Scorr.deb and AppImage (auto-update).');
 bullet('After install, Scorr appears in your applications menu.');
 
 h1('2.3 Android');
@@ -392,7 +392,7 @@ step(4, 'Tap Install → Open.');
 step(5, 'Sign in with your company email and password.');
 step(6, 'When prompted, allow Location (Always / while using the app + background) so GPS attendance can auto check you in and out.');
 bullet('If install is blocked: Settings → Apps → Special access → Install unknown apps → enable for Chrome/Files.');
-bullet('If an older Scorr is installed, update by installing the new APK over it (same app ID).');
+bullet('Release-signed APKs update in-app (Update available → Install) without uninstalling. If you still have an old debug APK, uninstall once, then install 1.3.7+ from scorr.walfia.ai.');
 
 h1('3.4 Install on iPhone / iPad (Safari)');
 warn('Use Safari only — Chrome or other browsers cannot Add to Home Screen the same way.');
@@ -455,14 +455,24 @@ para('After password, Scorr opens Authenticator required. Use Google Authenticat
 step(1, 'Scan the QR code (or type the Manual key).');
 step(2, 'Enter your account password and the 6-digit authenticator code → Verify and continue.');
 step(3, 'Save 10 one-time backup codes (XXXX-XXXX). Download or copy them and store offline.');
-step(4, 'Later logins: password + authenticator code, or one unused backup code.');
+step(4, 'Optional: tick Trust this device for 7 days (default on in the apps). Next logins on that device skip the code until expiry.');
+step(5, 'Later logins on a new/untrusted device: password + authenticator code, or one unused backup code.');
 
-h1('5.3 Lost phone / authenticator');
+h1('5.3 Trusted devices');
+bullet('MFA is required on first sign-in per device. Trusted devices skip the authenticator code for up to 7 days (company Admin → Settings → Security can set 1–30 days or Always ask).');
+bullet('Settings → Account security → Trusted devices: Forget one device or Forget all.');
+bullet('Logout menu: Sign out, or Sign out & forget this device (clears trust on shared computers).');
+bullet('Trust is cleared automatically after password change/reset, admin Reset authenticator, MFA re-enrollment, or account removal.');
+
+h1('5.4 Sessions');
+bullet('Sessions last 1 hour from sign-in on web, Android, iPhone, and desktop — then you sign in again.');
+
+h1('5.5 Lost phone / authenticator');
 bullet('On the MFA screen: Send verification code to your login email → Verify → re-enroll.');
 bullet('Or ask your Admin → People → Reset authenticator.');
 bullet('Settings → Account security: regenerate backup codes, set a recovery email.');
 
-note('Demo sandbox accounts skip MFA. Real Admin, HR, Manager, and Employee accounts must enroll.');
+note('Demo sandbox accounts skip MFA. Real Admin, HR, Manager, and Employee accounts must enroll. Platform owners always enter a code (no trust).');
 drawFooter();
 newPage();
 
@@ -497,7 +507,7 @@ featureBlock('Rewards', 'KPI awards, History, People, Redemptions, Catalog. Appr
 featureBlock('KPI & Rewards', 'Company weightage board: Earned, Current, Used, Banked per person.');
 featureBlock('Analytics', 'Individual performance trends and attainment.');
 featureBlock('Attendance', 'Leave approvals, Remote/hybrid marking, Shifts, History (by department). HR appears under Human Resources.');
-featureBlock('Office GPS', 'Create geofence zones, assign to people/teams, manage offices.');
+featureBlock('Office & Attendance', 'Create geofence zones, multi-network office Wi-Fi, assign people, automatic attendance devices & reminders.');
 featureBlock('Live Tracking', 'Today’s field board: At site / Away / Offline.');
 featureBlock('Departments', 'Org structure (Sales, Marketing, …).');
 featureBlock('Export', 'Monthly or quarterly Excel / PDF / CSV.');
@@ -507,7 +517,7 @@ h1('7.2 First-week checklist');
 step(1, 'Settings — company name, logo, colors.');
 step(2, 'Departments — create departments.');
 step(3, 'People — add Managers, Employees, and HR. Set Reports to and Work location.');
-step(4, 'Office GPS — create zones and assign staff who use GPS.');
+step(4, 'Office & Attendance — create zones, Wi-Fi networks, and assign staff.');
 step(5, 'Attendance → Shifts — create shifts and assign people.');
 step(6, 'Assign Task — create templates, assign first KPIs.');
 step(7, 'Ask everyone to install the app, enroll MFA, and allow Location.');
@@ -581,7 +591,7 @@ para('Eyebrow: Employee. You only see your own work, attendance, and rewards.');
 
 h1('10.1 Menus');
 featureBlock('My KPIs', 'Open and History. Scoreboard shows Left to use, Earned, Used, Banked. Open a task to start it, then Mark Complete.');
-featureBlock('Attendance', 'One-time Automatic attendance enrollment (no daily login): phone GPS or office Wi-Fi, or laptop on/off on the office network. Only active from 1 hour before your shift until 1 hour after. Manual Clock in/out, leave, and history still available.');
+featureBlock('Attendance', 'One-time Automatic attendance setup wizard (phone or laptop): GPS + office Wi-Fi (multiple networks / IPv6), or laptop on/off. Active from 1 hour before shift until 1 hour after. Immediate check-out when you leave and are off office Wi-Fi. Manual Clock in/out, leave, and history still available. Web browsers show download/setup instructions instead of Enable.');
 featureBlock('Rewards', 'Redeem company gifts / catalog with weightage. Track Pending · Approved · Delivered · Rejected.');
 featureBlock('Daily report', 'What did you accomplish today? (20–8000 characters). Submit or Update.');
 featureBlock('Settings', 'Change password, backup codes, recovery email, Delete my account.');
@@ -610,17 +620,17 @@ tableRow('HR', 'Attendance → My day');
 tableRow('Admin', 'Does not self-clock like staff; reviews Leave, Remote, Shifts, History');
 spacer();
 
-h1('11.2 Office (GPS) — auto + manual clock in / out');
-step(1, 'Admin assigns you an Office GPS zone and a shift.');
-step(2, 'On your phone, allow Location for Scorr (prefer Always / background so attendance works without opening the dashboard).');
-step(3, 'Sign in once. After that you do not need to open the dashboard for auto attendance.');
-step(4, 'Enter the office during shift hours (check-in window opens 1 hour before start) → Scorr auto checks you in.');
-step(5, 'Leave the office → Scorr auto checks you out (GPS uses a small buffer so brief jumps do not flip status).');
-step(6, 'Manual Clock in / Clock out buttons remain available anytime you need them (including mid-shift leave).');
+h1('11.2 Office — automatic attendance setup + clock in / out');
+step(1, 'Admin assigns you an office zone, a shift, and (optional) office Wi-Fi networks. Company automatic attendance must be ON.');
+step(2, 'On Android or iPhone app (or Windows/Linux desktop): Automatic attendance → Set up — follow the step-by-step wizard (disclosure, account check, location Always, notifications, battery tips on Android, register device).');
+step(3, 'Allow Location Always / background so attendance works without opening the dashboard.');
+step(4, 'Enter the office during the window (opens 1 hour before shift start) → Scorr auto checks you in (GPS and/or office Wi-Fi).');
+step(5, 'Leave confirmed (outside geofence / 2 accurate outside readings AND not on office Wi-Fi) → immediate check-out at that time. Wi-Fi off but GPS still inside → stay checked in. GPS outside but still on office Wi-Fi → stay checked in. Wi-Fi off and GPS unavailable → 15-minute grace, then check out at last presence.');
+step(6, 'Laptop: shutdown/sleep → immediate check-out. If another enrolled laptop is still on the office network, you stay checked in (multi-device rule).');
+step(7, 'Manual Clock in / Clock out remain available when you need them.');
 bullet('Multi-visit days are supported — each enter/leave pair is saved; time away is not counted.');
-bullet('If you are still checked in when the shift ends and you have left the site, Scorr can auto close the visit.');
-bullet('On the phone app, GPS continues in the background after you leave the dashboard. On the web, keep the browser tab available if you rely on web GPS.');
-bullet('Logging out returns you to the normal Scorr landing page — the GPS status banner is not shown; attendance GPS still runs silently when enabled.');
+bullet('Apps load the live site so most updates need no reinstall; native APK/desktop updates install over the previous version.');
+bullet('On the website, use download/setup cards — automatic attendance is not enabled in a normal browser.');
 
 h1('11.3 Remote');
 bullet('You do not use GPS. Your supervisor (manager or admin) marks Present or Absent.');
@@ -748,20 +758,21 @@ drawFooter();
 newPage();
 
 // 16
-title('16. Office GPS & live tracking');
+title('16. Office & Attendance / live tracking');
 
-h1('16.1 Office GPS (Admin / HR)');
-step(1, 'Office GPS → Create zone: name, address, pin (or use current location), radius, Active.');
-step(2, 'Assign people — individual, or assign to all employees/managers/HR.');
-step(3, 'Manage offices — edit or deactivate zones.');
+h1('16.1 Office & Attendance (Admin / HR)');
+step(1, 'Office & Attendance → create office: name, address, map pin (or current location), radius, Active.');
+step(2, 'Add office Wi-Fi networks (label, SSID, BSSID, IPv4/IPv6). Use current Wi-Fi to fill SSID/BSSID when on site.');
+step(3, 'Assign people — individual, or assign to all employees/managers/HR.');
+step(4, 'Automatic attendance: company toggles, enrolled devices table, not enrolled yet (Send reminder), flagged attendance.');
 
 h1('16.2 Live Tracking');
 bullet('Today’s board for GPS staff: At site / Away / Offline / No site.');
 bullet('Refreshes about every 2 minutes for the live board.');
-bullet('Attendance auto check-in/out uses periodic GPS on the phone app (about every 5 minutes in the background) and while the session is active — for attendance, not continuous surveillance.');
-bullet('Managers see their team scope; Admin/HR see the organization.');
+bullet('Phone apps use geofence exit + Wi-Fi checks for immediate leave detection; background work is only inside the attendance window — not continuous surveillance.');
+bullet('Managers see their team scope; Admin/HR see the organization. Outdated app versions are marked on enrolled devices.');
 
-note('Location is stored as company attendance data — not sold, never shown to other companies.');
+note('Location and Wi-Fi signals are company attendance data — not sold, never shown to other companies.');
 drawFooter();
 newPage();
 
@@ -785,15 +796,17 @@ title('18. Security & account deletion');
 
 h1('18.1 Safety basics');
 bullet('Passwords hashed by Supabase Auth; failed logins rate-limited.');
-bullet('Idle sessions sign out. Company signup needs email OTP.');
-bullet('Privileged roles use TOTP MFA + backup codes.');
-bullet('Every record is company-scoped.');
+bullet('Sessions last 1 hour from sign-in on every client, then sign out.');
+bullet('MFA required on first sign-in per device; trusted devices skip the code for up to 7 days (configurable).');
+bullet('Privileged roles use TOTP MFA + backup codes + email recovery.');
+bullet('Every record is company-scoped. Company signup needs email OTP.');
 
 h1('18.2 Device permissions');
 tableHeader(['Permission', 'Why']);
 tableRow('Internet', 'Sign-in, KPIs, attendance, mail.');
-tableRow('Location (while using)', 'Clock in/out at the geofence.');
-tableRow('Notifications', 'Optional reminders.');
+tableRow('Location (Always)', 'Automatic office check-in/out in the shift window.');
+tableRow('Notifications', 'Check-out alerts and reminders.');
+tableRow('Battery unrestricted (Android)', 'Keeps background attendance reliable.');
 spacer();
 
 h1('18.3 Delete my account');
@@ -837,7 +850,9 @@ tableRow('Awaiting approval', 'Wait for Walfia to approve at /platform; email in
 tableRow('Stuck on MFA', 'Backup code, email recovery, or Admin → People → Reset authenticator.');
 tableRow('Wrong dashboard', 'Ask Admin to check your role on People.');
 tableRow('Cannot assign KPI', 'Department + person required; open weightage ≤ 100%.');
-tableRow('GPS check-in fails', 'Precise/Always location on; assigned office; inside radius; within shift window; reinstall latest app (1.3.5+) for background auto attendance.');
+tableRow('GPS / auto attendance fails', 'Precise/Always location; assigned office + shift; company auto attendance ON; finish setup wizard; install latest 1.3.7+ app. Wi-Fi sleep alone does not check you out.');
+tableRow('Asked for MFA every time', 'Trust expired/revoked, Always ask policy, or Sign out & forget this device was used.');
+tableRow('Update available', 'Android/desktop: Install or Restart to update. Web/PWA: Refresh. Login and attendance enrollment survive updates.');
 tableRow('HR under wrong group', 'History shows Human Resources for HR; not Unassigned.');
 tableRow('Daily report not visible', 'Admin: Daily Reports → pick date. HR: Organization tab.');
 spacer();
@@ -867,7 +882,10 @@ tableRow('Password minimum', '6 characters');
 tableRow('Backup codes', '10 single-use');
 tableRow('Open KPI weightage', '≤ 100% per person');
 tableRow('Daily report length', '20–8000 characters');
-tableRow('Shift grace', '60 minutes before start / after end');
+tableRow('Shift window', '60 minutes before start / after end');
+tableRow('Session lifetime', '1 hour from sign-in');
+tableRow('Trusted device', 'Up to 7 days (company policy)');
+tableRow('App version', '1.3.7+');
 tableRow('Geofence default', '~150 m');
 tableRow('Direct APK until', '1 November 2026');
 spacer();
