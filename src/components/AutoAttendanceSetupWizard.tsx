@@ -80,7 +80,6 @@ export default function AutoAttendanceSetupWizard({
 }) {
   const native = isNativeApp();
   const desktop = isDesktopApp();
-  const mobile = native;
 
   const steps: StepDef[] = useMemo(() => {
     if (desktop) {
