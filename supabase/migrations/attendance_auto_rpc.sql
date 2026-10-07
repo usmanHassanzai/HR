@@ -2,14 +2,15 @@
 -- R55 / J: device-token auto attendance event processing (security definer).
 -- Edge function auto-attendance-event calls this after hashing the token.
 
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 
 CREATE OR REPLACE FUNCTION public.attendance_hash_device_token(p_token TEXT)
 RETURNS TEXT
 LANGUAGE sql
 IMMUTABLE
+SET search_path = public, extensions
 AS $$
-  SELECT encode(digest(convert_to(p_token, 'UTF8'), 'sha256'), 'hex');
+  SELECT encode(extensions.digest(convert_to(p_token, 'UTF8'), 'sha256'), 'hex');
 $$;
 
 CREATE OR REPLACE FUNCTION public.attendance_ip_in_cidrs(p_ip TEXT, p_cidrs TEXT[])

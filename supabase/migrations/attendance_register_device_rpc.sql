@@ -10,7 +10,7 @@ CREATE OR REPLACE FUNCTION public.register_attendance_device(
 ) RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 DECLARE
   v_uid UUID := auth.uid();
@@ -30,7 +30,10 @@ BEGIN
   SELECT * INTO v_me FROM public.users WHERE id = v_uid;
   IF NOT FOUND THEN RAISE EXCEPTION 'Not authenticated'; END IF;
 
-  v_token := COALESCE(NULLIF(btrim(p_token_plaintext), ''), encode(gen_random_bytes(32), 'hex'));
+  v_token := COALESCE(
+    NULLIF(btrim(p_token_plaintext), ''),
+    encode(extensions.gen_random_bytes(32), 'hex')
+  );
   v_hash := public.attendance_hash_device_token(v_token);
 
   -- Revoke prior row for same device_id

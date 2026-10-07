@@ -203,6 +203,7 @@ const MIGRATIONS = [
   'attendance_enforcement_triggers.sql',
   'attendance_auto_rpc.sql',
   'attendance_register_device_rpc.sql',
+  'fix_pgcrypto_extensions_search_path_2026-10-07.sql',
   'attendance_correction_rpc.sql',
   'attendance_schedule_rpc.sql',
   'attendance_cron.sql',
