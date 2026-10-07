@@ -153,12 +153,10 @@ if (!token) {
 
 run('npm', ['run', 'build']);
 
-// Prefer linked project in .vercel/; fall back to production hr → scorr.walfia.ai.
-const deployArgs = ['vercel', 'deploy', 'dist', '--prod', '--yes', '--token', token];
-if (existsSync(join(root, '.vercel/project.json'))) {
-  // Linked project
-} else {
-  deployArgs.push('--scope', 'walfia', '--project', 'hr');
-}
+// Always target production project hr → scorr.walfia.ai (avoid mis-linking to "dist").
+const deployArgs = [
+  'vercel', 'deploy', 'dist', '--prod', '--yes', '--token', token,
+  '--scope', 'walfia', '--project', 'hr',
+];
 run('npx', deployArgs);
 console.log('✅ Deployed → https://scorr.walfia.ai');
