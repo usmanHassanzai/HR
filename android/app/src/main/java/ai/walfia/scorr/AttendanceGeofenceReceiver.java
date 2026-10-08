@@ -67,9 +67,13 @@ public class AttendanceGeofenceReceiver extends BroadcastReceiver {
             Double lat = loc.getLatitude();
             Double lng = loc.getLongitude();
             Float acc = loc.hasAccuracy() ? loc.getAccuracy() : null;
-            AttendanceEventClient.send(app, eventName, zoneId, lat, lng, acc, ssid, bssid);
+            long readingMs = loc.getTime() > 0 ? loc.getTime() : System.currentTimeMillis();
+            AttendanceEventClient.send(app, eventName, zoneId, lat, lng, acc, ssid, bssid, readingMs);
         } else {
-            AttendanceEventClient.send(app, eventName, zoneId, null, null, null, ssid, bssid);
+            AttendanceEventClient.send(app, eventName, zoneId, null, null, null, ssid, bssid, null);
+        }
+        if ("exit".equals(eventName)) {
+            AttendancePingService.start(app);
         }
     }
 }

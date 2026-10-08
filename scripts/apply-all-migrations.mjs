@@ -225,6 +225,23 @@ const MIGRATIONS = [
   'FIX_history_open_visit_still_present_2026-10-08.sql',
   'FIX_office_radius_exact_checkout_2026-10-08.sql',
   'FIX_auto_attendance_priority_2026-10-08.sql',
+  'FIX_midshift_auto_checkin_enrolled_2026-10-08.sql',
+  'FIX_shift_mobile_desktop_clocks_2026-10-08.sql',
+  'FIX_desktop_test_now_status_2026-10-08.sql',
+  'FIX_zero_length_shift_duration_2026-10-08.sql',
+  'FIX_laptop_office_ip_without_bssid_2026-10-08.sql',
+  'FIX_no_checkout_while_in_office_2026-10-08.sql',
+  'FIX_stay_present_office_history_2026-10-08.sql',
+  'FIX_checkout_only_outside_not_on_wifi_2026-10-08.sql',
+  'FIX_company_leave_allowance_2026-10-08.sql',
+  'FIX_shift_add_member_on_save_2026-10-09.sql',
+  'FIX_checkin_requires_office_wifi_2026-10-09.sql',
+  'FIX_checkin_radius_and_wifi_2026-10-09.sql',
+  'FIX_checkout_one_outside_reading_2026-10-09.sql',
+  'FIX_checkout_outside_no_exceptions_2026-10-09.sql',
+  'FIX_kpi_approve_hide_weightage_until_month_end_2026-10-09.sql',
+  'FIX_checkout_outside_immediate_permanent_2026-10-09.sql',
+  'FIX_checkin_require_wifi_and_radius_no_bypass_2026-10-09.sql',
 ];
 
 async function runMigration(filename) {

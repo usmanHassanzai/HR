@@ -3,8 +3,9 @@ import {
   refreshNativeAttendanceSession,
   startNativeAttendancePings,
 } from '../utils/attendanceNativePing';
-import { getAttendanceDeviceToken } from '../utils/attendanceDevice';
-import { isNativeApp } from '../utils/nativePlatform';
+import { startIosHomeAttendance } from '../utils/attendanceIosHome';
+import { getAttendanceDeviceToken, sendAutoAttendanceEventWithLocation } from '../utils/attendanceDevice';
+import { isDesktopApp, isIosHomeScreen, isNativeApp } from '../utils/nativePlatform';
 
 /**
  * Keeps native automatic attendance armed after dashboard logout when a
@@ -12,23 +13,34 @@ import { isNativeApp } from '../utils/nativePlatform';
  */
 export default function SilentGeoAttendance() {
   useEffect(() => {
-    if (!isNativeApp()) return;
+    if (!isNativeApp() && !isIosHomeScreen() && !isDesktopApp()) return;
     let cancelled = false;
+    let desktopTimer: number | undefined;
 
     const arm = async () => {
       const token = await getAttendanceDeviceToken();
       if (cancelled || !token) return;
-      await startNativeAttendancePings();
-      await refreshNativeAttendanceSession();
+      if (isNativeApp()) {
+        await startNativeAttendancePings();
+        await refreshNativeAttendanceSession();
+      }
+      if (isIosHomeScreen()) await startIosHomeAttendance();
+      if (isDesktopApp()) await sendAutoAttendanceEventWithLocation('ping');
     };
 
     void arm();
+    if (isDesktopApp()) {
+      desktopTimer = window.setInterval(() => {
+        void arm();
+      }, 5 * 60 * 1000);
+    }
     const onVis = () => {
       if (document.visibilityState === 'visible') void arm();
     };
     document.addEventListener('visibilitychange', onVis);
     return () => {
       cancelled = true;
+      if (desktopTimer) window.clearInterval(desktopTimer);
       document.removeEventListener('visibilitychange', onVis);
     };
   }, []);

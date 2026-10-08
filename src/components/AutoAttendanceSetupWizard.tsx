@@ -37,10 +37,11 @@ import {
 import {
   disableAutoAttendanceOnDevice,
   PHONE_OPT_IN_TEXT,
-  sendAutoAttendanceEvent,
+  sendAutoAttendanceEventWithLocation,
 } from '../utils/attendanceDevice';
-import { isAndroidApp, isIosApp } from '../utils/nativePlatform';
+import { isAndroidApp, isIosApp, isIosHomeScreen, isIosPhoneClient } from '../utils/nativePlatform';
 import { startNativeAttendancePings } from '../utils/attendanceNativePing';
+import { startIosHomeAttendance } from '../utils/attendanceIosHome';
 import '../styles/auto-attendance-setup.css';
 
 type StepStatus = 'waiting' | 'busy' | 'done' | 'action' | 'failed';
@@ -88,6 +89,8 @@ export default function AutoAttendanceSetupWizard({
   onFixProblem?: () => void;
 }) {
   const native = isNativeApp();
+  const iosHome = isIosHomeScreen();
+  const phoneClient = native || iosHome;
   const desktop = isDesktopApp();
   // Settings embeds status + steps as an inline card. Never use aas-wizard--fullscreen —
   // that overlay hid Change password / Account security / Delete account on native.
@@ -98,7 +101,7 @@ export default function AutoAttendanceSetupWizard({
       return [
         { id: 'account', title: 'Your account is ready', explanation: 'Checking company settings, office zone, and shift.', icon: Shield },
         { id: 'autolaunch', title: 'Start Scorr when the computer starts', explanation: 'Keeps laptop attendance working after reboot.', icon: Laptop },
-        { id: 'network', title: 'Office network', explanation: 'Checks whether this computer is on an office Wi-Fi / IP.', icon: Wifi },
+        { id: 'network', title: 'Office network and location', explanation: 'Check-in needs office Wi-Fi and a GPS reading inside the office radius. Either one alone is not enough.', icon: Wifi },
         { id: 'register', title: 'Register this laptop', explanation: 'Securely enrolls this device for automatic attendance.', icon: CheckCircle2 },
       ];
     }
@@ -106,8 +109,8 @@ export default function AutoAttendanceSetupWizard({
       {
         id: 'disclosure',
         title: 'Why Scorr needs your location',
-        explanation: isIosApp()
-          ? 'Apple requires a clear explanation before Always location — read before continuing.'
+        explanation: isIosPhoneClient()
+          ? 'Apple requires a clear explanation before location is used — read before continuing.'
           : 'Google Play prominent disclosure — read before continuing.',
         icon: MapPin,
       },
@@ -115,9 +118,11 @@ export default function AutoAttendanceSetupWizard({
       {
         id: 'location',
         title: 'Location access',
-        explanation: isIosApp()
-          ? 'Allow While Using, then Always, so check-in works when the app is closed.'
-          : 'While using the app, then Allow all the time.',
+        explanation: iosHome
+          ? 'This Home Screen app cannot run in the background. Scorr checks location when you open it, and every 60 seconds while it stays open.'
+          : isIosApp()
+            ? 'Allow While Using, then Always. A geofence exit checks you out when you leave the office, even if the app is closed.'
+            : 'Allow all the time, and set battery to Unrestricted, so a geofence exit can check you out in the background.',
         icon: MapPin,
       },
       { id: 'notifications', title: 'Notifications', explanation: 'So you know when you are checked in or out.', icon: Bell },
@@ -126,7 +131,7 @@ export default function AutoAttendanceSetupWizard({
       base.push({
         id: 'battery',
         title: 'Keep Scorr running',
-        explanation: 'Battery unrestricted so background check-in keeps working.',
+        explanation: 'Set battery to Unrestricted so background location and check-out keep running during the shift.',
         icon: BatteryCharging,
       });
     }
@@ -137,7 +142,7 @@ export default function AutoAttendanceSetupWizard({
       icon: Smartphone,
     });
     return base;
-  }, [desktop]);
+  }, [desktop, iosHome]);
 
   const totalSteps = steps.length;
   const [stepIndex, setStepIndex] = useState(() => Math.min(loadSetupProgress(), Math.max(0, totalSteps - 1)));
@@ -205,7 +210,7 @@ export default function AutoAttendanceSetupWizard({
   }, [goTo, runWithBusy, setStepStatus, steps]);
 
   const refreshPermissions = useCallback(async () => {
-    if (!native) return;
+    if (!phoneClient) return;
     try {
       const snap = await getNativePermissionSnapshot();
       setManufacturer(snap.manufacturer || '');
@@ -244,7 +249,7 @@ export default function AutoAttendanceSetupWizard({
     } catch {
       /* ignore resume failures */
     }
-  }, [current?.id, goTo, native, setStepStatus, stepIndex]);
+  }, [current?.id, goTo, phoneClient, setStepStatus, stepIndex]);
 
   useEffect(() => {
     if (statusOnly) {
@@ -261,13 +266,15 @@ export default function AutoAttendanceSetupWizard({
   }, [statusOnly]);
 
   useEffect(() => {
-    if (!native) return;
+    if (!phoneClient) return;
     let handle: { remove: () => Promise<void> } | undefined;
-    void CapApp.addListener('appStateChange', ({ isActive }) => {
-      if (isActive) void refreshPermissions();
-    }).then((h) => {
-      handle = h;
-    });
+    if (native) {
+      void CapApp.addListener('appStateChange', ({ isActive }) => {
+        if (isActive) void refreshPermissions();
+      }).then((h) => {
+        handle = h;
+      });
+    }
     const onVis = () => {
       if (document.visibilityState === 'visible') void refreshPermissions();
     };
@@ -276,7 +283,7 @@ export default function AutoAttendanceSetupWizard({
       void handle?.remove();
       document.removeEventListener('visibilitychange', onVis);
     };
-  }, [native, refreshPermissions]);
+  }, [native, phoneClient, refreshPermissions]);
 
   const continueDisclosure = () => {
     setStepStatus('disclosure', 'done');
@@ -289,6 +296,11 @@ export default function AutoAttendanceSetupWizard({
       if (!whileUsing.ok) {
         setStepStatus('location', 'action');
         setError(whileUsing.detail);
+        return;
+      }
+      if (iosHome) {
+        setStepStatus('location', 'done');
+        goTo(stepIndex + 1);
         return;
       }
       if (isIosApp()) {
@@ -360,7 +372,7 @@ export default function AutoAttendanceSetupWizard({
       setNetworkMsg(
         match.matched
           ? `Matched${match.label ? `: ${match.label}` : ''} (IP ${match.ip})`
-          : `No match yet (IP ${match.ip}). You can still register — presence needs office Wi-Fi later.`,
+          : `No match yet (IP ${match.ip}). You can still register. Check-in later needs office Wi-Fi and a GPS reading inside the office radius.`,
       );
       setStepStatus('network', match.matched ? 'done' : 'action');
       goTo(stepIndex + 1);
@@ -382,6 +394,13 @@ export default function AutoAttendanceSetupWizard({
           /* optional */
         }
       }
+      if (iosHome) {
+        try {
+          await startIosHomeAttendance();
+        } catch {
+          /* optional */
+        }
+      }
       setStepStatus('register', 'done');
       clearSetupProgress();
       setFinished(true);
@@ -392,20 +411,26 @@ export default function AutoAttendanceSetupWizard({
   const testNow = async () => {
     setFinishMeta((m) => ({ ...m, testResult: 'Running live check…' }));
     try {
-      const res = await sendAutoAttendanceEvent('ping', {});
+      const res = await sendAutoAttendanceEventWithLocation('ping');
       const action = (res?.action as string) || (res?.reason as string) || 'ok';
       const status =
-        action === 'clock_in' || action === 'already_checked_in'
-          ? 'Inside office zone / On office Wi-Fi'
+        action === 'clock_in' || action === 'already_checked_in' || action === 'device_left_others_present'
+          ? 'Checked in'
           : action === 'clock_out'
-            ? 'Outside'
+            ? 'Checked out'
             : action === 'outside_window'
-              ? 'Window closed'
-              : String(action);
+              ? 'Outside shift hours'
+              : action === 'not_on_office_network' || action === 'not_on_office_wifi'
+                ? 'Not on office Wi-Fi'
+                : action === 'outside_radius' || action === 'need_fresh_location'
+                  ? 'Not inside the office radius'
+                  : action === 'duplicate_ignored'
+                  ? 'Check finished. Click Test now again to check in.'
+                  : 'Check finished';
       setFinishMeta({
         status,
         lastCheck: new Date().toLocaleString(),
-        testResult: `Result: ${action}`,
+        testResult: status,
       });
     } catch (e) {
       setFinishMeta((m) => ({
@@ -503,12 +528,20 @@ export default function AutoAttendanceSetupWizard({
 
       {current?.id === 'disclosure' && (
         <div className="aas-disclosure">
-          <p>
-            Scorr collects location data to enable automatic office check-in and check-out even when the app is closed
-            or not in use. Location is used only from 1 hour before your shift starts until 1 hour after it ends (your
-            shift time zone). Outside that window, Scorr does not use your location. You can turn this off any time in
-            Automatic attendance settings.
-          </p>
+          {iosHome ? (
+            <p>
+              This Home Screen app cannot run in the background. Scorr checks your location when you open it, and
+              every 60 seconds while it stays open. Check-out uses the first GPS reading outside the office radius on
+              those checks. You can turn this off any time in Automatic attendance settings.
+            </p>
+          ) : (
+            <p>
+              Scorr collects location data to enable automatic office check-in and check-out even when the app is closed
+              or not in use. On Android, background location and an unrestricted battery setting keep that check running.
+              On the iPhone app, Always location and a geofence exit do the same. Location is used from 1 hour before
+              your shift starts until 1 hour after it ends. You can turn this off any time in Automatic attendance settings.
+            </p>
+          )}
           <p style={{ fontSize: '0.86rem' }}>{PHONE_OPT_IN_TEXT}</p>
           <div className="aas-step__actions">
             <button type="button" className="btn btn-primary" onClick={continueDisclosure}>
@@ -578,9 +611,11 @@ export default function AutoAttendanceSetupWizard({
                         <button type="button" className="btn btn-primary" onClick={() => void requestLocation()}>
                           {st === 'failed' || st === 'action' ? 'Try again' : 'Allow location'}
                         </button>
-                        <button type="button" className="btn btn-secondary" onClick={() => void openNativeAppSettings()}>
-                          Open settings
-                        </button>
+                        {!iosHome && (
+                          <button type="button" className="btn btn-secondary" onClick={() => void openNativeAppSettings()}>
+                            Open settings
+                          </button>
+                        )}
                         <button type="button" className="btn btn-secondary" onClick={() => void refreshPermissions()}>
                           <RefreshCw size={14} /> I changed settings
                         </button>
@@ -591,9 +626,11 @@ export default function AutoAttendanceSetupWizard({
                         <button type="button" className="btn btn-primary" onClick={() => void requestNotifs()}>
                           {st === 'failed' ? 'Try again' : 'Allow notifications'}
                         </button>
-                        <button type="button" className="btn btn-secondary" onClick={() => void openNativeAppSettings()}>
-                          Open settings
-                        </button>
+                        {!iosHome && (
+                          <button type="button" className="btn btn-secondary" onClick={() => void openNativeAppSettings()}>
+                            Open settings
+                          </button>
+                        )}
                       </>
                     )}
                     {s.id === 'battery' && isAndroidApp() && (

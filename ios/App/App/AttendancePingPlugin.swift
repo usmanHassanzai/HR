@@ -486,7 +486,7 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
     private override init() {
         super.init()
         manager.delegate = self
-        manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        manager.desiredAccuracy = kCLLocationAccuracyBest
         manager.allowsBackgroundLocationUpdates = true
         manager.pausesLocationUpdatesAutomatically = false
         if #available(iOS 11.0, *) {
@@ -710,7 +710,9 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
                 let lat = zone.latitude,
                 let lng = zone.longitude
             else { continue }
-            let radius = max(50, min(zone.radius_meters ?? 150, 500))
+            let saved = zone.radius_meters ?? 150
+            let cap = manager.maximumRegionMonitoringDistance
+            let radius = min(max(saved, 1), cap > 0 ? cap : saved)
             let center = CLLocationCoordinate2D(latitude: lat, longitude: lng)
             let region = CLCircularRegion(center: center, radius: radius, identifier: id)
             region.notifyOnEntry = true
@@ -815,12 +817,43 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
         }
     }
 
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let zoneId = pendingExitZoneId, let loc = locations.last else { return }
+        pendingExitZoneId = nil
+        guard loc.horizontalAccuracy >= 0, loc.horizontalAccuracy <= 50 else { return }
+        let simulated: Bool
+        if #available(iOS 15.0, *) {
+            simulated = loc.sourceInformation?.isSimulatedBySoftware == true
+        } else {
+            simulated = false
+        }
+        let payload = QueuedEvent(
+            event: "exit",
+            zoneId: zoneId,
+            lat: loc.coordinate.latitude,
+            lng: loc.coordinate.longitude,
+            accuracyM: loc.horizontalAccuracy,
+            ssid: pendingExitSsid,
+            bssid: pendingExitBssid,
+            occurredAtUtcMs: Int64(loc.timestamp.timeIntervalSince1970 * 1000),
+            isMock: simulated
+        )
+        postEvent(payload)
+    }
+
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        pendingExitZoneId = nil
+    }
+
     func locationManager(_ manager: CLLocationManager, monitoringDidFailFor region: CLRegion?, withError error: Error) {
         NSLog("Scorr attendance region fail %@: %@", region?.identifier ?? "?", error.localizedDescription)
     }
 
     private var lastEnterSentAt: [String: Date] = [:]
     private var lastExitSentAt: [String: Date] = [:]
+    private var pendingExitZoneId: String?
+    private var pendingExitSsid: String?
+    private var pendingExitBssid: String?
 
     private func handleRegionEvent(region: CLRegion, event: String, prioritizeWifi: Bool = false) {
         // R10 / R44: drop anything outside W — send nothing
@@ -845,6 +878,21 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
         }
 
         let loc = manager.location
+        if event == "exit" {
+            let acc = loc?.horizontalAccuracy ?? -1
+            if acc < 0 || acc > 50 {
+                pendingExitZoneId = region.identifier
+                manager.desiredAccuracy = kCLLocationAccuracyBest
+                fetchWifi(preferCachedFallback: true) { [weak self] ssid, bssid in
+                    guard let self else { return }
+                    self.pendingExitSsid = ssid
+                    self.pendingExitBssid = bssid
+                    self.manager.requestLocation()
+                }
+                return
+            }
+        }
+
         let isMock: Bool
         if #available(iOS 15.0, *) {
             isMock = loc?.sourceInformation?.isSimulatedBySoftware == true
@@ -862,7 +910,7 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
                 accuracyM: loc.flatMap { $0.horizontalAccuracy > 0 ? $0.horizontalAccuracy : nil },
                 ssid: ssid,
                 bssid: bssid,
-                occurredAtUtcMs: Int64(Date().timeIntervalSince1970 * 1000),
+                occurredAtUtcMs: Int64((loc?.timestamp ?? Date()).timeIntervalSince1970 * 1000),
                 isMock: isMock
             )
             self.postEvent(payload)

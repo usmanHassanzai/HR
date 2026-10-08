@@ -5,6 +5,8 @@ import {
   refreshNativeAttendanceSession,
   startNativeAttendancePings,
 } from '../utils/attendanceNativePing';
+import { startIosHomeAttendance } from '../utils/attendanceIosHome';
+import { isIosHomeScreen } from '../utils/nativePlatform';
 import {
   AUTO_LOCATION_CHECK_MS,
   GEO_DASHBOARD_OPEN_EVENT,
@@ -41,6 +43,7 @@ export default function GeoAttendanceTracker({ profile, onUpdate }: GeoAttendanc
     }
 
     void startNativeAttendancePings();
+    void startIosHomeAttendance();
 
     let cancelled = false;
     let watchId: AttendanceWatchId | null = null;
@@ -50,7 +53,7 @@ export default function GeoAttendanceTracker({ profile, onUpdate }: GeoAttendanc
 
     const ping = async (force = false) => {
       if (cancelled || inFlight) return;
-      if (document.visibilityState === 'hidden' && !force) return;
+      if (document.visibilityState === 'hidden' && !force && !isIosHomeScreen()) return;
       const minGap = Math.max(45_000, Math.floor(AUTO_LOCATION_CHECK_MS * 0.75));
       if (!force && Date.now() - lastPingAt < minGap) return;
       inFlight = true;

@@ -454,7 +454,7 @@ export default function OfficeLocationSettings() {
       p_wifi_ssids: [],
       p_wifi_bssids: [],
       p_public_ip_cidrs: [],
-      p_detection_mode: form.detection_mode,
+      p_detection_mode: 'gps_or_wifi',
     });
     if (error) {
       setSaving(false);
@@ -710,21 +710,11 @@ export default function OfficeLocationSettings() {
                 />
               </div>
               <div className="form-group admin-office-span-full">
-                <label htmlFor="office-detect">Detection mode</label>
-                <select
-                  id="office-detect"
-                  value={form.detection_mode}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      detection_mode: e.target.value as 'gps_only' | 'wifi_only' | 'gps_or_wifi',
-                    })
-                  }
-                >
-                  <option value="gps_or_wifi">GPS or Wi-Fi</option>
-                  <option value="gps_only">GPS only</option>
-                  <option value="wifi_only">Wi-Fi only</option>
-                </select>
+                <label htmlFor="office-detect">Detection</label>
+                <p id="office-detect" className="admin-office-item__meta">
+                  Check-in uses both: the public IP must match an active office Wi-Fi, and a GPS reading
+                  (accuracy 100 m or better) must be inside this radius. GPS only and Wi-Fi only are not used.
+                </p>
               </div>
 
               <div className="form-group admin-office-span-full admin-office-wifi-block">
@@ -943,7 +933,7 @@ export default function OfficeLocationSettings() {
                     <div className="admin-office-item__coords">
                       {o.latitude.toFixed(5)}, {o.longitude.toFixed(5)} · {o.radius_meters}m radius
                       {' · '}
-                      {(o.detection_mode || 'gps_or_wifi').replace(/_/g, ' ')}
+                      Wi-Fi and GPS
                     </div>
                     <p className="admin-office-item__meta">
                       <Wifi size={12} className="admin-office-item__meta-icon" />

@@ -16,7 +16,7 @@ import {
   localYmd,
   submitGeoClockEvent,
 } from '../utils/geoAttendance';
-import { LocationWindow, formatShiftTimeRange, isWithinShiftExitWindow, locationWindowToMyShift, shouldCaptureLocationNow } from '../utils/shiftHelpers';
+import { LocationWindow, formatShiftTimeRange, hasAssignedShiftEnded, isWithinShiftExitWindow, locationWindowToMyShift, shouldCaptureLocationNow } from '../utils/shiftHelpers';
 
 interface GeoAttendancePanelProps {
   onClockUpdate?: () => void;
@@ -291,11 +291,17 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
     try {
       const result = await submitGeoClockEvent(intent);
       setLastResult(result);
+      if (result.action === 'not_on_office_network' || result.action === 'not_on_office_wifi') {
+        setError('Not on office Wi-Fi');
+      }
+      if (result.action === 'outside_radius' || result.action === 'need_fresh_location') {
+        setError('Not inside the office radius');
+      }
       if (result.action === 'outside_office') {
         if (!workSite && offices.filter((o) => o.active).length === 0) {
           setError('No work location assigned. Ask admin: Office & Attendance → Assign people.');
         } else if (intent === 'clock_in') {
-          setError('You must be inside the office zone to clock in.');
+          setError('Not inside the office radius');
         } else {
           setError('Clock in first, then clock out.');
         }
@@ -323,6 +329,7 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
   const hasAnySite = !!workSite || offices.some((o) => o.active);
   const siteRadius = workSite?.radius_meters ?? offices.find((o) => o.active)?.radius_meters ?? 150;
   const inWindow = shouldCaptureLocationNow(windowInfo);
+  const shiftEnded = windowInfo ? hasAssignedShiftEnded(locationWindowToMyShift(windowInfo)) : false;
   const inExitWindow = windowInfo ? isWithinShiftExitWindow(locationWindowToMyShift(windowInfo)) : false;
   const openShift = Boolean((clockIn && !clockOut) || openVisit);
   const openVisitRow = [...visits].filter(isVisitOpen).sort(
@@ -349,7 +356,7 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
         <span className="badge badge-on-track geo-attendance-panel__badge">Entry + exit</span>
       </h3>
       <p className="attendance-card__subtitle">
-        Automatic attendance has priority: when it is set up on your phone and/or computer, you are checked in on office entry (GPS and/or Wi-Fi) and checked out when you leave or the shift ends — without tapping Clock in/out.
+        Check-in needs both the office Wi-Fi and a GPS reading inside the office radius. Mobile data, home Wi-Fi, or a copied Wi-Fi name does not check you in. GPS inside the office without the office Wi-Fi does not check you in. Work-from-home days marked by Admin or HR are exempt.
         Manual Clock in / Clock out stay available as an override. Multiple visits in one shift are saved and minutes are added (time away is not counted).
         {windowInfo
           ? ` Hours: ${formatShiftTimeRange(windowInfo.start_time, windowInfo.end_time, windowInfo.crosses_midnight)}${windowInfo.source === 'shift' && windowInfo.shift_name ? ` · ${windowInfo.shift_name}` : ' · company window'}.`
@@ -371,12 +378,17 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
       )}
       {openShift && (
         <p className="attendance-present-banner attendance-present-banner--spaced" role="status">
-          You are still present in the office and working. Auto check-out runs when you leave the office zone; use Clock out only if you need to leave early.
+          You are still present in the office and working. Auto check-out runs when a GPS reading is outside the office radius; use Clock out only if you need to leave early.
         </p>
       )}
-      {!openShift && clockIn && clockOut && inWindow && (
+      {!openShift && clockIn && clockOut && inWindow && !shiftEnded && (
         <p className="attendance-present-banner attendance-present-banner--out attendance-present-banner--spaced" role="status">
           Checked out. Auto check-in runs if you return during the shift; Clock in is only needed as a backup.
+        </p>
+      )}
+      {!openShift && clockIn && clockOut && shiftEnded && (
+        <p className="attendance-present-banner attendance-present-banner--out attendance-present-banner--spaced" role="status">
+          Checked out. Shift has ended — auto check-in will not run. Manual Clock in is blocked after shift end.
         </p>
       )}
       {openShift && !inWindow && inExitWindow && (
@@ -414,13 +426,13 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
         <p className={`geo-nearby ${nearby.inside ? '' : 'geo-nearby--out'}`}>
           <Radio size={14} />
           {nearby.inside
-            ? `Inside ${nearby.name} · ${nearby.dist}m from center (zone ${nearby.radius}m)`
-            : `Outside ${nearby.name} · ${nearby.dist}m away (need within ${nearby.radius}m)`}
+            ? `Inside ${nearby.name} · ${nearby.dist}m from center. Check-in also needs the office Wi-Fi.`
+            : `Outside ${nearby.name} · ${nearby.dist}m away. Not inside the office radius.`}
         </p>
       )}
 
       {lastResult && (
-        <p className={`geo-last-action ${lastResult.action === 'outside_office' || lastResult.action === 'shift_not_started' ? 'geo-last-action--warn' : ''}`}>
+        <p className={`geo-last-action ${lastResult.action === 'outside_office' || lastResult.action === 'outside_radius' || lastResult.action === 'need_fresh_location' || lastResult.action === 'not_on_office_network' || lastResult.action === 'not_on_office_wifi' || lastResult.action === 'shift_not_started' ? 'geo-last-action--warn' : ''}`}>
           {lastResult.action === 'outside_office' ? (
             <>
               Still outside the office zone

@@ -28,14 +28,15 @@ import androidx.core.app.NotificationCompat;
 import java.util.Locale;
 
 /**
- * Foreground service active ONLY during attendance window W.
- * Backup GPS ~5 min + ConnectivityManager Wi-Fi SSID/BSSID callbacks (R42–R43).
+ * Foreground service active ONLY during the shift window.
+ * Geofence exit is the fast path. This service also takes a GPS fix every 20 seconds
+ * so a leave is seen even when the geofence is late. Battery use stays unrestricted.
  */
 public class AttendancePingService extends Service {
     private static final String TAG = "ScorrAttFgs";
     private static final String CHANNEL_ID = "scorr_attendance_gps";
     private static final int NOTIF_ID = 41;
-    private static final long INTERVAL_MS = 5 * 60 * 1000L;
+    private static final long INTERVAL_MS = 20 * 1000L;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable tick = this::runBackupPingThenSchedule;

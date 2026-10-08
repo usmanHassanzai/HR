@@ -7,16 +7,16 @@ import { Preferences } from '@capacitor/preferences';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '../lib/supabase';
 import { supabaseUrl, supabaseAnonKey } from '../lib/supabaseConfig';
-import { isNativeApp, isDesktopApp } from './nativePlatform';
+import { isNativeApp, isDesktopApp, isIosHomeScreen, clientAttendancePlatform } from './nativePlatform';
 
 const TOKEN_KEY = 'scorr_attendance_device_token';
 const DEVICE_ID_KEY = 'scorr_attendance_device_id';
 
 export const PHONE_OPT_IN_TEXT =
-  'After this one-time setup, Scorr checks you in when you arrive at the office or join the office Wi-Fi, and out when you leave. It only checks from 1 hour before your shift until 1 hour after it ends. Outside that time, location and Wi-Fi are never used.';
+  'After this one-time setup, Scorr checks you in only when both are true: this phone is on the office Wi-Fi, and a GPS reading is inside the office radius. Either one alone is not enough. Check-in runs from 1 hour before your shift until the shift ends.';
 
 export const LAPTOP_OPT_IN_TEXT =
-  'When this laptop is switched on at the office during your shift window, you are checked in. Shutting it down or putting it to sleep checks you out.';
+  'This laptop checks in only when both are true: it is on the office Wi-Fi, and a GPS reading is inside the office radius. If location is missing or weak, Scorr asks for a fresh location and tries again. Shutting the laptop down does not check you out.';
 
 async function secureGet(key: string): Promise<string | null> {
   try {
@@ -66,14 +66,7 @@ export async function getAttendanceDeviceToken(): Promise<string | null> {
 }
 
 function detectPlatform(): 'android' | 'ios' | 'windows' | 'linux' | 'web' {
-  if (Capacitor.getPlatform() === 'android') return 'android';
-  if (Capacitor.getPlatform() === 'ios') return 'ios';
-  if (isDesktopApp()) {
-    const ua = navigator.userAgent.toLowerCase();
-    if (ua.includes('windows')) return 'windows';
-    return 'linux';
-  }
-  return 'web';
+  return clientAttendancePlatform();
 }
 
 async function ensureDeviceId(): Promise<string> {
@@ -101,6 +94,12 @@ export async function disableAutoAttendanceOnDevice(kind: 'phone' | 'laptop' = '
     try {
       const { stopNativeAttendancePings } = await import('./attendanceNativePing');
       await stopNativeAttendancePings();
+    } catch {
+      /* ignore */
+    }
+    try {
+      const { stopIosHomeAttendance } = await import('./attendanceIosHome');
+      stopIosHomeAttendance();
     } catch {
       /* ignore */
     }
@@ -156,6 +155,43 @@ export async function sendAutoAttendanceEvent(
   return (await res.json().catch(() => null)) as Record<string, unknown> | null;
 }
 
+/** Laptop and Test now: attach a fresh GPS fix, and retry once if the server asks. */
+export async function sendAutoAttendanceEventWithLocation(
+  event: string,
+  extra: Record<string, unknown> = {},
+): Promise<Record<string, unknown> | null> {
+  const { requestCurrentPosition } = await import('./geoAttendance');
+  const readFix = async () => {
+    const pos = await requestCurrentPosition({
+      enableHighAccuracy: true,
+      timeout: 15_000,
+      maximumAge: 0,
+    });
+    return {
+      latitude: pos.coords.latitude,
+      longitude: pos.coords.longitude,
+      accuracy_m: pos.coords.accuracy ?? null,
+    };
+  };
+
+  let fix: Record<string, unknown> = {};
+  try {
+    fix = await readFix();
+  } catch {
+    /* server returns need_fresh_location when the fix is missing */
+  }
+  let res = await sendAutoAttendanceEvent(event, { ...extra, ...fix });
+  if (res?.action === 'need_fresh_location') {
+    try {
+      fix = await readFix();
+      res = await sendAutoAttendanceEvent(event, { ...extra, ...fix });
+    } catch {
+      /* keep the server reason */
+    }
+  }
+  return res;
+}
+
 export function isAutoAttendanceClient(): boolean {
-  return isNativeApp() || isDesktopApp();
+  return isNativeApp() || isDesktopApp() || isIosHomeScreen();
 }

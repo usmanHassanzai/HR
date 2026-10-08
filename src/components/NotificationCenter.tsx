@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, type MouseEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabase';
 import { Notification, type UserRole } from '../utils/kpiHelpers';
-import { markNotificationsRead } from '../utils/notificationHelpers';
+import { markNotificationsRead, notificationMessageInViewerTime } from '../utils/notificationHelpers';
 import { dispatchNotificationNav, resolveNotificationNav } from '../utils/notificationNavigation';
 import { Bell, AlertCircle, Info, Calendar, Flame, Check, ChevronRight } from 'lucide-react';
 
@@ -112,7 +112,10 @@ export default function NotificationCenter({ userId, role }: NotificationCenterP
           setNotifications((prev) => (prev.some((n) => n.id === newRow.id) ? prev : [newRow, ...prev]));
           if (!newRow.is_read && 'Notification' in window && window.Notification.permission === 'granted') {
             try {
-              const desk = new window.Notification(newRow.title, { body: newRow.message, tag: newRow.id });
+              const desk = new window.Notification(newRow.title, {
+                body: notificationMessageInViewerTime(newRow.message, newRow.meta, newRow.title),
+                tag: newRow.id,
+              });
               desk.onclick = () => {
                 openNotification(newRow);
                 desk.close();
@@ -211,7 +214,9 @@ export default function NotificationCenter({ userId, role }: NotificationCenterP
                   <div style={{ fontSize: '0.85rem', fontWeight: n.is_read ? 500 : 700, color: n.is_read ? 'var(--text-secondary)' : 'var(--text-primary)' }}>
                     {n.title}
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>{n.message}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                    {notificationMessageInViewerTime(n.message, n.meta, n.title)}
+                  </div>
                   <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 4, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                     <span>{new Date(n.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                     {dest ? (

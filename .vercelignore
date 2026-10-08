@@ -13,3 +13,14 @@ node_modules
 
 # Website APK is gitignored by default; still upload it on Vercel CLI deploys
 !public/downloads/scorr.apk
+
+# Desktop installers are served from GitHub Releases (see vercel.json redirects)
+public/downloads/desktop/*.exe
+public/downloads/desktop/*.AppImage
+public/downloads/desktop/*.deb
+public/downloads/desktop/*.blockmap
+public/downloads/*.exe
+public/downloads/*.AppImage
+public/downloads/*.deb
+public/downloads/*.apk
+!public/downloads/scorr.apk

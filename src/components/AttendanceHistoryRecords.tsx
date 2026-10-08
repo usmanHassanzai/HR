@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import {
   TeamAttendanceHistoryRow,
   describeAttendanceHistory,
@@ -51,6 +52,15 @@ export default function AttendanceHistoryRecords({
   showDepartment = false,
   variant = 'detailed',
 }: AttendanceHistoryRecordsProps) {
+  const someoneStillIn = rows.some((r) => r.clock_in_at && !r.clock_out_at);
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    if (!someoneStillIn) return;
+    const id = window.setInterval(() => setTick((n) => n + 1), 30_000);
+    return () => window.clearInterval(id);
+  }, [someoneStillIn]);
+
   if (rows.length === 0) return null;
 
   return (
@@ -73,6 +83,7 @@ export default function AttendanceHistoryRecords({
           </thead>
           <tbody>
             {rows.map((r) => {
+              void tick;
               const timing = describeAttendanceHistory(r);
               return (
                 <tr key={r.id}>
@@ -135,6 +146,7 @@ export default function AttendanceHistoryRecords({
 
       <div className="attendance-record-cards" aria-label="Attendance records">
         {rows.map((r) => {
+          void tick;
           const timing = describeAttendanceHistory(r);
           return (
             <article key={`card-${r.id}`} className="attendance-record-card">

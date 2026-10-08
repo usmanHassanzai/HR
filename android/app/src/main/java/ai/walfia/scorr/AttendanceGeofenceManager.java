@@ -46,6 +46,7 @@ final class AttendanceGeofenceManager {
                 .setExpirationDuration(expire)
                 .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER | Geofence.GEOFENCE_TRANSITION_EXIT)
                 .setLoiteringDelay(0)
+                .setNotificationResponsiveness(0)
                 .build());
         }
 

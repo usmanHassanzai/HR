@@ -53,7 +53,8 @@ final class AttendanceEventClient {
         Double lat = loc.getLatitude();
         Double lng = loc.getLongitude();
         Float acc = loc.hasAccuracy() ? loc.getAccuracy() : null;
-        send(ctx, event, zoneId, lat, lng, acc, null, null);
+        long readingMs = loc.getTime() > 0 ? loc.getTime() : System.currentTimeMillis();
+        send(ctx, event, zoneId, lat, lng, acc, null, null, readingMs);
     }
 
     static void sendWifiEvent(Context ctx, String event, String ssid, String bssid) {
@@ -63,6 +64,12 @@ final class AttendanceEventClient {
     static void send(Context ctx, String event, String zoneId,
                      Double lat, Double lng, Float accuracyM,
                      String ssid, String bssid) {
+        send(ctx, event, zoneId, lat, lng, accuracyM, ssid, bssid, null);
+    }
+
+    static void send(Context ctx, String event, String zoneId,
+                     Double lat, Double lng, Float accuracyM,
+                     String ssid, String bssid, Long occurredAtUtcMs) {
         Context app = ctx.getApplicationContext();
         if (!AttendancePingStore.enabled(app)) return;
         // Never emit attendance signals outside W (R70).
@@ -72,6 +79,7 @@ final class AttendanceEventClient {
         }
 
         long now = System.currentTimeMillis();
+        long occurred = occurredAtUtcMs != null && occurredAtUtcMs > 0 ? occurredAtUtcMs : now;
         try {
             JSONObject body = new JSONObject();
             body.put("device_token", AttendancePingStore.deviceToken(app));
@@ -82,7 +90,7 @@ final class AttendanceEventClient {
             if (accuracyM != null) body.put("accuracy_m", accuracyM.doubleValue());
             if (ssid != null) body.put("ssid", stripQuotes(ssid));
             if (bssid != null) body.put("bssid", bssid.toLowerCase(Locale.US));
-            body.put("occurred_at_utc_ms", now);
+            body.put("occurred_at_utc_ms", occurred);
             body.put("device_now_utc_ms", now);
             body.put("device_timezone", AttendancePingStore.deviceTimezone());
             body.put("is_mock", false);

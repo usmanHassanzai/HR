@@ -32,7 +32,8 @@ export interface OfficeLocation {
 }
 
 /** Foreground auto GPS interval while the dashboard is open (office / hybrid). */
-export const AUTO_LOCATION_CHECK_MS = 60_000;
+/** While the portal is open, check location often so leaving the radius checks out quickly. */
+export const AUTO_LOCATION_CHECK_MS = 20_000;
 
 export const GEO_PING_EVENT = 'scorr-geo-ping';
 export const GEO_CLOCK_EVENT = 'scorr-geo-clock';
@@ -63,7 +64,7 @@ export function localYmd(d = new Date()): string {
 }
 
 export interface GeoPingResult {
-  action: 'clock_in' | 'clock_out' | 'clock_out_shift_end' | 'already_clocked_in' | 'already_clocked_out' | 'outside_office' | 'shift_not_started' | 'not_work_day' | 'none' | 'skipped';
+  action: 'clock_in' | 'clock_out' | 'clock_out_shift_end' | 'already_clocked_in' | 'already_clocked_out' | 'outside_office' | 'not_on_office_network' | 'not_on_office_wifi' | 'outside_radius' | 'need_fresh_location' | 'shift_not_started' | 'not_work_day' | 'none' | 'skipped';
   inside_office?: boolean;
   office_name?: string;
   distance_meters?: number;
@@ -412,6 +413,10 @@ export function geoActionLabel(action: GeoPingResult['action']): string {
     case 'already_clocked_in': return 'On site · visit in progress';
     case 'already_clocked_out': return 'Checked out · you can clock in again during the shift';
     case 'outside_office': return 'Outside office zone';
+    case 'not_on_office_network':
+    case 'not_on_office_wifi': return 'Not on office Wi-Fi';
+    case 'outside_radius':
+    case 'need_fresh_location': return 'Not inside the office radius';
     case 'shift_not_started': return 'Shift has not started yet';
     case 'not_work_day': return 'Not scheduled to work today';
     case 'skipped': return 'Geo attendance not applicable';

@@ -195,27 +195,67 @@ export function resolveEffectiveClockOut(row: {
   return null;
 }
 
+function elapsedMinutesSince(iso: string): number {
+  const inMs = Date.parse(iso);
+  if (!Number.isFinite(inMs)) return 0;
+  return Math.max(0, Math.round((Date.now() - inMs) / 60000));
+}
+
+/**
+ * Open re-check-ins store the worked total (closed visits + the current visit),
+ * which is shorter than the wall clock since the first clock-in because of the gaps.
+ * Keep counting from that snapshot so the open visit does not freeze.
+ */
+const openVisitBaselines = new Map<string, { minutes: number; at: number }>();
+
+function liveOpenWorkedMinutes(row: {
+  attendance_date?: string | null;
+  clock_in_at?: string | null;
+  work_minutes?: number | null;
+}): number {
+  const clockIn = row.clock_in_at || '';
+  const wall = elapsedMinutesSince(clockIn);
+  const stored = row.work_minutes != null && row.work_minutes > 0 ? row.work_minutes : null;
+  // One continuous visit: minutes track the clock. Use the clock so it keeps moving.
+  if (stored == null || wall <= stored + 15) return wall;
+
+  const key = `${row.attendance_date || ''}|${clockIn}|${stored}`;
+  let base = openVisitBaselines.get(key);
+  if (!base) {
+    base = { minutes: stored, at: Date.now() };
+    openVisitBaselines.set(key, base);
+  }
+  const extra = Math.max(0, Math.round((Date.now() - base.at) / 60000));
+  return base.minutes + extra;
+}
+
 export function resolveWorkMinutes(row: {
+  attendance_date?: string | null;
   clock_in_at?: string | null;
   clock_out_at?: string | null;
   work_minutes?: number | null;
 }): number | null {
-  const effectiveOut = resolveEffectiveClockOut(row);
-  const fromStamps =
-    row.clock_in_at && effectiveOut
-      ? Math.round((Date.parse(effectiveOut) - Date.parse(row.clock_in_at)) / 60000)
+  const inMs = row.clock_in_at ? Date.parse(row.clock_in_at) : NaN;
+  const outMs = row.clock_out_at ? Date.parse(row.clock_out_at) : NaN;
+  const span =
+    Number.isFinite(inMs) && Number.isFinite(outMs) && outMs > inMs
+      ? Math.round((outMs - inMs) / 60000)
       : null;
   const stored = row.work_minutes != null && row.work_minutes > 0 ? row.work_minutes : null;
 
-  // Truly open (no clock-out written yet): live elapsed from clock-in.
-  if (row.clock_in_at && !row.clock_out_at) {
-    return Math.max(0, Math.round((Date.now() - Date.parse(row.clock_in_at)) / 60000));
+  // Clock-out is on the row. Duration stops there.
+  // A saved total that ran past that clock-out (the old live timer) is ignored.
+  if (span != null && span > 0) {
+    if (stored != null && stored <= span + 15) return stored;
+    return span;
   }
 
-  // Closed: use stored visit totals when present (multi check-in/out), else clock span.
-  if (stored != null) return stored;
-  if (fromStamps != null && fromStamps > 0) return fromStamps;
-  return null;
+  // No clock-out: they are still in. Count worked time, including a later check-in.
+  if (row.clock_in_at && !row.clock_out_at) {
+    return liveOpenWorkedMinutes(row);
+  }
+
+  return stored;
 }
 
 function formatHistoryDateTime(iso: string): string {
@@ -247,13 +287,15 @@ export function describeAttendanceHistory(row: {
 } {
   const shift = row.shift_name?.trim() || 'Unassigned';
   const effectiveOut = resolveEffectiveClockOut(row);
-  // Only "still present" when no clock-out was stored at all.
-  const stillOpen = Boolean(row.clock_in_at && !row.clock_out_at);
+  // A missing clock-out means a visit is still open, including a check-in after an earlier visit.
+  // Do not turn the worked-minutes total into a clock-out — that total is shorter than the
+  // wall clock when they left and came back.
+  const stillOpen = Boolean(row.clock_in_at) && !row.clock_out_at;
   const clockIn = row.clock_in_at ? formatHistoryDateTime(row.clock_in_at) : 'No clock-in';
-  const clockOut = effectiveOut
-    ? formatHistoryDateTime(effectiveOut)
-    : stillOpen
-      ? 'Still present in office'
+  const clockOut = stillOpen
+    ? 'Still present in office'
+    : effectiveOut
+      ? formatHistoryDateTime(effectiveOut)
       : 'No clock-out';
   const mins = resolveWorkMinutes(row);
   let duration = formatWorkDuration(mins);

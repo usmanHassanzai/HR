@@ -321,7 +321,29 @@ function activeWindow(schedule, nowMs) {
   return null;
 }
 
-async function sendEvent(event) {
+async function readFreshLocation() {
+  if (!mainWindow || mainWindow.isDestroyed()) return null;
+  try {
+    return await mainWindow.webContents.executeJavaScript(`
+      new Promise((resolve) => {
+        if (!navigator.geolocation) { resolve(null); return; }
+        navigator.geolocation.getCurrentPosition(
+          (p) => resolve({
+            latitude: p.coords.latitude,
+            longitude: p.coords.longitude,
+            accuracy_m: p.coords.accuracy
+          }),
+          () => resolve(null),
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+        );
+      })
+    `, true);
+  } catch {
+    return null;
+  }
+}
+
+async function sendEvent(event, coords, allowRetry = true) {
   const token = loadToken();
   if (!token || !SUPABASE_ANON) return null;
   const now = Date.now();
@@ -341,13 +363,27 @@ async function sendEvent(event) {
       device_id: deviceId(),
       platform: platformName(),
       app_version: app.getVersion(),
+      latitude: coords?.latitude ?? null,
+      longitude: coords?.longitude ?? null,
+      accuracy_m: coords?.accuracy_m ?? null,
     },
   });
+
+  if (allowRetry && res?.action === 'need_fresh_location') {
+    const pos = await readFreshLocation();
+    if (pos && pos.latitude != null && pos.longitude != null) {
+      return sendEvent(event, pos, false);
+    }
+  }
 
   if (res?.action === 'clock_in') {
     notify('Scorr', 'Checked in (laptop)');
   } else if (res?.action === 'clock_out') {
     notify('Scorr', 'Checked out (laptop)');
+  } else if (event === 'power_on' && (res?.action === 'not_on_office_wifi' || res?.action === 'not_on_office_network')) {
+    notify('Scorr', 'Not on office Wi-Fi');
+  } else if (event === 'power_on' && (res?.action === 'outside_radius' || res?.action === 'need_fresh_location')) {
+    notify('Scorr', 'Not inside the office radius');
   } else if (res?.action === 'presence_left_pending' || res?.action === 'device_left_others_present') {
     // Off office network — keep heartbeats so sticky present clears for phone auto priority.
   }

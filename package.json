@@ -30,6 +30,7 @@
     "mobile:setup": "node scripts/setup-mobile.mjs",
     "mobile:icons": "node scripts/generate-app-icons.mjs",
     "docs:client-guide": "node scripts/generate-client-guide-pdf.mjs",
+    "docs:attendance-guide": "node scripts/generate-attendance-guide-pdf.mjs",
     "docs:security-guide": "node scripts/generate-security-whitepaper-pdf.mjs",
     "mobile:jdk": "node scripts/install-portable-jdk.mjs",
     "prepare:deploy": "node scripts/build-all-platforms.mjs --migrate",

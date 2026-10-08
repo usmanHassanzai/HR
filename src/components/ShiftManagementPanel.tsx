@@ -102,6 +102,7 @@ export default function ShiftManagementPanel({
   const [overnight, setOvernight] = useState(false);
   const [days, setDays] = useState<number[]>(DEFAULT_DAYS);
   const [applyToAll, setApplyToAll] = useState(true);
+  const [applyAllTouched, setApplyAllTouched] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [assignShiftId, setAssignShiftId] = useState('');
@@ -324,12 +325,34 @@ export default function ShiftManagementPanel({
     setSelectedUserIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
-  const toggleAllUsers = () => {
-    if (selectedUserIds.length === assignablePeople.length) {
-      setSelectedUserIds([]);
-      return;
+  const assignmentByUser = useMemo(() => {
+    const map = new Map<string, OrgShiftAssignment>();
+    for (const row of assignments) {
+      if (row.user_id) map.set(row.user_id, row);
     }
-    setSelectedUserIds(assignablePeople.map((p) => p.id));
+    return map;
+  }, [assignments]);
+
+  const assignedMembers = useMemo(
+    () => assignablePeople.filter((p) => Boolean(assignmentByUser.get(p.id)?.shift_id)),
+    [assignablePeople, assignmentByUser],
+  );
+
+  const unassignedMembers = useMemo(
+    () => assignablePeople.filter((p) => !assignmentByUser.get(p.id)?.shift_id),
+    [assignablePeople, assignmentByUser],
+  );
+
+  const selectedUnassignedIds = selectedUserIds.filter((id) => unassignedMembers.some((p) => p.id === id));
+
+  const toggleAllUnassigned = () => {
+    const unassignedIds = unassignedMembers.map((p) => p.id);
+    const allChecked = unassignedIds.length > 0 && unassignedIds.every((id) => selectedUserIds.includes(id));
+    setSelectedUserIds((prev) =>
+      allChecked
+        ? prev.filter((id) => !unassignedIds.includes(id))
+        : [...new Set([...prev, ...unassignedIds])],
+    );
   };
 
   const resetForm = () => {
@@ -344,13 +367,33 @@ export default function ShiftManagementPanel({
     setDays(DEFAULT_DAYS);
     setOvernight(false);
     setApplyToAll(true);
+    setApplyAllTouched(false);
+  };
+
+  const usePhoneAndLaptopClocks = () => {
+    const mobile: ShiftOfficeTime = { timezone: 'Asia/Karachi', start: '18:00', end: '03:00' };
+    const ymd = todayYmdInZone('Asia/Karachi');
+    const desktop = convertOfficeTime(mobile, 'America/Chicago', ymd);
+    setMainTimezone('Asia/Karachi');
+    setStartTime('18:00');
+    setEndTime('03:00');
+    setOvernight(true);
+    setExtraTimes([
+      {
+        key: `desktop-${Date.now()}`,
+        timezone: 'America/Chicago',
+        start: desktop.start,
+        end: desktop.end,
+      },
+    ]);
+    setZoneSyncError('');
   };
 
   const saveShift = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || days.length === 0) return;
     if (!mainTimezone) {
-      setMsg('Choose a time zone for Office time 1.');
+      setMsg('Choose a time zone for mobile time.');
       return;
     }
     if (!overnight && endTime <= startTime) {
@@ -379,7 +422,9 @@ export default function ShiftManagementPanel({
       p_days_of_week: days,
       p_grace_minutes: 60,
       p_crosses_midnight: overnight,
-      p_apply_to_all: applyToAll,
+      p_apply_to_all: wasEdit && !applyAllTouched
+        ? Boolean(shifts.find((s) => s.id === editingShiftId)?.apply_to_all)
+        : applyToAll,
       p_timezone: mainTimezone,
       p_display_zones: extraTimes
         .filter((x) => x.timezone)
@@ -417,10 +462,18 @@ export default function ShiftManagementPanel({
       notifyKind = wasEdit ? 'updated' : 'assigned';
     }
 
-    if (isOrgWide && applyToAll && assignablePeople.length > 0) {
+    const assignEveryone = isOrgWide && applyToAll && (!wasEdit || applyAllTouched);
+    const assignChecked = isOrgWide && !assignEveryone && selectedUserIds.length > 0;
+    const idsToAssign = assignEveryone
+      ? assignablePeople.map((p) => p.id)
+      : assignChecked
+        ? selectedUserIds
+        : [];
+
+    if (idsToAssign.length > 0) {
       const { data: assigned, error: assignErr } = await supabase.rpc('admin_assign_shift', {
         p_shift_id: shiftId,
-        p_user_ids: assignablePeople.map((p) => p.id),
+        p_user_ids: idsToAssign,
       });
       if (assignErr) {
         setMsg(`Shift saved but assign failed: ${assignErr.message}`);
@@ -428,26 +481,14 @@ export default function ShiftManagementPanel({
         onUpdate?.();
         return;
       }
-      notifiedIds = assignablePeople.map((p) => p.id);
-      notifyKind = wasEdit ? 'updated' : 'assigned';
-      setMsg(`Shift saved and assigned to ${assigned ?? assignablePeople.length} people. Emails sent.`);
-      setSelectedUserIds([]);
-      setAssignShiftId(shiftId);
-    } else if (isOrgWide && selectedUserIds.length > 0) {
-      const { data: assigned, error: assignErr } = await supabase.rpc('admin_assign_shift', {
-        p_shift_id: shiftId,
-        p_user_ids: selectedUserIds,
-      });
-      if (assignErr) {
-        setMsg(`Shift saved but assign failed: ${assignErr.message}`);
-        await load();
-        onUpdate?.();
-        return;
-      }
-      notifiedIds = [...selectedUserIds];
-      notifyKind = 'assigned';
-      setMsg(`Shift saved and assigned to ${assigned ?? selectedUserIds.length} people. Emails sent.`);
-      setSelectedUserIds([]);
+      notifiedIds = [...idsToAssign];
+      notifyKind = wasEdit && !assignChecked ? 'updated' : 'assigned';
+      const count = assigned ?? idsToAssign.length;
+      setMsg(
+        assignEveryone
+          ? `Shift saved and assigned to ${count} people. Emails sent.`
+          : `Shift saved. ${count} ${count === 1 ? 'person is' : 'people are'} on this shift. Emails sent.`,
+      );
       setAssignShiftId(shiftId);
     } else if (wasEdit && existingOnShift.length > 0) {
       notifiedIds = existingOnShift.map((p) => p.id);
@@ -517,25 +558,26 @@ export default function ShiftManagementPanel({
       setMsg('Select a saved shift to assign.');
       return;
     }
-    if (selectedUserIds.length === 0) {
-      setMsg('Select at least one manager or employee.');
+    const ids = selectedUserIds.filter((id) => unassignedMembers.some((p) => p.id === id));
+    if (ids.length === 0) {
+      setMsg('Select at least one person who does not have a shift yet.');
       return;
     }
     setSubmitting(true);
     setMsg('');
     const { data, error } = await supabase.rpc('admin_assign_shift', {
       p_shift_id: assignShiftId,
-      p_user_ids: selectedUserIds,
+      p_user_ids: ids,
     });
     setSubmitting(false);
     if (error) setMsg(error.message);
     else {
       const details = shiftPayloadFromSaved(assignShiftId);
       if (details) {
-        void notifyShiftAssignees(peopleByIds(selectedUserIds), details, assignerLabel, 'assigned');
+        void notifyShiftAssignees(peopleByIds(ids), details, assignerLabel, 'assigned');
       }
-      setMsg(`Assigned shift to ${data ?? selectedUserIds.length} people. Emails sent.`);
-      setPanelTab('status');
+      setSelectedUserIds((prev) => prev.filter((id) => !ids.includes(id)));
+      setMsg(`Assigned the shift. ${data ?? ids.length} ${ids.length === 1 ? 'person is' : 'people are'} now in Assigned members.`);
       await load();
       onUpdate?.();
     }
@@ -551,7 +593,9 @@ export default function ShiftManagementPanel({
     setMainTimezone(s.timezone || suggestBrowserTimeZone() || '');
     setDays(nextDays.length > 0 ? nextDays : DEFAULT_DAYS);
     setOvernight(Boolean(s.crosses_midnight ?? isOvernightShift(s.start_time, s.end_time)));
-    setApplyToAll(s.apply_to_all ?? true);
+    setApplyToAll(false);
+    setApplyAllTouched(false);
+    setSelectedUserIds(assignments.filter((a) => a.shift_id === s.id).map((a) => a.user_id));
     setAssignShiftId(s.id);
     setPanelTab('create');
     setMsg(`Editing “${s.name}”. Update the fields, then Save shift. Assigned people will get an email.`);
@@ -774,16 +818,27 @@ export default function ShiftManagementPanel({
                 <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Night Shift" required />
               </div>
 
+              <div className="form-group attendance-form-span-full">
+                <p className="attendance-card__subtitle" style={{ margin: 0 }}>
+                  One shift can store both clocks. The phone uses mobile time (Pakistan, 6:00 PM–3:00 AM).
+                  The laptop uses desktop time (United States, about 8:00 AM–5:00 PM). They are the same shift.
+                  A check-in on the phone stays checked in when you press Test now on the laptop.
+                </p>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={usePhoneAndLaptopClocks}>
+                  Use Pakistan phone + US laptop times
+                </button>
+              </div>
+
               <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                <label>Office time 1 (attendance follows this zone)</label>
+                <label>Mobile time (phone)</label>
                 <TimeZonePicker value={mainTimezone} onChange={onMainTzChange} />
               </div>
               <div className="form-group">
-                <label>Start time</label>
+                <label>Phone start</label>
                 <input type="time" value={startTime} onChange={(e) => onMainStartChange(e.target.value)} required />
               </div>
               <div className="form-group">
-                <label>End time</label>
+                <label>Phone end</label>
                 <input type="time" value={endTime} onChange={(e) => onMainEndChange(e.target.value)} required />
               </div>
 
@@ -800,7 +855,7 @@ export default function ShiftManagementPanel({
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <strong>Office time {idx + 2}</strong>
+                    <strong>{idx === 0 ? 'Desktop time (laptop)' : `Extra time ${idx + 2}`}</strong>
                     <button
                       type="button"
                       className="btn btn-secondary btn-sm"
@@ -815,7 +870,7 @@ export default function ShiftManagementPanel({
                   />
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem' }}>
                     <div className="form-group" style={{ margin: 0 }}>
-                      <label>Start</label>
+                      <label>{idx === 0 ? 'Laptop start' : 'Start'}</label>
                       <input
                         type="time"
                         value={row.start}
@@ -823,7 +878,7 @@ export default function ShiftManagementPanel({
                       />
                     </div>
                     <div className="form-group" style={{ margin: 0 }}>
-                      <label>End</label>
+                      <label>{idx === 0 ? 'Laptop end' : 'End'}</label>
                       <input
                         type="time"
                         value={row.end}
@@ -840,26 +895,29 @@ export default function ShiftManagementPanel({
                     type="button"
                     className="btn btn-secondary"
                     onClick={() => {
-                      const tz = '';
+                      const desktopTz = mainTimezone.startsWith('America/') ? 'Asia/Karachi' : 'America/Chicago';
+                      const converted = mainTimezone
+                        ? convertOfficeTime(mainOffice, desktopTz, refYmd)
+                        : { start: startTime, end: endTime };
                       setExtraTimes((prev) => [
                         ...prev,
                         {
                           key: `extra-${Date.now()}`,
-                          timezone: tz,
-                          start: startTime,
-                          end: endTime,
+                          timezone: desktopTz,
+                          start: converted.start,
+                          end: converted.end,
                         },
                       ]);
                     }}
                   >
-                    <Plus size={14} /> Add another office time
+                    <Plus size={14} /> {extraTimes.length === 0 ? 'Add desktop time (laptop)' : 'Add another time'}
                   </button>
                 </div>
               )}
 
               {extraTimes.length > 0 && (
                 <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                  <label>Attendance follows</label>
+                  <label>Primary clock</label>
                   <select
                     value={mainTimezone}
                     onChange={(e) => onMainTzChange(e.target.value)}
@@ -874,7 +932,7 @@ export default function ShiftManagementPanel({
                       ))}
                   </select>
                   <p style={{ margin: '0.35rem 0 0', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                    Only the main zone drives the attendance window (−60/+60), check-in/out and lateness.
+                    Both clocks are saved on this shift. Check-in stays open while either the phone hours or the laptop hours are in progress.
                   </p>
                 </div>
               )}
@@ -915,7 +973,12 @@ export default function ShiftManagementPanel({
                   <input
                     type="checkbox"
                     checked={applyToAll}
-                    onChange={(e) => setApplyToAll(e.target.checked)}
+                    onChange={(e) => {
+                      const on = e.target.checked;
+                      setApplyToAll(on);
+                      setApplyAllTouched(true);
+                      if (on) setSelectedUserIds(assignablePeople.map((p) => p.id));
+                    }}
                   />
                   <span>
                     {isOrgWide
@@ -963,59 +1026,89 @@ export default function ShiftManagementPanel({
               id="shift-assigner"
             >
               <h3 className="attendance-card__title">
-                <Users size={18} /> Assign shift to people
+                <Users size={18} /> Shift members
               </h3>
               <p className="attendance-card__subtitle">
-                Choose a saved shift, select employees and managers, then assign. Each person gets an email for their Active shift.
+                People without a shift stay in Not assigned. Choose a shift, select them, and assign. They move to Assigned members.
               </p>
-              <div className="form-group">
-                <label>Shift</label>
-                <select value={assignShiftId} onChange={(e) => setAssignShiftId(e.target.value)}>
-                  <option value="">— Select shift —</option>
-                  {shifts.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} ({formatShiftTimeRange(s.start_time, s.end_time, s.crosses_midnight)})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group" style={{ marginTop: '0.75rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                  <label style={{ margin: 0 }}>People ({selectedUserIds.length} selected)</label>
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={toggleAllUsers}>
-                    {selectedUserIds.length === assignablePeople.length ? 'Clear all' : 'Select all'}
+              <div className="shift-member-blocks">
+                <section className="shift-member-block">
+                  <div className="shift-member-block__head">
+                    <h4>Assigned members</h4>
+                    <span>{assignedMembers.length}</span>
+                  </div>
+                  <div className="shift-assign-list">
+                    {assignedMembers.length === 0 ? (
+                      <p className="attendance-card__subtitle">No one is on a shift yet.</p>
+                    ) : (
+                      assignedMembers.map((p) => {
+                        const row = assignmentByUser.get(p.id);
+                        return (
+                          <div key={p.id} className="shift-assign-row">
+                            <span>
+                              <strong>{p.full_name}</strong>
+                              <span className="shift-assign-meta"> · {p.role}</span>
+                              <span className="shift-assign-shift">{row?.shift_name || 'Shift'}</span>
+                            </span>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </section>
+
+                <section className="shift-member-block">
+                  <div className="shift-member-block__head">
+                    <h4>Not assigned</h4>
+                    <span>{unassignedMembers.length}</span>
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="assign-shift-pick">Shift</label>
+                    <select id="assign-shift-pick" value={assignShiftId} onChange={(e) => setAssignShiftId(e.target.value)}>
+                      <option value="">— Select shift —</option>
+                      {shifts.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name} ({formatShiftTimeRange(s.start_time, s.end_time, s.crosses_midnight)})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '0.45rem 0' }}>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={toggleAllUnassigned} disabled={unassignedMembers.length === 0}>
+                      {selectedUnassignedIds.length === unassignedMembers.length && unassignedMembers.length > 0 ? 'Clear all' : 'Select all'}
+                    </button>
+                  </div>
+                  <div className="shift-assign-list">
+                    {unassignedMembers.length === 0 ? (
+                      <p className="attendance-card__subtitle">Everyone has a shift.</p>
+                    ) : (
+                      unassignedMembers.map((p) => (
+                        <label key={p.id} className="shift-assign-row">
+                          <input
+                            type="checkbox"
+                            checked={selectedUserIds.includes(p.id)}
+                            onChange={() => toggleUser(p.id)}
+                          />
+                          <span>
+                            <strong>{p.full_name}</strong>
+                            <span className="shift-assign-meta"> · {p.role} · {p.email}</span>
+                          </span>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ marginTop: '0.85rem' }}
+                    disabled={submitting || !assignShiftId || selectedUnassignedIds.length === 0}
+                    onClick={() => void assignSelected()}
+                  >
+                    {submitting ? <Loader2 size={16} className="spin-icon" /> : <Users size={16} />}
+                    Assign shift
                   </button>
-                </div>
-                <div className="shift-assign-list">
-                  {assignablePeople.length === 0 ? (
-                    <p className="attendance-card__subtitle">No managers or employees yet. Add users first.</p>
-                  ) : (
-                    assignablePeople.map((p) => (
-                      <label key={p.id} className="shift-assign-row">
-                        <input
-                          type="checkbox"
-                          checked={selectedUserIds.includes(p.id)}
-                          onChange={() => toggleUser(p.id)}
-                        />
-                        <span>
-                          <strong>{p.full_name}</strong>
-                          <span className="shift-assign-meta"> · {p.role} · {p.email}</span>
-                        </span>
-                      </label>
-                    ))
-                  )}
-                </div>
+                </section>
               </div>
-              <button
-                type="button"
-                className="btn btn-primary"
-                style={{ marginTop: '0.85rem' }}
-                disabled={submitting || !assignShiftId || selectedUserIds.length === 0}
-                onClick={() => void assignSelected()}
-              >
-                {submitting ? <Loader2 size={16} className="spin-icon" /> : <Users size={16} />}
-                Assign to selected
-              </button>
             </div>
           )}
         </>
