@@ -244,6 +244,7 @@ const MIGRATIONS = [
   'FIX_checkin_require_wifi_and_radius_no_bypass_2026-10-09.sql',
   'FIX_shift_times_drive_attendance_2026-10-09.sql',
   'FIX_per_user_shift_hours_2026-10-09.sql',
+  'FIX_checkin_wifi_and_radius_restore_2026-10-09.sql',
 ];
 
 async function runMigration(filename) {
