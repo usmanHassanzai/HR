@@ -130,7 +130,6 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
   const [checking, setChecking] = useState<'clock_in' | 'clock_out' | null>(null);
   const [nearby, setNearby] = useState<{ name: string; dist: number; inside: boolean; radius: number } | null>(null);
   const [error, setError] = useState('');
-  const [lastAccuracy, setLastAccuracy] = useState<number | null>(null);
   const [windowInfo, setWindowInfo] = useState<LocationWindow | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
 
@@ -213,7 +212,6 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
   }, [openShiftPreview]);
 
   const updateNearby = useCallback((lat: number, lng: number, accuracy?: number | null) => {
-    setLastAccuracy(accuracy ?? null);
     if (workSite) {
       const dist = distanceMeters(lat, lng, workSite.latitude, workSite.longitude);
       const radius = effectiveGeofenceRadius(workSite.radius_meters, accuracy);
@@ -351,8 +349,8 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
         <span className="badge badge-on-track geo-attendance-panel__badge">Entry + exit</span>
       </h3>
       <p className="attendance-card__subtitle">
-        GPS auto check-in when you enter the office during shift hours, and auto check-out when you leave — no need to open the dashboard each time (phone app runs in the background after you sign in once).
-        Manual Clock in / Clock out still work anytime. Multiple visits in one shift are saved and minutes are added (time away is not counted).
+        Automatic attendance has priority: when it is set up on your phone and/or computer, you are checked in on office entry (GPS and/or Wi-Fi) and checked out when you leave or the shift ends — without tapping Clock in/out.
+        Manual Clock in / Clock out stay available as an override. Multiple visits in one shift are saved and minutes are added (time away is not counted).
         {windowInfo
           ? ` Hours: ${formatShiftTimeRange(windowInfo.start_time, windowInfo.end_time, windowInfo.crosses_midnight)}${windowInfo.source === 'shift' && windowInfo.shift_name ? ` · ${windowInfo.shift_name}` : ' · company window'}.`
           : ' Hours follow your assigned shift, or the company window.'}
@@ -361,8 +359,7 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
       {workSite && (
         <p className="geo-hint geo-hint--spaced">
           <Radio size={14} /> Your team site: <strong>{workSite.site_name}</strong>
-          {' '}({workSite.radius_meters}m zone
-          {lastAccuracy != null ? ` + ~${Math.round(lastAccuracy)}m GPS buffer` : ''})
+          {' '}({workSite.radius_meters}m zone)
         </p>
       )}
 
@@ -374,12 +371,12 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
       )}
       {openShift && (
         <p className="attendance-present-banner attendance-present-banner--spaced" role="status">
-          You are still present in the office and working. Check out when you leave — you can check in again any time during the shift.
+          You are still present in the office and working. Auto check-out runs when you leave the office zone; use Clock out only if you need to leave early.
         </p>
       )}
       {!openShift && clockIn && clockOut && inWindow && (
         <p className="attendance-present-banner attendance-present-banner--out attendance-present-banner--spaced" role="status">
-          Checked out. Clock in again if you return before the shift ends.
+          Checked out. Auto check-in runs if you return during the shift; Clock in is only needed as a backup.
         </p>
       )}
       {openShift && !inWindow && inExitWindow && (
@@ -417,8 +414,8 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
         <p className={`geo-nearby ${nearby.inside ? '' : 'geo-nearby--out'}`}>
           <Radio size={14} />
           {nearby.inside
-            ? `Inside ${nearby.name} · ${nearby.dist}m from center (zone ~${nearby.radius}m)`
-            : `Outside ${nearby.name} · ${nearby.dist}m away (need within ~${nearby.radius}m)`}
+            ? `Inside ${nearby.name} · ${nearby.dist}m from center (zone ${nearby.radius}m)`
+            : `Outside ${nearby.name} · ${nearby.dist}m away (need within ${nearby.radius}m)`}
         </p>
       )}
 
@@ -430,8 +427,8 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
               {lastResult.office_name ? ` · ${lastResult.office_name}` : ''}
               {lastResult.distance_meters != null ? ` · ${Math.round(lastResult.distance_meters)}m away` : ''}
               {lastResult.effective_radius_meters != null
-                ? ` · allowed up to ~${lastResult.effective_radius_meters}m`
-                : ` · zone ${siteRadius}m + GPS buffer`}
+                ? ` · zone ${lastResult.effective_radius_meters}m`
+                : ` · zone ${siteRadius}m`}
             </>
           ) : (
             <>

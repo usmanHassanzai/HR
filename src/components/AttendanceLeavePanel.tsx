@@ -709,8 +709,8 @@ export default function AttendanceLeavePanel({
     <div className="attendance-hero">
       <h3 className="attendance-hero__title">Today — {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</h3>
       <p className="attendance-hero__hint">
-        Check in when you arrive and check out when you leave — even in the middle of your shift (for example urgent leave).
-        Each visit is saved separately and added to your hours.
+        With automatic attendance on your phone or laptop, check-in and check-out happen when you enter or leave the office — you do not need to tap these every time.
+        Use the buttons only to override (for example urgent leave mid-shift). Each visit is saved separately and added to your hours.
       </p>
       <div className="attendance-hero__actions">
         <button

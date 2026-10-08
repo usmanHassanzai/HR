@@ -21,10 +21,10 @@ interface GeoAttendanceTrackerProps {
 }
 
 /**
- * Auto geofence attendance for office/hybrid staff:
+ * Auto geofence attendance for office/hybrid staff (priority over manual buttons):
  * - Native apps: CL region monitoring / Android geofence via device token (no daily login)
  * - Web / foreground: ping while the portal session is active (including geo-hold)
- * Manual Clock in / Clock out remain in GeoAttendancePanel.
+ * Manual Clock in / Clock out remain in GeoAttendancePanel as override only.
  */
 export default function GeoAttendanceTracker({ profile, onUpdate }: GeoAttendanceTrackerProps) {
   const isEligible =

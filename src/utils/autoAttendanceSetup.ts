@@ -172,10 +172,15 @@ export async function registerDeviceViaRpc(appVersion = '1.3.7'): Promise<{
       localStorage.setItem('scorr_attendance_device_token', token);
     }
 
+    // Desktop main process must persist the token and start heartbeats immediately
+    // so auto check-in has priority without waiting for a manual clock action.
     try {
-      (
-        window as unknown as { scorrDesktop?: { saveAttendanceToken?: (t: string) => void } }
-      ).scorrDesktop?.saveAttendanceToken?.(token);
+      const save = (
+        window as unknown as {
+          scorrDesktop?: { saveAttendanceToken?: (t: string) => Promise<boolean> | boolean | void };
+        }
+      ).scorrDesktop?.saveAttendanceToken;
+      if (save) await Promise.resolve(save(token));
     } catch {
       /* ignore */
     }

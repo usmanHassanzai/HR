@@ -222,6 +222,9 @@ const MIGRATIONS = [
   'FIX_r69_wifi_gps_immediate_checkout_2026-10-08.sql',
   'FIX_shift_end_checkout_no_late_checkin_2026-10-08.sql',
   'FIX_shift_end_timezone_orphan_visits_2026-10-08.sql',
+  'FIX_history_open_visit_still_present_2026-10-08.sql',
+  'FIX_office_radius_exact_checkout_2026-10-08.sql',
+  'FIX_auto_attendance_priority_2026-10-08.sql',
 ];
 
 async function runMigration(filename) {

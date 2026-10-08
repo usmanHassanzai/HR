@@ -348,6 +348,8 @@ async function sendEvent(event) {
     notify('Scorr', 'Checked in (laptop)');
   } else if (res?.action === 'clock_out') {
     notify('Scorr', 'Checked out (laptop)');
+  } else if (res?.action === 'presence_left_pending' || res?.action === 'device_left_others_present') {
+    // Off office network — keep heartbeats so sticky present clears for phone auto priority.
   }
   if (res?.stop_tracking) {
     stopHeartbeat();

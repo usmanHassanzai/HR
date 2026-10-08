@@ -90,10 +90,9 @@ export interface AttendanceVisit {
   notes: string | null;
 }
 
-/** Match server geofence: radius + GPS accuracy buffer (min 40m, max +120m). */
-export function effectiveGeofenceRadius(radiusMeters: number, accuracyMeters?: number | null): number {
-  const accuracy = accuracyMeters == null || Number.isNaN(accuracyMeters) ? 40 : accuracyMeters;
-  return radiusMeters + Math.min(120, Math.max(40, accuracy));
+/** Effective geofence = configured office radius exactly (no accuracy pad). */
+export function effectiveGeofenceRadius(radiusMeters: number, _accuracyMeters?: number | null): number {
+  return radiusMeters;
 }
 
 const GEO_ENABLED_KEY = 'scorr-geo-attendance';

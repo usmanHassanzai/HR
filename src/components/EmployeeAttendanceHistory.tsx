@@ -117,8 +117,10 @@ export default function EmployeeAttendanceHistory({
         p_user_id: profile.id,
       });
 
-      if (!error && data && data.length > 0) {
-        return (data as AttendanceHistoryRow[]).map((r) => mapHistoryRow(r, profile));
+      // Prefer RPC always when it succeeds — it resolves open visits to "still present".
+      // Raw attendance_records can show a prior visit's clock_out while a later visit is open.
+      if (!error) {
+        return ((data || []) as AttendanceHistoryRow[]).map((r) => mapHistoryRow(r, profile));
       }
 
       const { start, end } = periodBounds(year, monthParam);
