@@ -1,26 +1,31 @@
-# Mobile / native — not needed for web deploy (saves ~600 MB upload)
+# Mobile / native — not needed for web deploy
 .tools
 android
 ios
+desktop
+dist-desktop
+release
+dist
 
 # Dependencies & build cache (Vercel installs fresh)
 node_modules
+.git
 
 # Local artifacts
 *.tar.gz
 *.keystore
-.git
 
-# Website APK is gitignored by default; still upload it on Vercel CLI deploys
-!public/downloads/scorr.apk
-
-# Desktop installers are served from GitHub Releases (see vercel.json redirects)
-public/downloads/desktop/*.exe
-public/downloads/desktop/*.AppImage
-public/downloads/desktop/*.deb
-public/downloads/desktop/*.blockmap
+# Desktop installers are served from GitHub Releases (vercel.json redirects)
+public/downloads/desktop
 public/downloads/*.exe
 public/downloads/*.AppImage
 public/downloads/*.deb
 public/downloads/*.apk
+public/downloads/*.blockmap
+
+# Keep website APK + guides + version metadata
 !public/downloads/scorr.apk
+!public/downloads/*.pdf
+!public/downloads/version.json
+!public/downloads/build-info.json
+!public/downloads/README.md

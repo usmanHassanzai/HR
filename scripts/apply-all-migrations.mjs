@@ -242,6 +242,8 @@ const MIGRATIONS = [
   'FIX_kpi_approve_hide_weightage_until_month_end_2026-10-09.sql',
   'FIX_checkout_outside_immediate_permanent_2026-10-09.sql',
   'FIX_checkin_require_wifi_and_radius_no_bypass_2026-10-09.sql',
+  'FIX_shift_times_drive_attendance_2026-10-09.sql',
+  'FIX_per_user_shift_hours_2026-10-09.sql',
 ];
 
 async function runMigration(filename) {

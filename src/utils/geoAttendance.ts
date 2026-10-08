@@ -64,7 +64,7 @@ export function localYmd(d = new Date()): string {
 }
 
 export interface GeoPingResult {
-  action: 'clock_in' | 'clock_out' | 'clock_out_shift_end' | 'already_clocked_in' | 'already_clocked_out' | 'outside_office' | 'not_on_office_network' | 'not_on_office_wifi' | 'outside_radius' | 'need_fresh_location' | 'shift_not_started' | 'not_work_day' | 'none' | 'skipped';
+  action: 'clock_in' | 'clock_out' | 'clock_out_shift_end' | 'already_clocked_in' | 'already_clocked_out' | 'outside_office' | 'not_on_office_network' | 'not_on_office_wifi' | 'outside_radius' | 'need_fresh_location' | 'shift_not_started' | 'not_work_day' | 'checkin_blocked_shift_ended' | 'none' | 'skipped';
   inside_office?: boolean;
   office_name?: string;
   distance_meters?: number;

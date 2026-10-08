@@ -37,6 +37,9 @@ export interface TeamShiftAssignment {
   start_time: string | null;
   end_time: string | null;
   effective_from: string | null;
+  /** True when this person has personal hours instead of the shared shift template. */
+  hours_custom?: boolean | null;
+  crosses_midnight?: boolean | null;
 }
 
 export interface AttendanceHistoryRow {
