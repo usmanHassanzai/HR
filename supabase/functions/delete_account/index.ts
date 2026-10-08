@@ -3,18 +3,22 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 
 const ALLOWED_ORIGINS = new Set([
   'https://scorr.walfia.ai',
+  'https://www.scorr.walfia.ai',
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   'capacitor://localhost',
   'https://localhost',
+  'http://localhost',
 ]);
 
 function corsHeaders(req: Request) {
   const origin = req.headers.get('origin') || '';
-  const allow = ALLOWED_ORIGINS.has(origin) ? origin : 'https://scorr.walfia.ai';
+  // Reflect allowed origins; Electron/desktop often omit Origin when loading the live site.
+  const allow = !origin || ALLOWED_ORIGINS.has(origin) ? origin || 'https://scorr.walfia.ai' : 'https://scorr.walfia.ai';
   return {
     'Access-Control-Allow-Origin': allow,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-authorization',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
     Vary: 'Origin',
   };
 }

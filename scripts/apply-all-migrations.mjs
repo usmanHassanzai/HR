@@ -206,6 +206,7 @@ const MIGRATIONS = [
   'attendance_auto_rpc.sql',
   'attendance_register_device_rpc.sql',
   'fix_pgcrypto_extensions_search_path_2026-10-07.sql',
+  'FIX_register_attendance_device_upsert_2026-10-07.sql',
   'attendance_correction_rpc.sql',
   'attendance_schedule_rpc.sql',
   'attendance_cron.sql',
@@ -215,6 +216,12 @@ const MIGRATIONS = [
   'attendance_rls_lockdown.sql',
   'office_network_upsert.sql',
   'attendance_auto_tests.sql',
+  'FIX_visit_out_before_in_stale_close_2026-10-08.sql',
+  'allow_assign_kpi_to_hr_2026-10-08.sql',
+  'FIX_history_same_clock_in_out_2026-10-08.sql',
+  'FIX_r69_wifi_gps_immediate_checkout_2026-10-08.sql',
+  'FIX_shift_end_checkout_no_late_checkin_2026-10-08.sql',
+  'FIX_shift_end_timezone_orphan_visits_2026-10-08.sql',
 ];
 
 async function runMigration(filename) {

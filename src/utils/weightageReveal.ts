@@ -51,6 +51,24 @@ export function kpiAwardYearMonth(kpi: Pick<Kpi, 'completed_at' | 'end_date' | '
 }
 
 /**
+ * Whether awarded weightage for a given Asia/Karachi month is visible to
+ * employees / managers on their own dashboards.
+ * Past months: always. Current month: unlocks on the last calendar day.
+ */
+export function isMonthAwardedWeightageVisible(
+  year: number,
+  monthIndex: number,
+  now = new Date(),
+): boolean {
+  const cur = karachiCalendarDay(now);
+  if (year < cur.year) return true;
+  if (year > cur.year) return true;
+  if (monthIndex < cur.monthIndex) return true;
+  if (monthIndex > cur.monthIndex) return true;
+  return cur.day >= lastDayOfMonth(cur.year, cur.monthIndex);
+}
+
+/**
  * Employees/managers see awarded weightage only after that month has ended
  * (visible from the last calendar day: 28 / 29 / 30 / 31).
  * Past months are always visible. Current month unlocks on its last day.
@@ -61,13 +79,7 @@ export function isKpiAwardedWeightageVisible(
 ): boolean {
   if (kpi.completion_status !== 'completed') return false;
   const award = kpiAwardYearMonth(kpi);
-  const cur = karachiCalendarDay(now);
-  if (award.year < cur.year) return true;
-  if (award.year > cur.year) return true;
-  if (award.monthIndex < cur.monthIndex) return true;
-  if (award.monthIndex > cur.monthIndex) return true;
-  // Same calendar month — unlock on the last day (28/29/30/31).
-  return cur.day >= lastDayOfMonth(cur.year, cur.monthIndex);
+  return isMonthAwardedWeightageVisible(award.year, award.monthIndex, now);
 }
 
 export function weightageRevealHint(now = new Date()): string {

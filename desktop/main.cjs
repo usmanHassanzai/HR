@@ -18,6 +18,7 @@ const {
 } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const { net } = require('electron');
 
 const APP_URL = process.env.SCORR_DESKTOP_URL || 'https://scorr.walfia.ai/?app=1';
@@ -40,6 +41,9 @@ const TOKEN_FILE = () => path.join(app.getPath('userData'), 'attendance-token.bi
 const DEVICE_ID_FILE = () => path.join(app.getPath('userData'), 'attendance-device-id.txt');
 const SCHEDULE_FILE = () => path.join(app.getPath('userData'), 'attendance-schedule.json');
 const LOGIN_CREDS_FILE = () => path.join(app.getPath('userData'), 'login-credentials.bin');
+/** AES-GCM fallback when OS safeStorage (keyring) is unavailable — e.g. some Linux desktops. */
+const LOGIN_CREDS_FALLBACK_FILE = () => path.join(app.getPath('userData'), 'login-credentials.aes');
+const LOGIN_CREDS_KEY_FILE = () => path.join(app.getPath('userData'), 'login-credentials.key');
 const TRUSTED_DEVICE_FILE = () => path.join(app.getPath('userData'), 'trusted-device.bin');
 
 /** @type {BrowserWindow | null} */
@@ -103,18 +107,69 @@ function clearToken() {
   }
 }
 
+function loginFallbackKey() {
+  try {
+    if (fs.existsSync(LOGIN_CREDS_KEY_FILE())) {
+      const raw = fs.readFileSync(LOGIN_CREDS_KEY_FILE());
+      if (raw.length === 32) return raw;
+    }
+  } catch {
+    /* recreate */
+  }
+  const key = crypto.randomBytes(32);
+  fs.writeFileSync(LOGIN_CREDS_KEY_FILE(), key, { mode: 0o600 });
+  return key;
+}
+
+function saveLoginCredentialsFallback(payload) {
+  const key = loginFallbackKey();
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const enc = Buffer.concat([cipher.update(payload, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  fs.writeFileSync(LOGIN_CREDS_FALLBACK_FILE(), Buffer.concat([iv, tag, enc]), { mode: 0o600 });
+  return true;
+}
+
+function loadLoginCredentialsFallback() {
+  if (!fs.existsSync(LOGIN_CREDS_FALLBACK_FILE()) || !fs.existsSync(LOGIN_CREDS_KEY_FILE())) return null;
+  const key = fs.readFileSync(LOGIN_CREDS_KEY_FILE());
+  if (key.length !== 32) return null;
+  const buf = fs.readFileSync(LOGIN_CREDS_FALLBACK_FILE());
+  if (buf.length < 28) return null;
+  const iv = buf.subarray(0, 12);
+  const tag = buf.subarray(12, 28);
+  const data = buf.subarray(28);
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+  decipher.setAuthTag(tag);
+  const raw = Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
+  const parsed = JSON.parse(raw || '{}');
+  if (parsed.email && parsed.password) return { email: parsed.email, password: parsed.password };
+  return null;
+}
+
 function saveLoginCredentials(email, password) {
   if (!email || !password) return false;
   const payload = JSON.stringify({ email: String(email).trim(), password: String(password) });
   try {
     if (safeStorage.isEncryptionAvailable()) {
       fs.writeFileSync(LOGIN_CREDS_FILE(), safeStorage.encryptString(payload));
+      // Prefer OS keyring; drop AES fallback copy if present.
+      try {
+        if (fs.existsSync(LOGIN_CREDS_FALLBACK_FILE())) fs.unlinkSync(LOGIN_CREDS_FALLBACK_FILE());
+      } catch {
+        /* ignore */
+      }
       return true;
     }
   } catch {
-    /* fall through */
+    /* fall through to AES file */
   }
-  return false;
+  try {
+    return saveLoginCredentialsFallback(payload);
+  } catch {
+    return false;
+  }
 }
 
 function loadLoginCredentials() {
@@ -125,14 +180,28 @@ function loadLoginCredentials() {
       if (parsed.email && parsed.password) return { email: parsed.email, password: parsed.password };
     }
   } catch {
-    /* ignore */
+    /* try fallback */
   }
-  return null;
+  try {
+    return loadLoginCredentialsFallback();
+  } catch {
+    return null;
+  }
 }
 
 function clearLoginCredentials() {
   try {
     if (fs.existsSync(LOGIN_CREDS_FILE())) fs.unlinkSync(LOGIN_CREDS_FILE());
+  } catch {
+    /* ignore */
+  }
+  try {
+    if (fs.existsSync(LOGIN_CREDS_FALLBACK_FILE())) fs.unlinkSync(LOGIN_CREDS_FALLBACK_FILE());
+  } catch {
+    /* ignore */
+  }
+  try {
+    if (fs.existsSync(LOGIN_CREDS_KEY_FILE())) fs.unlinkSync(LOGIN_CREDS_KEY_FILE());
   } catch {
     /* ignore */
   }
@@ -443,6 +512,48 @@ function wirePowerEvents() {
 
 app.setLoginItemSettings({ openAtLogin: true, openAsHidden: true });
 
+const DAILY_UPDATE_HOUR = 5; // local 5:00 AM
+const UPDATE_CHECK_STAMP = () => path.join(app.getPath('userData'), 'last-update-check.txt');
+
+function readLastUpdateCheckAt() {
+  try {
+    if (!fs.existsSync(UPDATE_CHECK_STAMP())) return 0;
+    const n = Number(fs.readFileSync(UPDATE_CHECK_STAMP(), 'utf8').trim());
+    return Number.isFinite(n) ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function markDesktopUpdateChecked() {
+  try {
+    fs.writeFileSync(UPDATE_CHECK_STAMP(), String(Date.now()), 'utf8');
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Start of current daily window (today 5:00 if past 5:00, else yesterday 5:00). */
+function dailyUpdateBoundary(now = new Date()) {
+  const boundary = new Date(now);
+  boundary.setHours(DAILY_UPDATE_HOUR, 0, 0, 0);
+  if (now.getTime() < boundary.getTime()) boundary.setDate(boundary.getDate() - 1);
+  return boundary;
+}
+
+function shouldRunDesktopDailyCheck(now = new Date()) {
+  const last = readLastUpdateCheckAt();
+  if (!last) return true;
+  return last < dailyUpdateBoundary(now).getTime();
+}
+
+function msUntilNextDailyUpdate(now = new Date()) {
+  const next = new Date(now);
+  next.setHours(DAILY_UPDATE_HOUR, 0, 0, 0);
+  if (now.getTime() >= next.getTime()) next.setDate(next.getDate() + 1);
+  return Math.max(5_000, next.getTime() - now.getTime());
+}
+
 function setupAutoUpdater() {
   if (!autoUpdater || !app.isPackaged) return;
   try {
@@ -452,25 +563,65 @@ function setupAutoUpdater() {
       provider: 'generic',
       url: 'https://scorr.walfia.ai/downloads/desktop/',
     });
+    let installing = false;
+    /** @type {NodeJS.Timeout | null} */
+    let dailyTimer = null;
+
     autoUpdater.on('update-downloaded', (info) => {
+      if (installing) return;
+      installing = true;
       if (Notification.isSupported()) {
         new Notification({
-          title: 'Scorr update ready',
-          body: `Version ${info.version || ''} downloaded. Restart Scorr to finish updating.`,
+          title: 'Scorr updating',
+          body: `Version ${info.version || ''} downloaded. Installing…`,
         }).show();
       }
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('scorr:update-ready', {
           version: info.version,
-          message: 'Restart to update',
+          message: 'Updating…',
+          autoInstall: true,
         });
       }
+      // Brief pause so the renderer can show "Updating…", then silent install + relaunch.
+      setTimeout(() => {
+        try {
+          autoUpdater.quitAndInstall(false, true);
+        } catch (e) {
+          console.warn('quitAndInstall failed; will install on next quit', e);
+          installing = false;
+        }
+      }, 1200);
     });
-    const check = () => {
-      void autoUpdater.checkForUpdatesAndNotify().catch(() => {});
+
+    const check = (reason = 'scheduled') => {
+      console.log(`[scorr] update check (${reason})`);
+      markDesktopUpdateChecked();
+      void autoUpdater.checkForUpdates().catch((e) => {
+        console.warn('[scorr] checkForUpdates failed', e);
+      });
     };
-    check();
-    setInterval(check, 6 * 60 * 60 * 1000);
+
+    const armDailyTimer = () => {
+      if (dailyTimer) clearTimeout(dailyTimer);
+      const wait = msUntilNextDailyUpdate();
+      console.log(`[scorr] next update check in ${Math.round(wait / 60000)} min (~${DAILY_UPDATE_HOUR}:00 local)`);
+      dailyTimer = setTimeout(() => {
+        check('daily-5am');
+        armDailyTimer();
+      }, wait);
+    };
+
+    // Catch-up if the app was closed at 5 AM; otherwise wait for the next 5 AM.
+    if (shouldRunDesktopDailyCheck()) {
+      setTimeout(() => check('catch-up'), 15_000);
+    }
+    armDailyTimer();
+
+    // Laptop wake / resume — install overnight updates without waiting for UI.
+    powerMonitor.on('resume', () => {
+      if (shouldRunDesktopDailyCheck()) check('power-resume');
+    });
   } catch (e) {
     console.warn('autoUpdater setup failed', e);
   }

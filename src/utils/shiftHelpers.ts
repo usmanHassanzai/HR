@@ -161,27 +161,72 @@ export function formatDateTime(iso: string | null | undefined): string {
   });
 }
 
+/** True when out is missing or not after in (same-minute / inverted bad rows). */
+export function isInvalidClockOutPair(
+  clockInAt?: string | null,
+  clockOutAt?: string | null,
+): boolean {
+  if (!clockInAt || !clockOutAt) return true;
+  const inMs = Date.parse(clockInAt);
+  const outMs = Date.parse(clockOutAt);
+  if (!Number.isFinite(inMs) || !Number.isFinite(outMs)) return true;
+  return outMs <= inMs;
+}
+
+/**
+ * Prefer a real out stamp after in; if the stored out equals/precedes in but
+ * work_minutes is known (common auto_gps / admin_correction bug), derive out.
+ */
+export function resolveEffectiveClockOut(row: {
+  clock_in_at?: string | null;
+  clock_out_at?: string | null;
+  work_minutes?: number | null;
+}): string | null {
+  if (!row.clock_in_at) return row.clock_out_at ?? null;
+  if (!isInvalidClockOutPair(row.clock_in_at, row.clock_out_at)) {
+    return row.clock_out_at ?? null;
+  }
+  const mins = row.work_minutes != null && row.work_minutes > 0 ? row.work_minutes : null;
+  if (mins != null) {
+    const inMs = Date.parse(row.clock_in_at);
+    if (Number.isFinite(inMs)) return new Date(inMs + mins * 60_000).toISOString();
+  }
+  // Invalid/equal out with no duration → treat as still open for display.
+  return null;
+}
+
 export function resolveWorkMinutes(row: {
   clock_in_at?: string | null;
   clock_out_at?: string | null;
   work_minutes?: number | null;
 }): number | null {
+  const effectiveOut = resolveEffectiveClockOut(row);
   const fromStamps =
-    row.clock_in_at && row.clock_out_at
-      ? Math.round((Date.parse(row.clock_out_at) - Date.parse(row.clock_in_at)) / 60000)
+    row.clock_in_at && effectiveOut
+      ? Math.round((Date.parse(effectiveOut) - Date.parse(row.clock_in_at)) / 60000)
       : null;
   const stored = row.work_minutes != null && row.work_minutes > 0 ? row.work_minutes : null;
 
-  // Open visit: prefer live elapsed from clock-in; fall back to stored.
+  // Truly open (no clock-out written yet): live elapsed from clock-in.
   if (row.clock_in_at && !row.clock_out_at) {
-    const live = Math.round((Date.now() - Date.parse(row.clock_in_at)) / 60000);
-    return live > 0 ? live : stored;
+    return Math.max(0, Math.round((Date.now() - Date.parse(row.clock_in_at)) / 60000));
   }
 
   // Closed: use stored visit totals when present (multi check-in/out), else clock span.
   if (stored != null) return stored;
   if (fromStamps != null && fromStamps > 0) return fromStamps;
   return null;
+}
+
+function formatHistoryDateTime(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, {
+    weekday: 'short',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 export function describeAttendanceHistory(row: {
@@ -201,26 +246,12 @@ export function describeAttendanceHistory(row: {
   stillPresent: boolean;
 } {
   const shift = row.shift_name?.trim() || 'Unassigned';
-  const clockIn = row.clock_in_at
-    ? new Date(row.clock_in_at).toLocaleString(undefined, {
-        weekday: 'short',
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : 'No clock-in';
+  const effectiveOut = resolveEffectiveClockOut(row);
+  // Only "still present" when no clock-out was stored at all.
   const stillOpen = Boolean(row.clock_in_at && !row.clock_out_at);
-  const clockOut = row.clock_out_at
-    ? new Date(row.clock_out_at).toLocaleString(undefined, {
-        weekday: 'short',
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
+  const clockIn = row.clock_in_at ? formatHistoryDateTime(row.clock_in_at) : 'No clock-in';
+  const clockOut = effectiveOut
+    ? formatHistoryDateTime(effectiveOut)
     : stillOpen
       ? 'Still present in office'
       : 'No clock-out';
@@ -237,7 +268,7 @@ export function describeAttendanceHistory(row: {
     clockOut,
     duration,
     shiftEmpty: !row.shift_name?.trim(),
-    clockOutEmpty: !row.clock_out_at && !stillOpen,
+    clockOutEmpty: !effectiveOut && !stillOpen,
     durationEmpty: !stillOpen && (mins == null || mins <= 0),
     stillPresent: stillOpen,
   };

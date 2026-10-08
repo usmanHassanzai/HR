@@ -38,24 +38,81 @@ function rpcErrorMessage(err: unknown): string {
   return 'Location check failed';
 }
 
-function formatDuration(mins: number | null | undefined): string {
-  if (mins == null || mins < 0) return '—';
+function formatClosedDuration(mins: number): string {
+  if (mins < 0) return '—';
   const h = Math.floor(mins / 60);
   const m = mins % 60;
   if (h <= 0) return `${m}m`;
   return `${h}h ${m}m`;
 }
 
-function visitMinutes(v: AttendanceVisit): number {
-  if (v.work_minutes != null && v.work_minutes >= 0 && v.clock_out_at) return v.work_minutes;
-  if (v.work_minutes != null && v.work_minutes > 0) return v.work_minutes;
-  if (v.clock_in_at && v.clock_out_at) {
-    return Math.max(0, Math.round((Date.parse(v.clock_out_at) - Date.parse(v.clock_in_at)) / 60000));
+/** Live elapsed as mm:ss (or h:mm:ss). */
+function formatLiveDuration(ms: number): string {
+  const totalSec = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  const mm = String(m).padStart(2, '0');
+  const ss = String(s).padStart(2, '0');
+  if (h > 0) return `${h}:${mm}:${ss}`;
+  return `${mm}:${ss}`;
+}
+
+function formatDurationMs(ms: number, live: boolean): string {
+  if (live) return formatLiveDuration(ms);
+  return formatClosedDuration(Math.round(ms / 60000));
+}
+
+/** Valid closed out, or null when open / inverted (out before in). */
+function visitOutAt(v: AttendanceVisit): string | null {
+  if (!v.clock_out_at || !v.clock_in_at) return null;
+  if (Date.parse(v.clock_out_at) < Date.parse(v.clock_in_at)) return null;
+  return v.clock_out_at;
+}
+
+/** Open visit: null out, or inverted out-before-in (stale close race). */
+function isVisitOpen(v: AttendanceVisit): boolean {
+  return Boolean(v.clock_in_at && !visitOutAt(v));
+}
+
+function visitDurationMs(v: AttendanceVisit, nowMs: number): number {
+  const out = visitOutAt(v);
+  if (out) {
+    if (v.work_minutes != null && v.work_minutes >= 0) return v.work_minutes * 60000;
+    return Math.max(0, Date.parse(out) - Date.parse(v.clock_in_at));
   }
-  if (v.clock_in_at && !v.clock_out_at) {
-    return Math.max(0, Math.round((Date.now() - Date.parse(v.clock_in_at)) / 60000));
+  if (v.clock_in_at && isVisitOpen(v)) {
+    return Math.max(0, nowMs - Date.parse(v.clock_in_at));
   }
   return 0;
+}
+
+function headerTimesFromVisits(
+  visits: AttendanceVisit[],
+  recordIn: string | null,
+  recordOut: string | null,
+): { clockIn: string | null; clockOut: string | null } {
+  if (visits.length === 0) {
+    if (recordIn && recordOut && Date.parse(recordOut) < Date.parse(recordIn)) {
+      return { clockIn: recordIn, clockOut: null };
+    }
+    return { clockIn: recordIn, clockOut: recordOut };
+  }
+  const sorted = [...visits].sort(
+    (a, b) => Date.parse(a.clock_in_at) - Date.parse(b.clock_in_at) || a.visit_number - b.visit_number,
+  );
+  const clockIn = sorted[0]?.clock_in_at || recordIn;
+  // Null out or inverted out-before-in keeps the shift open (CLOCK OUT blank).
+  if (sorted.some(isVisitOpen)) {
+    return { clockIn, clockOut: null };
+  }
+  let latestOut: string | null = null;
+  for (const v of sorted) {
+    const out = visitOutAt(v);
+    if (out && (!latestOut || Date.parse(out) > Date.parse(latestOut))) latestOut = out;
+  }
+  // Prefer latest valid visit out over a stale parent-record out (e.g. R69 race).
+  return { clockIn, clockOut: latestOut };
 }
 
 function timeSlice(t: string | null | undefined): string {
@@ -75,6 +132,7 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
   const [error, setError] = useState('');
   const [lastAccuracy, setLastAccuracy] = useState<number | null>(null);
   const [windowInfo, setWindowInfo] = useState<LocationWindow | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
   const loadToday = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -93,15 +151,21 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
       supabase.rpc('get_my_attendance_visits', { p_date: shiftDate }),
       supabase.rpc('get_my_location_window'),
     ]);
+    const visitList = (visitRows as AttendanceVisit[]) || [];
+    setVisits(visitList);
     if (data) {
-      setClockIn(data.clock_in_at);
-      setClockOut(data.clock_out_at);
+      const derived = headerTimesFromVisits(visitList, data.clock_in_at, data.clock_out_at);
+      setClockIn(derived.clockIn);
+      setClockOut(derived.clockOut);
       setSource(data.attendance_source || 'manual');
+    } else if (visitList.length > 0) {
+      const derived = headerTimesFromVisits(visitList, null, null);
+      setClockIn(derived.clockIn);
+      setClockOut(derived.clockOut);
     } else {
       setClockIn(null);
       setClockOut(null);
     }
-    setVisits((visitRows as AttendanceVisit[]) || []);
     const win = (winRows as LocationWindow[] | null)?.[0];
     if (win) {
       setWindowInfo({
@@ -136,6 +200,17 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
     void loadSites();
     void bootstrapAttendanceLocation();
   }, [loadToday, loadSites]);
+
+  const openVisit = visits.some(isVisitOpen);
+  const openShiftPreview = Boolean(openVisit || (clockIn && !clockOut));
+
+  // Tick every second while checked in so session + shift totals count live.
+  useEffect(() => {
+    if (!openShiftPreview) return;
+    setNowMs(Date.now());
+    const id = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [openShiftPreview]);
 
   const updateNearby = useCallback((lat: number, lng: number, accuracy?: number | null) => {
     setLastAccuracy(accuracy ?? null);
@@ -251,8 +326,23 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
   const siteRadius = workSite?.radius_meters ?? offices.find((o) => o.active)?.radius_meters ?? 150;
   const inWindow = shouldCaptureLocationNow(windowInfo);
   const inExitWindow = windowInfo ? isWithinShiftExitWindow(locationWindowToMyShift(windowInfo)) : false;
-  const openVisit = visits.some((v) => !v.clock_out_at);
   const openShift = Boolean((clockIn && !clockOut) || openVisit);
+  const openVisitRow = [...visits].filter(isVisitOpen).sort(
+    (a, b) => Date.parse(b.clock_in_at) - Date.parse(a.clock_in_at),
+  )[0];
+  const sessionStartAt = openVisitRow?.clock_in_at || (openShift ? clockIn : null);
+  const sessionMs = sessionStartAt ? Math.max(0, nowMs - Date.parse(sessionStartAt)) : 0;
+  const closedVisitsMs = visits.reduce((s, v) => {
+    if (isVisitOpen(v)) return s;
+    return s + visitDurationMs(v, nowMs);
+  }, 0);
+  // No visit rows yet (legacy / race): count from header clock-in while open.
+  const fallbackOpenMs = visits.length === 0 && openShift && clockIn
+    ? Math.max(0, nowMs - Date.parse(clockIn))
+    : 0;
+  const totalShiftMs = closedVisitsMs
+    + (openVisitRow ? visitDurationMs(openVisitRow, nowMs) : 0)
+    + fallbackOpenMs;
 
   return (
     <div className="attendance-card geo-attendance-panel">
@@ -298,7 +388,7 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
         </p>
       )}
 
-      <div className="geo-clock-stats">
+      <div className={`geo-clock-stats${openShift || totalShiftMs > 0 ? ' geo-clock-stats--with-duration' : ''}`}>
         <div className="geo-clock-stat">
           <span className="geo-clock-stat__label">Clock in</span>
           <strong>{formatClockTime(clockIn)}</strong>
@@ -306,8 +396,21 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
         </div>
         <div className="geo-clock-stat">
           <span className="geo-clock-stat__label">Clock out</span>
-          <strong>{formatClockTime(clockOut)}</strong>
+          <strong>{openShift ? '—' : formatClockTime(clockOut)}</strong>
         </div>
+        {(openShift || totalShiftMs > 0) && (
+          <div className="geo-clock-stat geo-clock-stat--duration">
+            <span className="geo-clock-stat__label">{openShift ? 'On site now' : 'Shift total'}</span>
+            <strong className={openShift ? 'geo-clock-stat__live' : undefined}>
+              {formatDurationMs(openShift ? sessionMs : totalShiftMs, openShift)}
+            </strong>
+            {openShift && totalShiftMs > sessionMs && (
+              <span className="geo-clock-stat__tag">
+                {formatDurationMs(totalShiftMs, true)} shift
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {nearby && (
@@ -348,23 +451,34 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
             <span>
               {visits.length} session{visits.length === 1 ? '' : 's'}
               {' · '}
-              {formatDuration(visits.reduce((s, v) => s + visitMinutes(v), 0))} total
+              {formatDurationMs(totalShiftMs, openShift)} total
             </span>
           </div>
           <ul className="geo-visit-history__list">
-            {visits.map((v) => (
-              <li key={v.id} className={`geo-visit-history__item${!v.clock_out_at ? ' geo-visit-history__item--open' : ''}`}>
+            {visits.map((v) => {
+              const out = visitOutAt(v);
+              const open = isVisitOpen(v);
+              const inverted = Boolean(v.clock_out_at && !out);
+              return (
+              <li key={v.id} className={`geo-visit-history__item${open ? ' geo-visit-history__item--open' : ''}`}>
                 <span className="geo-visit-history__num">#{v.visit_number}</span>
                 <div className="geo-visit-history__times">
                   <span><LogIn size={12} /> In {formatClockTime(v.clock_in_at)}</span>
                   <span>
                     <LogOut size={12} />
-                    {v.clock_out_at ? ` Out ${formatClockTime(v.clock_out_at)}` : ' On site now'}
+                    {out
+                      ? ` Out ${formatClockTime(out)}`
+                      : inverted
+                        ? ' Out —'
+                        : ' On site now'}
                   </span>
                 </div>
-                <span className="geo-visit-history__dur">{formatDuration(visitMinutes(v))}</span>
+                <span className="geo-visit-history__dur">
+                  {formatDurationMs(visitDurationMs(v, nowMs), open)}
+                </span>
               </li>
-            ))}
+              );
+            })}
           </ul>
         </div>
       )}

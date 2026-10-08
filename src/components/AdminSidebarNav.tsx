@@ -185,6 +185,7 @@ export function getAdminNavMeta(id: string): { label: string; description: strin
   const map: Record<string, { label: string; description: string }> = {
     home: { label: 'Today', description: '' },
     employees: { label: 'Employees', description: 'Accounts, roles, and departments.' },
+    mine: { label: 'My KPIs', description: 'Tasks assigned to you.' },
     users: { label: 'People', description: 'Add teammates, set roles, and manage logins.' },
     kpis: { label: 'Assign Task', description: 'Create KPIs, assign them, and review or edit assigned tasks.' },
     dailyReports: { label: 'Daily Reports', description: 'Staff daily work logs.' },

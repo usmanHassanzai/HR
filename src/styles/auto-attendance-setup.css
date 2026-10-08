@@ -135,7 +135,6 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  min-height: min(72vh, 640px);
   padding: 1.1rem 1.15rem 1.25rem;
   border-radius: 14px;
   background:
@@ -143,6 +142,19 @@
     var(--surface, #fff);
   border: 1px solid var(--border-color);
   box-shadow: 0 10px 28px color-mix(in srgb, #0b1120 6%, transparent);
+  color: var(--text-primary);
+}
+
+/* Embedded in Settings — never cover Change password / Account security / Delete */
+.aas-wizard--inline {
+  min-height: 0;
+  position: relative;
+  inset: auto;
+  z-index: auto;
+  box-shadow: none;
+  padding: 0.85rem 0 0.25rem;
+  border: none;
+  background: transparent;
 }
 
 .aas-wizard--fullscreen {
@@ -336,29 +348,38 @@
   color: var(--text-muted);
 }
 
-.aas-finish {
+.aas-finish,
+.aas-finish--inline {
   display: grid;
   gap: 0.85rem;
+  position: relative;
+  min-height: 0;
+  z-index: auto;
 }
 
+/* ON status card: always light text on dark green (readable on light + dark app themes) */
 .aas-finish__card {
   display: grid;
   gap: 0.55rem;
   padding: 1rem;
   border-radius: 12px;
-  border: 1px solid color-mix(in srgb, #22c55e 35%, var(--border-color));
-  background: color-mix(in srgb, #22c55e 8%, transparent);
+  border: 1px solid #4ade80;
+  background: #14532d;
+  color: #ecfdf5;
 }
 
 .aas-finish__card h3 {
   margin: 0;
   font-size: 1.05rem;
+  font-weight: 700;
+  color: #f0fdf4;
+  letter-spacing: -0.01em;
 }
 
 .aas-finish__meta {
   margin: 0;
   font-size: 0.88rem;
-  color: var(--text-muted);
+  color: #bbf7d0;
   line-height: 1.45;
 }
 
@@ -366,6 +387,20 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+[data-theme='light'] .aas-finish__card {
+  background: #ecfdf5;
+  border-color: #86efac;
+  color: #14532d;
+}
+
+[data-theme='light'] .aas-finish__card h3 {
+  color: #14532d;
+}
+
+[data-theme='light'] .aas-finish__meta {
+  color: #166534;
 }
 
 .aas-web-card {

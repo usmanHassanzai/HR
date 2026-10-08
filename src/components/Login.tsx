@@ -11,6 +11,8 @@ import { requestForgotPassword } from '../utils/forgotPassword';
 import { assertForgotAllowed, assertLoginAllowed, recordLoginAttempt } from '../utils/loginSecurity';
 import {
   clearRememberedLogin,
+  isRememberMeEnabled,
+  loadLastLoginEmail,
   loadRememberedLogin,
   migrateClearInsecureRememberedLogin,
   saveRememberedLogin,
@@ -98,7 +100,8 @@ export default function Login({
   const [infoKind, setInfoKind] = useState<'success' | 'session'>('success');
   const [forgotMode, setForgotMode] = useState(false);
   const [acceptedPolicy, setAcceptedPolicy] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
+  const [rememberMe, setRememberMe] = useState(isAppShell());
+  const [savedEmailHint, setSavedEmailHint] = useState('');
   const showRememberMe = isAppShell();
 
   useEffect(() => {
@@ -110,18 +113,53 @@ export default function Login({
   }, []);
 
   useEffect(() => {
+    if (!showRememberMe) return;
     let cancelled = false;
-    void (async () => {
+
+    const hydrate = async () => {
       await migrateClearInsecureRememberedLogin();
-      if (!showRememberMe) return;
-      const saved = await loadRememberedLogin();
-      if (cancelled || !saved) return;
-      setEmail(saved.email);
-      setPassword(saved.password);
-      setRememberMe(true);
-    })();
+      if (cancelled) return;
+      const [saved, flagOn, lastEmail] = await Promise.all([
+        loadRememberedLogin(),
+        isRememberMeEnabled(),
+        loadLastLoginEmail(),
+      ]);
+      if (cancelled) return;
+      if (lastEmail) setSavedEmailHint(lastEmail);
+      if (saved?.email && saved?.password) {
+        setEmail((prev) => prev || saved.email);
+        setPassword((prev) => prev || saved.password);
+        setRememberMe(true);
+        setSavedEmailHint(saved.email);
+        return;
+      }
+      // Email-only fallback after session expiry when password vault is still warming up.
+      if (lastEmail) {
+        setEmail((prev) => prev || lastEmail);
+        setRememberMe(true);
+        return;
+      }
+      if (flagOn) setRememberMe(true);
+    };
+
+    void hydrate();
+    const onFocus = () => {
+      void hydrate();
+    };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void hydrate();
+    };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisible);
+    // Extra passes after session-expiry remount (desktop IPC / IndexedDB lag).
+    const t1 = window.setTimeout(() => void hydrate(), 400);
+    const t2 = window.setTimeout(() => void hydrate(), 1200);
     return () => {
       cancelled = true;
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, [showRememberMe]);
 
@@ -153,6 +191,7 @@ export default function Login({
         await recordLoginAttempt({ email, success: true, acceptedPolicy: true });
         markPortalSessionStart(true);
         if (showRememberMe) {
+          // Desktop/APK: persist by default so 1h session expiry can restore the form.
           if (rememberMe) await saveRememberedLogin(email, password);
           else await clearRememberedLogin();
         }
@@ -297,14 +336,32 @@ export default function Login({
                 type="email"
                 placeholder="name@company.com"
                 value={email}
+                list={savedEmailHint ? 'scorr-saved-emails' : undefined}
                 autoComplete="username"
                 autoCorrect="off"
                 autoCapitalize="none"
                 spellCheck={false}
                 onChange={(e) => setEmail(e.target.value)}
+                onFocus={() => {
+                  // Re-apply saved password when focusing email after session expiry.
+                  if (!showRememberMe || password) return;
+                  void loadRememberedLogin().then((saved) => {
+                    if (!saved?.password) return;
+                    if (saved.email && (!email || email === saved.email)) {
+                      setEmail(saved.email);
+                      setPassword(saved.password);
+                      setRememberMe(true);
+                    }
+                  });
+                }}
                 disabled={loading}
                 required
               />
+              {savedEmailHint ? (
+                <datalist id="scorr-saved-emails">
+                  <option value={savedEmailHint} />
+                </datalist>
+              ) : null}
             </div>
 
             <div className="form-group login-form__group">

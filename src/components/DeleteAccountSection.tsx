@@ -26,6 +26,20 @@ type DeleteAccountSectionProps = {
   embedded?: boolean;
 };
 
+async function loadDeletionInfo(): Promise<AccountDeletionInfo> {
+  // Prefer direct RPC so Settings works even if the edge function is cold/missing.
+  const { data, error } = await supabase.rpc('account_deletion_info');
+  if (!error && data) {
+    return data as AccountDeletionInfo;
+  }
+  const viaEdge = await invokeDeleteAccount({ action: 'preview' });
+  if (viaEdge.info) return viaEdge.info;
+  throw new Error(
+    error?.message
+      || 'Could not load account details. Ask your admin to enable self-serve account deletion, or email info@walfia.ai.',
+  );
+}
+
 async function invokeDeleteAccount(body: Record<string, unknown>) {
   const { data, error: invokeErr } = await supabase.functions.invoke('delete_account', { body });
   if (data && typeof data === 'object' && 'error' in data && (data as { error?: string }).error) {
@@ -39,7 +53,13 @@ async function invokeDeleteAccount(body: Record<string, unknown>) {
     } catch (e) {
       if (e instanceof Error && e.message !== invokeErr.message) throw e;
     }
-    throw new Error(invokeErr.message || 'Request failed.');
+    const msg = invokeErr.message || 'Request failed.';
+    if (/failed to send|FunctionsFetchError|not found|404/i.test(msg)) {
+      throw new Error(
+        'Account deletion service is unavailable. Please try again shortly or contact info@walfia.ai.',
+      );
+    }
+    throw new Error(msg);
   }
   return data as { ok?: boolean; info?: AccountDeletionInfo; result?: unknown };
 }
@@ -58,8 +78,7 @@ export default function DeleteAccountSection({ onDeleted, embedded }: DeleteAcco
     setLoadingInfo(true);
     setError('');
     try {
-      const res = await invokeDeleteAccount({ action: 'preview' });
-      setInfo(res.info ?? null);
+      setInfo(await loadDeletionInfo());
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load account details.');
       setInfo(null);
@@ -123,17 +142,23 @@ export default function DeleteAccountSection({ onDeleted, embedded }: DeleteAcco
 
   return (
     <div
-      className="app-settings-block"
+      className={embedded ? 'delete-account-section' : 'app-settings-block delete-account-section'}
       style={{
         marginTop: embedded ? 0 : '1.25rem',
         marginBottom: embedded ? 0 : '1rem',
-        borderColor: 'color-mix(in srgb, var(--color-danger) 35%, var(--border-color))',
-        background: 'color-mix(in srgb, var(--color-danger) 6%, transparent)',
+        ...(embedded
+          ? {}
+          : {
+              borderColor: 'color-mix(in srgb, var(--color-danger) 35%, var(--border-color))',
+              background: 'color-mix(in srgb, var(--color-danger) 6%, transparent)',
+            }),
       }}
     >
-      <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', margin: '0 0 0.5rem', color: 'var(--color-danger)' }}>
-        <Trash2 size={18} /> Delete my account
-      </h3>
+      {!embedded && (
+        <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', margin: '0 0 0.5rem', color: 'var(--color-danger)' }}>
+          <Trash2 size={18} /> Delete my account
+        </h3>
+      )}
       <p style={{ margin: '0 0 0.75rem', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
         Permanently deletes your Scorr login and personal data (attendance, KPIs, rewards activity tied to you).
         This cannot be undone.

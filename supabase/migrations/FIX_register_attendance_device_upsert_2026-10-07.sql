@@ -1,23 +1,6 @@
--- Hotfix: pgcrypto lives in schema `extensions` on Supabase.
--- SECURITY DEFINER functions with SET search_path = public cannot resolve
--- gen_random_bytes / digest / crypt / gen_salt unless extensions is on the path
--- or calls are schema-qualified.
---
--- Symptom: Android "Register this phone" → function gen_random_bytes(integer) does not exist
+-- Re-enroll same device_id after revoke/turn-off: unique (user_id, device_id)
+-- must UPDATE the existing row instead of INSERT (which fails with duplicate key).
 
-CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
-
--- Token hash helper (called from register_attendance_device + edge hashing paths)
-CREATE OR REPLACE FUNCTION public.attendance_hash_device_token(p_token TEXT)
-RETURNS TEXT
-LANGUAGE sql
-IMMUTABLE
-SET search_path = public, extensions
-AS $$
-  SELECT encode(extensions.digest(convert_to(p_token, 'UTF8'), 'sha256'), 'hex');
-$$;
-
--- Device enrollment (app calls via supabase.rpc('register_attendance_device', ...))
 CREATE OR REPLACE FUNCTION public.register_attendance_device(
   p_device_id TEXT,
   p_platform TEXT,
@@ -35,9 +18,10 @@ DECLARE
   v_token TEXT;
   v_hash TEXT;
   v_row public.attendance_devices%ROWTYPE;
+  v_device_id TEXT := btrim(p_device_id);
 BEGIN
   IF v_uid IS NULL THEN RAISE EXCEPTION 'Not authenticated'; END IF;
-  IF p_device_id IS NULL OR btrim(p_device_id) = '' THEN
+  IF v_device_id IS NULL OR v_device_id = '' THEN
     RAISE EXCEPTION 'device_id required';
   END IF;
   IF p_platform IS NULL OR p_platform NOT IN ('android', 'ios', 'windows', 'linux', 'web') THEN
@@ -53,7 +37,6 @@ BEGIN
   );
   v_hash := public.attendance_hash_device_token(v_token);
 
-  -- Upsert: same device_id after turn-off/revoke must not hit unique (user_id, device_id)
   UPDATE public.attendance_devices
   SET
     platform = p_platform,
@@ -63,7 +46,7 @@ BEGIN
     revoked_at = NULL,
     last_seen_at = timezone('utc', now()),
     company_id = v_me.company_id
-  WHERE user_id = v_uid AND device_id = btrim(p_device_id)
+  WHERE user_id = v_uid AND device_id = v_device_id
   RETURNING * INTO v_row;
 
   IF NOT FOUND THEN
@@ -71,14 +54,13 @@ BEGIN
       user_id, company_id, device_id, platform, device_timezone, app_version, token_hash,
       created_at, last_seen_at
     ) VALUES (
-      v_uid, v_me.company_id, btrim(p_device_id), p_platform,
+      v_uid, v_me.company_id, v_device_id, p_platform,
       NULLIF(btrim(p_device_timezone), ''), NULLIF(btrim(p_app_version), ''),
       v_hash, timezone('utc', now()), timezone('utc', now())
     )
     RETURNING * INTO v_row;
   END IF;
 
-  -- Enable per-user toggle for this platform family when registering
   IF p_platform IN ('android', 'ios') THEN
     UPDATE public.users SET auto_phone_attendance = true WHERE id = v_uid;
   ELSIF p_platform IN ('windows', 'linux') THEN
@@ -95,6 +77,5 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.register_attendance_device(TEXT, TEXT, TEXT, TEXT, TEXT) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.attendance_hash_device_token(TEXT) TO authenticated, service_role;
 
 NOTIFY pgrst, 'reload schema';

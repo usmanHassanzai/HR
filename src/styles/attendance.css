@@ -6,6 +6,24 @@
   gap: 1.25rem;
 }
 
+/* Shared professional shell for Attendance / Office tabs across roles */
+.attendance-section-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.35rem;
+  margin-bottom: 1rem;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-muted, rgba(0, 0, 0, 0.03)) 90%, transparent);
+  border: 1px solid var(--border-color);
+}
+
+.attendance-section-tabs .tab-btn {
+  border-radius: 9px;
+  font-weight: 650;
+  font-size: 0.88rem;
+}
+
 .attendance-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -468,11 +486,19 @@
   margin-bottom: 1rem;
 }
 
+.geo-clock-stats--with-duration {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
 .geo-clock-stat {
   padding: 0.85rem 1rem;
   border-radius: var(--border-radius-sm);
   background: var(--bg-elevated);
   border: 1px solid var(--border-color);
+}
+
+.geo-clock-stat--duration {
+  border-color: color-mix(in srgb, var(--color-success, #16a34a) 35%, var(--border-color));
 }
 
 .geo-clock-stat__label {
@@ -487,6 +513,12 @@
 .geo-clock-stat strong {
   font-size: 1.15rem;
   color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.geo-clock-stat__live {
+  font-feature-settings: 'tnum';
+  letter-spacing: 0.02em;
 }
 
 .geo-clock-stat__tag {
@@ -498,6 +530,16 @@
   background: var(--color-success-bg);
   color: var(--color-success);
   vertical-align: middle;
+}
+
+@media (max-width: 560px) {
+  .geo-clock-stats--with-duration {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .geo-clock-stat--duration {
+    grid-column: 1 / -1;
+  }
 }
 
 .geo-attendance-panel__badge {

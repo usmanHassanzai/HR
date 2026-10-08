@@ -24,6 +24,7 @@ const ManagerRewardsPanel = lazy(() => import('./ManagerRewardsPanel'));
 const AttendanceLeavePanel = lazy(() => import('./AttendanceLeavePanel'));
 const AdminLiveTracking = lazy(() => import('./AdminLiveTracking'));
 const AccountSecurityPanel = lazy(() => import('./AccountSecurityPanel'));
+const AutoAttendanceSettings = lazy(() => import('./AutoAttendanceSettings'));
 const BackupCodesLowBanner = lazy(() => import('./BackupCodesLowBanner'));
 
 type ManagerTab = 'mine' | 'employees' | 'kpis' | 'attendance' | 'rewards' | 'dailyReport' | 'settings';
@@ -293,8 +294,12 @@ export default function ManagerDashboard({ profile, organizationName }: ManagerD
               </button>
             </div>
             <details className="app-settings-block" open>
+              <summary>Automatic attendance</summary>
+              <AutoAttendanceSettings mode="self" />
+            </details>
+            <details className="app-settings-block" open>
               <summary>Account security (2FA recovery)</summary>
-              <AccountSecurityPanel fullName={profile.full_name} />
+              <AccountSecurityPanel fullName={profile.full_name} omitDelete />
             </details>
           </div>
         )}

@@ -179,11 +179,23 @@ export function periodLabel(mode: KpiPeriodMode, year: number, monthIndex = 0): 
   return monthLabel(year, monthIndex);
 }
 
+/**
+ * Best-known completion/approval timestamp.
+ * Prefer completed_at, then updated_at (approval touch), then due end_date.
+ * Using end_date before updated_at wrongly buckets tasks into the due month
+ * when completed_at is missing — hiding them from the current calendar month.
+ */
+export function kpiCompletionTimestamp(
+  kpi: Pick<Kpi, 'completed_at' | 'end_date' | 'updated_at'>,
+): string | null {
+  return kpi.completed_at || kpi.updated_at || kpi.end_date || null;
+}
+
 /** Completion calendar day in Asia/Karachi (YYYY-MM-DD). */
 export function kpiCompletionYmd(
   kpi: Pick<Kpi, 'completed_at' | 'end_date' | 'updated_at'>,
 ): string | null {
-  const raw = kpi.completed_at || kpi.end_date || kpi.updated_at;
+  const raw = kpiCompletionTimestamp(kpi);
   if (!raw) return null;
   return karachiYmd(String(raw));
 }
@@ -205,6 +217,23 @@ export function completedKpisForPeriod(
     if (mode === 'year') return y === year;
     return y === year && m === monthIndex + 1;
   });
+}
+
+/**
+ * History list for a period — strictly by completion calendar month/year
+ * (Asia/Karachi via `kpiCompletionYmd`), not task date-span overlap.
+ *
+ * Open / scoreboard weight pools still use `kpisForPeriod` (date-span). History must
+ * never surface a prior month’s completions when Month (or Year) is selected — even
+ * if the task’s start/end span into the selected period.
+ */
+export function historyKpisForPeriod(
+  kpis: Kpi[],
+  mode: KpiPeriodMode,
+  year: number,
+  monthIndex = 0,
+): Kpi[] {
+  return completedKpisForPeriod(kpis, mode, year, monthIndex);
 }
 
 export type CompletedKpiMonthGroup = {
@@ -232,8 +261,8 @@ export function groupCompletedKpisByMonth(kpis: Kpi[]): CompletedKpiMonthGroup[]
       const y = Number(key.slice(0, 4));
       const m = Number(key.slice(5, 7));
       const sorted = [...group].sort((a, b) => {
-        const aKey = a.completed_at || a.end_date || '';
-        const bKey = b.completed_at || b.end_date || '';
+        const aKey = kpiCompletionTimestamp(a) || '';
+        const bKey = kpiCompletionTimestamp(b) || '';
         return bKey.localeCompare(aKey);
       });
       return {
@@ -244,6 +273,34 @@ export function groupCompletedKpisByMonth(kpis: Kpi[]): CompletedKpiMonthGroup[]
         kpis: sorted,
       };
     });
+}
+
+export type CompletedKpiYearGroup = {
+  key: string;
+  year: number;
+  label: string;
+  months: CompletedKpiMonthGroup[];
+  taskCount: number;
+};
+
+/** Nest month groups under calendar years (newest year first). */
+export function nestCompletedMonthGroupsByYear(
+  months: CompletedKpiMonthGroup[],
+): CompletedKpiYearGroup[] {
+  const byYear = new Map<number, CompletedKpiMonthGroup[]>();
+  for (const month of months) {
+    if (!byYear.has(month.year)) byYear.set(month.year, []);
+    byYear.get(month.year)!.push(month);
+  }
+  return Array.from(byYear.entries())
+    .sort(([a], [b]) => b - a)
+    .map(([year, monthGroups]) => ({
+      key: String(year),
+      year,
+      label: String(year),
+      months: monthGroups,
+      taskCount: monthGroups.reduce((n, g) => n + g.kpis.length, 0),
+    }));
 }
 
 /** Years available from KPI dates plus the current Karachi year. */

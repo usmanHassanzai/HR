@@ -13,9 +13,6 @@ import {
   shouldContinueGpsAfterLogout,
 } from '../utils/attendanceBackgroundSession';
 import { pingAttendanceBeforeLogout } from '../utils/geoAttendance';
-import { isAppShell } from '../utils/nativePlatform';
-import { clearRememberedLogin } from '../utils/rememberedLogin';
-import { forgetThisDeviceOnLogout } from '../utils/trustedDevice';
 
 interface HeaderProps {
   profile: Profile;
@@ -57,17 +54,7 @@ export default function Header({ profile, organizationName, onLogout, onNavigate
 
   const handleLogout = async () => {
     try {
-      const forgetTrust = window.confirm(
-        'Sign out & forget this device?\n\nOK = Sign out, revoke MFA trust'
-        + (isAppShell() ? ', and clear Remember me' : '')
-        + ' on this device.\nCancel = Sign out only (keep trusted device'
-        + (isAppShell() ? ' / Remember me' : '')
-        + ').',
-      );
-      if (forgetTrust) {
-        await forgetThisDeviceOnLogout().catch(() => undefined);
-        if (isAppShell()) await clearRememberedLogin();
-      }
+      // Sign out only — keep MFA trust / Remember me. Forget device is in Account Security.
       if (await shouldContinueGpsAfterLogout(profile)) {
         // Leave session + native GPS running; hide dashboard UI only.
         lockDashboardForGeo();
@@ -160,7 +147,7 @@ export default function Header({ profile, organizationName, onLogout, onNavigate
         type="button"
         className="app-header__icon-btn app-header__icon-btn--logout"
         onClick={() => void handleLogout()}
-        title="Sign out / Sign out & forget this device"
+        title="Sign out"
         aria-label="Sign out"
       >
         <LogOut size={17} />

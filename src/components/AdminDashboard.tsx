@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { supabase } from '../lib/supabase';
 import { Profile } from '../utils/kpiHelpers';
-import { Users, Loader2, AlertCircle, CheckCircle, Download, FileSpreadsheet, FileText, BarChart3, Trophy, CalendarCheck, MapPin, Radio, Building2, Settings, Shield, ClipboardList, Coins } from 'lucide-react';
+import { Users, Loader2, AlertCircle, CheckCircle, Download, FileSpreadsheet, FileText, BarChart2, BarChart3, Trophy, CalendarCheck, MapPin, Radio, Building2, Settings, Shield, ClipboardList, Coins } from 'lucide-react';
 import '../styles/admin-dashboard.css';
 import AdminResetPasswordModal from './AdminResetPasswordModal';
 import AdminEditUserModal from './AdminEditUserModal';
@@ -34,26 +34,28 @@ const OfficeLocationSettings = lazy(() => import('./OfficeLocationSettings'));
 const AdminLiveTracking = lazy(() => import('./AdminLiveTracking'));
 const DepartmentsAdminPanel = lazy(() => import('./DepartmentsAdminPanel'));
 const ManagerKpiConfig = lazy(() => import('./ManagerKpiConfig'));
+const ManagerPersonalPanel = lazy(() => import('./ManagerPersonalPanel'));
 const PlatformCompaniesConsole = lazy(() => import('./PlatformCompaniesConsole'));
 
 type AdminTab =
-  | 'users'
-  | 'kpis'
-  | 'export'
-  | 'analytics'
-  | 'settings'
-  | 'rewards'
-  | 'kpiPoints'
-  | 'attendance'
-  | 'office'
-  | 'tracking'
-  | 'departments'
-  | 'companies'
-  | 'dailyReports';
+    | 'mine'
+    | 'users'
+    | 'kpis'
+    | 'export'
+    | 'analytics'
+    | 'settings'
+    | 'rewards'
+    | 'kpiPoints'
+    | 'attendance'
+    | 'office'
+    | 'tracking'
+    | 'departments'
+    | 'companies'
+    | 'dailyReports';
 
 const ADMIN_TAB_KEY = 'scorr-admin-active-tab';
 const ADMIN_TABS: AdminTab[] = [
-  'users', 'kpis', 'export', 'analytics', 'settings', 'rewards', 'kpiPoints',
+  'mine', 'users', 'kpis', 'export', 'analytics', 'settings', 'rewards', 'kpiPoints',
   'attendance', 'office', 'tracking', 'departments', 'companies', 'dailyReports',
 ];
 
@@ -61,6 +63,7 @@ function initialAdminTab(isHr: boolean, platformOwner: boolean): AdminTab {
   const raw = readSessionString(ADMIN_TAB_KEY);
   if (raw && ADMIN_TABS.includes(raw as AdminTab)) {
     if (raw === 'companies' && !platformOwner) return isHr ? 'attendance' : 'users';
+    if (raw === 'mine' && !isHr) return 'users';
     return raw as AdminTab;
   }
   return isHr ? 'attendance' : 'users';
@@ -86,6 +89,7 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
   const [navOpen, setNavOpen] = useState(false);
   const [dailyReportUnread, setDailyReportUnread] = useState(0);
   const [viewTasksUser, setViewTasksUser] = useState<Profile | null>(null);
+  const [mineFocusKpiId, setMineFocusKpiId] = useState<string | null>(null);
   const [kpiNavState, setKpiNavState] = useState<{
     desk?: 'assign' | 'library' | 'board';
     userId?: string;
@@ -122,6 +126,9 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
     if (platformOwnerChecking) return;
     if (activeTab === 'companies' && !platformOwner) {
       setActiveTab(isHr ? 'attendance' : 'users');
+    }
+    if (activeTab === 'mine' && !isHr) {
+      setActiveTab('users');
     }
   }, [platformOwnerChecking, platformOwner, activeTab, isHr]);
 
@@ -209,6 +216,7 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
       if (!detail?.tab) return;
       const next = detail.tab === 'branding' ? 'settings' : detail.tab;
       if (!ADMIN_TABS.includes(next as AdminTab) && next !== 'settings') return;
+      if (next === 'mine' && !isHr) return;
 
       if (next === 'dailyReports') {
         setReportsNavState({ search: detail.search || undefined });
@@ -219,6 +227,9 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
           userId: detail.userId,
           kpiId: detail.kpiId,
         });
+      }
+      if (next === 'mine' && detail.kpiId) {
+        setMineFocusKpiId(detail.kpiId);
       }
       if (next === 'attendance') {
         setAttendanceNavState({
@@ -243,7 +254,7 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
     };
     window.addEventListener('scorr-open-admin-tab', openTab);
     return () => window.removeEventListener('scorr-open-admin-tab', openTab);
-  }, [markDailyReportNotificationsRead]);
+  }, [isHr, markDailyReportNotificationsRead]);
 
   const onDailyReportUnreadChange = useCallback((count: number) => {
     setDailyReportUnread(count);
@@ -315,6 +326,9 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
 
   const orgAdminTabs = useMemo(
     () => [
+      ...(isHr
+        ? [{ id: 'mine', label: 'My KPIs', icon: <BarChart2 size={18} />, description: 'Tasks assigned to you' }]
+        : []),
       { id: 'users', label: 'People', icon: <Users size={18} />, description: 'People, roles, and logins' },
       { id: 'kpis', label: 'Assign Task', icon: <ClipboardList size={18} />, description: 'KPIs assigned to one person' },
       { id: 'dailyReports', label: 'Daily Reports', icon: <FileText size={18} />, description: isHr ? 'My report & organization review' : 'Staff daily work logs', badge: dailyReportUnread },
@@ -597,6 +611,8 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
         <AdminLiveTracking />
       ) : activeTab === 'departments' ? (
         <DepartmentsAdminPanel />
+      ) : activeTab === 'mine' && isHr ? (
+        <ManagerPersonalPanel profile={profile} focusKpiId={mineFocusKpiId} />
       ) : activeTab === 'kpis' ? (
         <ManagerKpiConfig
           assignerId={profile.id}

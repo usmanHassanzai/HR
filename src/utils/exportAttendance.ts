@@ -1,5 +1,5 @@
 import { AttendanceRecord, ATTENDANCE_STATUS_LABEL, APPROVAL_LABEL } from './attendanceHelpers';
-import { TeamAttendanceHistoryRow } from './shiftHelpers';
+import { resolveEffectiveClockOut, TeamAttendanceHistoryRow } from './shiftHelpers';
 import { formatClockTime } from './geoAttendance';
 import { suggestBrowserTimeZone } from './ianaTimezones';
 import { utcToZonedWall } from './shiftMultiZone';
@@ -32,9 +32,10 @@ export function downloadAttendanceCsv(
   const zoneHeaders = zones.flatMap((z) => [`Clock In (${z})`, `Clock Out (${z})`]);
   const header = ['Employee', 'Date', 'Status', ...zoneHeaders, 'Source', 'Approval', 'Notes'].join(',');
   const rows = records.map((r) => {
+    const outAt = resolveEffectiveClockOut(r);
     const zoneCells = zones.flatMap((z) => [
       escapeCsv(clockInZone(r.clock_in_at, z)),
-      escapeCsv(clockInZone(r.clock_out_at, z)),
+      escapeCsv(clockInZone(outAt, z)),
     ]);
     return [
       escapeCsv(employeeName),
@@ -75,9 +76,10 @@ export function downloadTeamAttendanceCsv(
     'Notes',
   ].join(',');
   const csvRows = rows.map((r) => {
+    const outAt = resolveEffectiveClockOut(r);
     const zoneCells = zones.flatMap((z) => [
       escapeCsv(clockInZone(r.clock_in_at, z)),
-      escapeCsv(clockInZone(r.clock_out_at, z)),
+      escapeCsv(clockInZone(outAt, z)),
     ]);
     return [
       escapeCsv(r.employee_name),

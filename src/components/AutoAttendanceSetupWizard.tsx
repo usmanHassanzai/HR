@@ -74,12 +74,24 @@ function statusClass(s: StepStatus): string {
 export default function AutoAttendanceSetupWizard({
   onClose,
   onFinished,
+  /** Keep the wizard/status card inside Settings — never cover sibling sections. */
+  inline = true,
+  /** When enrolled: show only the compact ON status card (no step UI, never fullscreen). */
+  statusOnly = false,
+  /** Parent switches from status card → setup steps (e.g. “Fix a problem”). */
+  onFixProblem,
 }: {
   onClose?: () => void;
   onFinished?: () => void;
+  inline?: boolean;
+  statusOnly?: boolean;
+  onFixProblem?: () => void;
 }) {
   const native = isNativeApp();
   const desktop = isDesktopApp();
+  // Settings embeds status + steps as an inline card. Never use aas-wizard--fullscreen —
+  // that overlay hid Change password / Account security / Delete account on native.
+  void inline;
 
   const steps: StepDef[] = useMemo(() => {
     if (desktop) {
@@ -135,7 +147,7 @@ export default function AutoAttendanceSetupWizard({
   const [setup, setSetup] = useState<SetupStatus | null>(null);
   const [manufacturer, setManufacturer] = useState('');
   const [networkMsg, setNetworkMsg] = useState('');
-  const [finished, setFinished] = useState(false);
+  const [finished, setFinished] = useState(statusOnly);
   const [finishMeta, setFinishMeta] = useState<{
     status: string;
     lastCheck: string;
@@ -235,13 +247,18 @@ export default function AutoAttendanceSetupWizard({
   }, [current?.id, goTo, native, setStepStatus, stepIndex]);
 
   useEffect(() => {
+    if (statusOnly) {
+      setFinished(true);
+      clearSetupProgress();
+      return;
+    }
     void isDeviceAlreadyEnrolled().then((ok) => {
       if (ok) {
         setFinished(true);
         clearSetupProgress();
       }
     });
-  }, []);
+  }, [statusOnly]);
 
   useEffect(() => {
     if (!native) return;
@@ -400,54 +417,72 @@ export default function AutoAttendanceSetupWizard({
   };
 
   const turnOff = async () => {
-    await disableAutoAttendanceOnDevice(desktop ? 'laptop' : 'phone');
-    setFinished(false);
-    goTo(0);
-    onClose?.();
+    setBusyText('Turning off automatic attendance…');
+    setError('');
+    try {
+      await disableAutoAttendanceOnDevice(desktop ? 'laptop' : 'phone');
+      clearSetupProgress();
+      // Parent unmounts this status card and shows “Set up” again. Do not flip to
+      // step UI here — that briefly replaced siblings / looked like a stuck wizard.
+      if (!statusOnly) {
+        setFinished(false);
+        setStatuses({});
+        goTo(0);
+      }
+      onFinished?.();
+      onClose?.();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusyText('');
+    }
   };
 
   if (finished) {
     return (
-      <div className={`aas-wizard ${native ? 'aas-wizard--fullscreen' : ''}`}>
-        <div className="aas-finish">
-          <div className="aas-finish__card">
-            <h3>Automatic attendance is ON on this {desktop ? 'laptop' : 'phone'}</h3>
-            <p className="aas-finish__meta">
-              Current status: {finishMeta.status}
-              <br />
-              Last check: {finishMeta.lastCheck}
-              {finishMeta.testResult ? (
-                <>
-                  <br />
-                  {finishMeta.testResult}
-                </>
-              ) : null}
-            </p>
-          </div>
-          <div className="aas-finish__actions">
-            <button type="button" className="btn btn-primary" onClick={() => void testNow()}>
-              Test now
-            </button>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => {
-                setFinished(false);
-                goTo(0);
-              }}
-            >
-              Fix a problem
-            </button>
-            <button type="button" className="btn btn-secondary" onClick={() => void turnOff()}>
-              Turn off on this {desktop ? 'laptop' : 'phone'}
-            </button>
-            {onClose && (
-              <button type="button" className="btn btn-secondary" onClick={onClose}>
-                Close
-              </button>
-            )}
-          </div>
+      <div className="aas-finish aas-finish--inline">
+        <div className="aas-finish__card">
+          <h3>Automatic attendance is ON on this {desktop ? 'laptop' : 'phone'}</h3>
+          <p className="aas-finish__meta">
+            Current status: {finishMeta.status}
+            <br />
+            Last check: {finishMeta.lastCheck}
+            {finishMeta.testResult ? (
+              <>
+                <br />
+                {finishMeta.testResult}
+              </>
+            ) : null}
+          </p>
         </div>
+        <div className="aas-finish__actions">
+          <button type="button" className="btn btn-primary" onClick={() => void testNow()}>
+            Test now
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => {
+              if (onFixProblem) {
+                onFixProblem();
+                return;
+              }
+              setFinished(false);
+              goTo(0);
+            }}
+          >
+            Fix a problem
+          </button>
+          <button type="button" className="btn btn-secondary" onClick={() => void turnOff()}>
+            Turn off on this {desktop ? 'laptop' : 'phone'}
+          </button>
+        </div>
+        {busyText ? (
+          <p className="aas-busy-line">
+            <Loader2 size={14} className="spin-icon" /> {busyText}
+          </p>
+        ) : null}
+        {error ? <p className="aas-error">{error}</p> : null}
       </div>
     );
   }
@@ -455,7 +490,7 @@ export default function AutoAttendanceSetupWizard({
   const progressPct = ((stepIndex + 1) / steps.length) * 100;
 
   return (
-    <div className={`aas-wizard ${native ? 'aas-wizard--fullscreen' : ''}`}>
+    <div className="aas-wizard aas-wizard--inline">
       <div className="aas-wizard__header">
         <h2 className="aas-wizard__title">Set up automatic attendance</h2>
         <p className="aas-wizard__progress-label">

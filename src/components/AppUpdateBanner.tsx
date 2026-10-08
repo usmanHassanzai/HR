@@ -1,141 +1,172 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Download, RefreshCw, X } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   applyNativeUpdate,
-  dismissUpdate,
+  DAILY_UPDATE_HOUR,
   evaluateUpdate,
   hardRefreshWeb,
-  isUpdateDismissed,
   markUpdateChecked,
-  shouldRunPeriodicCheck,
+  msUntilNextDailyUpdateCheck,
+  shouldRunDailyUpdateCheck,
   type UpdateAction,
 } from '../utils/appUpdate';
 import { isDesktopApp } from '../utils/nativePlatform';
 
-const DAILY_MS = 24 * 60 * 60 * 1000;
-const DESKTOP_MS = 6 * 60 * 60 * 1000;
+const AUTO_APPLIED_KEY = 'scorr-auto-applied-update';
+
+function actionKey(next: UpdateAction): string {
+  if (next.kind === 'refresh') return `refresh:${next.remoteBuildId}`;
+  if (next.kind === 'native') return `native:${next.platform}:${next.version}`;
+  return 'none';
+}
+
+function alreadyAutoApplied(key: string): boolean {
+  try {
+    return sessionStorage.getItem(AUTO_APPLIED_KEY) === key;
+  } catch {
+    return false;
+  }
+}
+
+function markAutoApplied(key: string) {
+  try {
+    sessionStorage.setItem(AUTO_APPLIED_KEY, key);
+  } catch {
+    /* ignore */
+  }
+}
 
 export default function AppUpdateBanner({ forceCheck = false }: { forceCheck?: boolean }) {
   const [action, setAction] = useState<UpdateAction>({ kind: 'none' });
-  const [busy, setBusy] = useState(false);
   const [note, setNote] = useState('');
+  const applyingRef = useRef(false);
+  const desktopInstallStartedRef = useRef(false);
 
-  const runCheck = useCallback(async (forced = false) => {
-    const interval = isDesktopApp() ? DESKTOP_MS : DAILY_MS;
-    if (!forced && !shouldRunPeriodicCheck(interval) && !forceCheck) return;
-    const next = await evaluateUpdate();
-    markUpdateChecked();
-    if (next.kind === 'none') {
+  const autoApply = useCallback(async (next: UpdateAction) => {
+    if (next.kind === 'none') return;
+
+    const key = actionKey(next);
+    const desktopInstallReady =
+      next.kind === 'native' &&
+      (next.platform === 'windows' || next.platform === 'linux') &&
+      (next.message === 'Updating…' || next.message === 'Restart to update');
+
+    if (desktopInstallReady) {
+      if (desktopInstallStartedRef.current) return;
+      desktopInstallStartedRef.current = true;
+      applyingRef.current = true;
       setAction(next);
+      setNote('Updating…');
+      if (window.scorrDesktop?.quitAndInstall) {
+        window.setTimeout(() => {
+          void Promise.resolve(window.scorrDesktop?.quitAndInstall?.()).catch(() => {
+            desktopInstallStartedRef.current = false;
+            applyingRef.current = false;
+            setNote('Update ready — will install when Scorr quits.');
+          });
+        }, 400);
+      }
       return;
     }
-    const key =
-      next.kind === 'refresh'
-        ? `refresh:${next.remoteBuildId}`
-        : `native:${next.platform}:${next.version}`;
-    if (!next.mandatory && isUpdateDismissed(key) && !forced) return;
+
+    if (applyingRef.current || alreadyAutoApplied(key)) return;
+    applyingRef.current = true;
+    markAutoApplied(key);
     setAction(next);
-  }, [forceCheck]);
+    setNote('Updating…');
+
+    if (next.kind === 'refresh') {
+      window.setTimeout(() => hardRefreshWeb(), 500);
+      return;
+    }
+
+    if (next.kind === 'native') {
+      try {
+        const msg = await applyNativeUpdate(next);
+        setNote(
+          next.platform === 'android'
+            ? 'Downloading update… Confirm Install when Android asks.'
+            : msg || 'Updating…',
+        );
+      } catch (e) {
+        setNote(e instanceof Error ? e.message : 'Update failed.');
+        applyingRef.current = false;
+      }
+    }
+  }, []);
+
+  const runCheck = useCallback(
+    async (forced = false) => {
+      if (!forced && !shouldRunDailyUpdateCheck(DAILY_UPDATE_HOUR) && !forceCheck) return;
+      const next = await evaluateUpdate();
+      markUpdateChecked();
+      if (next.kind === 'none') {
+        setAction(next);
+        return;
+      }
+      void autoApply(next);
+    },
+    [autoApply, forceCheck],
+  );
 
   useEffect(() => {
-    void runCheck(forceCheck);
+    // Catch-up: if we missed today's 5 AM window (app was closed), check now.
+    if (forceCheck || shouldRunDailyUpdateCheck(DAILY_UPDATE_HOUR)) {
+      void runCheck(true);
+    }
+
+    let dailyTimer: number | null = null;
+    const armDailyTimer = () => {
+      if (dailyTimer != null) window.clearTimeout(dailyTimer);
+      dailyTimer = window.setTimeout(() => {
+        void runCheck(true).finally(() => armDailyTimer());
+      }, msUntilNextDailyUpdateCheck(DAILY_UPDATE_HOUR));
+    };
+    armDailyTimer();
+
+    // When the laptop wakes, run if the 5 AM window is due.
     const onVis = () => {
-      if (document.visibilityState === 'visible') void runCheck(false);
+      if (document.visibilityState !== 'visible') return;
+      if (!shouldRunDailyUpdateCheck(DAILY_UPDATE_HOUR)) return;
+      void runCheck(true);
     };
     document.addEventListener('visibilitychange', onVis);
+
     let unsub: (() => void) | undefined;
     if (isDesktopApp() && window.scorrDesktop?.onUpdateReady) {
       unsub = window.scorrDesktop.onUpdateReady((payload) => {
-        setAction({
+        void autoApply({
           kind: 'native',
           platform: navigator.userAgent.toLowerCase().includes('windows') ? 'windows' : 'linux',
-          message: 'Restart to update',
+          message: 'Updating…',
           notes: payload?.message || `Version ${payload?.version || ''} is ready.`,
-          mandatory: false,
+          mandatory: true,
           version: payload?.version || '',
           installUrl: '',
           canAutoInstall: true,
         });
-        setNote('Update downloaded. Restart Scorr to finish.');
       });
     }
     return () => {
+      if (dailyTimer != null) window.clearTimeout(dailyTimer);
       document.removeEventListener('visibilitychange', onVis);
       unsub?.();
     };
-  }, [forceCheck, runCheck]);
+  }, [autoApply, forceCheck, runCheck]);
 
   if (action.kind === 'none') return null;
 
-  const mandatory = action.mandatory;
-  const dismissKey =
-    action.kind === 'refresh'
-      ? `refresh:${action.remoteBuildId}`
-      : `native:${action.platform}:${action.version}`;
-
   return (
-    <div
-      className={`app-update-banner${mandatory ? ' app-update-banner--mandatory' : ''}`}
-      role="status"
-    >
+    <div className="app-update-banner app-update-banner--applying" role="status" aria-live="polite">
       <div className="app-update-banner__body">
-        <strong>{action.message}</strong>
-        {action.kind === 'native' && action.notes ? (
-          <span className="app-update-banner__notes">{action.notes}</span>
-        ) : (
-          <span className="app-update-banner__notes">
-            {action.kind === 'refresh'
-              ? 'A newer web build is live. Refresh to load it — your login stays signed in.'
-              : null}
-          </span>
-        )}
-        {note && <span className="app-update-banner__notes">{note}</span>}
-      </div>
-      <div className="app-update-banner__actions">
-        {action.kind === 'refresh' && (
-          <button type="button" className="btn btn-primary btn-sm" onClick={() => hardRefreshWeb()}>
-            <RefreshCw size={14} /> Refresh
-          </button>
-        )}
-        {action.kind === 'native' && (
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            disabled={busy}
-            onClick={() => {
-              setBusy(true);
-              if (action.message === 'Restart to update' && window.scorrDesktop?.quitAndInstall) {
-                void Promise.resolve(window.scorrDesktop.quitAndInstall()).finally(() => setBusy(false));
-                return;
-              }
-              void applyNativeUpdate(action)
-                .then((msg) => setNote(msg))
-                .finally(() => setBusy(false));
-            }}
-          >
-            <Download size={14} />{' '}
-            {busy
-              ? 'Working…'
-              : action.message === 'Restart to update'
-                ? 'Restart to update'
-                : action.platform === 'linux' && !action.canAutoInstall
-                  ? 'Download'
-                  : 'Install update'}
-          </button>
-        )}
-        {!mandatory && (
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            aria-label="Dismiss"
-            onClick={() => {
-              dismissUpdate(dismissKey);
-              setAction({ kind: 'none' });
-            }}
-          >
-            <X size={14} />
-          </button>
-        )}
+        <strong>Updating…</strong>
+        <span className="app-update-banner__notes">
+          {note ||
+            (action.kind === 'refresh'
+              ? 'Loading the latest web build. Your login stays signed in.'
+              : action.kind === 'native' && action.platform === 'android'
+                ? 'Preparing the APK. Android may ask you to confirm Install once.'
+                : 'Installing in the background. Login and attendance stay intact.')}
+        </span>
       </div>
     </div>
   );

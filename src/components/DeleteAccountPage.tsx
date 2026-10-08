@@ -6,22 +6,42 @@ import { supabase } from '../lib/supabase';
 import DeleteAccountSection from './DeleteAccountSection';
 import '../styles/landing.css';
 
+type PortalRole = 'admin' | 'hr' | 'manager' | 'employee' | string;
+
 /**
  * Public App Store / Play Store account-deletion instructions + signed-in delete form.
  * Route: /delete-account
+ * In-app delete UI is only offered for admin/HR; employees and managers see policy + support contact.
  */
 export default function DeleteAccountPage() {
   const [checking, setChecking] = useState(true);
   const [signedIn, setSignedIn] = useState(false);
+  const [role, setRole] = useState<PortalRole | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!cancelled) setSignedIn(Boolean(session?.user));
+        if (!session?.user) {
+          if (!cancelled) {
+            setSignedIn(false);
+            setRole(null);
+          }
+          return;
+        }
+        if (!cancelled) setSignedIn(true);
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .maybeSingle();
+        if (!cancelled) setRole((profile?.role as PortalRole | undefined) ?? null);
       } catch {
-        if (!cancelled) setSignedIn(false);
+        if (!cancelled) {
+          setSignedIn(false);
+          setRole(null);
+        }
       } finally {
         if (!cancelled) setChecking(false);
       }
@@ -30,6 +50,9 @@ export default function DeleteAccountPage() {
       cancelled = true;
     };
   }, []);
+
+  const canSelfDelete = role === 'admin' || role === 'hr';
+  const staffBlocked = signedIn && (role === 'employee' || role === 'manager');
 
   return (
     <div className="landing-page" style={{ minHeight: '100vh' }}>
@@ -81,13 +104,13 @@ export default function DeleteAccountPage() {
               Sign in at <a href="/#login">scorr.walfia.ai</a> or in the Scorr iOS / Android app.
             </li>
             <li style={{ marginBottom: '0.55rem' }}>
-              Open <strong>Settings</strong> (Account security).
-            </li>
-            <li style={{ marginBottom: '0.55rem' }}>
-              Choose <strong>Delete my account</strong>, type <strong>DELETE</strong>, and confirm with your password.
+              <strong>Admins and HR:</strong> open <strong>Settings</strong>, choose <strong>Delete my account</strong>,
+              type <strong>DELETE</strong>, and confirm with your password — or use the signed-in form on this page below.
             </li>
             <li>
-              Or use the signed-in form on this page below.
+              <strong>Employees and managers:</strong> email{' '}
+              <a href="mailto:info@walfia.ai">info@walfia.ai</a> from the address on your account.
+              We will process deletion within 30 days.
             </li>
           </ol>
         </section>
@@ -117,17 +140,33 @@ export default function DeleteAccountPage() {
             <div style={{ display: 'flex', justifyContent: 'center', padding: '1rem' }}>
               <Loader2 className="spin-icon" size={22} />
             </div>
-          ) : signedIn ? (
+          ) : staffBlocked ? (
+            <div>
+              <p style={{ margin: '0 0 1rem', color: 'var(--text-secondary)', fontSize: '0.92rem', lineHeight: 1.5 }}>
+                Self-service account deletion is not available for employee or manager accounts in the app.
+                Email <a href="mailto:info@walfia.ai">info@walfia.ai</a> from the address on your account and we
+                will process deletion within 30 days.
+              </p>
+            </div>
+          ) : signedIn && canSelfDelete ? (
             <DeleteAccountSection
               embedded
               onDeleted={() => {
                 window.location.assign('/?deleted=1');
               }}
             />
+          ) : signedIn ? (
+            <div>
+              <p style={{ margin: '0 0 1rem', color: 'var(--text-secondary)', fontSize: '0.92rem', lineHeight: 1.5 }}>
+                Self-service deletion is available for admin and HR accounts. Email{' '}
+                <a href="mailto:info@walfia.ai">info@walfia.ai</a> if you need help removing this account.
+              </p>
+            </div>
           ) : (
             <div>
               <p style={{ margin: '0 0 1rem', color: 'var(--text-secondary)', fontSize: '0.92rem', lineHeight: 1.5 }}>
-                Sign in with the account you want to remove, then return here or use Settings → Delete my account.
+                Sign in with an admin or HR account to use the delete form, or email support from the address on
+                your account.
               </p>
               <a href="/#login" className="btn btn-primary">
                 Sign in to continue

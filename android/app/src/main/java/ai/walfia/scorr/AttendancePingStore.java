@@ -63,8 +63,22 @@ final class AttendancePingStore {
             .apply();
     }
 
+    /**
+     * Clear auto-attendance enrollment only.
+     * Remember-me login + MFA trusted-device tokens must survive stop/unenroll
+     * and session-timeout sign-out (they have dedicated clear APIs).
+     */
     static void clear(Context ctx) {
-        prefs(ctx).edit().clear().apply();
+        SharedPreferences p = prefs(ctx);
+        String loginEmail = p.getString("login_email", null);
+        String loginPassword = p.getString("login_password", null);
+        String trusted = p.getString("trusted_device_token", null);
+        p.edit().clear().apply();
+        SharedPreferences.Editor restore = prefs(ctx).edit();
+        if (loginEmail != null) restore.putString("login_email", loginEmail);
+        if (loginPassword != null) restore.putString("login_password", loginPassword);
+        if (trusted != null) restore.putString("trusted_device_token", trusted);
+        restore.apply();
     }
 
     static void setEnabled(Context ctx, boolean enabled) {

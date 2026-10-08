@@ -100,7 +100,7 @@ const SECURITY_POINTS = [
   {
     icon: Clock,
     title: '1-hour sessions',
-    desc: 'Web, Android, iPhone, and desktop sessions end after one hour from sign-in. Sign out & forget this device clears a trusted-device token when you leave a shared computer.',
+    desc: 'Web, Android, iPhone, and desktop sessions end after one hour from sign-in. Use Account Security to forget a trusted device when you leave a shared computer.',
   },
 ];
 

@@ -5,14 +5,13 @@ import { hydrateKpiLastEdits } from '../utils/kpiAssignmentEdits';
 import { markAssignedKpisViewed } from '../utils/kpiViewed';
 import { formatKpiWeight, KPI_WEIGHT_CAP } from '../utils/kpiWeightHelpers';
 import {
-  completedKpisForPeriod,
   groupCompletedKpisByMonth,
-  isKpiLatePenaltyApplied,
+  historyKpisForPeriod,
+  kpiCompletionTimestamp,
   kpisForPeriod,
   periodLabel,
   type KpiPeriodMode,
 } from '../utils/kpiScoreHelpers';
-import { displayedAwardedWeightage } from '../utils/weightageReveal';
 import { emailKpiOverdue } from '../utils/kpiEmail';
 import { runOverdueKpiCheckOnce } from '../utils/overdueKpiCheck';
 import KpiAssignmentDetails from './KpiAssignmentDetails';
@@ -20,9 +19,11 @@ import KpiViewedBadge from './KpiViewedBadge';
 import KpiEvaluationBlock from './KpiEvaluationBlock';
 import KpiScoreboardSummary from './KpiScoreboardSummary';
 import AssignedTaskHistory from './AssignedTaskHistory';
+import CurrentMonthCompletedTasks from './CurrentMonthCompletedTasks';
 import { karachiYearMonth, kpiCategoryMeta } from '../utils/kpiCategories';
 import { formatLatePenaltyLabel, kpiScoringRule } from '../utils/kpiScoringRules';
 import { fetchRewardsSummary, type RewardsSummary } from '../utils/rewardsHelpers';
+import { displayedAwardedWeightage } from '../utils/weightageReveal';
 import {
   BarChart2,
   CheckCircle2,
@@ -183,9 +184,10 @@ export default function ManagerPersonalPanel({ profile, focusKpiId }: ManagerPer
       ),
     [visibleKpis],
   );
+  /** History: completed only in the selected calendar month/year (not date-span). */
   const historyKpis = useMemo(() => {
     const q = kpiSearch.trim().toLowerCase();
-    let list = completedKpisForPeriod(kpis, periodMode, filterYear, filterMonth);
+    let list = historyKpisForPeriod(kpis, periodMode, filterYear, filterMonth);
     if (q) {
       list = list.filter((k) => {
         const hay = `${k.name} ${k.description || ''} ${kpiCategoryMeta(k.kpi_category).label}`.toLowerCase();
@@ -193,8 +195,8 @@ export default function ManagerPersonalPanel({ profile, focusKpiId }: ManagerPer
       });
     }
     return [...list].sort((a, b) => {
-      const aKey = a.completed_at || a.end_date || '';
-      const bKey = b.completed_at || b.end_date || '';
+      const aKey = kpiCompletionTimestamp(a) || '';
+      const bKey = kpiCompletionTimestamp(b) || '';
       return bKey.localeCompare(aKey);
     });
   }, [kpis, periodMode, filterYear, filterMonth, kpiSearch]);
@@ -298,6 +300,8 @@ export default function ManagerPersonalPanel({ profile, focusKpiId }: ManagerPer
         )}
       />
 
+      {kpis.length > 0 ? <CurrentMonthCompletedTasks kpis={kpis} /> : null}
+
       {kpis.length === 0 ? (
         <div className="mgr-personal-empty glass-panel">
           <Target size={36} strokeWidth={1.35} />
@@ -365,12 +369,12 @@ export default function ManagerPersonalPanel({ profile, focusKpiId }: ManagerPer
             ) : (
               <AssignedTaskHistory
                 groups={historyGroups}
+                deferAwardedUntilMonthEnd
                 renderTask={(kpi) => {
                   const badge = kpiProgressBadge(kpi);
-                  const latePenalized = isKpiLatePenaltyApplied(kpi);
                   const penaltyLabel = formatLatePenaltyLabel(kpiScoringRule(kpi));
-                  const historyDate = kpi.completed_at || kpi.end_date;
-                  const revealed = displayedAwardedWeightage(kpi, { deferUntilMonthEnd: true });
+                  const historyDate = kpiCompletionTimestamp(kpi);
+                  const awarded = displayedAwardedWeightage(kpi, { deferUntilMonthEnd: true });
                   return (
                     <article
                       key={kpi.id}
@@ -391,24 +395,17 @@ export default function ManagerPersonalPanel({ profile, focusKpiId }: ManagerPer
                           <dt>KPI weightage</dt>
                           <dd>{formatKpiWeight(kpi.weight)}</dd>
                         </div>
-                        <div>
-                          <dt>Achieved</dt>
-                          <dd>
-                            {revealed != null
-                              ? formatKpiWeight(revealed)
-                              : 'Posts at month end'}
-                          </dd>
-                        </div>
+                        {awarded != null ? (
+                          <div>
+                            <dt>Awarded</dt>
+                            <dd>{formatKpiWeight(awarded)}</dd>
+                          </div>
+                        ) : null}
                         <div>
                           <dt>Approved</dt>
                           <dd>{fmtFullDate(historyDate)}</dd>
                         </div>
                       </dl>
-                      <p className="kpi-score-line">
-                        {revealed != null
-                          ? `Awarded ${formatKpiWeight(revealed)}${latePenalized ? ' (late)' : ''}`
-                          : 'Approved — weightage posts on the last day of the month'}
-                      </p>
                       <KpiAssignmentDetails kpi={kpi} />
                     </article>
                   );
@@ -429,7 +426,11 @@ export default function ManagerPersonalPanel({ profile, focusKpiId }: ManagerPer
             listedKpis.map((kpi) => {
               const badge = kpiProgressBadge(kpi);
               const awaitingReview = kpi.completion_status === 'pending_review';
+              const complete = kpi.completion_status === 'completed';
               const penaltyLabel = formatLatePenaltyLabel(kpiScoringRule(kpi));
+              const awarded = complete
+                ? displayedAwardedWeightage(kpi, { deferUntilMonthEnd: true })
+                : null;
               return (
                 <article
                   key={kpi.id}
@@ -451,19 +452,25 @@ export default function ManagerPersonalPanel({ profile, focusKpiId }: ManagerPer
                       <dt>KPI weightage</dt>
                       <dd>{formatKpiWeight(kpi.weight)}</dd>
                     </div>
-                    <div>
-                      <dt>Achieved</dt>
-                      <dd>{awaitingReview ? 'Awaiting review' : '—'}</dd>
-                    </div>
+                    {awarded != null ? (
+                      <div>
+                        <dt>Awarded</dt>
+                        <dd>{formatKpiWeight(awarded)}</dd>
+                      </div>
+                    ) : null}
                     <div>
                       <dt>Dates</dt>
                       <dd>{dateRange(kpi.start_date, kpi.end_date)}</dd>
                     </div>
                   </dl>
                   <p className="kpi-score-line">
-                    {awaitingReview
-                      ? 'Submitted — waiting for review before weightage is awarded'
-                      : 'Weightage is awarded after you mark Complete and a reviewer approves'}
+                    {complete
+                      ? (awarded != null
+                        ? `Awarded ${formatKpiWeight(awarded)}`
+                        : 'Awarded weightage posts on the last day of the month')
+                      : awaitingReview
+                        ? 'Submitted — waiting for review'
+                        : `Assigned weightage ${formatKpiWeight(kpi.weight)} — awarded after approval`}
                   </p>
                   <KpiAssignmentDetails kpi={kpi} />
                   <KpiEvaluationBlock

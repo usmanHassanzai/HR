@@ -156,7 +156,8 @@ export function resolveNotificationNav(
       'kpi removed',
     ])
   ) {
-    if (r === 'admin' || r === 'hr') return withMeta({ role: 'admin', tab: 'kpis', desk: meta.desk || 'board' }, meta);
+    if (r === 'hr') return withMeta({ role: 'admin', tab: 'mine' }, meta);
+    if (r === 'admin') return withMeta({ role: 'admin', tab: 'kpis', desk: meta.desk || 'board' }, meta);
     if (r === 'manager') return withMeta({ role: 'manager', tab: 'mine' }, meta);
     return withMeta({ role: 'employee', tab: 'kpis' }, meta);
   }
@@ -182,7 +183,14 @@ export function resolveNotificationNav(
       'completed kpi',
     ])
   ) {
-    if (r === 'admin' || r === 'hr') {
+    if (r === 'hr') {
+      if (includesAny(text, ['assigned to you', 'were assigned', 'new kpi assigned', 'kpi completed', 'kpi approved', 'kpi sent back'])) {
+        return withMeta({ role: 'admin', tab: 'mine' }, meta);
+      }
+      // HR reviewing others' tasks still opens Assign Task / board
+      return withMeta({ role: 'admin', tab: 'kpis', desk: meta.desk || 'board' }, meta);
+    }
+    if (r === 'admin') {
       return withMeta({ role: 'admin', tab: 'kpis', desk: meta.desk || 'board' }, meta);
     }
     if (r === 'manager') {

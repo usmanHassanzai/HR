@@ -19,7 +19,7 @@ type ScorrDesktopApi = {
   getAutoLaunch?: () => Promise<{ enabled?: boolean }> | { enabled?: boolean };
   checkForUpdates?: () => Promise<{ ok?: boolean; message?: string }>;
   quitAndInstall?: () => Promise<{ ok?: boolean }> | { ok?: boolean };
-  onUpdateReady?: (cb: (payload: { version?: string; message?: string }) => void) => () => void;
+  onUpdateReady?: (cb: (payload: { version?: string; message?: string; autoInstall?: boolean }) => void) => () => void;
 };
 
 declare global {

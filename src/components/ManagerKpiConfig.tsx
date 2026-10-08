@@ -13,7 +13,6 @@ import AssignedKpiCard from './AssignedKpiCard';
 import AssignedTaskHistory from './AssignedTaskHistory';
 import EmployeeKpiBoardSummary from './EmployeeKpiBoardSummary';
 import { KPI_CATEGORIES, kpiCategoryMeta, type KpiCategoryId } from '../utils/kpiCategories';
-import { groupCompletedKpisByMonth } from '../utils/kpiScoreHelpers';
 import {
   DEFAULT_KPI_SCORING_RULE,
   formatLatePenaltyLabel,
@@ -681,11 +680,6 @@ export default function ManagerKpiConfig({
       }),
     [boardKpis],
   );
-  const boardCompletedGroups = useMemo(
-    () => groupCompletedKpisByMonth(boardCompletedKpis),
-    [boardCompletedKpis],
-  );
-
   useEffect(() => {
     setBoardTaskView('progress');
   }, [boardUserId]);
@@ -1826,13 +1820,16 @@ export default function ManagerKpiConfig({
                                 <p className="studio-board-section__kicker">Completed</p>
                                 <h4>Completed KPIs &amp; tasks</h4>
                                 <p className="studio-board-section__desc">
-                                  Every approved KPI for this person, grouped by month — newest months first.
+                                  Approved work for this person — browse by Overall, Month, or Year. Months nest under each year.
                                 </p>
                               </div>
                               <span className="studio-board-section__count">{boardCompletedKpis.length}</span>
                             </header>
                             <AssignedTaskHistory
-                              groups={boardCompletedGroups}
+                              key={boardUserId || 'board-history'}
+                              completedKpis={boardCompletedKpis}
+                              periodBrowse
+                              deferAwardedUntilMonthEnd={false}
                               renderTask={(kpi) => (
                                 <AssignedKpiCard
                                   kpi={kpi}

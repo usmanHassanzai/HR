@@ -292,17 +292,22 @@ export default function OfficeLocationSettings() {
           if (!candidateIps.some((ip) => ips.includes(ip))) continue;
           const bssids = splitList(n.wifi_bssids).map((b) => b.toLowerCase());
           const ssids = splitList(n.ssid);
+          const ssidOk =
+            ssids.length === 0 ||
+            (Boolean(probed.ssid) &&
+              ssids.some((s) => s.toLowerCase() === probed.ssid.toLowerCase()));
           if (bssids.length) {
+            // Prefer BSSID when the device can read it; otherwise same IP + SSID still matches
+            // (browsers / some OS builds often omit BSSID).
             if (probed.bssid && bssids.includes(probed.bssid.toLowerCase())) {
               matchedLabel = n.label || 'Untitled';
               break;
             }
-          } else if (ssids.length) {
-            if (probed.ssid && ssids.includes(probed.ssid)) {
+            if (!probed.bssid && ssidOk) {
               matchedLabel = n.label || 'Untitled';
               break;
             }
-          } else {
+          } else if (ssidOk) {
             matchedLabel = n.label || 'Untitled';
             break;
           }
