@@ -1,14 +1,24 @@
 /**
  * Automatic attendance for the iPhone/iPad Home Screen app.
- * Same device-token GPS pings as the Android app: check in inside the office,
- * check out when the fix is outside. A Home Screen app cannot run in the
- * background. Scorr checks on open and every 60 seconds while it stays open.
+ * No background execution — checks on open, visibility/focus/reconnect,
+ * and every 60s while open. Matches Android payload rules for items
+ * 4, 5, 6, 9, 11, 12, 13 (foreground-only equivalent).
  */
 import { isIosHomeScreen } from './nativePlatform';
-import { getAttendanceDeviceToken, sendAutoAttendanceEvent } from './attendanceDevice';
+import {
+  fetchAttendanceSchedule,
+  getAttendanceDeviceToken,
+  sendAutoAttendanceEvent,
+} from './attendanceDevice';
+import {
+  ATTENDANCE_EVENT_MAX_AGE_MS,
+  isAttendanceEventFresh,
+  logStaleAttendanceDrop,
+} from './attendanceStaleQueue';
 
 const MIN_GAP_MS = 45_000;
 const MOVE_METERS = 40;
+const OFFICE_VERSION_KEY = 'scorr_att_office_version_ios_home';
 
 let watchId: number | null = null;
 let timer: ReturnType<typeof setInterval> | null = null;
@@ -30,40 +40,174 @@ function metersBetween(aLat: number, aLng: number, bLat: number, bLng: number): 
   return 2 * r * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
-async function readPosition(): Promise<GeolocationPosition> {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error('Location is not available'));
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(resolve, reject, {
-      enableHighAccuracy: true,
-      timeout: 20_000,
-      maximumAge: 0,
-    });
-  });
+function storedOfficeVersion(): number {
+  try {
+    return Number(localStorage.getItem(OFFICE_VERSION_KEY) || 0) || 0;
+  } catch {
+    return 0;
+  }
 }
 
-async function sendFix(pos: GeolocationPosition, force: boolean): Promise<void> {
-  const lat = pos.coords.latitude;
-  const lng = pos.coords.longitude;
-  const moved =
-    lastLat == null || lastLng == null || metersBetween(lastLat, lastLng, lat, lng) >= MOVE_METERS;
-  if (!force && !moved && Date.now() - lastSentAt < MIN_GAP_MS) return;
+function saveOfficeVersion(v: number): void {
+  try {
+    localStorage.setItem(OFFICE_VERSION_KEY, String(v));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Fresh event time — never trust a stale GPS fix timestamp. */
+function freshOccurredMs(pos: GeolocationPosition | null): number {
+  const now = Date.now();
+  if (!pos) return now;
+  const t = pos.timestamp;
+  if (!Number.isFinite(t) || t <= 0) return now;
+  if (now - t > 2 * 60 * 1000 || t - now > 60 * 1000) return now;
+  return t;
+}
+
+async function readPositionOrNull(timeoutMs = 3000): Promise<GeolocationPosition | null> {
+  if (!navigator.geolocation) return null;
+  try {
+    return await Promise.race([
+      new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: timeoutMs,
+          maximumAge: 0,
+        });
+      }),
+      new Promise<null>((resolve) => {
+        window.setTimeout(() => resolve(null), timeoutMs);
+      }),
+    ]);
+  } catch {
+    return null;
+  }
+}
+
+/** Up to 3 fresh readings within ~15s until accuracy ≤ maxAcc. */
+async function readPositionWithAccuracyRetries(maxAcc: number): Promise<GeolocationPosition | null> {
+  let best: GeolocationPosition | null = null;
+  for (let i = 0; i < 3; i++) {
+    const pos = await readPositionOrNull(5_000);
+    if (pos) {
+      if (!best || (pos.coords.accuracy ?? 9999) < (best.coords.accuracy ?? 9999)) best = pos;
+      if ((pos.coords.accuracy ?? 9999) <= maxAcc) return pos;
+    }
+  }
+  return best;
+}
+
+async function syncOfficeVersion(): Promise<void> {
+  try {
+    const sched = await fetchAttendanceSchedule();
+    if (!sched || typeof sched !== 'object') return;
+    let next = Number((sched as { office_version?: number }).office_version || 0) || 0;
+    const zones = (sched as { zones?: Array<{ office_version?: number; radius_meters?: number }> }).zones;
+    if (Array.isArray(zones)) {
+      for (const z of zones) {
+        next = Math.max(next, Number(z.office_version || 0) || 0);
+      }
+    }
+    const prev = storedOfficeVersion();
+    if (next > 0 && next !== prev) {
+      saveOfficeVersion(next);
+      console.info('[scorr-att] ios-home office_version changed', { prev, next });
+    } else if (next > 0) {
+      saveOfficeVersion(next);
+    }
+  } catch {
+    /* keep cached */
+  }
+}
+
+function applyOfficeVersionFromEvent(res: Record<string, unknown> | null): void {
+  if (!res) return;
+  let next = Number(res.office_version || 0) || 0;
+  const zones = res.zones;
+  if (Array.isArray(zones)) {
+    for (const z of zones) {
+      if (z && typeof z === 'object') {
+        next = Math.max(next, Number((z as { office_version?: number }).office_version || 0) || 0);
+      }
+    }
+  }
+  if (next > 0 && next !== storedOfficeVersion()) {
+    saveOfficeVersion(next);
+    void syncOfficeVersion();
+  }
+}
+
+async function sendPing(force: boolean, preferAccurateOutside: boolean): Promise<void> {
+  if (!isIosHomeScreen()) return;
   if (inFlight) return;
+
+  // Prefer ≤50 m when checking for auto outside check-out; otherwise ≤3s then Wi-Fi-only.
+  const pos = preferAccurateOutside
+    ? await readPositionWithAccuracyRetries(50)
+    : await readPositionOrNull(3000);
+
+  if (pos) {
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+    const moved =
+      lastLat == null || lastLng == null || metersBetween(lastLat, lastLng, lat, lng) >= MOVE_METERS;
+    if (!force && !moved && Date.now() - lastSentAt < MIN_GAP_MS) return;
+  } else if (!force && Date.now() - lastSentAt < MIN_GAP_MS) {
+    return;
+  }
+
+  const occurred = freshOccurredMs(pos);
+  const now = Date.now();
+  if (!isAttendanceEventFresh(occurred, now)) {
+    logStaleAttendanceDrop({
+      source: 'ios-home',
+      event: 'ping',
+      age_ms: now - occurred,
+      occurred_at_utc_ms: occurred,
+    });
+    return;
+  }
+  // Drop anything older than 10 minutes (defensive; freshOccurredMs should prevent this).
+  if (now - occurred > ATTENDANCE_EVENT_MAX_AGE_MS) {
+    logStaleAttendanceDrop({
+      source: 'ios-home-pre-send',
+      event: 'ping',
+      age_ms: now - occurred,
+      occurred_at_utc_ms: occurred,
+    });
+    return;
+  }
+
   inFlight = true;
   try {
-    await sendAutoAttendanceEvent('ping', {
-      latitude: lat,
-      longitude: lng,
-      accuracy_m: pos.coords.accuracy ?? null,
-      platform: 'ios',
-    });
+    const payload =
+      pos != null
+        ? {
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            accuracy_m: pos.coords.accuracy ?? null,
+            gps_available: true,
+            occurred_at_utc_ms: occurred,
+            platform: 'ios' as const,
+            app_version: '1.3.12',
+          }
+        : {
+            gps_available: false,
+            occurred_at_utc_ms: occurred,
+            platform: 'ios' as const,
+            app_version: '1.3.12',
+          };
+    const res = await sendAutoAttendanceEvent('ping', payload);
+    applyOfficeVersionFromEvent(res);
     lastSentAt = Date.now();
-    lastLat = lat;
-    lastLng = lng;
-  } catch {
-    /* next tick retries */
+    if (pos) {
+      lastLat = pos.coords.latitude;
+      lastLng = pos.coords.longitude;
+    }
+  } catch (err) {
+    console.warn('[scorr-att] ios-home ping failed', err);
   } finally {
     inFlight = false;
   }
@@ -71,12 +215,8 @@ async function sendFix(pos: GeolocationPosition, force: boolean): Promise<void> 
 
 async function pingNow(force: boolean): Promise<void> {
   if (!isIosHomeScreen()) return;
-  try {
-    const pos = await readPosition();
-    await sendFix(pos, force);
-  } catch {
-    /* permission or timeout — watcher retries */
-  }
+  await syncOfficeVersion();
+  await sendPing(force, true);
 }
 
 function onVisible(): void {
@@ -102,23 +242,27 @@ export function startIosHomeAttendance(): Promise<void> {
   if (starting) return starting;
   starting = (async () => {
     const token = await getAttendanceDeviceToken();
-    if (!token || !navigator.geolocation) return;
+    if (!token) return;
     if (started) return;
     started = true;
     bindResume();
+    await syncOfficeVersion();
 
-    watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        void sendFix(pos, false);
-      },
-      () => {
-        /* denied or unavailable — interval asks again */
-      },
-      { enableHighAccuracy: true, maximumAge: 15_000, timeout: 20_000 },
-    );
+    if (navigator.geolocation) {
+      watchId = navigator.geolocation.watchPosition(
+        () => {
+          void sendPing(false, false);
+        },
+        () => {
+          // Location denied / unavailable — send Wi-Fi-only immediately (no local block).
+          void sendPing(true, false);
+        },
+        { enableHighAccuracy: true, maximumAge: 15_000, timeout: 20_000 },
+      );
+    }
 
     timer = setInterval(() => {
-      void pingNow(false);
+      void sendPing(false, true);
     }, 60_000);
 
     void pingNow(true);

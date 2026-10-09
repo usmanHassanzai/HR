@@ -21,8 +21,10 @@ import {
   submitGeoClockEvent,
 } from '../utils/geoAttendance';
 import { LocationWindow, formatShiftTimeRange, hasAssignedShiftEnded, isWithinShiftExitWindow, locationWindowToMyShift, shouldCaptureLocationNow } from '../utils/shiftHelpers';
-import { isIosHomeScreen } from '../utils/nativePlatform';
+import { Capacitor } from '@capacitor/core';
+import { isIosHomeScreen, isNativeApp } from '../utils/nativePlatform';
 import { IOS_HOME_BACKGROUND_BANNER } from '../utils/attendanceIosHome';
+import { getNativePermissionSnapshot } from '../utils/autoAttendanceSetup';
 
 interface GeoAttendancePanelProps {
   onClockUpdate?: () => void;
@@ -38,15 +40,30 @@ interface WorkSite {
 
 function rpcErrorMessage(err: unknown, intent?: 'clock_in' | 'clock_out'): string {
   if (intent === 'clock_out') return friendlyClockOutError(err);
-  if (err && typeof err === 'object' && 'message' in err) {
-    const raw = String((err as { message: string }).message);
-    if (/v_chk|not assigned|PL\/pgSQL|SQLSTATE/i.test(raw)) {
-      return 'Could not complete attendance.';
-    }
-    return raw;
+  const raw =
+    err instanceof Error
+      ? err.message
+      : err && typeof err === 'object' && 'message' in err
+        ? String((err as { message: string }).message)
+        : String(err || '');
+  console.warn('[scorr-att] clock-in error', raw);
+  if (/v_chk|not assigned|PL\/pgSQL|SQLSTATE|relation |column /i.test(raw)) {
+    return 'Check-in failed, please try again';
   }
-  if (err instanceof Error) return err.message;
-  return 'Location check failed';
+  if (raw && !/^[a-z0-9_]+$/i.test(raw) && (raw.includes(' ') || raw.includes('\n'))) {
+    return 'Check-in failed, please try again';
+  }
+  if (/not_on_office_wifi|not_on_office_network/i.test(raw)) {
+    return attendanceActionMessage('not_on_office_wifi');
+  }
+  if (/outside_radius|outside_office/i.test(raw)) {
+    return attendanceActionMessage('outside_radius');
+  }
+  if (/checkin_blocked_shift_ended/i.test(raw)) {
+    return attendanceActionMessage('checkin_blocked_shift_ended');
+  }
+  if (raw) return attendanceActionMessage(raw);
+  return 'Check-in failed, please try again';
 }
 
 function formatClosedDuration(mins: number): string {
@@ -147,6 +164,8 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
   const [wifiMatch, setWifiMatch] = useState<boolean | null>(null);
   const [deviceInside, setDeviceInside] = useState<{ inside: boolean; distM: number | null } | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
+  /** iOS native only: surface While Using vs Always for background check-out. */
+  const [iosLocPermission, setIosLocPermission] = useState<string | null>(null);
 
   /** Apply latest enrolled-device event (not only in-browser portal pings). */
   const applyDeviceEventRow = useCallback((row: {
@@ -274,6 +293,38 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
     void loadSites();
     void bootstrapAttendanceLocation();
   }, [loadToday, loadSites]);
+
+  useEffect(() => {
+    const isIosNative = isNativeApp() && Capacitor.getPlatform() === 'ios';
+    if (!isIosNative && !isIosHomeScreen()) return;
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        const snap = await getNativePermissionSnapshot();
+        if (cancelled) return;
+        if (isIosNative && snap.backgroundLocation !== 'granted' && snap.location === 'granted') {
+          setIosLocPermission('when_in_use');
+        } else if (isIosNative && snap.backgroundLocation === 'granted') {
+          setIosLocPermission('always');
+        } else if (isIosHomeScreen()) {
+          setIosLocPermission(snap.location === 'granted' ? 'home_granted' : snap.location === 'denied' ? 'home_denied' : 'home_prompt');
+        } else {
+          setIosLocPermission(null);
+        }
+      } catch {
+        /* ignore */
+      }
+    };
+    void refresh();
+    const onVis = () => {
+      if (document.visibilityState === 'visible') void refresh();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, []);
 
   // Realtime: attendance_records / visits / enrolled-device events_log.
   useEffect(() => {
@@ -589,8 +640,34 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
           {IOS_HOME_BACKGROUND_BANNER}
         </p>
       )}
+      {iosLocPermission === 'when_in_use' && (
+        <p className="geo-hint geo-hint--spaced" role="status">
+          Location is set to While Using. Open Settings → Scorr → Location → Always so check-out still runs when you leave the office with the app closed.
+        </p>
+      )}
+      {iosLocPermission === 'home_denied' && (
+        <p className="geo-hint geo-hint--spaced" role="status">
+          Location is off. On office Wi-Fi, check-in and Clock out still work; turn location on for GPS check-out.
+        </p>
+      )}
 
       <div className="geo-status-card" role="status">
+        {(iosLocPermission === 'when_in_use' || iosLocPermission === 'always' || iosLocPermission?.startsWith('home_')) && (
+          <div className="geo-status-card__row">
+            <span>Location permission</span>
+            <strong>
+              {iosLocPermission === 'always'
+                ? 'Always'
+                : iosLocPermission === 'when_in_use'
+                  ? 'While Using'
+                  : iosLocPermission === 'home_granted'
+                    ? 'Allowed (Home Screen)'
+                    : iosLocPermission === 'home_denied'
+                      ? 'Off / denied'
+                      : 'Not decided'}
+            </strong>
+          </div>
+        )}
         <div className="geo-status-card__row">
           <span>Last signal</span>
           <strong>

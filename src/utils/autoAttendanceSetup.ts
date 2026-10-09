@@ -288,7 +288,8 @@ export async function getNativePermissionSnapshot() {
     return {
       location: location === 'granted' ? 'granted' : location === 'denied' ? 'denied' : 'prompt',
       coarseLocation: location === 'granted' ? 'granted' : 'prompt',
-      backgroundLocation: location === 'granted' ? 'granted' : 'prompt',
+      // Home Screen has no background region monitoring.
+      backgroundLocation: 'denied',
       precise: true,
       locationServicesEnabled: true,
       notifications: notif,
