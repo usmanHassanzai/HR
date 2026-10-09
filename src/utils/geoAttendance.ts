@@ -369,10 +369,8 @@ export async function submitGeoClockEvent(intent: GeoClockIntent): Promise<GeoPi
     dispatchGeoPing({ result, auto: false, checkedAt: Date.now() });
     return result;
   }
-  // Check-out still prefers GPS; check-in may proceed without it on office Wi-Fi.
-  const pos = intent === 'clock_out'
-    ? await requestCurrentPosition({ maximumAge: 0, timeout: 20_000, enableHighAccuracy: true }).catch(() => null)
-    : await requestPositionOrNull(3000);
+  // Manual clock-in / clock-out: wait ≤3s for GPS; if unavailable send gps_available=false.
+  const pos = await requestPositionOrNull(3000);
   const { data, error } = await supabase.rpc('process_geo_attendance_ping', {
     p_latitude: pos?.coords.latitude ?? null,
     p_longitude: pos?.coords.longitude ?? null,

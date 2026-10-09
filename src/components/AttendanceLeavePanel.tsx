@@ -417,17 +417,37 @@ export default function AttendanceLeavePanel({
     setSubmitting(true);
     setMsg('');
     try {
-      const pos = await requestCurrentPosition({
-        maximumAge: 0,
-        timeout: 20_000,
-        enableHighAccuracy: true,
-      });
-      const coords = pos.coords as GeolocationCoordinates & { mocked?: boolean };
+      // Wait ≤3s for GPS; if location is off, send without GPS (office Wi-Fi may allow clock-out).
+      let lat: number | null = null;
+      let lng: number | null = null;
+      let acc: number | null = null;
+      let isMock = false;
+      try {
+        const pos = await Promise.race([
+          requestCurrentPosition({
+            maximumAge: 0,
+            timeout: 3000,
+            enableHighAccuracy: true,
+          }),
+          new Promise<null>((resolve) => {
+            window.setTimeout(() => resolve(null), 3000);
+          }),
+        ]);
+        if (pos) {
+          lat = pos.coords.latitude;
+          lng = pos.coords.longitude;
+          acc = pos.coords.accuracy ?? null;
+          const coords = pos.coords as GeolocationCoordinates & { mocked?: boolean };
+          isMock = Boolean(coords?.mocked);
+        }
+      } catch {
+        /* location off / denied — proceed without GPS */
+      }
       const { error } = await supabase.rpc('check_out_attendance', {
-        p_latitude: pos.coords.latitude,
-        p_longitude: pos.coords.longitude,
-        p_accuracy: pos.coords.accuracy ?? null,
-        p_is_mock: Boolean(coords?.mocked),
+        p_latitude: lat,
+        p_longitude: lng,
+        p_accuracy: acc,
+        p_is_mock: isMock,
       });
       if (error) {
         const raw = error.message || '';
