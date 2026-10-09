@@ -287,7 +287,8 @@ final class AttendanceEventClient {
             if (code == 401) {
                 try {
                     JSONObject err = new JSONObject(respText);
-                    if (err.optBoolean("stop_tracking", false)) {
+                    String reason = err.optString("reason", "");
+                    if (err.optBoolean("stop_tracking", false) && isHardStopReason(reason)) {
                         AttendanceScheduleController.stopAll(app);
                     }
                 } catch (Exception ignored) {
@@ -303,30 +304,54 @@ final class AttendanceEventClient {
         }
     }
 
+    /** Only revoke enrollment for hard failures — never after a normal check-out. */
+    private static boolean isHardStopReason(String reason) {
+        if (reason == null) return false;
+        switch (reason) {
+            case "missing_token":
+            case "invalid_token":
+            case "revoked_token":
+            case "user_gone":
+            case "feature_off":
+            case "work_mode_remote":
+                return true;
+            default:
+                return false;
+        }
+    }
+
     private static void handleResponse(Context app, String respText, JSONObject requestBody) {
         try {
             JSONObject json = new JSONObject(respText);
-            if (json.optBoolean("stop_tracking", false)) {
+            String action = json.optString("action", "");
+            String reason = json.optString("reason", action);
+            if (json.optBoolean("stop_tracking", false) && isHardStopReason(reason)) {
                 AttendanceScheduleController.stopAll(app);
                 return;
             }
-            String action = json.optString("action", "");
-            String reason = json.optString("reason", action);
             if ("clock_in".equals(action)) {
                 showCheckNotification(app, action, json);
+                String notify = firstString(json, "notify_message");
                 String src = firstString(json, "attendance_source", "source");
                 boolean noGps = "auto_wifi_no_gps".equals(src)
                     || (requestBody != null && !requestBody.has("lat"));
-                String msg = noGps
-                    ? "Checked in on office Wi-Fi (location is off)"
-                    : "Checked in";
                 String localTime = firstString(json, "local_time", "local_check_time");
                 long occurredMs = parseOccurredMs(json);
                 if (localTime == null && occurredMs > 0) {
                     localTime = formatInTz(occurredMs, AttendancePingStore.deviceTimezone());
                 }
-                if (!noGps && localTime != null) msg = "Checked in at " + localTime;
+                String msg;
+                if (notify != null && !notify.isEmpty()) {
+                    msg = notify;
+                } else if (noGps) {
+                    msg = "Checked in on office Wi-Fi (location is off)";
+                } else if (localTime != null) {
+                    msg = "Checked in at " + localTime;
+                } else {
+                    msg = "Checked in";
+                }
                 updateStatusNotification(app, msg, requestBody);
+                AttendancePingStore.setAwaitingOfficeWifi(app, false);
             } else if ("clock_out".equals(action)) {
                 showCheckNotification(app, action, json);
                 String notify = firstString(json, "notify_message");
@@ -344,7 +369,10 @@ final class AttendanceEventClient {
                     msg = "Checked out";
                 }
                 updateStatusNotification(app, msg, requestBody);
-                // Still on office Wi-Fi: ping again so a new visit can open quickly.
+                // Keep FGS + geofences + heartbeat; watch for return.
+                AttendancePingStore.setAwaitingOfficeWifi(app, true);
+                AttendancePingService.start(app);
+                AttendanceScheduleController.armFromCache(app);
                 IO.execute(() -> {
                     try {
                         Thread.sleep(1500L);
@@ -354,6 +382,12 @@ final class AttendanceEventClient {
                         Log.w(TAG, "re-ping after clock_out", e);
                     }
                 });
+            } else if ("not_on_office_wifi".equals(action) || "not_on_office_network".equals(action)) {
+                AttendancePingStore.setAwaitingOfficeWifi(app, true);
+                AttendancePingService.start(app);
+                String notify = firstString(json, "notify_message");
+                String msg = notify != null && !notify.isEmpty() ? notify : humanReason(reason);
+                updateStatusNotification(app, msg, requestBody);
             } else if ("already_clocked_out".equals(action)) {
                 String notify = firstString(json, "notify_message");
                 if (notify != null && !notify.isEmpty()) {

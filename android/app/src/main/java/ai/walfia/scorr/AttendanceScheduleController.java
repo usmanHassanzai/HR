@@ -127,17 +127,26 @@ final class AttendanceScheduleController {
             if (code < 200 || code >= 300) {
                 try {
                     JSONObject err = new JSONObject(resp);
-                    if (err.optBoolean("stop_tracking", false)) {
+                    String reason = err.optString("reason", "");
+                    if (err.optBoolean("stop_tracking", false) && isHardStopReason(reason)) {
                         stopAll(app);
+                    } else if ("outside_window".equals(reason)) {
+                        exitWindow(app);
                     }
                 } catch (Exception ignored) {
                 }
                 return "Schedule HTTP " + code;
             }
             JSONObject json = new JSONObject(resp);
-            if (!json.optBoolean("ok", true) && json.optBoolean("stop_tracking", false)) {
+            String stopReason = json.optString("reason", "");
+            if (!json.optBoolean("ok", true) && json.optBoolean("stop_tracking", false)
+                && isHardStopReason(stopReason)) {
                 stopAll(app);
-                return json.optString("reason", "stop_tracking");
+                return stopReason.isEmpty() ? "stop_tracking" : stopReason;
+            }
+            if ("outside_window".equals(stopReason)) {
+                exitWindow(app);
+                // Keep token; next window start re-arms from cache/alarms.
             }
             long prevVer = AttendancePingStore.officeVersion(app);
             long nextVer = json.optLong("office_version", 0);
@@ -222,6 +231,22 @@ final class AttendanceScheduleController {
         try {
             WorkManager.getInstance(app).cancelAllWorkByTag("scorr_attendance");
         } catch (Exception ignored) {
+        }
+    }
+
+    /** Revoke enrollment only for hard auth/feature failures — never after check-out. */
+    private static boolean isHardStopReason(String reason) {
+        if (reason == null) return false;
+        switch (reason) {
+            case "missing_token":
+            case "invalid_token":
+            case "revoked_token":
+            case "user_gone":
+            case "feature_off":
+            case "work_mode_remote":
+                return true;
+            default:
+                return false;
         }
     }
 

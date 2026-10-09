@@ -260,6 +260,9 @@ const MIGRATIONS = [
   'attendance_laptop_rules_2026-10-09.sql',
   'attendance_ios_home_location_2026-10-09.sql',
   'attendance_false_checkout_fix_2026-10-09.sql',
+  'attendance_reentry_tracking_2026-10-09.sql',
+  'attendance_zero_minute_loop_fix_2026-10-09.sql',
+  'attendance_app_close_not_leave_2026-10-10.sql',
 ];
 
 async function runMigration(filename) {

@@ -29,7 +29,8 @@ import java.util.Locale;
 
 /**
  * Foreground service active ONLY during the shift window.
- * Geofence EXIT is instant. Heartbeat: 30s while outside/near edge, else 60s.
+ * Geofence EXIT is instant. Heartbeat: 30s while outside/near edge or awaiting
+ * office Wi-Fi after check-out, else 60s. Never stops solely because of check-out.
  */
 public class AttendancePingService extends Service {
     private static final String TAG = "ScorrAttFgs";
@@ -132,7 +133,7 @@ public class AttendancePingService extends Service {
         super.onDestroy();
     }
 
-    /** Swipe-away / task removed: re-arm window alarms and restart FGS if still in W. */
+    /** Swipe-away / task removed: FGS must keep running — re-arm and restart if still in W. */
     @Override
     public void onTaskRemoved(Intent rootIntent) {
         Context app = getApplicationContext();
@@ -140,6 +141,31 @@ public class AttendancePingService extends Service {
         AttendanceScheduleController.armFromCache(app);
         if (AttendancePingStore.isInsideActiveWindow(app)) {
             AttendancePingService.start(app);
+            // Schedule a short delayed restart in case the process is torn down after swipe-away.
+            try {
+                android.app.AlarmManager am =
+                    (android.app.AlarmManager) app.getSystemService(Context.ALARM_SERVICE);
+                if (am != null) {
+                    Intent restart = new Intent(app, AttendanceBootReceiver.class);
+                    restart.setAction("scorr.action.RESTART_FGS");
+                    int flags = android.app.PendingIntent.FLAG_UPDATE_CURRENT;
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        flags |= android.app.PendingIntent.FLAG_IMMUTABLE;
+                    }
+                    android.app.PendingIntent pi =
+                        android.app.PendingIntent.getBroadcast(app, 991, restart, flags);
+                    long when = android.os.SystemClock.elapsedRealtime() + 3_000L;
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        am.setExactAndAllowWhileIdle(
+                            android.app.AlarmManager.ELAPSED_REALTIME_WAKEUP, when, pi
+                        );
+                    } else {
+                        am.setExact(android.app.AlarmManager.ELAPSED_REALTIME_WAKEUP, when, pi);
+                    }
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "onTaskRemoved restart alarm failed", e);
+            }
         }
     }
 
@@ -164,7 +190,8 @@ public class AttendancePingService extends Service {
             return;
         }
         requestLocationPing();
-        long interval = AttendancePingStore.lastOutsideOrEdge(this)
+        long interval = (AttendancePingStore.lastOutsideOrEdge(this)
+            || AttendancePingStore.awaitingOfficeWifi(this))
             ? INTERVAL_OUTSIDE_MS
             : INTERVAL_INSIDE_MS;
         handler.postDelayed(tick, interval);

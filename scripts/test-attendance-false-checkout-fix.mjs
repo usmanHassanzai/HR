@@ -220,6 +220,7 @@ BEGIN
   PERFORM pg_temp.tassert('laptop_office_heartbeat_stays_in', v_open = 1, 'open='||v_open);
 
   -- ========== 2) Phone silent, laptop sending on office IP → stays in ==========
+  PERFORM public.attendance_set_write_context('admin_correction');
   v_att_date := public.resolve_shift_attendance_date(v_phone, v_now);
   INSERT INTO public.attendance_records (
     id, user_id, attendance_date, status, approval_status, clock_in_at, attendance_source
@@ -241,6 +242,7 @@ BEGIN
   PERFORM pg_temp.tassert('phone_silent_laptop_office_stays_in', v_open = 1, 'open='||v_open);
 
   -- ========== 3) iOS-only silent 20 min inside office → stays in ==========
+  PERFORM public.attendance_set_write_context('admin_correction');
   v_att_date := public.resolve_shift_attendance_date(v_ios, v_now);
   INSERT INTO public.attendance_records (
     id, user_id, attendance_date, status, approval_status, clock_in_at, attendance_source
@@ -264,6 +266,7 @@ BEGIN
 
   -- ========== 4) Closed by 5c, then office Wi-Fi event → new visit (simulate ensure) ==========
   -- Close android open visit via 5c with stale signals
+  PERFORM public.attendance_set_write_context('admin_correction');
   v_att_date := public.resolve_shift_attendance_date(v_and, v_now);
   INSERT INTO public.attendance_records (
     id, user_id, attendance_date, status, approval_status, clock_in_at, attendance_source
@@ -310,6 +313,7 @@ BEGIN
   -- (covered by gap filter test below)
 
   -- ========== 6) Shift with 3 visits → duration = sum ==========
+  PERFORM public.attendance_set_write_context('admin_correction');
   DELETE FROM public.attendance_visit_segments WHERE user_id = v_lap;
   DELETE FROM public.attendance_records WHERE user_id = v_lap;
   INSERT INTO public.attendance_records (
@@ -327,6 +331,7 @@ BEGIN
 
   -- ========== 7) Overnight visits same shift date ==========
   -- Use same attendance_date for 22:00 and 01:00 style visits
+  PERFORM public.attendance_set_write_context('admin_correction');
   DELETE FROM public.attendance_visit_segments WHERE user_id = v_phone;
   DELETE FROM public.attendance_records WHERE user_id = v_phone;
   INSERT INTO public.attendance_records (
@@ -349,6 +354,7 @@ BEGIN
   PERFORM pg_temp.tassert('open_visit_counts_until_now', v_total >= 149 AND v_total <= 151, 'total='||v_total);
 
   -- ========== 9) Gap list excludes Rule 5 / manual / outside GPS ==========
+  PERFORM public.attendance_set_write_context('admin_correction');
   DELETE FROM public.attendance_visit_segments WHERE user_id = v_ios;
   DELETE FROM public.attendance_records WHERE user_id = v_ios;
   INSERT INTO public.attendance_records (

@@ -16,6 +16,7 @@ import {
   logStaleAttendanceDrop,
 } from './attendanceStaleQueue';
 import { dispatchGeoPing } from './geoAttendance';
+import { startAppBackgroundedReporter } from './attendanceAppBackgrounded';
 
 const MIN_GAP_MS = 45_000;
 const MOVE_METERS = 40;
@@ -292,7 +293,7 @@ async function sendPingWithPosition(pos: GeolocationPosition | null, force: bool
           location_fix_utc_ms: fixTs,
           precise_location: true,
           platform: 'ios' as const,
-          app_version: '1.3.17',
+          app_version: '1.3.18',
           location_error_code: null as number | null,
         }
       : {
@@ -301,7 +302,7 @@ async function sendPingWithPosition(pos: GeolocationPosition | null, force: bool
           location_fix_utc_ms: fixTs,
           precise_location: !imprecise,
           platform: 'ios' as const,
-          app_version: '1.3.17',
+          app_version: '1.3.18',
           location_error_code: lastLocationError?.code ?? null,
         };
     const res = await sendAutoAttendanceEvent('ping', payload);
@@ -393,6 +394,8 @@ async function pingNow(force: boolean): Promise<void> {
 }
 
 function onVisible(): void {
+  // Home Screen cannot run in background — check in immediately on open/focus
+  // using the saved device token (no login required).
   if (document.visibilityState === 'visible') void pingNow(true);
 }
 
@@ -422,6 +425,7 @@ export function startIosHomeAttendance(): Promise<void> {
     if (started) return;
     started = true;
     bindResume();
+    await startAppBackgroundedReporter();
     await syncOfficeVersion();
 
     // Do not use watchPosition with a large maximumAge — it serves stale fixes on iOS.

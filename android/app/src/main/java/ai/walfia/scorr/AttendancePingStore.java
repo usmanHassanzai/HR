@@ -272,6 +272,15 @@ final class AttendancePingStore {
         return prefs(ctx).getString("last_status_text", null);
     }
 
+    /** After check-out / inside without Wi-Fi: retry office Wi-Fi every 30s. */
+    static void setAwaitingOfficeWifi(Context ctx, boolean awaiting) {
+        prefs(ctx).edit().putBoolean("awaiting_office_wifi", awaiting).apply();
+    }
+
+    static boolean awaitingOfficeWifi(Context ctx) {
+        return prefs(ctx).getBoolean("awaiting_office_wifi", false);
+    }
+
     static void setLastServerAction(Context ctx, String action, long atMs) {
         prefs(ctx).edit()
             .putString("last_server_action", action != null ? action : "")

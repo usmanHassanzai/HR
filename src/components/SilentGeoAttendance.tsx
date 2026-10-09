@@ -5,6 +5,7 @@ import {
 } from '../utils/attendanceNativePing';
 import { startIosHomeAttendance } from '../utils/attendanceIosHome';
 import { getAttendanceDeviceToken, sendAutoAttendanceEventWithLocation } from '../utils/attendanceDevice';
+import { startAppBackgroundedReporter } from '../utils/attendanceAppBackgrounded';
 import { isDesktopApp, isIosHomeScreen, isNativeApp } from '../utils/nativePlatform';
 
 /**
@@ -13,7 +14,6 @@ import { isDesktopApp, isIosHomeScreen, isNativeApp } from '../utils/nativePlatf
  */
 export default function SilentGeoAttendance() {
   useEffect(() => {
-    if (!isNativeApp() && !isIosHomeScreen() && !isDesktopApp()) return;
     let cancelled = false;
     let desktopTimer: number | undefined;
 
@@ -26,6 +26,10 @@ export default function SilentGeoAttendance() {
       }
       if (isIosHomeScreen()) await startIosHomeAttendance();
       if (isDesktopApp()) await sendAutoAttendanceEventWithLocation('ping');
+      // Browser tab / Home Screen: report close so 5c is not applied for grace.
+      if (!isNativeApp() && !isDesktopApp()) {
+        await startAppBackgroundedReporter();
+      }
     };
 
     void arm();

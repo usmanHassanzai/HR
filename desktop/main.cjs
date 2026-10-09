@@ -493,12 +493,18 @@ async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = nul
       const t = res?.local_time || null;
       notify('Scorr', t ? `Checked out - left the office radius at ${t}` : 'Checked out');
     }
-    // Still on office network: send immediately so a new visit can open within 1 minute.
+    // Keep tray heartbeat alive; send immediately so a new visit can open on return.
+    startHeartbeatIfInWindow();
     setTimeout(() => {
       void sendEvent('heartbeat');
     }, 1500);
   } else if (res?.action === 'not_on_office_wifi' || res?.action === 'not_on_office_network') {
     notify('Scorr', 'Connect to the office Wi-Fi');
+    startHeartbeatIfInWindow();
+    // Retry every 30s until office network matches (window still open).
+    setTimeout(() => {
+      void sendEvent('heartbeat');
+    }, 30_000);
   } else if (res?.action === 'outside_radius') {
     notify('Scorr', 'You are outside the office radius');
   } else if (res?.action === 'need_fresh_location' || res?.action === 'gps_unusable') {
@@ -518,8 +524,15 @@ async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = nul
   } else if (res?.action === 'presence_left_pending' || res?.action === 'device_left_others_present') {
     // Off office network — keep heartbeats so sticky present clears for phone auto priority.
   }
-  if (res?.stop_tracking) {
+  // Only stop enrollment for hard failures — never after check-out / outside_window.
+  const hardStop = new Set([
+    'missing_token', 'invalid_token', 'revoked_token',
+    'user_gone', 'feature_off', 'work_mode_remote',
+  ]);
+  if (res?.stop_tracking && hardStop.has(String(res?.reason || ''))) {
     stopHeartbeat();
+  } else if (res?.reason === 'outside_window') {
+    stopHeartbeat(); // pause until schedule re-arms next window; keep token
   }
   if (res?.reason === 'schedule_changed') {
     await syncSchedule();
@@ -653,7 +666,8 @@ function setupTray() {
           label: 'Quit Scorr',
           click: () => {
             // Keep device token — tracking stops only via Turn off auto attendance / admin revoke.
-            app.exit(0);
+            // Send app_quit before exit so the server records the intentional stop.
+            void sendEvent('app_quit').finally(() => app.exit(0));
           },
         },
       ]),
@@ -937,7 +951,8 @@ app.whenReady().then(async () => {
 });
 
 app.on('before-quit', () => {
-  void sendEvent('power_off');
+  // Tray "Quit" — process stops; server logs app_quit (not an office leave).
+  void sendEvent('app_quit');
 });
 
 app.on('window-all-closed', () => {

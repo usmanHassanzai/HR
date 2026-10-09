@@ -551,6 +551,33 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
     private var exitRetryAttempt = 0
     private var exitRetryBest: CLLocation?
     private var exitRetryDeadline: DispatchWorkItem?
+    private var wifiRetryWork: DispatchWorkItem?
+
+    private static func isHardStopReason(_ reason: String) -> Bool {
+        switch reason {
+        case "missing_token", "invalid_token", "revoked_token",
+             "user_gone", "feature_off", "work_mode_remote":
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func scheduleWifiRetryLoop() {
+        cancelWifiRetryLoop()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, AttendanceStore.enabled else { return }
+            self.sendNetworkTriggeredCheck()
+            self.scheduleWifiRetryLoop()
+        }
+        wifiRetryWork = work
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 30, execute: work)
+    }
+
+    private func cancelWifiRetryLoop() {
+        wifiRetryWork?.cancel()
+        wifiRetryWork = nil
+    }
 
     private override init() {
         super.init()
@@ -779,12 +806,18 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
                 let decoded = try JSONDecoder().decode(AttendanceSchedule.self, from: data)
                 if decoded.stop_tracking == true || decoded.ok == false {
                     DispatchQueue.main.async {
-                        if decoded.stop_tracking == true {
+                        let reason = decoded.reason ?? "schedule_error"
+                        // Only clear enrollment for hard failures — never after check-out / outside_window.
+                        if decoded.stop_tracking == true && Self.isHardStopReason(reason) {
                             self.stop(clearToken: true)
+                        } else {
+                            // Pause regions for this window; keep token + network monitor for next shift.
+                            self.stopAllMonitoring()
+                            self.startPathMonitor()
                         }
                         completion(.success([
                             "ok": false,
-                            "reason": decoded.reason ?? "schedule_error",
+                            "reason": reason,
                             "stop_tracking": decoded.stop_tracking ?? false,
                         ]))
                     }
@@ -1617,7 +1650,9 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
             }
             self.lock.unlock()
 
-            if stopTracking {
+            let action = (response?["action"] as? String) ?? ""
+            let reason = (response?["reason"] as? String) ?? action
+            if stopTracking && Self.isHardStopReason(reason) {
                 DispatchQueue.main.async { self.stop(clearToken: true) }
                 return
             }
@@ -1627,12 +1662,24 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
             } else if let response {
                 self.notifyIfClocked(response)
             }
-            let action = (response?["action"] as? String) ?? ""
-            if action == "clock_out" {
-                // Still on office Wi-Fi: send again so a new visit can open quickly.
+            if action == "clock_out"
+                || action == "not_on_office_wifi"
+                || action == "not_on_office_network" {
+                // Keep ENTER/EXIT regions + path monitor; retry return quickly.
+                DispatchQueue.main.async {
+                    self.applyMonitoringFromSchedule()
+                    self.startPathMonitor()
+                }
                 DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 1.5) {
                     self.sendNetworkTriggeredCheck()
                 }
+                // Inside radius but not on office Wi-Fi yet: retry every 30s.
+                if action == "not_on_office_wifi" || action == "not_on_office_network" {
+                    self.scheduleWifiRetryLoop()
+                }
+            }
+            if action == "clock_in" {
+                self.cancelWifiRetryLoop()
             }
             // Continue flushing
             DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 0.2) {
@@ -1688,7 +1735,7 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
             "device_timezone": TimeZone.current.identifier,
             "is_mock": event.isMock,
             "platform": "ios",
-            "app_version": AttendanceStore.appVersion ?? "1.3.17",
+            "app_version": AttendanceStore.appVersion ?? "1.3.18",
             "precise_location": event.preciseLocation ?? isPreciseLocationOn(),
         ]
         if let fixMs = event.locationFixUtcMs {
@@ -1763,11 +1810,15 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
         let body: String
         if action == "clock_in" {
             title = "Checked in"
-            let src = (json["attendance_source"] as? String) ?? ""
-            if src == "auto_wifi_no_gps" || src == "manual_wifi_no_gps" {
-                body = "Checked in on office Wi-Fi (location is off)"
+            if let notify = json["notify_message"] as? String, !notify.isEmpty {
+                body = notify
             } else {
-                body = "Checked in at \(localTime)"
+                let src = (json["attendance_source"] as? String) ?? ""
+                if src == "auto_wifi_no_gps" || src == "manual_wifi_no_gps" {
+                    body = "Checked in on office Wi-Fi (location is off)"
+                } else {
+                    body = "Checked in at \(localTime)"
+                }
             }
         } else if action == "clock_out" {
             title = "Checked out"
