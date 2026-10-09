@@ -1,9 +1,12 @@
+import BackgroundTasks
 import Capacitor
 import CoreLocation
 import Foundation
 import Network
 import NetworkExtension
 import UserNotifications
+
+private let kBgAppRefreshTaskId = "ai.walfia.scorr.attendance.refresh"
 
 // MARK: - Capacitor bridge (R44 / R71)
 //
@@ -153,6 +156,13 @@ public class AttendancePingPlugin: CAPPlugin, CAPBridgedPlugin {
         if #available(iOS 14.0, *) {
             precise = mgr.accuracyAuthorization == .fullAccuracy
         }
+        let refresh: String
+        switch UIApplication.shared.backgroundRefreshStatus {
+        case .available: refresh = "on"
+        case .denied: refresh = "off"
+        case .restricted: refresh = "off"
+        @unknown default: refresh = "off"
+        }
         UNUserNotificationCenter.current().getNotificationSettings { settings in
             var notif = "prompt"
             switch settings.authorizationStatus {
@@ -164,6 +174,7 @@ public class AttendancePingPlugin: CAPPlugin, CAPBridgedPlugin {
                 "location": loc,
                 "backgroundLocation": bg,
                 "precise": precise,
+                "backgroundAppRefresh": refresh,
                 "locationServicesEnabled": CLLocationManager.locationServicesEnabled(),
                 "notifications": notif,
                 "batteryUnrestricted": true,
@@ -471,6 +482,8 @@ private struct QueuedEvent: Codable {
     let isMock: Bool
     /// false when location off/unavailable; omit GPS fields when false.
     let gpsAvailable: Bool?
+    let locationFixUtcMs: Int64?
+    let preciseLocation: Bool?
 
     init(
         event: String,
@@ -482,7 +495,9 @@ private struct QueuedEvent: Codable {
         bssid: String?,
         occurredAtUtcMs: Int64,
         isMock: Bool,
-        gpsAvailable: Bool? = nil
+        gpsAvailable: Bool? = nil,
+        locationFixUtcMs: Int64? = nil,
+        preciseLocation: Bool? = nil
     ) {
         self.event = event
         self.zoneId = zoneId
@@ -493,6 +508,8 @@ private struct QueuedEvent: Codable {
         self.bssid = bssid
         self.occurredAtUtcMs = occurredAtUtcMs
         self.isMock = isMock
+        self.locationFixUtcMs = locationFixUtcMs
+        self.preciseLocation = preciseLocation
         if let gpsAvailable {
             self.gpsAvailable = gpsAvailable
         } else {
@@ -597,6 +614,69 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
     func syncIfEnrolled() {
         guard isEnrolled else { return }
         syncSchedule { _ in }
+        // App open / become-active: fresh presence check (network + location).
+        sendPresenceCheck(reason: "app_open")
+        AttendanceAutoEngine.scheduleBgAppRefresh()
+    }
+
+    /// Fresh check: network info + location (or gps_available=false).
+    func sendPresenceCheck(reason: String) {
+        guard isEnrolled else { return }
+        flushQueue()
+        NEHotspotNetwork.fetchCurrent { [weak self] network in
+            guard let self else { return }
+            let ssid = network?.ssid
+            let bssid = network?.bssid
+            self.rememberWifi(ssid: ssid, bssid: bssid)
+            let status = self.manager.authorizationStatus
+            let locOk = status == .authorizedAlways || status == .authorizedWhenInUse
+            if locOk && CLLocationManager.locationServicesEnabled() {
+                self.pendingNetworkSsid = ssid ?? self.lastSsid
+                self.pendingNetworkBssid = bssid ?? self.lastBssid
+                self.manager.desiredAccuracy = kCLLocationAccuracyBest
+                if #available(iOS 14.0, *) {
+                    // Prefer full accuracy when available.
+                }
+                self.manager.requestLocation()
+                let work = DispatchWorkItem { [weak self] in
+                    self?.finishPendingNetwork(loc: nil)
+                }
+                self.pendingNetworkDeadline?.cancel()
+                self.pendingNetworkDeadline = work
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: work)
+            } else {
+                self.postWifiOnlyPing(ssid: ssid ?? self.lastSsid, bssid: bssid ?? self.lastBssid)
+            }
+            NSLog("[scorr-att] presence check reason=%@", reason)
+        }
+    }
+
+    static func registerBgAppRefresh() {
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: kBgAppRefreshTaskId, using: nil) { task in
+            guard let refresh = task as? BGAppRefreshTask else {
+                task.setTaskCompleted(success: false)
+                return
+            }
+            scheduleBgAppRefresh()
+            refresh.expirationHandler = {
+                refresh.setTaskCompleted(success: false)
+            }
+            AttendanceAutoEngine.shared.sendPresenceCheck(reason: "bg_app_refresh")
+            // Give the network/location request a short window, then complete.
+            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 8) {
+                refresh.setTaskCompleted(success: true)
+            }
+        }
+    }
+
+    static func scheduleBgAppRefresh() {
+        let req = BGAppRefreshTaskRequest(identifier: kBgAppRefreshTaskId)
+        req.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60)
+        do {
+            try BGTaskScheduler.shared.submit(req)
+        } catch {
+            NSLog("[scorr-att] BGAppRefresh schedule failed: %@", error.localizedDescription)
+        }
     }
 
     func start(
@@ -852,7 +932,13 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
             let satisfied = path.status == .satisfied
             let prev = self.lastPathSatisfied
             self.lastPathSatisfied = satisfied
-            guard satisfied else { return }
+            if !satisfied {
+                // Wi-Fi and cellular both unavailable — exact disconnect time.
+                if prev != false {
+                    DispatchQueue.main.async { self.saveConnectionLost() }
+                }
+                return
+            }
             // First observation, or transition from unsatisfied → satisfied, or Wi-Fi path.
             let becameAvailable = prev == false
             let wifi = path.usesInterfaceType(.wifi)
@@ -914,9 +1000,12 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
         let bssid = pendingNetworkBssid
         pendingNetworkSsid = nil
         pendingNetworkBssid = nil
+        let checkout = checkoutUsableLocation(loc)
         let acc = loc?.horizontalAccuracy ?? -1
-        let usable = loc != nil && acc >= 0 && acc <= 100
-        if let loc, usable {
+        // Still send a reading for presence when accuracy <= 100, but mark
+        // non-checkout-usable fixes so the edge strips them for Rule 5.
+        let presenceOk = loc != nil && acc >= 0 && acc <= 100
+        if let loc, presenceOk {
             let simulated: Bool
             if #available(iOS 15.0, *) {
                 simulated = loc.sourceInformation?.isSimulatedBySoftware == true
@@ -924,17 +1013,20 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
                 simulated = false
             }
             if simulated { return }
+            let sendGps = checkout.ok
             postEvent(QueuedEvent(
                 event: "ping",
                 zoneId: regionIds.first,
-                lat: loc.coordinate.latitude,
-                lng: loc.coordinate.longitude,
-                accuracyM: acc,
+                lat: sendGps ? loc.coordinate.latitude : nil,
+                lng: sendGps ? loc.coordinate.longitude : nil,
+                accuracyM: sendGps ? acc : nil,
                 ssid: ssid,
                 bssid: bssid,
                 occurredAtUtcMs: Self.freshOccurredMs(for: loc),
                 isMock: false,
-                gpsAvailable: true
+                gpsAvailable: sendGps,
+                locationFixUtcMs: checkout.fixMs,
+                preciseLocation: isPreciseLocationOn()
             ))
         } else {
             postWifiOnlyPing(ssid: ssid, bssid: bssid)
@@ -950,6 +1042,22 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
             accuracyM: nil,
             ssid: ssid,
             bssid: bssid,
+            occurredAtUtcMs: Self.freshOccurredMs(for: nil),
+            isMock: false,
+            gpsAvailable: false
+        ))
+    }
+
+    private func saveConnectionLost() {
+        guard AttendanceStore.enabled else { return }
+        postEvent(QueuedEvent(
+            event: "connection_lost",
+            zoneId: nil,
+            lat: nil,
+            lng: nil,
+            accuracyM: nil,
+            ssid: nil,
+            bssid: nil,
             occurredAtUtcMs: Self.freshOccurredMs(for: nil),
             isMock: false,
             gpsAvailable: false
@@ -1102,7 +1210,27 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
         let t = Int64(loc.timestamp.timeIntervalSince1970 * 1000)
         let age = nowMs - t
         if age > 2 * 60 * 1000 || age < -60 * 1000 { return nowMs }
-        return t
+        return nowMs // event time is always fresh; location_fix_utc_ms carries the fix age
+    }
+
+    private func isPreciseLocationOn() -> Bool {
+        if #available(iOS 14.0, *) {
+            return manager.accuracyAuthorization == .fullAccuracy
+        }
+        return true
+    }
+
+    /// GPS usable for Rule 5 check-out: fresh (<=60s), precise, accuracy <= 50 m.
+    private func checkoutUsableLocation(_ loc: CLLocation?) -> (ok: Bool, fixMs: Int64?) {
+        guard let loc else { return (false, nil) }
+        let fixMs = Int64(loc.timestamp.timeIntervalSince1970 * 1000)
+        let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
+        let age = nowMs - fixMs
+        if age > 60_000 || age < -60_000 { return (false, fixMs) }
+        if !isPreciseLocationOn() { return (false, fixMs) }
+        let acc = loc.horizontalAccuracy
+        if acc < 0 || acc > 50 { return (false, fixMs) }
+        return (true, fixMs)
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
@@ -1332,9 +1460,10 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
         exitRetryAttempt = 0
         let best = loc ?? exitRetryBest
         exitRetryBest = nil
+        let checkout = checkoutUsableLocation(best)
         let acc = best?.horizontalAccuracy ?? -1
-        let usable = best != nil && acc >= 0 && acc <= 50
-        if usable, let best {
+        // Only send GPS for EXIT check-out when fresh, precise, and ≤ 50 m.
+        if checkout.ok, let best {
             postEvent(QueuedEvent(
                 event: "exit",
                 zoneId: zoneId,
@@ -1345,24 +1474,12 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
                 bssid: bssid,
                 occurredAtUtcMs: Self.freshOccurredMs(for: best),
                 isMock: false,
-                gpsAvailable: true
-            ))
-        } else if let best, acc >= 0 {
-            // Best effort outside fix (may be >50 m); server applies rules.
-            postEvent(QueuedEvent(
-                event: "exit",
-                zoneId: zoneId,
-                lat: best.coordinate.latitude,
-                lng: best.coordinate.longitude,
-                accuracyM: acc,
-                ssid: ssid,
-                bssid: bssid,
-                occurredAtUtcMs: Self.freshOccurredMs(for: best),
-                isMock: false,
-                gpsAvailable: true
+                gpsAvailable: true,
+                locationFixUtcMs: checkout.fixMs,
+                preciseLocation: isPreciseLocationOn()
             ))
         } else {
-            // No GPS — still notify server (Wi-Fi / IP); do not block locally.
+            // Stale / imprecise / no GPS — Wi-Fi/IP only; do not false check-out.
             postEvent(QueuedEvent(
                 event: "exit",
                 zoneId: zoneId,
@@ -1373,7 +1490,9 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
                 bssid: bssid,
                 occurredAtUtcMs: Self.freshOccurredMs(for: nil),
                 isMock: false,
-                gpsAvailable: false
+                gpsAvailable: false,
+                locationFixUtcMs: checkout.fixMs,
+                preciseLocation: isPreciseLocationOn()
             ))
         }
     }
@@ -1450,8 +1569,15 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
         }
         let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
         let maxAge: Int64 = 10 * 60 * 1000
+        var connectionLost: QueuedEvent?
         var fresh: [QueuedEvent] = []
         for ev in queue {
+            if ev.event.lowercased() == "connection_lost" {
+                if connectionLost == nil || ev.occurredAtUtcMs <= connectionLost!.occurredAtUtcMs {
+                    connectionLost = ev
+                }
+                continue
+            }
             let age = nowMs - ev.occurredAtUtcMs
             if age > maxAge {
                 NSLog("[scorr-att] dropped stale event source=ios-queue event=%@ age_ms=%lld", ev.event, age)
@@ -1467,13 +1593,17 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
             }
             fresh = Array(fresh.prefix(1))
         }
-        saveQueue(fresh)
-        guard let next = fresh.first else {
+        // Send connection_lost first, then newest reading.
+        var ordered: [QueuedEvent] = []
+        if let connectionLost { ordered.append(connectionLost) }
+        ordered.append(contentsOf: fresh)
+        saveQueue(ordered)
+        guard let next = ordered.first else {
             lock.unlock()
             return
         }
         posting = true
-        saveQueue([])
+        saveQueue(Array(ordered.dropFirst()))
         lock.unlock()
 
         sendToEdge(next) { [weak self] ok, shouldRequeue, stopTracking, response in
@@ -1551,9 +1681,23 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
             "device_timezone": TimeZone.current.identifier,
             "is_mock": event.isMock,
             "platform": "ios",
-            "app_version": AttendanceStore.appVersion ?? "1.3.12",
+            "app_version": AttendanceStore.appVersion ?? "1.3.15",
+            "precise_location": event.preciseLocation ?? isPreciseLocationOn(),
         ]
-        let gpsOk = event.gpsAvailable ?? (event.lat != nil && event.lng != nil)
+        if let fixMs = event.locationFixUtcMs {
+            body["location_fix_utc_ms"] = fixMs
+        }
+        var gpsOk = event.gpsAvailable ?? (event.lat != nil && event.lng != nil)
+        // Defense: strip stale / imprecise coords before they can trigger Rule 5.
+        if gpsOk, let fixMs = event.locationFixUtcMs, occurred - fixMs > 60_000 {
+            gpsOk = false
+        }
+        if gpsOk, let acc = event.accuracyM, acc > 50 {
+            gpsOk = false
+        }
+        if gpsOk, (event.preciseLocation ?? isPreciseLocationOn()) == false {
+            gpsOk = false
+        }
         body["gps_available"] = gpsOk
         if let zoneId = event.zoneId { body["zone_id"] = zoneId }
         if gpsOk, let lat = event.lat { body["lat"] = lat }
@@ -1620,7 +1764,19 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
             }
         } else if action == "clock_out" {
             title = "Checked out"
-            body = "Checked out - left the office radius at \(localTime)"
+            if let notify = json["notify_message"] as? String, !notify.isEmpty {
+                body = notify
+            } else {
+                body = "Checked out - left the office radius at \(localTime)"
+            }
+        } else if action == "already_clocked_out",
+                  let notify = json["notify_message"] as? String, !notify.isEmpty {
+            title = "Attendance check"
+            body = notify
+        } else if let notify = json["notify_message"] as? String, !notify.isEmpty,
+                  reason != "already_checked_in", reason != "already_clocked_in", reason != "none" {
+            title = "Attendance check"
+            body = notify
         } else if let ok = json["ok"] as? Bool, !ok, !reason.isEmpty,
                   reason != "already_checked_in", reason != "already_clocked_in", reason != "none" {
             title = "Attendance check"

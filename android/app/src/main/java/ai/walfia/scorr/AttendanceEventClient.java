@@ -131,7 +131,9 @@ final class AttendanceEventClient {
 
         long now = System.currentTimeMillis();
         long occurred = occurredAtUtcMs != null && occurredAtUtcMs > 0 ? occurredAtUtcMs : now;
-        if (now - occurred > MAX_EVENT_AGE_MS) {
+        // connection_lost may arrive late — used only to close a visit.
+        boolean connectionLost = event != null && "connection_lost".equalsIgnoreCase(event);
+        if (!connectionLost && now - occurred > MAX_EVENT_AGE_MS) {
             logStaleDrop(app, event, occurred, now - occurred, "pre-send");
             return;
         }
@@ -159,50 +161,59 @@ final class AttendanceEventClient {
         }
     }
 
-    /** Flush offline queue: drop stale, send newest fresh reading only. */
+    /** Flush offline queue: send connection_lost first, then newest fresh reading. */
     static void flushQueue(Context ctx) {
         Context app = ctx.getApplicationContext();
         IO.execute(() -> {
             JSONArray queue = AttendancePingStore.drainQueue(app);
             long now = System.currentTimeMillis();
+            JSONObject connectionLost = null;
             JSONObject newest = null;
             long newestOccurred = -1;
             for (int i = 0; i < queue.length(); i++) {
                 try {
                     JSONObject body = queue.getJSONObject(i);
+                    String ev = body.optString("event", "");
                     long occurred = body.optLong("occurred_at_utc_ms", 0L);
-                    if (occurred <= 0 || now - occurred > MAX_EVENT_AGE_MS) {
+                    boolean isLost = "connection_lost".equalsIgnoreCase(ev);
+                    if (!isLost && (occurred <= 0 || now - occurred > MAX_EVENT_AGE_MS)) {
                         logStaleDrop(
                             app,
-                            body.optString("event", "?"),
+                            ev.isEmpty() ? "?" : ev,
                             occurred,
                             occurred > 0 ? now - occurred : -1,
                             "queue-flush"
                         );
                         continue;
                     }
+                    if (isLost) {
+                        if (connectionLost == null
+                            || occurred <= connectionLost.optLong("occurred_at_utc_ms", Long.MAX_VALUE)) {
+                            connectionLost = body;
+                        }
+                        continue;
+                    }
                     if (occurred >= newestOccurred) {
                         newestOccurred = occurred;
                         newest = body;
                     } else {
-                        logStaleDrop(
-                            app,
-                            body.optString("event", "?"),
-                            occurred,
-                            now - occurred,
-                            "queue-superseded"
-                        );
+                        logStaleDrop(app, ev, occurred, now - occurred, "queue-superseded");
                     }
                 } catch (Exception e) {
                     /* drop corrupt */
                 }
             }
-            if (newest == null) return;
+            JSONArray failed = new JSONArray();
             try {
-                newest.put("device_now_utc_ms", System.currentTimeMillis());
-                if (!postOnce(app, newest)) {
-                    JSONArray failed = new JSONArray();
-                    failed.put(newest);
+                if (connectionLost != null) {
+                    connectionLost.put("device_now_utc_ms", System.currentTimeMillis());
+                    if (!postOnce(app, connectionLost)) failed.put(connectionLost);
+                }
+                if (newest != null) {
+                    newest.put("device_now_utc_ms", System.currentTimeMillis());
+                    if (!postOnce(app, newest)) failed.put(newest);
+                }
+                if (failed.length() > 0) {
                     AttendancePingStore.restoreQueue(app, failed);
                     updateStatusNotification(app, "No connection - will check when online", null);
                 }
@@ -210,6 +221,30 @@ final class AttendanceEventClient {
                 Log.w(TAG, "flush newest failed", e);
             }
         });
+    }
+
+    /** Persist a local connection_lost marker (exact disconnect time). */
+    static void saveConnectionLost(Context ctx) {
+        Context app = ctx.getApplicationContext();
+        if (!AttendancePingStore.enabled(app)) return;
+        long now = System.currentTimeMillis();
+        try {
+            JSONObject body = new JSONObject();
+            body.put("device_token", AttendancePingStore.deviceToken(app));
+            body.put("event", "connection_lost");
+            body.put("occurred_at_utc_ms", now);
+            body.put("device_now_utc_ms", now);
+            body.put("device_timezone", AttendancePingStore.deviceTimezone());
+            body.put("is_mock", false);
+            body.put("gps_available", false);
+            body.put("device_id", AttendancePingStore.deviceId(app));
+            body.put("platform", "android");
+            body.put("app_version", AttendancePingStore.appVersion(app));
+            AttendancePingStore.enqueueEvent(app, body);
+            Log.i(TAG, "queued connection_lost at " + now);
+        } catch (Exception e) {
+            Log.w(TAG, "saveConnectionLost failed", e);
+        }
     }
 
     private static void postOrQueue(Context app, JSONObject body) {
@@ -294,22 +329,43 @@ final class AttendanceEventClient {
                 updateStatusNotification(app, msg, requestBody);
             } else if ("clock_out".equals(action)) {
                 showCheckNotification(app, action, json);
+                String notify = firstString(json, "notify_message");
                 String localTime = firstString(json, "local_time", "local_check_time");
                 long occurredMs = parseOccurredMs(json);
                 if (localTime == null && occurredMs > 0) {
                     localTime = formatInTz(occurredMs, AttendancePingStore.deviceTimezone());
                 }
-                String msg = localTime != null
-                    ? "Checked out - left the office radius at " + localTime
-                    : "Checked out";
+                String msg;
+                if (notify != null && !notify.isEmpty()) {
+                    msg = notify;
+                } else if (localTime != null) {
+                    msg = "Checked out - left the office radius at " + localTime;
+                } else {
+                    msg = "Checked out";
+                }
                 updateStatusNotification(app, msg, requestBody);
+            } else if ("already_clocked_out".equals(action)) {
+                String notify = firstString(json, "notify_message");
+                if (notify != null && !notify.isEmpty()) {
+                    showRejectNotification(app, notify);
+                    updateStatusNotification(app, notify, requestBody);
+                } else {
+                    updateStatusNotification(app, null, requestBody);
+                }
             } else if (!action.isEmpty() && !"none".equals(action) && !"already_clocked_in".equals(action)
                 && !"already_checked_in".equals(action)) {
-                // Surface exact rejection reason (e.g. not_on_office_wifi, outside_radius).
-                showRejectNotification(app, humanReason(reason));
-                updateStatusNotification(app, humanReason(reason), requestBody);
+                String notify = firstString(json, "notify_message");
+                String msg = notify != null && !notify.isEmpty() ? notify : humanReason(reason);
+                showRejectNotification(app, msg);
+                updateStatusNotification(app, msg, requestBody);
             } else {
-                updateStatusNotification(app, null, requestBody);
+                String notify = firstString(json, "notify_message");
+                if (notify != null && !notify.isEmpty()) {
+                    showRejectNotification(app, notify);
+                    updateStatusNotification(app, notify, requestBody);
+                } else {
+                    updateStatusNotification(app, null, requestBody);
+                }
             }
             AttendancePingStore.setLastServerAction(app, action, System.currentTimeMillis());
         } catch (Exception e) {

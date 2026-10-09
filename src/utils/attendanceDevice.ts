@@ -84,7 +84,7 @@ export async function registerAttendanceDevice(appVersion?: string): Promise<{
 }> {
   // Prefer direct RPC (JWT) — edge function historically hit BOOT_ERROR and hung clients with no timeout.
   const { registerDeviceViaRpc } = await import('./autoAttendanceSetup');
-  return registerDeviceViaRpc(appVersion || '1.3.12');
+  return registerDeviceViaRpc(appVersion || '1.3.15');
 }
 
 export async function disableAutoAttendanceOnDevice(kind: 'phone' | 'laptop' = 'phone'): Promise<void> {
@@ -136,7 +136,7 @@ export async function sendAutoAttendanceEvent(
   const occurredRaw = extra.occurred_at_utc_ms;
   const occurred =
     typeof occurredRaw === 'number' && Number.isFinite(occurredRaw) ? occurredRaw : now;
-  if (!isAttendanceEventFresh(occurred, now)) {
+  if (!isAttendanceEventFresh(occurred, now, event)) {
     logStaleAttendanceDrop({
       source: 'web-auto-event',
       event,

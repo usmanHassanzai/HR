@@ -22,7 +22,7 @@ import {
 } from '../utils/geoAttendance';
 import { LocationWindow, formatShiftTimeRange, hasAssignedShiftEnded, isWithinShiftExitWindow, locationWindowToMyShift, shouldCaptureLocationNow } from '../utils/shiftHelpers';
 import { Capacitor } from '@capacitor/core';
-import { isIosHomeScreen, isNativeApp } from '../utils/nativePlatform';
+import { isDesktopApp, isIosHomeScreen, isNativeApp } from '../utils/nativePlatform';
 import { IOS_HOME_BACKGROUND_BANNER } from '../utils/attendanceIosHome';
 import { getNativePermissionSnapshot } from '../utils/autoAttendanceSetup';
 
@@ -166,6 +166,11 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
   const [statusMessage, setStatusMessage] = useState('');
   /** iOS native only: surface While Using vs Always for background check-out. */
   const [iosLocPermission, setIosLocPermission] = useState<string | null>(null);
+  const [iosPrecise, setIosPrecise] = useState<boolean | null>(null);
+  const [iosBgRefresh, setIosBgRefresh] = useState<string | null>(null);
+  const [lastOfficeSignalAt, setLastOfficeSignalAt] = useState<number | null>(null);
+  const [lastAnySignalAt, setLastAnySignalAt] = useState<number | null>(null);
+  const [laptopAsleepSince, setLaptopAsleepSince] = useState<number | null>(null);
 
   /** Apply latest enrolled-device event (not only in-browser portal pings). */
   const applyDeviceEventRow = useCallback((row: {
@@ -295,6 +300,50 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
   }, [loadToday, loadSites]);
 
   useEffect(() => {
+    let cancelled = false;
+    const loadSignals = async () => {
+      try {
+        const { data } = await supabase.rpc('get_my_attendance_signal_times');
+        if (cancelled || !data || typeof data !== 'object') return;
+        const row = data as {
+          last_office_signal_at?: string | null;
+          last_any_signal_at?: string | null;
+          laptop_sleep_at?: string | null;
+        };
+        setLastOfficeSignalAt(
+          row.last_office_signal_at ? new Date(row.last_office_signal_at).getTime() : null,
+        );
+        setLastAnySignalAt(
+          row.last_any_signal_at ? new Date(row.last_any_signal_at).getTime() : null,
+        );
+        if (isDesktopApp()) {
+          const fromServer = row.laptop_sleep_at
+            ? new Date(row.laptop_sleep_at).getTime()
+            : null;
+          let fromLocal: number | null = null;
+          try {
+            const snap = await window.scorrDesktop?.getLaptopSleepStatus?.();
+            if (snap?.asleep && snap.asleepSinceMs) fromLocal = Number(snap.asleepSinceMs);
+          } catch {
+            /* ignore */
+          }
+          setLaptopAsleepSince(fromLocal ?? fromServer);
+        } else {
+          setLaptopAsleepSince(null);
+        }
+      } catch {
+        /* ignore */
+      }
+    };
+    void loadSignals();
+    const id = window.setInterval(() => void loadSignals(), 60_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, []);
+
+  useEffect(() => {
     const isIosNative = isNativeApp() && Capacitor.getPlatform() === 'ios';
     if (!isIosNative && !isIosHomeScreen()) return;
     let cancelled = false;
@@ -310,6 +359,15 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
           setIosLocPermission(snap.location === 'granted' ? 'home_granted' : snap.location === 'denied' ? 'home_denied' : 'home_prompt');
         } else {
           setIosLocPermission(null);
+        }
+        if (isIosNative) {
+          setIosPrecise(typeof snap.precise === 'boolean' ? snap.precise : null);
+          setIosBgRefresh(
+            typeof snap.backgroundAppRefresh === 'string' ? snap.backgroundAppRefresh : null,
+          );
+        } else {
+          setIosPrecise(null);
+          setIosBgRefresh(null);
         }
       } catch {
         /* ignore */
@@ -650,6 +708,16 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
           Location is off. On office Wi-Fi, check-in and Clock out still work; turn location on for GPS check-out.
         </p>
       )}
+      {iosPrecise === false && (
+        <p className="geo-hint geo-hint--spaced" role="status">
+          Precise Location is off. Open Settings → Scorr → Location → turn on Precise Location so office check-out works correctly.
+        </p>
+      )}
+      {iosBgRefresh === 'off' && (
+        <p className="geo-hint geo-hint--spaced" role="status">
+          Background App Refresh is off. Open Settings → General → Background App Refresh → On (and allow Scorr) so attendance can update in the background.
+        </p>
+      )}
 
       <div className="geo-status-card" role="status">
         {(iosLocPermission === 'when_in_use' || iosLocPermission === 'always' || iosLocPermission?.startsWith('home_')) && (
@@ -668,11 +736,35 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
             </strong>
           </div>
         )}
+        {iosPrecise != null && (
+          <div className="geo-status-card__row">
+            <span>Precise Location</span>
+            <strong>{iosPrecise ? 'On' : 'Off'}</strong>
+          </div>
+        )}
+        {iosBgRefresh != null && (
+          <div className="geo-status-card__row">
+            <span>Background App Refresh</span>
+            <strong>{iosBgRefresh === 'on' ? 'On' : 'Off'}</strong>
+          </div>
+        )}
         <div className="geo-status-card__row">
           <span>Last signal</span>
           <strong>
-            {lastSignalAt
-              ? new Date(lastSignalAt).toLocaleTimeString(undefined, {
+            {(lastAnySignalAt || lastSignalAt)
+              ? new Date(lastAnySignalAt || lastSignalAt!).toLocaleTimeString(undefined, {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit',
+                })
+              : '—'}
+          </strong>
+        </div>
+        <div className="geo-status-card__row">
+          <span>Last office signal</span>
+          <strong>
+            {lastOfficeSignalAt
+              ? new Date(lastOfficeSignalAt).toLocaleTimeString(undefined, {
                   hour: '2-digit',
                   minute: '2-digit',
                   second: '2-digit',
@@ -705,13 +797,18 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
         <div className="geo-status-card__row">
           <span>Current state</span>
           <strong>
-            {openShiftPreview
-              ? source === 'auto_wifi_no_gps' || source === 'manual_wifi_no_gps'
-                ? 'Checked in · No location - Wi-Fi only'
-                : 'Checked in'
-              : clockIn && clockOut
-                ? 'Checked out'
-                : 'Not checked in'}
+            {laptopAsleepSince
+              ? `Laptop asleep since ${new Date(laptopAsleepSince).toLocaleTimeString(undefined, {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}`
+              : openShiftPreview
+                ? source === 'auto_wifi_no_gps' || source === 'manual_wifi_no_gps'
+                  ? 'Checked in · No location - Wi-Fi only'
+                  : 'Checked in'
+                : clockIn && clockOut
+                  ? 'Checked out'
+                  : 'Not checked in'}
           </strong>
         </div>
         {statusMessage && <p className="geo-status-card__msg">{statusMessage}</p>}

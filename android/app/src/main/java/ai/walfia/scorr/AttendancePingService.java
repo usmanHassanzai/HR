@@ -44,7 +44,9 @@ public class AttendancePingService extends Service {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable tick = this::runBackupPingThenSchedule;
     private ConnectivityManager.NetworkCallback wifiCallback;
+    private ConnectivityManager.NetworkCallback defaultNetworkCallback;
     private boolean wifiWasOnOfficeNet = false;
+    private boolean hadAnyNetwork = true;
 
     static void start(Context ctx) {
         Context app = ctx.getApplicationContext();
@@ -466,8 +468,34 @@ public class AttendancePingService extends Service {
             }
         };
 
+        // Any-network monitor: Wi-Fi and mobile data both off → connection_lost.
+        defaultNetworkCallback = new ConnectivityManager.NetworkCallback() {
+            @Override
+            public void onAvailable(Network network) {
+                handler.post(() -> {
+                    if (!hadAnyNetwork) {
+                        AttendanceEventClient.flushQueue(AttendancePingService.this);
+                        requestLocationPing();
+                    }
+                    hadAnyNetwork = true;
+                });
+            }
+
+            @Override
+            public void onLost(Network network) {
+                handler.post(() -> {
+                    if (!hasAnyNetwork()) {
+                        hadAnyNetwork = false;
+                        AttendanceEventClient.saveConnectionLost(AttendancePingService.this);
+                    }
+                });
+            }
+        };
+
         try {
             cm.registerNetworkCallback(request, wifiCallback);
+            cm.registerDefaultNetworkCallback(defaultNetworkCallback);
+            hadAnyNetwork = hasAnyNetwork();
             // Seed current state
             handler.post(() -> onWifiChanged(isWifiConnected()));
         } catch (Exception e) {
@@ -476,15 +504,36 @@ public class AttendancePingService extends Service {
     }
 
     private void unregisterWifiCallback() {
-        if (wifiCallback == null) return;
         ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
         if (cm != null) {
-            try {
-                cm.unregisterNetworkCallback(wifiCallback);
-            } catch (Exception ignored) {
+            if (wifiCallback != null) {
+                try {
+                    cm.unregisterNetworkCallback(wifiCallback);
+                } catch (Exception ignored) {
+                }
+            }
+            if (defaultNetworkCallback != null) {
+                try {
+                    cm.unregisterNetworkCallback(defaultNetworkCallback);
+                } catch (Exception ignored) {
+                }
             }
         }
         wifiCallback = null;
+        defaultNetworkCallback = null;
+    }
+
+    private boolean hasAnyNetwork() {
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+        if (cm == null) return false;
+        Network net = cm.getActiveNetwork();
+        if (net == null) return false;
+        NetworkCapabilities caps = cm.getNetworkCapabilities(net);
+        return caps != null && (
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+                || caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
+                || caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+        );
     }
 
     private boolean isWifiConnected() {

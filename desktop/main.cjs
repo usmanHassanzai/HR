@@ -1,6 +1,7 @@
 /**
  * Electron laptop automatic attendance (Section H / R45–R53).
- * powerMonitor suspend/resume/shutdown + 5-min heartbeat during W.
+ * powerMonitor suspend/lock → device_sleep; resume/unlock → device_wake;
+ * shutdown → device_shutdown; 60s heartbeat while awake.
  * Uses device token from safeStorage; no dashboard session required after enrollment.
  */
 const {
@@ -364,9 +365,46 @@ async function readFreshLocation(maxAccuracyM = 50) {
 }
 
 const STALE_EVENT_MAX_AGE_MS = 10 * 60 * 1000;
+/** Pending connection_lost (exact disconnect time) sent first on reconnect. */
+let pendingConnectionLostMs = null;
+/** Queued close-only laptop events (sleep/shutdown) when offline — sent first on reconnect. */
+let pendingLaptopCloseQueue = [];
+/** Local asleep-since for status card (ms epoch), null when awake. */
+let laptopAsleepSinceMs = null;
+
+const CLOSE_ONLY_EVENTS = new Set(['connection_lost', 'device_sleep', 'device_shutdown']);
 
 function logDesktopStaleDrop(event, occurred, ageMs, source) {
   console.info('[scorr-att] dropped stale event', { source, event, age_ms: ageMs, occurred_at_utc_ms: occurred });
+}
+
+function saveConnectionLost() {
+  pendingConnectionLostMs = Date.now();
+  console.info('[scorr-att] queued connection_lost', pendingConnectionLostMs);
+}
+
+function queueLaptopCloseEvent(event, occurredAtUtcMs) {
+  const occurred = occurredAtUtcMs && occurredAtUtcMs > 0 ? occurredAtUtcMs : Date.now();
+  pendingLaptopCloseQueue.push({ event, occurredAtUtcMs: occurred });
+  if (event === 'device_sleep' || event === 'device_shutdown') {
+    laptopAsleepSinceMs = occurred;
+  }
+  console.info('[scorr-att] queued laptop close event', event, occurred);
+}
+
+async function flushConnectionLostThen(nextFn) {
+  // Close-only events first (exact timestamps), then any follow-up.
+  if (pendingConnectionLostMs != null) {
+    const lostAt = pendingConnectionLostMs;
+    pendingConnectionLostMs = null;
+    await sendEvent('connection_lost', { error: 'offline' }, false, lostAt);
+  }
+  while (pendingLaptopCloseQueue.length > 0) {
+    const item = pendingLaptopCloseQueue.shift();
+    await sendEvent(item.event, null, false, item.occurredAtUtcMs);
+  }
+  if (typeof nextFn === 'function') return nextFn();
+  return null;
 }
 
 async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = null) {
@@ -374,19 +412,22 @@ async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = nul
   if (!token || !SUPABASE_ANON) return null;
   const now = Date.now();
   const occurred = occurredAtUtcMs && occurredAtUtcMs > 0 ? occurredAtUtcMs : now;
-  if (now - occurred > STALE_EVENT_MAX_AGE_MS) {
+  const ev = String(event || '').toLowerCase();
+  const isCloseOnly = CLOSE_ONLY_EVENTS.has(ev);
+  if (!isCloseOnly && now - occurred > STALE_EVENT_MAX_AGE_MS) {
     logDesktopStaleDrop(event, occurred, now - occurred, 'desktop-pre-send');
     return { ok: false, reason: 'event_too_old', action: 'event_too_old', client_dropped: true };
   }
   let fix = coords;
-  if (!fix || fix.latitude == null || fix.longitude == null) {
+  if (!isCloseOnly && (!fix || fix.latitude == null || fix.longitude == null)) {
     // Wait briefly for GPS; if unavailable, send Wi-Fi-only (server may check in).
     fix = await Promise.race([
       readFreshLocation(100),
       new Promise((resolve) => setTimeout(() => resolve({ error: 'timeout' }), 3000)),
     ]);
   }
-  const gpsAvailable = Boolean(fix && fix.latitude != null && fix.longitude != null && !fix.error);
+  const gpsAvailable =
+    !isCloseOnly && Boolean(fix && fix.latitude != null && fix.longitude != null && !fix.error);
   let res;
   try {
     res = await httpJson(`${SUPABASE_URL}/functions/v1/auto-attendance-event`, {
@@ -413,8 +454,19 @@ async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = nul
       },
     });
   } catch (e) {
+    if (ev === 'device_sleep' || ev === 'device_shutdown') {
+      queueLaptopCloseEvent(ev, occurred);
+    } else if (ev === 'connection_lost') {
+      saveConnectionLost();
+    }
     notify('Scorr', 'No connection - will check when online');
     return { ok: false, reason: 'no_connection', action: 'no_connection' };
+  }
+
+  if (ev === 'device_sleep') {
+    laptopAsleepSinceMs = occurred;
+  } else if (ev === 'device_wake' || ev === 'device_shutdown') {
+    if (ev === 'device_wake') laptopAsleepSinceMs = null;
   }
 
   // Check-out still needs GPS; retry once if server asks.
@@ -425,7 +477,9 @@ async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = nul
     }
   }
 
-  if (res?.action === 'clock_in') {
+  if (res?.notify_message) {
+    notify('Scorr', String(res.notify_message));
+  } else if (res?.action === 'clock_in') {
     const src = res?.attendance_source || res?.source || '';
     if (src === 'auto_wifi_no_gps' || !gpsAvailable) {
       notify('Scorr', 'Checked in on office Wi-Fi (location is off)');
@@ -434,8 +488,11 @@ async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = nul
       notify('Scorr', `Checked in at ${t}`);
     }
   } else if (res?.action === 'clock_out') {
-    const t = res?.local_time || null;
-    notify('Scorr', t ? `Checked out - left the office radius at ${t}` : 'Checked out');
+    // Prefer server notify_message (laptop L3–L6 reasons); never show raw SQL.
+    if (!res?.notify_message) {
+      const t = res?.local_time || null;
+      notify('Scorr', t ? `Checked out - left the office radius at ${t}` : 'Checked out');
+    }
   } else if (res?.action === 'not_on_office_wifi' || res?.action === 'not_on_office_network') {
     notify('Scorr', 'Connect to the office Wi-Fi');
   } else if (res?.action === 'outside_radius') {
@@ -626,11 +683,22 @@ function startNetworkWatch() {
   networkWatchTimer = setInterval(() => {
     if (!loadToken()) return;
     const fp = networkFingerprint();
+    if (!fp && lastNetworkFingerprint) {
+      // All interfaces gone — Wi-Fi and mobile/ethernet offline.
+      lastNetworkFingerprint = '';
+      saveConnectionLost();
+      return;
+    }
     if (fp && fp !== lastNetworkFingerprint) {
+      const wasOffline = !lastNetworkFingerprint;
       lastNetworkFingerprint = fp;
       void syncSchedule().then(() => {
         startHeartbeatIfInWindow();
-        void sendEvent('network_change');
+        if (wasOffline) {
+          void flushConnectionLostThen(() => sendEvent('network_change'));
+        } else {
+          void sendEvent('network_change');
+        }
       });
     }
   }, 15_000);
@@ -639,22 +707,37 @@ function startNetworkWatch() {
 function wirePowerEvents() {
   powerMonitor.on('resume', () => {
     void syncSchedule().then(() => {
-      startHeartbeatIfInWindow();
-      // Fresh location on wake / reconnect path.
-      void sendEvent('power_on');
+      // Close-only queue first, then wake, then heartbeats (may open a new visit).
+      void flushConnectionLostThen(async () => {
+        await sendEvent('device_wake');
+        startHeartbeatIfInWindow();
+      });
     });
   });
   powerMonitor.on('unlock-screen', () => {
-    void sendEvent('heartbeat');
+    void syncSchedule().then(() => {
+      void flushConnectionLostThen(async () => {
+        await sendEvent('device_wake');
+        startHeartbeatIfInWindow();
+      });
+    });
   });
   powerMonitor.on('suspend', () => {
-    void sendEvent('power_off');
     stopHeartbeat();
+    void sendEvent('device_sleep');
   });
+  try {
+    powerMonitor.on('lock-screen', () => {
+      stopHeartbeat();
+      void sendEvent('device_sleep');
+    });
+  } catch {
+    /* lock-screen not available on all platforms */
+  }
   powerMonitor.on('shutdown', () => {
-    void sendEvent('power_off');
+    stopHeartbeat();
+    void sendEvent('device_shutdown');
   });
-  // Screen lock must NOT check out (R49) — ignore lock-screen if available
   startNetworkWatch();
 }
 
@@ -822,6 +905,10 @@ app.whenReady().then(async () => {
     return true;
   });
   ipcMain.handle('scorr:hasAttendanceToken', () => Boolean(loadToken()));
+  ipcMain.handle('scorr:getLaptopSleepStatus', () => ({
+    asleep: laptopAsleepSinceMs != null,
+    asleepSinceMs: laptopAsleepSinceMs,
+  }));
   ipcMain.handle('scorr:saveLoginCredentials', (_e, email, password) => saveLoginCredentials(email, password));
   ipcMain.handle('scorr:loadLoginCredentials', () => loadLoginCredentials());
   ipcMain.handle('scorr:clearLoginCredentials', () => clearLoginCredentials());

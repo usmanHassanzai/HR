@@ -45,6 +45,7 @@ interface SetupPlugin {
     coarseLocation?: string;
     backgroundLocation?: string;
     precise?: boolean;
+    backgroundAppRefresh?: string;
     locationServicesEnabled?: boolean;
     notifications?: string;
     batteryUnrestricted?: boolean | null;

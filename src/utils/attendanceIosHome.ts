@@ -182,23 +182,32 @@ async function sendPing(force: boolean, preferAccurateOutside: boolean): Promise
 
   inFlight = true;
   try {
-    const payload =
-      pos != null
-        ? {
-            latitude: pos.coords.latitude,
-            longitude: pos.coords.longitude,
-            accuracy_m: pos.coords.accuracy ?? null,
-            gps_available: true,
-            occurred_at_utc_ms: occurred,
-            platform: 'ios' as const,
-            app_version: '1.3.12',
-          }
-        : {
-            gps_available: false,
-            occurred_at_utc_ms: occurred,
-            platform: 'ios' as const,
-            app_version: '1.3.12',
-          };
+    const fixTs = pos && Number.isFinite(pos.timestamp) ? pos.timestamp : null;
+    const acc = pos?.coords.accuracy ?? null;
+    const stale = fixTs != null && occurred - fixTs > 60_000;
+    const imprecise = acc != null && acc > 50;
+    // Home Screen cannot read Precise Location; treat accuracy > 50 as reduced.
+    const sendGps = pos != null && !stale && !imprecise;
+    const payload = sendGps
+      ? {
+          latitude: pos!.coords.latitude,
+          longitude: pos!.coords.longitude,
+          accuracy_m: acc,
+          gps_available: true,
+          occurred_at_utc_ms: Date.now(),
+          location_fix_utc_ms: fixTs,
+          precise_location: true,
+          platform: 'ios' as const,
+          app_version: '1.3.15',
+        }
+      : {
+          gps_available: false,
+          occurred_at_utc_ms: Date.now(),
+          location_fix_utc_ms: fixTs,
+          precise_location: !imprecise,
+          platform: 'ios' as const,
+          app_version: '1.3.15',
+        };
     const res = await sendAutoAttendanceEvent('ping', payload);
     applyOfficeVersionFromEvent(res);
     lastSentAt = Date.now();

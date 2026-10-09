@@ -56,14 +56,41 @@ serve(async (req) => {
     const tokenHash = await sha256Hex(token);
     const clientIp = trustedClientIp(req);
 
+    const platform = String(body.platform || '').toLowerCase();
+    const isIos = platform === 'ios' || platform === 'iphone' || platform === 'ipad';
+    let lat = body.lat ?? body.latitude ?? null;
+    let lng = body.lng ?? body.longitude ?? null;
+    let accuracy = body.accuracy_m ?? body.accuracy ?? null;
+    let preciseLocationRequired = false;
+    // iOS only: ignore cached / imprecise fixes for check-out (Rule 5).
+    if (isIos && lat != null && lng != null) {
+      const occurred = Number(body.occurred_at_utc_ms);
+      const locTs = Number(body.location_fix_utc_ms);
+      const precise = body.precise_location;
+      const acc = accuracy == null ? null : Number(accuracy);
+      const stale =
+        Number.isFinite(occurred) &&
+        Number.isFinite(locTs) &&
+        locTs > 0 &&
+        occurred - locTs > 60_000;
+      const imprecise = acc != null && Number.isFinite(acc) && acc > 50;
+      const reduced = precise === false || precise === 'false' || precise === 0;
+      if (stale || imprecise || reduced) {
+        if (reduced) preciseLocationRequired = true;
+        lat = null;
+        lng = null;
+        accuracy = null;
+      }
+    }
+
     const admin = createClient(url, serviceKey);
     const { data, error } = await admin.rpc('process_auto_attendance_event', {
       p_token_hash: tokenHash,
       p_event: String(body.event || ''),
       p_zone_id: body.zone_id || null,
-      p_latitude: body.lat ?? body.latitude ?? null,
-      p_longitude: body.lng ?? body.longitude ?? null,
-      p_accuracy_m: body.accuracy_m ?? body.accuracy ?? null,
+      p_latitude: lat,
+      p_longitude: lng,
+      p_accuracy_m: accuracy,
       p_ssid: body.ssid ?? null,
       p_bssid: body.bssid ?? null,
       p_occurred_at_utc_ms: body.occurred_at_utc_ms ?? null,
@@ -77,7 +104,17 @@ serve(async (req) => {
     });
 
     if (error) return json(req, { ok: false, reason: error.message }, 400);
-    return json(req, data ?? { ok: true });
+    const out =
+      data && typeof data === 'object'
+        ? { ...(data as Record<string, unknown>) }
+        : { ok: true };
+    if (preciseLocationRequired) {
+      out.precise_location_required = true;
+      out.notify_message =
+        out.notify_message ||
+        'Turn on Precise Location for Scorr (Settings → Scorr → Location → Precise Location) so office check-out works correctly.';
+    }
+    return json(req, out);
   } catch (e) {
     return json(req, { ok: false, reason: String(e) }, 500);
   }

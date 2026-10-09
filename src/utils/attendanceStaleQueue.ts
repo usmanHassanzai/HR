@@ -35,9 +35,19 @@ export function getStaleAttendanceDropLog(): StaleDropLog[] {
   }
 }
 
+/** connection_lost may arrive late and is only used to close a visit. */
+export function isConnectionLostEvent(event?: string | null): boolean {
+  return String(event || '').toLowerCase() === 'connection_lost';
+}
+
 /** True when occurred_at is fresh enough to send. */
-export function isAttendanceEventFresh(occurredAtUtcMs: number, nowMs = Date.now()): boolean {
+export function isAttendanceEventFresh(
+  occurredAtUtcMs: number,
+  nowMs = Date.now(),
+  event?: string | null,
+): boolean {
   if (!Number.isFinite(occurredAtUtcMs) || occurredAtUtcMs <= 0) return false;
+  if (isConnectionLostEvent(event)) return true;
   return nowMs - occurredAtUtcMs <= ATTENDANCE_EVENT_MAX_AGE_MS;
 }
 
@@ -52,9 +62,15 @@ export function takeNewestFreshEvent<T extends { occurred_at_utc_ms?: number; ev
 ): T | null {
   if (!queue.length) return null;
   const fresh: T[] = [];
+  // Prefer a pending connection_lost (exact disconnect time) before a fresh reading.
+  const lost = queue.filter((item) => isConnectionLostEvent(item.event));
+  if (lost.length) {
+    lost.sort((a, b) => Number(a.occurred_at_utc_ms ?? 0) - Number(b.occurred_at_utc_ms ?? 0));
+    return lost[0];
+  }
   for (const item of queue) {
     const occurred = Number(item.occurred_at_utc_ms ?? 0);
-    if (!isAttendanceEventFresh(occurred, nowMs)) {
+    if (!isAttendanceEventFresh(occurred, nowMs, item.event)) {
       logStaleAttendanceDrop({
         source,
         event: item.event,

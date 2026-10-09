@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('scorrDesktop', {
   saveAttendanceToken: (token) => ipcRenderer.invoke('scorr:saveAttendanceToken', token),
   clearAttendanceToken: () => ipcRenderer.invoke('scorr:clearAttendanceToken'),
   hasAttendanceToken: () => ipcRenderer.invoke('scorr:hasAttendanceToken'),
+  getLaptopSleepStatus: () => ipcRenderer.invoke('scorr:getLaptopSleepStatus'),
   saveLoginCredentials: (email, password) => ipcRenderer.invoke('scorr:saveLoginCredentials', email, password),
   loadLoginCredentials: () => ipcRenderer.invoke('scorr:loadLoginCredentials'),
   clearLoginCredentials: () => ipcRenderer.invoke('scorr:clearLoginCredentials'),
