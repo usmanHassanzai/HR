@@ -1,31 +1,31 @@
 {
-  "generatedAt": "2026-10-09T09:39:03.802Z",
-  "webBuildId": "1.3.9-2026-10-09093857",
+  "generatedAt": "2026-10-09T11:34:31.094Z",
+  "webBuildId": "1.3.10-2026-10-09113417",
   "mandatory": false,
   "notes": "Automatic attendance, Office Wi-Fi, 1-hour sessions, auto-updates. If install fails with a signature error, uninstall the old debug APK once, then install this release — after that, updates install over the old app.",
   "android": {
-    "versionName": "1.3.9",
-    "versionCode": 15,
+    "versionName": "1.3.10",
+    "versionCode": 16,
     "apkUrl": "https://scorr.walfia.ai/downloads/scorr.apk",
     "notes": "Automatic attendance, Office Wi-Fi, 1-hour sessions, auto-updates. If install fails with a signature error, uninstall the old debug APK once, then install this release — after that, updates install over the old app.",
     "minSupportedCode": 1,
     "sizeBytes": 5755181
   },
   "windows": {
-    "version": "1.3.9",
+    "version": "1.3.10",
     "setupUrl": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.9/Scorr-Setup.exe",
     "latestYmlUrl": "https://scorr.walfia.ai/downloads/desktop/latest.yml",
     "notes": "Automatic attendance, Office Wi-Fi, 1-hour sessions, auto-updates. If install fails with a signature error, uninstall the old debug APK once, then install this release — after that, updates install over the old app."
   },
   "linux": {
-    "version": "1.3.9",
+    "version": "1.3.10",
     "debUrl": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.9/Scorr.deb",
     "appImageUrl": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.9/Scorr.AppImage",
     "latestYmlUrl": "https://scorr.walfia.ai/downloads/desktop/latest-linux.yml",
     "notes": "Automatic attendance, Office Wi-Fi, 1-hour sessions, auto-updates. If install fails with a signature error, uninstall the old debug APK once, then install this release — after that, updates install over the old app."
   },
   "ios": {
-    "version": "1.3.9",
+    "version": "1.3.10",
     "pwaUrl": "https://scorr.walfia.ai/?app=1",
     "storeUrl": null,
     "notes": "Home Screen / PWA updates with the website. Native IPA uses TestFlight or the App Store when published."

@@ -131,11 +131,25 @@ export async function sendAutoAttendanceEvent(
   const token = await getAttendanceDeviceToken();
   if (!token || !supabaseUrl || !supabaseAnonKey) return null;
 
+  const { isAttendanceEventFresh, logStaleAttendanceDrop } = await import('./attendanceStaleQueue');
   const now = Date.now();
+  const occurredRaw = extra.occurred_at_utc_ms;
+  const occurred =
+    typeof occurredRaw === 'number' && Number.isFinite(occurredRaw) ? occurredRaw : now;
+  if (!isAttendanceEventFresh(occurred, now)) {
+    logStaleAttendanceDrop({
+      source: 'web-auto-event',
+      event,
+      age_ms: now - occurred,
+      occurred_at_utc_ms: occurred,
+    });
+    return { ok: false, reason: 'event_too_old', action: 'event_too_old', client_dropped: true };
+  }
+
   const body = {
     device_token: token,
     event,
-    occurred_at_utc_ms: now,
+    occurred_at_utc_ms: occurred,
     device_now_utc_ms: now,
     device_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     device_id: await ensureDeviceId(),
@@ -143,16 +157,26 @@ export async function sendAutoAttendanceEvent(
     ...extra,
   };
 
-  const res = await fetch(`${supabaseUrl}/functions/v1/auto-attendance-event`, {
-    method: 'POST',
-    headers: {
-      apikey: supabaseAnonKey,
-      'Content-Type': 'application/json',
-      'x-device-token': token,
-    },
-    body: JSON.stringify(body),
-  });
-  return (await res.json().catch(() => null)) as Record<string, unknown> | null;
+  try {
+    const res = await fetch(`${supabaseUrl}/functions/v1/auto-attendance-event`, {
+      method: 'POST',
+      headers: {
+        apikey: supabaseAnonKey,
+        'Content-Type': 'application/json',
+        'x-device-token': token,
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(12_000),
+    });
+    return (await res.json().catch(() => null)) as Record<string, unknown> | null;
+  } catch {
+    return {
+      ok: false,
+      reason: 'no_connection',
+      action: 'no_connection',
+      message: 'No connection - will check when online',
+    };
+  }
 }
 
 /** Laptop and Test now: attach a fresh GPS fix, and retry once if the server asks. */

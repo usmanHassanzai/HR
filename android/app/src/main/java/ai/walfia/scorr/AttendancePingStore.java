@@ -256,6 +256,52 @@ final class AttendancePingStore {
         return prefs(ctx).getBoolean("wifi_connected", false);
     }
 
+    static void setLastStatusText(Context ctx, String text) {
+        if (text != null) prefs(ctx).edit().putString("last_status_text", text).apply();
+    }
+
+    static String lastStatusText(Context ctx) {
+        return prefs(ctx).getString("last_status_text", null);
+    }
+
+    static void setLastServerAction(Context ctx, String action, long atMs) {
+        prefs(ctx).edit()
+            .putString("last_server_action", action != null ? action : "")
+            .putLong("last_server_action_at", atMs)
+            .apply();
+    }
+
+    static void setLastOutsideOrEdge(Context ctx, boolean outsideOrEdge) {
+        prefs(ctx).edit().putBoolean("last_outside_or_edge", outsideOrEdge).apply();
+    }
+
+    static boolean lastOutsideOrEdge(Context ctx) {
+        return prefs(ctx).getBoolean("last_outside_or_edge", false);
+    }
+
+    /** Append a stale-drop log line (capped) so drop frequency is visible. */
+    static synchronized void recordStaleDrop(Context ctx, String event, long ageMs, String source) {
+        try {
+            SharedPreferences p = prefs(ctx);
+            JSONArray arr = new JSONArray(p.getString("stale_drop_log", "[]"));
+            JSONObject row = new JSONObject();
+            row.put("at", System.currentTimeMillis());
+            row.put("event", event != null ? event : "");
+            row.put("age_ms", ageMs);
+            row.put("source", source != null ? source : "");
+            arr.put(row);
+            while (arr.length() > 100) {
+                JSONArray next = new JSONArray();
+                for (int i = 1; i < arr.length(); i++) next.put(arr.get(i));
+                arr = next;
+            }
+            p.edit().putString("stale_drop_log", arr.toString()).apply();
+            Log.i(TAG, "stale_drop_log size=" + arr.length() + " last=" + row);
+        } catch (Exception e) {
+            Log.w(TAG, "recordStaleDrop", e);
+        }
+    }
+
     /** Best-effort current Wi-Fi SSID/BSSID for immediate EXIT / disconnect events (R69). */
     @SuppressWarnings("deprecation")
     static String[] readCurrentWifiIdentity(Context ctx) {

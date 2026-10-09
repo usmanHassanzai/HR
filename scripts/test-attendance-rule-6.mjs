@@ -127,13 +127,15 @@ BEGIN
   INSERT INTO public.employee_shift_assignments (user_id, shift_id, effective_from, assigned_by)
   VALUES (v_emp, v_shift, v_att_date - 30, v_admin);
 
+  PERFORM public.attendance_set_write_context('admin_correction');
   INSERT INTO public.attendance_records (
     user_id, attendance_date, status, approval_status, clock_in_at, clock_out_at,
-    attendance_source, shift_id, work_minutes
+    attendance_source, shift_id, work_minutes, clock_in_lat, clock_in_lng, presence_method
   ) VALUES (
     v_emp, v_att_date, 'present', 'approved', v_end_grace - INTERVAL '2 hours', NULL,
-    'geo', v_shift, NULL
+    'geo', v_shift, NULL, 0.0, 0.0, 'gps'
   ) RETURNING id INTO v_rec;
+  PERFORM public.attendance_set_write_context(NULL);
 
   INSERT INTO public.attendance_visit_segments (
     user_id, attendance_record_id, attendance_date, visit_number, clock_in_at, clock_out_at
@@ -173,13 +175,15 @@ BEGIN
   INSERT INTO public.employee_shift_assignments (user_id, shift_id, effective_from, assigned_by)
   VALUES (v_emp, v_shift, v_att_date - 30, v_admin);
 
+  PERFORM public.attendance_set_write_context('admin_correction');
   INSERT INTO public.attendance_records (
     user_id, attendance_date, status, approval_status, clock_in_at, clock_out_at,
-    attendance_source, shift_id, work_minutes
+    attendance_source, shift_id, work_minutes, clock_in_lat, clock_in_lng, presence_method
   ) VALUES (
     v_emp, v_att_date, 'present', 'approved', v_end_force - INTERVAL '2 hours', NULL,
-    'geo', v_shift, NULL
+    'geo', v_shift, NULL, 0.0, 0.0, 'gps'
   ) RETURNING id INTO v_rec;
+  PERFORM public.attendance_set_write_context(NULL);
 
   INSERT INTO public.attendance_visit_segments (
     user_id, attendance_record_id, attendance_date, visit_number, clock_in_at, clock_out_at
@@ -253,13 +257,15 @@ BEGIN
   INSERT INTO public.employee_shift_assignments (user_id, shift_id, effective_from, assigned_by)
   VALUES (v_emp, v_shift, v_att_date - 30, v_admin);
 
+  PERFORM public.attendance_set_write_context('admin_correction');
   INSERT INTO public.attendance_records (
     user_id, attendance_date, status, approval_status, clock_in_at, clock_out_at,
-    attendance_source, shift_id, work_minutes
+    attendance_source, shift_id, work_minutes, clock_in_lat, clock_in_lng, presence_method
   ) VALUES (
     v_emp, v_att_date, 'present', 'approved', v_end_force - INTERVAL '2 hours', NULL,
-    'auto_laptop', v_shift, NULL
+    'auto_laptop', v_shift, NULL, 0.0, 0.0, 'laptop'
   ) RETURNING id INTO v_rec;
+  PERFORM public.attendance_set_write_context(NULL);
 
   INSERT INTO public.attendance_visit_segments (
     user_id, attendance_record_id, attendance_date, visit_number, clock_in_at, clock_out_at

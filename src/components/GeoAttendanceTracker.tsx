@@ -101,13 +101,20 @@ export default function GeoAttendanceTracker({ profile, onUpdate }: GeoAttendanc
       void ping(true);
     };
 
+    const onOnline = () => {
+      void refreshNativeAttendanceSession();
+      void ping(true);
+    };
+
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener(GEO_DASHBOARD_OPEN_EVENT, onDashboardOpen);
+    window.addEventListener('online', onOnline);
 
     return () => {
       cancelled = true;
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener(GEO_DASHBOARD_OPEN_EVENT, onDashboardOpen);
+      window.removeEventListener('online', onOnline);
       if (intervalId) clearInterval(intervalId);
       void clearAttendanceWatch(watchId);
       // Do not stop native pings here — they must keep running with the app closed.

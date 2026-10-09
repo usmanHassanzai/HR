@@ -19,10 +19,7 @@ public class AttendanceGeofenceReceiver extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         Context app = context.getApplicationContext();
         if (!AttendancePingStore.enabled(app)) return;
-        if (!AttendancePingStore.isInsideActiveWindow(app)) {
-            Log.d(TAG, "Ignoring geofence outside window");
-            return;
-        }
+        // Server decides the attendance window — never drop EXIT/ENTER locally.
 
         GeofencingEvent event = GeofencingEvent.fromIntent(intent);
         if (event == null) return;
@@ -62,7 +59,10 @@ public class AttendanceGeofenceReceiver extends BroadcastReceiver {
             }
         }
 
-        if (event.getTriggeringLocation() != null) {
+        if ("exit".equals(eventName)) {
+            // Instant EXIT with a fresh GPS reading (not a cached geofence fix).
+            AttendancePingService.sendFreshExit(app, zoneId, ssid, bssid);
+        } else if (event.getTriggeringLocation() != null) {
             android.location.Location loc = event.getTriggeringLocation();
             Double lat = loc.getLatitude();
             Double lng = loc.getLongitude();
@@ -71,9 +71,6 @@ public class AttendanceGeofenceReceiver extends BroadcastReceiver {
             AttendanceEventClient.send(app, eventName, zoneId, lat, lng, acc, ssid, bssid, readingMs);
         } else {
             AttendanceEventClient.send(app, eventName, zoneId, null, null, null, ssid, bssid, null);
-        }
-        if ("exit".equals(eventName)) {
-            AttendancePingService.start(app);
         }
     }
 }

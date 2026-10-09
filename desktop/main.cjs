@@ -321,61 +321,100 @@ function activeWindow(schedule, nowMs) {
   return null;
 }
 
-async function readFreshLocation() {
+async function readFreshLocation(maxAccuracyM = 50) {
   if (!mainWindow || mainWindow.isDestroyed()) return null;
   try {
     return await mainWindow.webContents.executeJavaScript(`
-      new Promise((resolve) => {
-        if (!navigator.geolocation) { resolve(null); return; }
-        navigator.geolocation.getCurrentPosition(
-          (p) => resolve({
-            latitude: p.coords.latitude,
-            longitude: p.coords.longitude,
-            accuracy_m: p.coords.accuracy
-          }),
-          () => resolve(null),
-          { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-        );
-      })
+      (async () => {
+        if (!navigator.geolocation) return { error: 'unsupported' };
+        const readOnce = () => new Promise((resolve) => {
+          navigator.geolocation.getCurrentPosition(
+            (p) => resolve({
+              latitude: p.coords.latitude,
+              longitude: p.coords.longitude,
+              accuracy_m: p.coords.accuracy
+            }),
+            (err) => resolve({ error: err && err.message ? err.message : 'denied' }),
+            { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+          );
+        });
+        let best = null;
+        for (let i = 0; i < 3; i++) {
+          const fix = await readOnce();
+          if (fix && fix.latitude != null) {
+            if (!best || (fix.accuracy_m ?? 9999) < (best.accuracy_m ?? 9999)) best = fix;
+            if ((fix.accuracy_m ?? 9999) <= ${Number(maxAccuracyM)}) return fix;
+          } else if (!best) {
+            best = fix;
+          }
+        }
+        return best;
+      })()
     `, true);
   } catch {
-    return null;
+    return { error: 'unavailable' };
   }
 }
 
-async function sendEvent(event, coords, allowRetry = true) {
+const STALE_EVENT_MAX_AGE_MS = 10 * 60 * 1000;
+
+function logDesktopStaleDrop(event, occurred, ageMs, source) {
+  console.info('[scorr-att] dropped stale event', { source, event, age_ms: ageMs, occurred_at_utc_ms: occurred });
+}
+
+async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = null) {
   const token = loadToken();
   if (!token || !SUPABASE_ANON) return null;
   const now = Date.now();
+  const occurred = occurredAtUtcMs && occurredAtUtcMs > 0 ? occurredAtUtcMs : now;
+  if (now - occurred > STALE_EVENT_MAX_AGE_MS) {
+    logDesktopStaleDrop(event, occurred, now - occurred, 'desktop-pre-send');
+    return { ok: false, reason: 'event_too_old', action: 'event_too_old', client_dropped: true };
+  }
   let fix = coords;
   if (!fix || fix.latitude == null || fix.longitude == null) {
-    fix = await readFreshLocation();
+    fix = await readFreshLocation(50);
   }
-  const res = await httpJson(`${SUPABASE_URL}/functions/v1/auto-attendance-event`, {
-    method: 'POST',
-    headers: {
-      apikey: SUPABASE_ANON,
-      'Content-Type': 'application/json',
-      'x-device-token': token,
-    },
-    body: {
-      device_token: token,
-      event,
-      occurred_at_utc_ms: now,
-      device_now_utc_ms: now,
-      device_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      device_id: deviceId(),
-      platform: platformName(),
-      app_version: app.getVersion(),
-      latitude: fix?.latitude ?? null,
-      longitude: fix?.longitude ?? null,
-      accuracy_m: fix?.accuracy_m ?? null,
-      is_mock: false,
-    },
-  });
+  if (fix?.error && !fix?.latitude) {
+    const plat = platformName();
+    const msg =
+      plat === 'linux'
+        ? 'Location unavailable on this Linux build. Install/configure a geolocation provider, or use phone auto-attendance for check-out.'
+        : 'Location unavailable, try again';
+    notify('Scorr', msg);
+    return { ok: false, reason: 'need_fresh_location', action: 'need_fresh_location', message: msg };
+  }
+  let res;
+  try {
+    res = await httpJson(`${SUPABASE_URL}/functions/v1/auto-attendance-event`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_ANON,
+        'Content-Type': 'application/json',
+        'x-device-token': token,
+      },
+      body: {
+        device_token: token,
+        event,
+        occurred_at_utc_ms: occurred,
+        device_now_utc_ms: now,
+        device_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        device_id: deviceId(),
+        platform: platformName(),
+        app_version: app.getVersion(),
+        latitude: fix?.latitude ?? null,
+        longitude: fix?.longitude ?? null,
+        accuracy_m: fix?.accuracy_m ?? null,
+        is_mock: false,
+      },
+    });
+  } catch (e) {
+    notify('Scorr', 'No connection - will check when online');
+    return { ok: false, reason: 'no_connection', action: 'no_connection' };
+  }
 
   if (allowRetry && (res?.action === 'need_fresh_location' || res?.action === 'gps_unusable')) {
-    const pos = await readFreshLocation();
+    const pos = await readFreshLocation(50);
     if (pos && pos.latitude != null && pos.longitude != null) {
       return sendEvent(event, pos, false);
     }
@@ -384,9 +423,10 @@ async function sendEvent(event, coords, allowRetry = true) {
   }
 
   if (res?.action === 'clock_in') {
-    notify('Scorr', 'Checked in (laptop)');
+    notify('Scorr', 'Checked in');
   } else if (res?.action === 'clock_out') {
-    notify('Scorr', 'Checked out (laptop)');
+    const t = res?.local_time || null;
+    notify('Scorr', t ? `Checked out - left the office radius at ${t}` : 'Checked out');
   } else if (res?.action === 'not_on_office_wifi' || res?.action === 'not_on_office_network') {
     notify('Scorr', 'Connect to the office Wi-Fi');
   } else if (res?.action === 'outside_radius') {
@@ -395,6 +435,8 @@ async function sendEvent(event, coords, allowRetry = true) {
     notify('Scorr', 'Location unavailable, try again');
   } else if (res?.action === 'checkin_blocked_shift_ended') {
     notify('Scorr', 'The shift has ended. You cannot check in.');
+  } else if (res?.action === 'event_too_old') {
+    notify('Scorr', 'Reading was too old — get a fresh location');
   } else if (res?.action === 'presence_left_pending' || res?.action === 'device_left_others_present') {
     // Off office network — keep heartbeats so sticky present clears for phone auto priority.
   }
@@ -546,8 +588,12 @@ function wirePowerEvents() {
   powerMonitor.on('resume', () => {
     void syncSchedule().then(() => {
       startHeartbeatIfInWindow();
+      // Fresh location on wake / reconnect path.
       void sendEvent('power_on');
     });
+  });
+  powerMonitor.on('unlock-screen', () => {
+    void sendEvent('heartbeat');
   });
   powerMonitor.on('suspend', () => {
     void sendEvent('power_off');

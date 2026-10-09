@@ -37,11 +37,16 @@ export default function SilentGeoAttendance() {
     const onVis = () => {
       if (document.visibilityState === 'visible') void arm();
     };
+    const onOnline = () => {
+      void arm();
+    };
     document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('online', onOnline);
     return () => {
       cancelled = true;
       if (desktopTimer) window.clearInterval(desktopTimer);
       document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('online', onOnline);
     };
   }, []);
 

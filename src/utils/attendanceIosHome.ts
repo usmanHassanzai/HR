@@ -89,7 +89,12 @@ function bindResume(): void {
   document.addEventListener('visibilitychange', onVisible);
   window.addEventListener('pageshow', () => void pingNow(true));
   window.addEventListener('focus', () => void pingNow(true));
+  window.addEventListener('online', () => void pingNow(true));
 }
+
+/** Banner copy for the Home Screen web app limitation. */
+export const IOS_HOME_BACKGROUND_BANNER =
+  'Background check-out is not available on the Home Screen app. Open Scorr to update your status, or use the Scorr iPhone app.';
 
 /** Start GPS automatic attendance. No-op unless this is the iOS Home Screen app with a token. */
 export function startIosHomeAttendance(): Promise<void> {

@@ -80,8 +80,10 @@ export type GeoPingAction =
   | 'checkin_blocked_shift_ended'
   | 'outside_window'
   | 'no_open_visit'
+  | 'no_connection'
+  | 'event_too_old'
   | 'none'
-  | 'skipped';
+  | 'skipped'
 
 export interface GeoPingResult {
   action: GeoPingAction;
@@ -126,9 +128,34 @@ export function attendanceActionMessage(action: string | null | undefined): stri
     case 'clock_out_shift_end':
     case 'already_clocked_out':
       return 'Checked out';
+    case 'no_connection':
+      return 'No connection - will check when online';
+    case 'event_too_old':
+      return 'Reading was too old — get a fresh location';
     default:
       return action ? `Could not complete attendance (${action})` : 'Could not complete attendance.';
   }
+}
+
+/** Server-confirmed checkout copy with local leave time when available. */
+export function attendanceCheckoutMessage(result: {
+  action?: string | null;
+  clock_out_at?: string | null;
+  local_time?: string | null;
+}): string {
+  if (result.action !== 'clock_out' && result.action !== 'clock_out_shift_end') {
+    return attendanceActionMessage(result.action);
+  }
+  const t =
+    result.local_time ||
+    (result.clock_out_at
+      ? new Date(result.clock_out_at).toLocaleTimeString(undefined, {
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+      : null);
+  if (t) return `Checked out - left the office radius at ${t}`;
+  return 'Checked out';
 }
 
 export function isAttendanceSuccessAction(action: string | null | undefined): boolean {
@@ -316,6 +343,11 @@ export type GeoClockIntent = 'clock_in' | 'clock_out';
 
 /** One GPS read, then server clock-in or clock-out. No interval logging. */
 export async function submitGeoClockEvent(intent: GeoClockIntent): Promise<GeoPingResult> {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    const result: GeoPingResult = { action: 'no_connection' as GeoPingAction, reason: 'no_connection' };
+    dispatchGeoPing({ result, auto: false, checkedAt: Date.now() });
+    return result;
+  }
   const pos = await requestCurrentPosition({
     maximumAge: 0,
     timeout: 20_000,
@@ -328,7 +360,15 @@ export async function submitGeoClockEvent(intent: GeoClockIntent): Promise<GeoPi
     p_intent: intent,
     p_is_mock: positionIsMock(pos),
   });
-  if (error) throw error;
+  if (error) {
+    const msg = String(error.message || '');
+    if (/fetch|network|Failed to fetch|offline/i.test(msg)) {
+      const result: GeoPingResult = { action: 'no_connection' as GeoPingAction, reason: 'no_connection' };
+      dispatchGeoPing({ result, auto: false, checkedAt: Date.now() });
+      return result;
+    }
+    throw error;
+  }
   const result = data as GeoPingResult;
   dispatchGeoPing({
     result,
@@ -345,12 +385,35 @@ export async function submitGeoClockEvent(intent: GeoClockIntent): Promise<GeoPi
  * Periodic / watch GPS ping for auto geofence attendance.
  * Server decides auto clock-in (enter office) or auto clock-out (leave office).
  */
+/** Up to 3 fresh readings within ~15s until accuracy is usable (≤ maxAcc). */
+async function requestPositionWithAccuracyRetries(maxAcc: number): Promise<GeolocationPosition> {
+  let best: GeolocationPosition | null = null;
+  let lastErr: unknown;
+  for (let i = 0; i < 3; i++) {
+    try {
+      const pos = await requestCurrentPosition({
+        maximumAge: 0,
+        timeout: 5_000,
+        enableHighAccuracy: true,
+      });
+      if (!best || (pos.coords.accuracy ?? 9999) < (best.coords.accuracy ?? 9999)) best = pos;
+      if ((pos.coords.accuracy ?? 9999) <= maxAcc) return pos;
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  if (best) return best;
+  throw lastErr instanceof Error ? lastErr : new Error('Location unavailable, try again');
+}
+
 export async function submitGeoAutoPing(): Promise<GeoPingResult> {
-  const pos = await requestCurrentPosition({
-    maximumAge: 60_000,
-    timeout: 15_000,
-    enableHighAccuracy: false,
-  });
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    const result: GeoPingResult = { action: 'no_connection' as GeoPingAction, reason: 'no_connection' };
+    dispatchGeoPing({ result, auto: true, checkedAt: Date.now() });
+    return result;
+  }
+  // Prefer ≤50 m so a single outside reading can check out (Rule 5).
+  const pos = await requestPositionWithAccuracyRetries(50);
   const { data, error } = await supabase.rpc('process_geo_attendance_ping', {
     p_latitude: pos.coords.latitude,
     p_longitude: pos.coords.longitude,
@@ -358,7 +421,15 @@ export async function submitGeoAutoPing(): Promise<GeoPingResult> {
     p_intent: 'auto',
     p_is_mock: positionIsMock(pos),
   });
-  if (error) throw error;
+  if (error) {
+    const msg = String(error.message || '');
+    if (/fetch|network|Failed to fetch|offline/i.test(msg)) {
+      const result: GeoPingResult = { action: 'no_connection' as GeoPingAction, reason: 'no_connection' };
+      dispatchGeoPing({ result, auto: true, checkedAt: Date.now() });
+      return result;
+    }
+    throw error;
+  }
   const result = data as GeoPingResult;
   dispatchGeoPing({
     result,

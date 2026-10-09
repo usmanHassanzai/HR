@@ -702,6 +702,8 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
         guard status == .authorizedAlways || status == .authorizedWhenInUse else {
             return
         }
+        // Backup trigger when region monitoring is delayed (background).
+        manager.startMonitoringSignificantLocationChanges()
 
         var nextIds = Set<String>()
         for zone in zones {
@@ -734,6 +736,7 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
         for region in manager.monitoredRegions {
             manager.stopMonitoring(for: region)
         }
+        manager.stopMonitoringSignificantLocationChanges()
         regionIds.removeAll()
     }
 
@@ -818,27 +821,59 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard let zoneId = pendingExitZoneId, let loc = locations.last else { return }
-        pendingExitZoneId = nil
-        guard loc.horizontalAccuracy >= 0, loc.horizontalAccuracy <= 50 else { return }
-        let simulated: Bool
-        if #available(iOS 15.0, *) {
-            simulated = loc.sourceInformation?.isSimulatedBySoftware == true
-        } else {
-            simulated = false
+        guard let loc = locations.last else { return }
+        // Pending EXIT that waited for a fresh high-accuracy fix.
+        if let zoneId = pendingExitZoneId {
+            if loc.horizontalAccuracy < 0 || loc.horizontalAccuracy > 50 {
+                // Keep waiting briefly; significant-change / next requestLocation may improve.
+                return
+            }
+            pendingExitZoneId = nil
+            let simulated: Bool
+            if #available(iOS 15.0, *) {
+                simulated = loc.sourceInformation?.isSimulatedBySoftware == true
+            } else {
+                simulated = false
+            }
+            let payload = QueuedEvent(
+                event: "exit",
+                zoneId: zoneId,
+                lat: loc.coordinate.latitude,
+                lng: loc.coordinate.longitude,
+                accuracyM: loc.horizontalAccuracy,
+                ssid: pendingExitSsid,
+                bssid: pendingExitBssid,
+                occurredAtUtcMs: Int64(loc.timestamp.timeIntervalSince1970 * 1000),
+                isMock: simulated
+            )
+            postEvent(payload)
+            return
         }
-        let payload = QueuedEvent(
-            event: "exit",
-            zoneId: zoneId,
-            lat: loc.coordinate.latitude,
-            lng: loc.coordinate.longitude,
-            accuracyM: loc.horizontalAccuracy,
-            ssid: pendingExitSsid,
-            bssid: pendingExitBssid,
-            occurredAtUtcMs: Int64(loc.timestamp.timeIntervalSince1970 * 1000),
-            isMock: simulated
-        )
-        postEvent(payload)
+        // Significant-location-change backup: send a ping with Wi-Fi when possible.
+        guard AttendanceStore.enabled else { return }
+        let age = Date().timeIntervalSince(loc.timestamp)
+        guard age < 120, loc.horizontalAccuracy >= 0, loc.horizontalAccuracy <= 100 else { return }
+        fetchWifi(preferCachedFallback: true) { [weak self] ssid, bssid in
+            guard let self else { return }
+            let simulated: Bool
+            if #available(iOS 15.0, *) {
+                simulated = loc.sourceInformation?.isSimulatedBySoftware == true
+            } else {
+                simulated = false
+            }
+            let payload = QueuedEvent(
+                event: "ping",
+                zoneId: self.regionIds.first,
+                lat: loc.coordinate.latitude,
+                lng: loc.coordinate.longitude,
+                accuracyM: loc.horizontalAccuracy,
+                ssid: ssid,
+                bssid: bssid,
+                occurredAtUtcMs: Int64(loc.timestamp.timeIntervalSince1970 * 1000),
+                isMock: simulated
+            )
+            self.postEvent(payload)
+        }
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
@@ -856,8 +891,7 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
     private var pendingExitBssid: String?
 
     private func handleRegionEvent(region: CLRegion, event: String, prioritizeWifi: Bool = false) {
-        // R10 / R44: drop anything outside W — send nothing
-        guard isInsideWindow() else { return }
+        // Server decides the attendance window — never drop ENTER/EXIT locally.
         guard AttendanceStore.enabled else { return }
 
         // Debounce requestState-driven enter storms (sync re-arms).
@@ -992,9 +1026,32 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
             lock.unlock()
             return
         }
+        let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
+        let maxAge: Int64 = 10 * 60 * 1000
+        var fresh: [QueuedEvent] = []
+        for ev in queue {
+            let age = nowMs - ev.occurredAtUtcMs
+            if age > maxAge {
+                NSLog("[scorr-att] dropped stale event source=ios-queue event=%@ age_ms=%lld", ev.event, age)
+                continue
+            }
+            fresh.append(ev)
+        }
+        // Keep only the newest fresh reading.
+        fresh.sort { $0.occurredAtUtcMs > $1.occurredAtUtcMs }
+        if fresh.count > 1 {
+            for dropped in fresh.dropFirst() {
+                NSLog("[scorr-att] dropped stale event source=ios-superseded event=%@ age_ms=%lld", dropped.event, nowMs - dropped.occurredAtUtcMs)
+            }
+            fresh = Array(fresh.prefix(1))
+        }
+        saveQueue(fresh)
+        guard let next = fresh.first else {
+            lock.unlock()
+            return
+        }
         posting = true
-        let next = queue.removeFirst()
-        saveQueue(queue)
+        saveQueue([])
         lock.unlock()
 
         sendToEdge(next) { [weak self] ok, shouldRequeue, stopTracking, response in

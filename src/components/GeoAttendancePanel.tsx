@@ -15,10 +15,13 @@ import {
   effectiveGeofenceRadius,
   localYmd,
   attendanceActionMessage,
+  attendanceCheckoutMessage,
   isAttendanceSuccessAction,
   submitGeoClockEvent,
 } from '../utils/geoAttendance';
 import { LocationWindow, formatShiftTimeRange, hasAssignedShiftEnded, isWithinShiftExitWindow, locationWindowToMyShift, shouldCaptureLocationNow } from '../utils/shiftHelpers';
+import { isIosHomeScreen } from '../utils/nativePlatform';
+import { IOS_HOME_BACKGROUND_BANNER } from '../utils/attendanceIosHome';
 
 interface GeoAttendancePanelProps {
   onClockUpdate?: () => void;
@@ -134,6 +137,9 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
   const [error, setError] = useState('');
   const [windowInfo, setWindowInfo] = useState<LocationWindow | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const [lastSignalAt, setLastSignalAt] = useState<number | null>(null);
+  const [wifiMatch, setWifiMatch] = useState<boolean | null>(null);
+  const [statusMessage, setStatusMessage] = useState('');
 
   const loadToday = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -202,6 +208,39 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
     void bootstrapAttendanceLocation();
   }, [loadToday, loadSites]);
 
+  // Realtime: refresh the moment the server changes attendance_records / visits.
+  useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let cancelled = false;
+    void (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || cancelled) return;
+      channel = supabase
+        .channel(`att-status-${user.id}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'attendance_records', filter: `user_id=eq.${user.id}` },
+          () => {
+            void loadToday();
+            onClockUpdate?.();
+          },
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'attendance_visit_segments', filter: `user_id=eq.${user.id}` },
+          () => {
+            void loadToday();
+            onClockUpdate?.();
+          },
+        )
+        .subscribe();
+    })();
+    return () => {
+      cancelled = true;
+      if (channel) void supabase.removeChannel(channel);
+    };
+  }, [loadToday, onClockUpdate]);
+
   const openVisit = visits.some(isVisitOpen);
   const openShiftPreview = Boolean(openVisit || (clockIn && !clockOut));
 
@@ -250,6 +289,28 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
       const detail = (e as CustomEvent<GeoPingEventDetail>).detail;
       if (!detail?.result) return;
       setLastResult(detail.result);
+      setLastSignalAt(detail.checkedAt || Date.now());
+      if (detail.result.inside_office != null || detail.latitude != null) {
+        /* wifi match inferred from check-in success / reason codes */
+        const reason = detail.result.reason || detail.result.action;
+        if (reason === 'not_on_office_wifi' || reason === 'not_on_office_network') {
+          setWifiMatch(false);
+        } else if (
+          detail.result.action === 'clock_in' ||
+          detail.result.action === 'already_clocked_in'
+        ) {
+          setWifiMatch(true);
+        }
+      }
+      if (detail.result.action === 'clock_in' || detail.result.action === 'already_clocked_in') {
+        setStatusMessage('Checked in');
+      } else if (detail.result.action === 'clock_out' || detail.result.action === 'clock_out_shift_end') {
+        setStatusMessage(attendanceCheckoutMessage(detail.result));
+      } else if (detail.result.action === 'no_connection') {
+        setStatusMessage('No connection - will check when online');
+      } else if (!isAttendanceSuccessAction(detail.result.action)) {
+        setStatusMessage(attendanceActionMessage(detail.result.action || detail.result.reason));
+      }
       if (detail.latitude != null && detail.longitude != null) {
         updateNearby(detail.latitude, detail.longitude, detail.accuracy);
       }
@@ -290,16 +351,33 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
     }
     setChecking(intent);
     setError('');
+    setStatusMessage('');
     try {
       const result = await submitGeoClockEvent(intent);
       setLastResult(result);
-      if (!isAttendanceSuccessAction(result.action)) {
+      setLastSignalAt(Date.now());
+      if (result.action === 'clock_in' || result.action === 'already_clocked_in') {
+        setStatusMessage('Checked in');
+        setWifiMatch(true);
+        setError('');
+      } else if (result.action === 'clock_out' || result.action === 'clock_out_shift_end') {
+        setStatusMessage(attendanceCheckoutMessage(result));
+        setError('');
+      } else if (result.action === 'no_connection') {
+        setStatusMessage('No connection - will check when online');
+        setError('No connection - will check when online');
+      } else if (!isAttendanceSuccessAction(result.action)) {
         if (result.action === 'outside_office' && !workSite && offices.filter((o) => o.active).length === 0) {
           setError('No work location assigned. Ask admin: Office & Attendance → Assign people.');
         } else if (result.action === 'no_open_visit') {
           setError('Clock in first, then clock out.');
         } else {
-          setError(attendanceActionMessage(result.action || result.reason));
+          const msg = attendanceActionMessage(result.action || result.reason);
+          setError(msg);
+          setStatusMessage(msg);
+        }
+        if (result.action === 'not_on_office_wifi' || result.action === 'not_on_office_network') {
+          setWifiMatch(false);
         }
       } else {
         setError('');
@@ -309,7 +387,10 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
         onClockUpdate?.();
       }
     } catch (e: unknown) {
-      setError(rpcErrorMessage(e));
+      const msg = rpcErrorMessage(e);
+      const offline = /fetch|network|Failed to fetch|offline/i.test(msg);
+      setError(offline ? 'No connection - will check when online' : msg);
+      setStatusMessage(offline ? 'No connection - will check when online' : msg);
     } finally {
       setChecking(null);
     }
@@ -411,6 +492,52 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
         )}
       </div>
 
+      {isIosHomeScreen() && (
+        <p className="geo-hint geo-hint--spaced" role="note">
+          {IOS_HOME_BACKGROUND_BANNER}
+        </p>
+      )}
+
+      <div className="geo-status-card" role="status">
+        <div className="geo-status-card__row">
+          <span>Last signal</span>
+          <strong>
+            {lastSignalAt
+              ? new Date(lastSignalAt).toLocaleTimeString(undefined, {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit',
+                })
+              : '—'}
+          </strong>
+        </div>
+        <div className="geo-status-card__row">
+          <span>Wi-Fi match</span>
+          <strong>{wifiMatch == null ? '—' : wifiMatch ? 'yes' : 'no'}</strong>
+        </div>
+        <div className="geo-status-card__row">
+          <span>Inside radius</span>
+          <strong>
+            {nearby
+              ? nearby.inside
+                ? `yes · ${nearby.dist}m`
+                : `no · ${nearby.dist}m`
+              : lastResult?.inside_office != null
+                ? lastResult.inside_office
+                  ? `yes${lastResult.distance_meters != null ? ` · ${Math.round(lastResult.distance_meters)}m` : ''}`
+                  : `no${lastResult.distance_meters != null ? ` · ${Math.round(lastResult.distance_meters)}m` : ''}`
+                : '—'}
+          </strong>
+        </div>
+        <div className="geo-status-card__row">
+          <span>Current state</span>
+          <strong>
+            {openShift ? 'Checked in' : clockIn && clockOut ? 'Checked out' : 'Not checked in'}
+          </strong>
+        </div>
+        {statusMessage && <p className="geo-status-card__msg">{statusMessage}</p>}
+      </div>
+
       {nearby && (
         <p className={`geo-nearby ${nearby.inside ? '' : 'geo-nearby--out'}`}>
           <Radio size={14} />
@@ -421,7 +548,7 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
       )}
 
       {lastResult && (
-        <p className={`geo-last-action ${lastResult.action === 'outside_office' || lastResult.action === 'outside_radius' || lastResult.action === 'need_fresh_location' || lastResult.action === 'not_on_office_network' || lastResult.action === 'not_on_office_wifi' || lastResult.action === 'shift_not_started' ? 'geo-last-action--warn' : ''}`}>
+        <p className={`geo-last-action ${lastResult.action === 'outside_office' || lastResult.action === 'outside_radius' || lastResult.action === 'need_fresh_location' || lastResult.action === 'not_on_office_network' || lastResult.action === 'not_on_office_wifi' || lastResult.action === 'shift_not_started' || lastResult.action === 'no_connection' ? 'geo-last-action--warn' : ''}`}>
           {lastResult.action === 'outside_office' ? (
             <>
               Still outside the office zone
@@ -431,6 +558,8 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
                 ? ` · zone ${lastResult.effective_radius_meters}m`
                 : ` · zone ${siteRadius}m`}
             </>
+          ) : lastResult.action === 'clock_out' || lastResult.action === 'clock_out_shift_end' ? (
+            <>{attendanceCheckoutMessage(lastResult)}</>
           ) : (
             <>
               Last action: {geoActionLabel(lastResult.action)}
