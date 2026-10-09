@@ -120,6 +120,12 @@
   color: var(--color-danger);
 }
 
+.admin-office-alert--note {
+  background: rgba(100, 116, 139, 0.1);
+  border: 1px solid rgba(100, 116, 139, 0.28);
+  color: var(--color-text, #334155);
+}
+
 .admin-office-card {
   padding: 1.25rem 1.35rem;
 }

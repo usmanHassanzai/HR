@@ -250,6 +250,9 @@ const MIGRATIONS = [
   'attendance_rule_2_overnight_early_2026-10-09.sql',
   'attendance_cleanup_2026-10-09.sql',
   'attendance_immediate_inout_2026-10-09.sql',
+  'attendance_device_signal_realtime_2026-10-09.sql',
+  'attendance_checkin_wifi_no_gps_2026-10-09.sql',
+  'office_radius_single_source_2026-10-09.sql',
 ];
 
 async function runMigration(filename) {

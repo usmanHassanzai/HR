@@ -743,6 +743,9 @@ export default function AttendanceLeavePanel({
           Today: <strong>{ATTENDANCE_STATUS_LABEL[todayRecord.status]}</strong>
           {todayRecord.attendance_source === 'geo' || todayRecord.attendance_source === 'auto_gps'
             ? ' · Auto GPS'
+            : todayRecord.attendance_source === 'auto_wifi_no_gps'
+                || todayRecord.attendance_source === 'manual_wifi_no_gps'
+              ? ' · No location - Wi-Fi only'
             : todayRecord.attendance_source === 'auto_wifi'
               ? ' · Auto Wi-Fi'
               : todayRecord.attendance_source === 'auto_laptop'

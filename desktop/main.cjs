@@ -52,6 +52,8 @@ let tray = null;
 let workspaceExpanded = false;
 let heartbeatTimer = null;
 let scheduleSyncTimer = null;
+let networkWatchTimer = null;
+let lastNetworkFingerprint = '';
 /** @type {any} */
 let cachedSchedule = null;
 
@@ -291,11 +293,16 @@ async function syncSchedule() {
     body: { device_token: token },
   });
   if (data?.ok) {
+    const prevVer = Number(cachedSchedule?.office_version || 0);
+    const nextVer = Number(data.office_version || 0);
     cachedSchedule = data;
     try {
       fs.writeFileSync(SCHEDULE_FILE(), JSON.stringify(data), 'utf8');
     } catch {
       /* ignore */
+    }
+    if (nextVer > 0 && nextVer !== prevVer) {
+      console.info('[scorr-att] office_version changed', { prevVer, nextVer });
     }
   }
   return data;
@@ -373,17 +380,13 @@ async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = nul
   }
   let fix = coords;
   if (!fix || fix.latitude == null || fix.longitude == null) {
-    fix = await readFreshLocation(50);
+    // Wait briefly for GPS; if unavailable, send Wi-Fi-only (server may check in).
+    fix = await Promise.race([
+      readFreshLocation(100),
+      new Promise((resolve) => setTimeout(() => resolve({ error: 'timeout' }), 3000)),
+    ]);
   }
-  if (fix?.error && !fix?.latitude) {
-    const plat = platformName();
-    const msg =
-      plat === 'linux'
-        ? 'Location unavailable on this Linux build. Install/configure a geolocation provider, or use phone auto-attendance for check-out.'
-        : 'Location unavailable, try again';
-    notify('Scorr', msg);
-    return { ok: false, reason: 'need_fresh_location', action: 'need_fresh_location', message: msg };
-  }
+  const gpsAvailable = Boolean(fix && fix.latitude != null && fix.longitude != null && !fix.error);
   let res;
   try {
     res = await httpJson(`${SUPABASE_URL}/functions/v1/auto-attendance-event`, {
@@ -402,9 +405,10 @@ async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = nul
         device_id: deviceId(),
         platform: platformName(),
         app_version: app.getVersion(),
-        latitude: fix?.latitude ?? null,
-        longitude: fix?.longitude ?? null,
-        accuracy_m: fix?.accuracy_m ?? null,
+        latitude: gpsAvailable ? fix.latitude : null,
+        longitude: gpsAvailable ? fix.longitude : null,
+        accuracy_m: gpsAvailable ? (fix.accuracy_m ?? null) : null,
+        gps_available: gpsAvailable,
         is_mock: false,
       },
     });
@@ -413,17 +417,22 @@ async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = nul
     return { ok: false, reason: 'no_connection', action: 'no_connection' };
   }
 
+  // Check-out still needs GPS; retry once if server asks.
   if (allowRetry && (res?.action === 'need_fresh_location' || res?.action === 'gps_unusable')) {
     const pos = await readFreshLocation(50);
     if (pos && pos.latitude != null && pos.longitude != null) {
       return sendEvent(event, pos, false);
     }
-    notify('Scorr', 'Location unavailable, try again');
-    return res;
   }
 
   if (res?.action === 'clock_in') {
-    notify('Scorr', 'Checked in');
+    const src = res?.attendance_source || res?.source || '';
+    if (src === 'auto_wifi_no_gps' || !gpsAvailable) {
+      notify('Scorr', 'Checked in on office Wi-Fi (location is off)');
+    } else {
+      const t = res?.local_time || new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+      notify('Scorr', `Checked in at ${t}`);
+    }
   } else if (res?.action === 'clock_out') {
     const t = res?.local_time || null;
     notify('Scorr', t ? `Checked out - left the office radius at ${t}` : 'Checked out');
@@ -437,6 +446,8 @@ async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = nul
     notify('Scorr', 'The shift has ended. You cannot check in.');
   } else if (res?.action === 'event_too_old') {
     notify('Scorr', 'Reading was too old — get a fresh location');
+  } else if (res?.ok === false && res?.reason && res.reason !== 'already_checked_in') {
+    notify('Scorr', String(res.reason).replace(/_/g, ' '));
   } else if (res?.action === 'presence_left_pending' || res?.action === 'device_left_others_present') {
     // Off office network — keep heartbeats so sticky present clears for phone auto priority.
   }
@@ -472,7 +483,8 @@ function startHeartbeatIfInWindow() {
       stopHeartbeat();
       return;
     }
-    void sendEvent('heartbeat');
+    // Refresh schedule each minute so office radius/pin changes apply.
+    void syncSchedule().then(() => sendEvent('heartbeat'));
   }, 60 * 1000);
 }
 
@@ -571,9 +583,9 @@ function setupTray() {
         },
         { type: 'separator' },
         {
-          label: 'Quit',
+          label: 'Quit Scorr',
           click: () => {
-            clearToken();
+            // Keep device token — tracking stops only via Turn off auto attendance / admin revoke.
             app.exit(0);
           },
         },
@@ -582,6 +594,40 @@ function setupTray() {
   } catch (e) {
     console.warn('[scorr] tray unavailable', e);
   }
+}
+
+function networkFingerprint() {
+  try {
+    const os = require('os');
+    const ifaces = os.networkInterfaces() || {};
+    const parts = [];
+    for (const [name, list] of Object.entries(ifaces)) {
+      for (const info of list || []) {
+        if (!info || info.internal) continue;
+        parts.push(`${name}:${info.family}:${info.address}:${info.mac || ''}`);
+      }
+    }
+    parts.sort();
+    return parts.join('|');
+  } catch {
+    return '';
+  }
+}
+
+function startNetworkWatch() {
+  if (networkWatchTimer) clearInterval(networkWatchTimer);
+  lastNetworkFingerprint = networkFingerprint();
+  networkWatchTimer = setInterval(() => {
+    if (!loadToken()) return;
+    const fp = networkFingerprint();
+    if (fp && fp !== lastNetworkFingerprint) {
+      lastNetworkFingerprint = fp;
+      void syncSchedule().then(() => {
+        startHeartbeatIfInWindow();
+        void sendEvent('network_change');
+      });
+    }
+  }, 15_000);
 }
 
 function wirePowerEvents() {
@@ -603,6 +649,7 @@ function wirePowerEvents() {
     void sendEvent('power_off');
   });
   // Screen lock must NOT check out (R49) — ignore lock-screen if available
+  startNetworkWatch();
 }
 
 app.setLoginItemSettings({ openAtLogin: true, openAsHidden: true });

@@ -42,7 +42,7 @@ export function downloadAttendanceCsv(
       r.attendance_date,
       ATTENDANCE_STATUS_LABEL[r.status],
       ...zoneCells,
-      r.attendance_source || 'manual',
+      exportSourceLabel(r.attendance_source),
       APPROVAL_LABEL[r.approval_status],
       escapeCsv(r.notes || ''),
     ].join(',');
@@ -51,6 +51,14 @@ export function downloadAttendanceCsv(
     [header, ...rows].join('\n'),
     `attendance-${employeeName.replace(/\s+/g, '-').toLowerCase()}-${periodLabel.replace(/\s+/g, '-').toLowerCase()}.csv`,
   );
+}
+
+function exportSourceLabel(source: string | null | undefined): string {
+  if (source === 'auto_wifi_no_gps' || source === 'manual_wifi_no_gps') return 'No location - Wi-Fi only';
+  if (source === 'auto_wifi') return 'Wi-Fi + GPS';
+  if (source === 'auto_laptop') return 'Laptop';
+  if (source === 'auto_gps' || source === 'geo') return 'GPS';
+  return source || 'manual';
 }
 
 export function downloadTeamAttendanceCsv(
@@ -89,7 +97,7 @@ export function downloadTeamAttendanceCsv(
       ATTENDANCE_STATUS_LABEL[r.status as keyof typeof ATTENDANCE_STATUS_LABEL] || r.status,
       ...zoneCells,
       String(r.work_minutes ?? ''),
-      r.attendance_source || 'manual',
+      exportSourceLabel(r.attendance_source),
       APPROVAL_LABEL[r.approval_status as keyof typeof APPROVAL_LABEL] || r.approval_status,
       escapeCsv(r.notes || ''),
     ].join(',');

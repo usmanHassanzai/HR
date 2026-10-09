@@ -139,7 +139,67 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [lastSignalAt, setLastSignalAt] = useState<number | null>(null);
   const [wifiMatch, setWifiMatch] = useState<boolean | null>(null);
+  const [deviceInside, setDeviceInside] = useState<{ inside: boolean; distM: number | null } | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
+
+  /** Apply latest enrolled-device event (not only in-browser portal pings). */
+  const applyDeviceEventRow = useCallback((row: {
+    created_at?: string | null;
+    occurred_at?: string | null;
+    accepted?: boolean | null;
+    reason_code?: string | null;
+    matched_method?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+    accuracy_m?: number | null;
+    payload?: Record<string, unknown> | null;
+  } | null) => {
+    if (!row) return;
+    const at = row.occurred_at || row.created_at;
+    if (at) setLastSignalAt(new Date(at).getTime());
+    const payload = (row.payload && typeof row.payload === 'object') ? row.payload : {};
+    const wifiOk = payload.wifi_ok;
+    if (typeof wifiOk === 'boolean') {
+      setWifiMatch(wifiOk);
+    } else if (row.matched_method === 'wifi' || row.matched_method === 'laptop') {
+      setWifiMatch(true);
+    } else if (
+      row.reason_code === 'not_on_office_wifi'
+      || row.reason_code === 'not_on_office_network'
+    ) {
+      setWifiMatch(false);
+    }
+    const gpsOutside = payload.gps_outside;
+    const distRaw = payload.distance_m ?? payload.distance_meters ?? payload.distance;
+    const distM = typeof distRaw === 'number' && Number.isFinite(distRaw) ? Math.round(distRaw) : null;
+    if (typeof gpsOutside === 'boolean') {
+      setDeviceInside({ inside: !gpsOutside, distM });
+    } else if (row.reason_code === 'outside_radius' || row.reason_code === 'outside_office') {
+      setDeviceInside({ inside: false, distM });
+    } else if (row.accepted && (row.reason_code === 'clock_in' || row.reason_code === 'already_checked_in')) {
+      setDeviceInside({ inside: true, distM });
+    }
+    if (row.reason_code === 'clock_in' || row.reason_code === 'already_checked_in') {
+      setStatusMessage('Checked in');
+    } else if (row.reason_code === 'clock_out' || row.reason_code === 'clock_out_shift_end') {
+      setStatusMessage(attendanceActionMessage(row.reason_code));
+    } else if (row.accepted === false && row.reason_code) {
+      setStatusMessage(attendanceActionMessage(row.reason_code));
+    }
+  }, []);
+
+  const loadDeviceSignal = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase
+      .from('attendance_events_log')
+      .select('created_at, occurred_at, accepted, reason_code, matched_method, latitude, longitude, accuracy_m, payload')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    applyDeviceEventRow(data as Parameters<typeof applyDeviceEventRow>[0]);
+  }, [applyDeviceEventRow]);
 
   const loadToday = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -181,7 +241,8 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
         end_time: timeSlice(win.end_time),
       });
     }
-  }, []);
+    void loadDeviceSignal();
+  }, [loadDeviceSignal]);
 
   const loadSites = useCallback(async () => {
     const [{ data: officesData }, { data: siteData, error: siteErr }] = await Promise.all([
@@ -208,7 +269,7 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
     void bootstrapAttendanceLocation();
   }, [loadToday, loadSites]);
 
-  // Realtime: refresh the moment the server changes attendance_records / visits.
+  // Realtime: attendance_records / visits / enrolled-device events_log.
   useEffect(() => {
     let channel: ReturnType<typeof supabase.channel> | null = null;
     let cancelled = false;
@@ -233,13 +294,35 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
             onClockUpdate?.();
           },
         )
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'attendance_events_log', filter: `user_id=eq.${user.id}` },
+          (payload) => {
+            applyDeviceEventRow(payload.new as Parameters<typeof applyDeviceEventRow>[0]);
+            void loadToday();
+          },
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'office_locations' },
+          () => {
+            void loadSites();
+          },
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'employee_work_sites', filter: `user_id=eq.${user.id}` },
+          () => {
+            void loadSites();
+          },
+        )
         .subscribe();
     })();
     return () => {
       cancelled = true;
       if (channel) void supabase.removeChannel(channel);
     };
-  }, [loadToday, onClockUpdate]);
+  }, [loadToday, loadSites, onClockUpdate, applyDeviceEventRow]);
 
   const openVisit = visits.some(isVisitOpen);
   const openShiftPreview = Boolean(openVisit || (clockIn && !clockOut));
@@ -522,6 +605,10 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
               ? nearby.inside
                 ? `yes · ${nearby.dist}m`
                 : `no · ${nearby.dist}m`
+              : deviceInside
+                ? deviceInside.inside
+                  ? `yes${deviceInside.distM != null ? ` · ${deviceInside.distM}m` : ''}`
+                  : `no${deviceInside.distM != null ? ` · ${deviceInside.distM}m` : ''}`
               : lastResult?.inside_office != null
                 ? lastResult.inside_office
                   ? `yes${lastResult.distance_meters != null ? ` · ${Math.round(lastResult.distance_meters)}m` : ''}`
@@ -532,10 +619,21 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
         <div className="geo-status-card__row">
           <span>Current state</span>
           <strong>
-            {openShift ? 'Checked in' : clockIn && clockOut ? 'Checked out' : 'Not checked in'}
+            {openShiftPreview
+              ? source === 'auto_wifi_no_gps' || source === 'manual_wifi_no_gps'
+                ? 'Checked in · No location - Wi-Fi only'
+                : 'Checked in'
+              : clockIn && clockOut
+                ? 'Checked out'
+                : 'Not checked in'}
           </strong>
         </div>
         {statusMessage && <p className="geo-status-card__msg">{statusMessage}</p>}
+        {(source === 'auto_wifi_no_gps' || source === 'manual_wifi_no_gps') && openShiftPreview && (
+          <p className="geo-status-card__msg" role="note">
+            Turn on location for exact check-out
+          </p>
+        )}
       </div>
 
       {nearby && (

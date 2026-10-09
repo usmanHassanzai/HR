@@ -28,7 +28,9 @@ const MapLocationPicker = lazy(() => import('./MapLocationPicker'));
 type OfficeTab = 'create' | 'assign' | 'offices';
 
 function isAlertError(message: string): boolean {
-  return /fail|denied|required|please|error|must|cannot|warn/i.test(message);
+  // Successful save (with or without a Wi-Fi note) must stay green — never red.
+  if (/saved|updated|succeed/i.test(message)) return false;
+  return /fail|denied|required|please|error|must|cannot/i.test(message);
 }
 
 function emptyWifiNetwork(label = ''): OfficeWifiNetwork {
@@ -187,6 +189,22 @@ export default function OfficeLocationSettings() {
 
   useEffect(() => {
     void load();
+  }, [load]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('office-settings-live')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'office_locations' },
+        () => {
+          void load();
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
   }, [load]);
 
   const resetForm = () => {
@@ -505,11 +523,14 @@ export default function OfficeLocationSettings() {
         p_default_display_timezones: splitList(form.default_display_timezones),
       });
     }
-    const warnNote = wifiWarnings.length || dupes.length ? ` Warnings: ${(wifiWarnings.length ? wifiWarnings : dupes).join('; ')}` : '';
+    const warns = (wifiWarnings.length ? wifiWarnings : dupes) as string[];
+    const warnNote = warns.length
+      ? ` Save succeeded. Note: ${warns.join('; ')} (not an error — multiple APs may share one public IP).`
+      : '';
     showMsg(
       wasNew
-        ? `"${savedName}" saved at your current location. Everyone assigned to it will use this exact pin.${warnNote}`
-        : `"${savedName}" updated. Assigned people now use this exact live pin.${warnNote}`,
+        ? `"${savedName}" saved. Assigned people use this office pin and radius.${warnNote}`
+        : `"${savedName}" updated. Assigned people now use this office pin and radius.${warnNote}`,
     );
     resetForm();
     await load();
@@ -736,8 +757,8 @@ export default function OfficeLocationSettings() {
                 </p>
                 {wifiProbe && <p className="admin-office-wifi-probe" role="status">{wifiProbe}</p>}
                 {wifiWarnings.length > 0 && (
-                  <div className="admin-office-alert admin-office-alert--error admin-office-alert--tight" role="status">
-                    <AlertCircle size={16} />
+                  <div className="admin-office-alert admin-office-alert--note admin-office-alert--tight" role="status">
+                    <Info size={16} />
                     <span>{wifiWarnings.join(' · ')}</span>
                   </div>
                 )}

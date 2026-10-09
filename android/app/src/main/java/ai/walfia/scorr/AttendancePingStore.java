@@ -163,6 +163,14 @@ final class AttendancePingStore {
         return prefs(ctx).getString("schedule_json", null);
     }
 
+    static void saveOfficeVersion(Context ctx, long version) {
+        prefs(ctx).edit().putLong("office_version", version).apply();
+    }
+
+    static long officeVersion(Context ctx) {
+        return prefs(ctx).getLong("office_version", 0L);
+    }
+
     static void saveCompanyTz(Context ctx, String tz) {
         if (tz != null) prefs(ctx).edit().putString("company_tz", tz).apply();
     }

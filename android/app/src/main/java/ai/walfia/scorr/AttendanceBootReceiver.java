@@ -27,6 +27,10 @@ public class AttendanceBootReceiver extends BroadcastReceiver {
         Executors.newSingleThreadExecutor().execute(() -> {
             try {
                 AttendanceScheduleController.syncAndArm(app);
+                // After reboot / app update: if already inside W, FGS must be running now.
+                if (AttendancePingStore.isInsideActiveWindow(app)) {
+                    AttendancePingService.start(app);
+                }
             } finally {
                 pending.finish();
             }

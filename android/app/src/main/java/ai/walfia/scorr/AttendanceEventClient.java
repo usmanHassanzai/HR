@@ -48,6 +48,17 @@ final class AttendanceEventClient {
         return loc.isFromMockProvider();
     }
 
+    /** Fresh event time: never trust stale GPS fix timestamps (they caused event_too_old). */
+    static long freshOccurredMs(Location loc) {
+        long now = System.currentTimeMillis();
+        if (loc == null) return now;
+        long t = loc.getTime();
+        if (t <= 0) return now;
+        // Accept GPS time only when it is recent; otherwise use device now.
+        if (now - t > 2L * 60L * 1000L || t - now > 60L * 1000L) return now;
+        return t;
+    }
+
     static void sendLocationEvent(Context ctx, String event, Location loc, String zoneId) {
         if (loc == null) return;
         if (isMockLocation(loc)) {
@@ -57,8 +68,49 @@ final class AttendanceEventClient {
         Double lat = loc.getLatitude();
         Double lng = loc.getLongitude();
         Float acc = loc.hasAccuracy() ? loc.getAccuracy() : null;
-        long readingMs = loc.getTime() > 0 ? loc.getTime() : System.currentTimeMillis();
-        send(ctx, event, zoneId, lat, lng, acc, null, null, readingMs);
+        send(ctx, event, zoneId, lat, lng, acc, null, null, freshOccurredMs(loc));
+    }
+
+    /** GPS + Wi-Fi in one event when a usable fix is available. */
+    static void sendCombined(Context ctx, String event, Location loc, String zoneId,
+                             String ssid, String bssid) {
+        if (loc == null) {
+            sendWifiOnly(ctx, event, ssid, bssid);
+            return;
+        }
+        if (isMockLocation(loc)) {
+            Log.w(TAG, "Rejected mock location for event=" + event);
+            return;
+        }
+        Double lat = loc.getLatitude();
+        Double lng = loc.getLongitude();
+        Float acc = loc.hasAccuracy() ? loc.getAccuracy() : null;
+        send(ctx, event, zoneId, lat, lng, acc, ssid, bssid, freshOccurredMs(loc));
+    }
+
+    /** Office Wi-Fi event with no GPS (location off / timed out). */
+    static void sendWifiOnly(Context ctx, String event, String ssid, String bssid) {
+        Context app = ctx.getApplicationContext();
+        if (!AttendancePingStore.enabled(app)) return;
+        try {
+            JSONObject body = new JSONObject();
+            body.put("device_token", AttendancePingStore.deviceToken(app));
+            body.put("event", event);
+            if (ssid != null) body.put("ssid", stripQuotes(ssid));
+            if (bssid != null) body.put("bssid", bssid.toLowerCase(Locale.US));
+            long now = System.currentTimeMillis();
+            body.put("occurred_at_utc_ms", now);
+            body.put("device_now_utc_ms", now);
+            body.put("device_timezone", AttendancePingStore.deviceTimezone());
+            body.put("is_mock", false);
+            body.put("gps_available", false);
+            body.put("device_id", AttendancePingStore.deviceId(app));
+            body.put("platform", "android");
+            body.put("app_version", AttendancePingStore.appVersion(app));
+            IO.execute(() -> postOrQueue(app, body));
+        } catch (Exception e) {
+            Log.w(TAG, "build wifi-only event failed", e);
+        }
     }
 
     static void sendWifiEvent(Context ctx, String event, String ssid, String bssid) {
@@ -227,7 +279,19 @@ final class AttendanceEventClient {
             String reason = json.optString("reason", action);
             if ("clock_in".equals(action)) {
                 showCheckNotification(app, action, json);
-                updateStatusNotification(app, "Checked in", requestBody);
+                String src = firstString(json, "attendance_source", "source");
+                boolean noGps = "auto_wifi_no_gps".equals(src)
+                    || (requestBody != null && !requestBody.has("lat"));
+                String msg = noGps
+                    ? "Checked in on office Wi-Fi (location is off)"
+                    : "Checked in";
+                String localTime = firstString(json, "local_time", "local_check_time");
+                long occurredMs = parseOccurredMs(json);
+                if (localTime == null && occurredMs > 0) {
+                    localTime = formatInTz(occurredMs, AttendancePingStore.deviceTimezone());
+                }
+                if (!noGps && localTime != null) msg = "Checked in at " + localTime;
+                updateStatusNotification(app, msg, requestBody);
             } else if ("clock_out".equals(action)) {
                 showCheckNotification(app, action, json);
                 String localTime = firstString(json, "local_time", "local_check_time");
@@ -239,7 +303,10 @@ final class AttendanceEventClient {
                     ? "Checked out - left the office radius at " + localTime
                     : "Checked out";
                 updateStatusNotification(app, msg, requestBody);
-            } else if (!action.isEmpty() && !"none".equals(action) && !"already_clocked_in".equals(action)) {
+            } else if (!action.isEmpty() && !"none".equals(action) && !"already_clocked_in".equals(action)
+                && !"already_checked_in".equals(action)) {
+                // Surface exact rejection reason (e.g. not_on_office_wifi, outside_radius).
+                showRejectNotification(app, humanReason(reason));
                 updateStatusNotification(app, humanReason(reason), requestBody);
             } else {
                 updateStatusNotification(app, null, requestBody);
@@ -289,7 +356,13 @@ final class AttendanceEventClient {
 
         String text;
         if (checkIn) {
-            text = "Checked in";
+            String src = firstString(json, "attendance_source", "source");
+            boolean noGps = "auto_wifi_no_gps".equals(src) || "manual_wifi_no_gps".equals(src);
+            if (noGps) {
+                text = "Checked in on office Wi-Fi (location is off)";
+            } else {
+                text = localTime != null ? "Checked in at " + localTime : "Checked in";
+            }
         } else if (localTime != null) {
             text = "Checked out - left the office radius at " + localTime;
         } else {
@@ -306,6 +379,20 @@ final class AttendanceEventClient {
 
         NotificationManager nm = app.getSystemService(NotificationManager.class);
         if (nm != null) nm.notify(NOTIFY_ID + (checkIn ? 1 : 2), builder.build());
+    }
+
+    private static void showRejectNotification(Context app, String reason) {
+        if (reason == null || reason.isEmpty()) return;
+        createNotifyChannel(app);
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(app, NOTIFY_CHANNEL)
+            .setContentTitle("Attendance check")
+            .setContentText(reason)
+            .setStyle(new NotificationCompat.BigTextStyle().bigText(reason))
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_LOW);
+        NotificationManager nm = app.getSystemService(NotificationManager.class);
+        if (nm != null) nm.notify(NOTIFY_ID + 3, builder.build());
     }
 
     static void updateStatusNotification(Context app, String statusOverride, JSONObject lastBody) {

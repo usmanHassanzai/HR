@@ -354,6 +354,7 @@ private enum AttendanceStore {
     static let anonKey = "scorr_att_anon"
     static let appVersionKey = "scorr_att_app_version"
     static let scheduleKey = "scorr_att_schedule_json"
+    static let officeVersionKey = "scorr_att_office_version"
     static let skewMsKey = "scorr_att_skew_ms"
     static let companyTzKey = "scorr_att_company_tz"
     static let enabledKey = "scorr_att_enabled"
@@ -389,6 +390,11 @@ private enum AttendanceStore {
     static var companyTz: String {
         get { defaults.string(forKey: companyTzKey) ?? "UTC" }
         set { defaults.set(newValue, forKey: companyTzKey) }
+    }
+
+    static var officeVersion: Int64 {
+        get { Int64(defaults.integer(forKey: officeVersionKey)) }
+        set { defaults.set(Int(newValue), forKey: officeVersionKey) }
     }
 
     static func saveScheduleJSON(_ data: Data) {
@@ -431,6 +437,7 @@ private struct AttendanceZone: Codable {
     let latitude: Double?
     let longitude: Double?
     let radius_meters: Double?
+    let office_version: Int64?
     let detection_mode: String?
     let wifi_ssids: [String]?
     let wifi_bssids: [String]?
@@ -442,6 +449,7 @@ private struct AttendanceSchedule: Codable {
     let stop_tracking: Bool?
     let server_now_utc: String?
     let company_tz: String?
+    let office_version: Int64?
     let windows: [AttendanceWindow]?
     let zones: [AttendanceZone]?
 }
@@ -456,6 +464,36 @@ private struct QueuedEvent: Codable {
     let bssid: String?
     let occurredAtUtcMs: Int64
     let isMock: Bool
+    /// false when location off/unavailable; omit GPS fields when false.
+    let gpsAvailable: Bool?
+
+    init(
+        event: String,
+        zoneId: String?,
+        lat: Double?,
+        lng: Double?,
+        accuracyM: Double?,
+        ssid: String?,
+        bssid: String?,
+        occurredAtUtcMs: Int64,
+        isMock: Bool,
+        gpsAvailable: Bool? = nil
+    ) {
+        self.event = event
+        self.zoneId = zoneId
+        self.lat = lat
+        self.lng = lng
+        self.accuracyM = accuracyM
+        self.ssid = ssid
+        self.bssid = bssid
+        self.occurredAtUtcMs = occurredAtUtcMs
+        self.isMock = isMock
+        if let gpsAvailable {
+            self.gpsAvailable = gpsAvailable
+        } else {
+            self.gpsAvailable = lat != nil && lng != nil
+        }
+    }
 }
 
 // MARK: - Engine
@@ -638,10 +676,15 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
                     return
                 }
 
+                let prevVer = AttendanceStore.officeVersion
+                let nextVer = decoded.office_version
+                    ?? decoded.zones?.compactMap(\.office_version).max()
+                    ?? 0
                 self.lock.lock()
                 self.schedule = decoded
                 self.lock.unlock()
                 AttendanceStore.saveScheduleJSON(data)
+                AttendanceStore.officeVersion = nextVer
                 if let companyTz = decoded.company_tz {
                     AttendanceStore.companyTz = companyTz
                 }
@@ -651,6 +694,7 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
                 }
 
                 DispatchQueue.main.async {
+                    // Always re-apply regions so radius/pin changes take effect.
                     self.applyMonitoringFromSchedule()
                     self.flushQueue()
                     let upcoming = self.upcomingWindows().count
@@ -661,6 +705,8 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
                         "zones": decoded.zones?.count ?? 0,
                         "monitoring": monitoring,
                         "company_tz": AttendanceStore.companyTz,
+                        "office_version": nextVer,
+                        "office_version_changed": nextVer > 0 && nextVer != prevVer,
                     ]))
                 }
             } catch {
@@ -822,6 +868,13 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let loc = locations.last else { return }
+        // Pending ENTER: usable fix within 3s window → send with GPS.
+        if pendingEnterZoneId != nil {
+            if loc.horizontalAccuracy >= 0 && loc.horizontalAccuracy <= 100 {
+                finishPendingEnter(loc: loc)
+            }
+            return
+        }
         // Pending EXIT that waited for a fresh high-accuracy fix.
         if let zoneId = pendingExitZoneId {
             if loc.horizontalAccuracy < 0 || loc.horizontalAccuracy > 50 {
@@ -843,13 +896,14 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
                 accuracyM: loc.horizontalAccuracy,
                 ssid: pendingExitSsid,
                 bssid: pendingExitBssid,
-                occurredAtUtcMs: Int64(loc.timestamp.timeIntervalSince1970 * 1000),
-                isMock: simulated
+                occurredAtUtcMs: Self.freshOccurredMs(for: loc),
+                isMock: simulated,
+                gpsAvailable: true
             )
             postEvent(payload)
             return
         }
-        // Significant-location-change backup: send a ping with Wi-Fi when possible.
+        // Significant-location-change backup: wake + send GPS+Wi-Fi check.
         guard AttendanceStore.enabled else { return }
         let age = Date().timeIntervalSince(loc.timestamp)
         guard age < 120, loc.horizontalAccuracy >= 0, loc.horizontalAccuracy <= 100 else { return }
@@ -869,14 +923,28 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
                 accuracyM: loc.horizontalAccuracy,
                 ssid: ssid,
                 bssid: bssid,
-                occurredAtUtcMs: Int64(loc.timestamp.timeIntervalSince1970 * 1000),
-                isMock: simulated
+                occurredAtUtcMs: Self.freshOccurredMs(for: loc),
+                isMock: simulated,
+                gpsAvailable: true
             )
             self.postEvent(payload)
         }
     }
 
+    /// Prefer device now when CoreLocation fix timestamp is stale (avoids event_too_old).
+    private static func freshOccurredMs(for loc: CLLocation?) -> Int64 {
+        let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
+        guard let loc else { return nowMs }
+        let t = Int64(loc.timestamp.timeIntervalSince1970 * 1000)
+        let age = nowMs - t
+        if age > 2 * 60 * 1000 || age < -60 * 1000 { return nowMs }
+        return t
+    }
+
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        if pendingEnterZoneId != nil {
+            finishPendingEnter(loc: nil)
+        }
         pendingExitZoneId = nil
     }
 
@@ -889,6 +957,10 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
     private var pendingExitZoneId: String?
     private var pendingExitSsid: String?
     private var pendingExitBssid: String?
+    private var pendingEnterZoneId: String?
+    private var pendingEnterSsid: String?
+    private var pendingEnterBssid: String?
+    private var pendingEnterDeadline: DispatchWorkItem?
 
     private func handleRegionEvent(region: CLRegion, event: String, prioritizeWifi: Bool = false) {
         // Server decides the attendance window — never drop ENTER/EXIT locally.
@@ -927,6 +999,29 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
             }
         }
 
+        // Check-in: wait ≤3s for usable GPS, else send Wi-Fi-only (gps_available=false).
+        if event == "enter" {
+            let acc = loc?.horizontalAccuracy ?? -1
+            let usable = loc != nil && acc >= 0 && acc <= 100
+            if !usable {
+                pendingEnterDeadline?.cancel()
+                pendingEnterZoneId = region.identifier
+                manager.desiredAccuracy = kCLLocationAccuracyBest
+                fetchWifi(preferCachedFallback: true) { [weak self] ssid, bssid in
+                    guard let self else { return }
+                    self.pendingEnterSsid = ssid
+                    self.pendingEnterBssid = bssid
+                    self.manager.requestLocation()
+                    let work = DispatchWorkItem { [weak self] in
+                        self?.finishPendingEnter(loc: nil)
+                    }
+                    self.pendingEnterDeadline = work
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: work)
+                }
+                return
+            }
+        }
+
         let isMock: Bool
         if #available(iOS 15.0, *) {
             isMock = loc?.sourceInformation?.isSimulatedBySoftware == true
@@ -936,16 +1031,18 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
 
         let finish: (String?, String?) -> Void = { [weak self] ssid, bssid in
             guard let self else { return }
+            let hasGps = loc != nil && (loc?.horizontalAccuracy ?? -1) >= 0
             let payload = QueuedEvent(
                 event: event,
                 zoneId: region.identifier,
-                lat: loc?.coordinate.latitude,
-                lng: loc?.coordinate.longitude,
-                accuracyM: loc.flatMap { $0.horizontalAccuracy > 0 ? $0.horizontalAccuracy : nil },
+                lat: hasGps ? loc?.coordinate.latitude : nil,
+                lng: hasGps ? loc?.coordinate.longitude : nil,
+                accuracyM: hasGps ? loc.flatMap { $0.horizontalAccuracy > 0 ? $0.horizontalAccuracy : nil } : nil,
                 ssid: ssid,
                 bssid: bssid,
-                occurredAtUtcMs: Int64((loc?.timestamp ?? Date()).timeIntervalSince1970 * 1000),
-                isMock: isMock
+                occurredAtUtcMs: Self.freshOccurredMs(for: loc),
+                isMock: isMock,
+                gpsAvailable: hasGps
             )
             self.postEvent(payload)
         }
@@ -954,6 +1051,41 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
         fetchWifi(preferCachedFallback: prioritizeWifi) { ssid, bssid in
             finish(ssid, bssid)
         }
+    }
+
+    private func finishPendingEnter(loc: CLLocation?) {
+        guard let zoneId = pendingEnterZoneId else { return }
+        pendingEnterDeadline?.cancel()
+        pendingEnterDeadline = nil
+        pendingEnterZoneId = nil
+        let ssid = pendingEnterSsid
+        let bssid = pendingEnterBssid
+        pendingEnterSsid = nil
+        pendingEnterBssid = nil
+        let acc = loc?.horizontalAccuracy ?? -1
+        let usable = loc != nil && acc >= 0 && acc <= 100
+        let simulated: Bool
+        if #available(iOS 15.0, *), let loc {
+            simulated = loc.sourceInformation?.isSimulatedBySoftware == true
+        } else {
+            simulated = false
+        }
+        if simulated {
+            return
+        }
+        let payload = QueuedEvent(
+            event: "enter",
+            zoneId: zoneId,
+            lat: usable ? loc?.coordinate.latitude : nil,
+            lng: usable ? loc?.coordinate.longitude : nil,
+            accuracyM: usable ? acc : nil,
+            ssid: ssid,
+            bssid: bssid,
+            occurredAtUtcMs: Self.freshOccurredMs(for: usable ? loc : nil),
+            isMock: false,
+            gpsAvailable: usable
+        )
+        postEvent(payload)
     }
 
     // MARK: Wi-Fi supporting signal (R71)
@@ -1103,10 +1235,12 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
             "is_mock": event.isMock,
             "platform": "ios",
         ]
+        let gpsOk = event.gpsAvailable ?? (event.lat != nil && event.lng != nil)
+        body["gps_available"] = gpsOk
         if let zoneId = event.zoneId { body["zone_id"] = zoneId }
-        if let lat = event.lat { body["lat"] = lat }
-        if let lng = event.lng { body["lng"] = lng }
-        if let acc = event.accuracyM { body["accuracy_m"] = acc }
+        if gpsOk, let lat = event.lat { body["lat"] = lat }
+        if gpsOk, let lng = event.lng { body["lng"] = lng }
+        if gpsOk, let acc = event.accuracyM { body["accuracy_m"] = acc }
         if let ssid = event.ssid { body["ssid"] = ssid }
         if let bssid = event.bssid { body["bssid"] = bssid }
         if let deviceId = AttendanceKeychain.loadDeviceId() { body["device_id"] = deviceId }
@@ -1147,7 +1281,7 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
     private func notifyIfClocked(_ json: [String: Any]?) {
         guard let json else { return }
         let action = (json["action"] as? String) ?? ""
-        guard action == "clock_in" || action == "clock_out" else { return }
+        let reason = (json["reason"] as? String) ?? action
 
         let occurredRaw = json["occurred_at"] as? String
         let occurred = parseDate(occurredRaw) ?? Date()
@@ -1155,15 +1289,28 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
         localFmt.timeZone = .current
         localFmt.dateStyle = .none
         localFmt.timeStyle = .short
-        let officeFmt = DateFormatter()
-        officeFmt.timeZone = TimeZone(identifier: AttendanceStore.companyTz) ?? .current
-        officeFmt.dateStyle = .none
-        officeFmt.timeStyle = .short
-
         let localTime = localFmt.string(from: occurred)
-        let officeTime = officeFmt.string(from: occurred)
-        let title = action == "clock_in" ? "Checked in" : "Checked out"
-        let body = "Local \(localTime) · Office \(officeTime) (\(AttendanceStore.companyTz))"
+
+        let title: String
+        let body: String
+        if action == "clock_in" {
+            title = "Checked in"
+            let src = (json["attendance_source"] as? String) ?? ""
+            if src == "auto_wifi_no_gps" || src == "manual_wifi_no_gps" {
+                body = "Checked in on office Wi-Fi (location is off)"
+            } else {
+                body = "Checked in at \(localTime)"
+            }
+        } else if action == "clock_out" {
+            title = "Checked out"
+            body = "Checked out - left the office radius at \(localTime)"
+        } else if let ok = json["ok"] as? Bool, !ok, !reason.isEmpty,
+                  reason != "already_checked_in", reason != "already_clocked_in", reason != "none" {
+            title = "Attendance check"
+            body = humanReason(reason)
+        } else {
+            return
+        }
 
         let content = UNMutableNotificationContent()
         content.title = title
@@ -1176,5 +1323,25 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
             trigger: nil
         )
         UNUserNotificationCenter.current().add(req, withCompletionHandler: nil)
+    }
+
+    private func humanReason(_ reason: String) -> String {
+        switch reason {
+        case "not_on_office_wifi", "not_on_office_network":
+            return "Connect to the office Wi-Fi"
+        case "outside_radius", "outside_office":
+            return "You are outside the office radius"
+        case "gps_unusable", "need_fresh_location":
+            // Check-out still needs GPS; check-in uses Wi-Fi-only path instead.
+            return "Turn on location for exact check-out"
+        case "checkin_blocked_shift_ended":
+            return "The shift has ended. You cannot check in."
+        case "outside_window":
+            return "Outside the attendance window"
+        case "event_too_old":
+            return "Reading was too old — get a fresh location"
+        default:
+            return reason.replacingOccurrences(of: "_", with: " ")
+        }
     }
 }

@@ -172,14 +172,15 @@ BEGIN
   PERFORM pg_temp.tassert(5, 're-entry opens present again',
     v_open = 1 AND v_visits >= 1, format('open=%s visits=%s', v_open, v_visits));
 
-  -- Wi-Fi without GPS
+  -- Wi-Fi without GPS: allowed for check-in (already checked in → already_checked_in)
   v_res := public.process_auto_attendance_event(
     '${phoneHash}', 'wifi_connected', v_zone, NULL, NULL, NULL,
     'OfficeWiFi', 'aa:bb:cc:dd:ee:ff',
     v_ms + 3000, v_ms + 3000, 'UTC', false, 'phone-'||v_sfx, 'android', '1.3.10', '203.0.113.10'
   );
-  PERFORM pg_temp.tassert(6, 'wifi no GPS → need_fresh_location',
-    (v_res->>'action') = 'need_fresh_location' OR (v_res->>'reason') = 'need_fresh_location',
+  PERFORM pg_temp.tassert(6, 'wifi no GPS while present → already_checked_in (not need_fresh)',
+    (v_res->>'action') IN ('already_checked_in', 'clock_in')
+      AND (v_res->>'action') IS DISTINCT FROM 'need_fresh_location',
     v_res::text);
 
   -- Check out first so mobile-data check-in is evaluated (not duplicate_ignored)

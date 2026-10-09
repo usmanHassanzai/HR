@@ -44,33 +44,21 @@ public class AttendanceGeofenceReceiver extends BroadcastReceiver {
             zoneId = triggering.get(0).getRequestId();
         }
 
-        // R69: on EXIT, attach current Wi-Fi identity immediately so the server can
-        // decide leave-confirmed vs GPS-drift (still on office Wi-Fi) without waiting
-        // for the next 5-minute backup ping.
-        String ssid = null;
-        String bssid = null;
-        if ("exit".equals(eventName)) {
-            String[] wifi = AttendancePingStore.readCurrentWifiIdentity(app);
-            ssid = wifi[0];
-            bssid = wifi[1];
-            if (ssid == null && bssid == null) {
-                ssid = AttendancePingStore.lastSsid(app);
-                bssid = AttendancePingStore.lastBssid(app);
-            }
+        String[] wifi = AttendancePingStore.readCurrentWifiIdentity(app);
+        String ssid = wifi[0];
+        String bssid = wifi[1];
+        if (ssid == null && bssid == null) {
+            ssid = AttendancePingStore.lastSsid(app);
+            bssid = AttendancePingStore.lastBssid(app);
         }
 
         if ("exit".equals(eventName)) {
             // Instant EXIT with a fresh GPS reading (not a cached geofence fix).
             AttendancePingService.sendFreshExit(app, zoneId, ssid, bssid);
-        } else if (event.getTriggeringLocation() != null) {
-            android.location.Location loc = event.getTriggeringLocation();
-            Double lat = loc.getLatitude();
-            Double lng = loc.getLongitude();
-            Float acc = loc.hasAccuracy() ? loc.getAccuracy() : null;
-            long readingMs = loc.getTime() > 0 ? loc.getTime() : System.currentTimeMillis();
-            AttendanceEventClient.send(app, eventName, zoneId, lat, lng, acc, ssid, bssid, readingMs);
         } else {
-            AttendanceEventClient.send(app, eventName, zoneId, null, null, null, ssid, bssid, null);
+            // ENTER: ensure FGS is up and send a fresh GPS+Wi-Fi combined check.
+            AttendancePingService.start(app);
+            AttendancePingService.sendFreshEnter(app, zoneId, ssid, bssid);
         }
     }
 }

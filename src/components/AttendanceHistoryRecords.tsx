@@ -37,7 +37,11 @@ interface AttendanceHistoryRecordsProps {
 }
 
 function sourceLabel(source: string | null | undefined): string {
-  if (source === 'geo') return 'GPS';
+  if (source === 'geo' || source === 'auto_gps') return 'GPS';
+  if (source === 'auto_wifi_no_gps' || source === 'manual_wifi_no_gps') return 'No location - Wi-Fi only';
+  if (source === 'auto_wifi') return 'Wi-Fi + GPS';
+  if (source === 'auto_laptop') return 'Laptop';
+  if (source === 'manual') return 'Manual';
   return source || 'Manual';
 }
 

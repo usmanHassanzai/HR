@@ -13,10 +13,10 @@ const TOKEN_KEY = 'scorr_attendance_device_token';
 const DEVICE_ID_KEY = 'scorr_attendance_device_id';
 
 export const PHONE_OPT_IN_TEXT =
-  'After this one-time setup, Scorr checks you in only when both are true: this phone is on the office Wi-Fi, and a GPS reading is inside the office radius. Either one alone is not enough. Check-in runs from 1 hour before your shift until the shift ends.';
+  'After this one-time setup, Scorr checks you in on office Wi-Fi during your shift window. If location is on and accurate, you must also be inside the office radius. If location is off, office Wi-Fi alone is enough to check in. Check-in runs from 1 hour before your shift until the shift ends.';
 
 export const LAPTOP_OPT_IN_TEXT =
-  'This laptop checks in only when both are true: it is on the office Wi-Fi, and a GPS reading is inside the office radius. If location is missing or weak, Scorr asks for a fresh location and tries again. Shutting the laptop down does not check you out.';
+  'This laptop checks in on office Wi-Fi during your shift window. If location is on and accurate, you must also be inside the office radius. If location is off or weak, office Wi-Fi alone is enough to check in. Shutting the laptop down does not check you out.';
 
 async function secureGet(key: string): Promise<string | null> {
   try {
@@ -84,7 +84,7 @@ export async function registerAttendanceDevice(appVersion?: string): Promise<{
 }> {
   // Prefer direct RPC (JWT) — edge function historically hit BOOT_ERROR and hung clients with no timeout.
   const { registerDeviceViaRpc } = await import('./autoAttendanceSetup');
-  return registerDeviceViaRpc(appVersion || '1.3.7');
+  return registerDeviceViaRpc(appVersion || '1.3.12');
 }
 
 export async function disableAutoAttendanceOnDevice(kind: 'phone' | 'laptop' = 'phone'): Promise<void> {
@@ -179,18 +179,24 @@ export async function sendAutoAttendanceEvent(
   }
 }
 
-/** Laptop and Test now: attach a fresh GPS fix, and retry once if the server asks. */
+/** Attach GPS if available within 3s; otherwise send Wi-Fi-only (gps_available=false). */
 export async function sendAutoAttendanceEventWithLocation(
   event: string,
   extra: Record<string, unknown> = {},
 ): Promise<Record<string, unknown> | null> {
   const { requestCurrentPosition } = await import('./geoAttendance');
-  const readFix = async () => {
-    const pos = await requestCurrentPosition({
-      enableHighAccuracy: true,
-      timeout: 15_000,
-      maximumAge: 0,
-    });
+  const readFix = async (timeout = 3000) => {
+    const pos = await Promise.race([
+      requestCurrentPosition({
+        enableHighAccuracy: true,
+        timeout,
+        maximumAge: 0,
+      }),
+      new Promise<null>((resolve) => {
+        window.setTimeout(() => resolve(null), timeout);
+      }),
+    ]);
+    if (!pos) return null;
     return {
       latitude: pos.coords.latitude,
       longitude: pos.coords.longitude,
@@ -198,17 +204,23 @@ export async function sendAutoAttendanceEventWithLocation(
     };
   };
 
-  let fix: Record<string, unknown> = {};
+  let fix: Record<string, unknown> | null = null;
   try {
-    fix = await readFix();
+    fix = await readFix(3000);
   } catch {
-    /* server returns need_fresh_location when the fix is missing */
+    fix = null;
   }
-  let res = await sendAutoAttendanceEvent(event, { ...extra, ...fix });
-  if (res?.action === 'need_fresh_location') {
+  const payload = fix
+    ? { ...extra, ...fix, gps_available: true }
+    : { ...extra, gps_available: false };
+  let res = await sendAutoAttendanceEvent(event, payload);
+  // Check-out may still ask for GPS.
+  if (res?.action === 'need_fresh_location' || res?.action === 'gps_unusable') {
     try {
-      fix = await readFix();
-      res = await sendAutoAttendanceEvent(event, { ...extra, ...fix });
+      fix = await readFix(8000);
+      if (fix) {
+        res = await sendAutoAttendanceEvent(event, { ...extra, ...fix, gps_available: true });
+      }
     } catch {
       /* keep the server reason */
     }

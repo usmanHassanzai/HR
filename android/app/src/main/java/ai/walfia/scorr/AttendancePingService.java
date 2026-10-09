@@ -78,10 +78,11 @@ public class AttendancePingService extends Service {
             stopSelf();
             return START_NOT_STICKY;
         }
-        // Allow a one-shot EXIT even slightly outside the cached local window;
+        // Allow one-shot ENTER/EXIT even if the cached local window is stale;
         // the server is the source of truth for W.
         boolean freshExit = intent != null && "scorr.action.FRESH_EXIT".equals(intent.getAction());
-        if (!freshExit && !AttendancePingStore.isInsideActiveWindow(this)) {
+        boolean freshEnter = intent != null && "scorr.action.FRESH_ENTER".equals(intent.getAction());
+        if (!freshExit && !freshEnter && !AttendancePingStore.isInsideActiveWindow(this)) {
             stopSelf();
             return START_NOT_STICKY;
         }
@@ -112,6 +113,8 @@ public class AttendancePingService extends Service {
         AttendanceEventClient.flushQueue(this);
         if (freshExit) {
             handleFreshExitIntent(intent);
+        } else if (freshEnter) {
+            handleFreshEnterIntent(intent);
         }
         handler.removeCallbacks(tick);
         handler.post(tick);
@@ -125,6 +128,17 @@ public class AttendancePingService extends Service {
         handler.removeCallbacksAndMessages(null);
         unregisterWifiCallback();
         super.onDestroy();
+    }
+
+    /** Swipe-away / task removed: re-arm window alarms and restart FGS if still in W. */
+    @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        Context app = getApplicationContext();
+        if (!AttendancePingStore.enabled(app)) return;
+        AttendanceScheduleController.armFromCache(app);
+        if (AttendancePingStore.isInsideActiveWindow(app)) {
+            AttendancePingService.start(app);
+        }
     }
 
     @Nullable
@@ -155,7 +169,30 @@ public class AttendancePingService extends Service {
     }
 
     private void requestLocationPing() {
-        requestFreshLocationWithRetries(this::onLocation, null, 100f);
+        // Refresh schedule so office radius/pin changes re-arm geofences.
+        new Thread(() -> AttendanceScheduleController.syncAndArm(this), "scorr-sched-sync").start();
+        String[] wifi = readWifiIdentity();
+        // ≤3s for GPS; if unavailable send Wi-Fi-only (server may check in).
+        requestGpsThenWifiEvent("ping", wifi[0], wifi[1]);
+    }
+
+    /** Geofence ENTER: wait ≤3s for GPS, then send (Wi-Fi-only if location off). */
+    static void sendFreshEnter(Context ctx, String zoneId, String ssid, String bssid) {
+        Context app = ctx.getApplicationContext();
+        Intent boot = new Intent(app, AttendancePingService.class);
+        boot.setAction("scorr.action.FRESH_ENTER");
+        boot.putExtra("zone_id", zoneId);
+        boot.putExtra("ssid", ssid);
+        boot.putExtra("bssid", bssid);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                app.startForegroundService(boot);
+            } else {
+                app.startService(boot);
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "sendFreshEnter start failed", e);
+        }
     }
 
     /** Instant EXIT: fresh high-accuracy GPS (≤50 m, up to 3 tries) then send. */
@@ -180,18 +217,21 @@ public class AttendancePingService extends Service {
         }
     }
 
+    private void handleFreshEnterIntent(Intent intent) {
+        String zoneId = intent != null ? intent.getStringExtra("zone_id") : null;
+        String ssid = intent != null ? intent.getStringExtra("ssid") : null;
+        String bssid = intent != null ? intent.getStringExtra("bssid") : null;
+        requestGpsThenWifiEvent("enter", ssid, bssid);
+    }
+
     private void handleFreshExitIntent(Intent intent) {
         String zoneId = intent != null ? intent.getStringExtra("zone_id") : null;
         String ssid = intent != null ? intent.getStringExtra("ssid") : null;
         String bssid = intent != null ? intent.getStringExtra("bssid") : null;
         requestFreshLocationWithRetries(loc -> {
             if (loc != null && !AttendanceEventClient.isMockLocation(loc)) {
-                Double lat = loc.getLatitude();
-                Double lng = loc.getLongitude();
-                Float acc = loc.hasAccuracy() ? loc.getAccuracy() : null;
-                long readingMs = loc.getTime() > 0 ? loc.getTime() : System.currentTimeMillis();
                 String z = zoneId != null ? zoneId : nearestZoneId(loc);
-                AttendanceEventClient.send(this, "exit", z, lat, lng, acc, ssid, bssid, readingMs);
+                AttendanceEventClient.sendCombined(this, "exit", loc, z, ssid, bssid);
                 AttendancePingStore.setLastOutsideOrEdge(this, true);
             } else {
                 AttendanceEventClient.send(this, "exit", zoneId, null, null, null, ssid, bssid, null);
@@ -310,7 +350,11 @@ public class AttendancePingService extends Service {
     }
 
     private void onLocation(Location loc) {
-        if (loc == null) return;
+        if (loc == null) {
+            String[] wifi = readWifiIdentity();
+            AttendanceEventClient.sendWifiOnly(this, "ping", wifi[0], wifi[1]);
+            return;
+        }
         // Server decides the window — keep sending while the FGS is alive.
         if (AttendanceEventClient.isMockLocation(loc)) {
             Log.w(TAG, "Rejected mock location backup ping");
@@ -330,13 +374,35 @@ public class AttendancePingService extends Service {
     private void dispatchPing(Location loc) {
         String zoneId = nearestZoneId(loc);
         boolean outsideOrEdge = isOutsideOrNearEdge(loc);
-        AttendancePingStore.setLastOutsideOrEdge(this, outsideOrEdge);
-        AttendanceEventClient.sendLocationEvent(this, "ping", loc, zoneId);
-        AttendanceEventClient.updateStatusNotification(
-            this,
-            outsideOrEdge ? "Outside / near edge — checking every 30s" : "Inside office — checking every 60s",
-            null
+        boolean insideRadius = isInsideAnyRadius(loc);
+        boolean onOfficeWifi = AttendancePingStore.wifiConnected(this);
+        // Inside radius but not on office Wi-Fi → 30s retry until Wi-Fi matches or shift ends.
+        boolean needWifiRetry = insideRadius && !onOfficeWifi;
+        AttendancePingStore.setLastOutsideOrEdge(this, outsideOrEdge || needWifiRetry);
+        String[] wifi = readWifiIdentity();
+        AttendanceEventClient.sendCombined(
+            this, "ping", loc, zoneId, wifi[0], wifi[1]
         );
+        String status;
+        if (needWifiRetry) {
+            status = "Inside radius — waiting for office Wi-Fi (30s)";
+        } else if (outsideOrEdge) {
+            status = "Outside / near edge — checking every 30s";
+        } else {
+            status = "Inside office — checking every 60s";
+        }
+        AttendanceEventClient.updateStatusNotification(this, status, null);
+    }
+
+    private boolean isInsideAnyRadius(Location loc) {
+        for (AttendanceScheduleController.Zone z : AttendanceScheduleController.parseZones(this)) {
+            if (!z.usesGps()) continue;
+            float[] results = new float[1];
+            Location.distanceBetween(loc.getLatitude(), loc.getLongitude(), z.lat, z.lng, results);
+            float radius = z.radiusM > 0 ? z.radiusM : 100f;
+            if (results[0] <= radius) return true;
+        }
+        return false;
     }
 
     private boolean isOutsideOrNearEdge(Location loc) {
@@ -465,30 +531,26 @@ public class AttendancePingService extends Service {
 
     private void requestGpsThenWifiEvent(String eventName, String ssid, String bssid) {
         final boolean[] done = { false };
+        // Wait up to 3s for GPS; then send Wi-Fi-only (server may check in without GPS).
         Runnable fallback = () -> {
             if (done[0]) return;
             done[0] = true;
-            // Server returns need_fresh_location; still try without coords as last resort.
-            AttendanceEventClient.sendWifiEvent(this, eventName, ssid, bssid);
+            AttendanceEventClient.sendWifiOnly(this, eventName, ssid, bssid);
         };
-        handler.postDelayed(fallback, 12_000L);
-        requestFreshLocationWithRetries(loc -> {
+        handler.postDelayed(fallback, 3_000L);
+        requestFreshLocation(loc -> {
             if (done[0]) return;
             done[0] = true;
             handler.removeCallbacks(fallback);
-            if (loc != null && !AttendanceEventClient.isMockLocation(loc)) {
-                String zoneId = nearestZoneId(loc);
-                Double lat = loc.getLatitude();
-                Double lng = loc.getLongitude();
-                Float acc = loc.hasAccuracy() ? loc.getAccuracy() : null;
-                long readingMs = loc.getTime() > 0 ? loc.getTime() : System.currentTimeMillis();
-                AttendanceEventClient.send(
-                    this, eventName, zoneId, lat, lng, acc, ssid, bssid, readingMs
+            if (loc != null && !AttendanceEventClient.isMockLocation(loc)
+                && loc.hasAccuracy() && loc.getAccuracy() <= 100f) {
+                AttendanceEventClient.sendCombined(
+                    this, eventName, loc, nearestZoneId(loc), ssid, bssid
                 );
             } else {
-                AttendanceEventClient.sendWifiEvent(this, eventName, ssid, bssid);
+                AttendanceEventClient.sendWifiOnly(this, eventName, ssid, bssid);
             }
-        }, fallback, 50f);
+        }, fallback);
     }
 
     private boolean matchesOfficeWifi(String ssid, String bssid) {

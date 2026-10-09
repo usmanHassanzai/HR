@@ -124,6 +124,9 @@ export function attendanceActionMessage(action: string | null | undefined): stri
     case 'clock_in':
     case 'already_clocked_in':
       return 'Checked in';
+    case 'auto_wifi_no_gps':
+    case 'manual_wifi_no_gps':
+      return 'Checked in on office Wi-Fi (location is off)';
     case 'clock_out':
     case 'clock_out_shift_end':
     case 'already_clocked_out':
@@ -341,24 +344,41 @@ export async function pingAttendanceBeforeLogout(): Promise<void> {
 
 export type GeoClockIntent = 'clock_in' | 'clock_out';
 
-/** One GPS read, then server clock-in or clock-out. No interval logging. */
+/** Brief GPS read (≤3s); if unavailable, send without GPS for Wi-Fi check-in. */
+async function requestPositionOrNull(timeoutMs = 3000): Promise<GeolocationPosition | null> {
+  try {
+    return await Promise.race([
+      requestCurrentPosition({
+        maximumAge: 0,
+        timeout: timeoutMs,
+        enableHighAccuracy: true,
+      }),
+      new Promise<null>((resolve) => {
+        window.setTimeout(() => resolve(null), timeoutMs);
+      }),
+    ]);
+  } catch {
+    return null;
+  }
+}
+
+/** One GPS read (or none), then server clock-in or clock-out. */
 export async function submitGeoClockEvent(intent: GeoClockIntent): Promise<GeoPingResult> {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
     const result: GeoPingResult = { action: 'no_connection' as GeoPingAction, reason: 'no_connection' };
     dispatchGeoPing({ result, auto: false, checkedAt: Date.now() });
     return result;
   }
-  const pos = await requestCurrentPosition({
-    maximumAge: 0,
-    timeout: 20_000,
-    enableHighAccuracy: true,
-  });
+  // Check-out still prefers GPS; check-in may proceed without it on office Wi-Fi.
+  const pos = intent === 'clock_out'
+    ? await requestCurrentPosition({ maximumAge: 0, timeout: 20_000, enableHighAccuracy: true }).catch(() => null)
+    : await requestPositionOrNull(3000);
   const { data, error } = await supabase.rpc('process_geo_attendance_ping', {
-    p_latitude: pos.coords.latitude,
-    p_longitude: pos.coords.longitude,
-    p_accuracy: pos.coords.accuracy ?? null,
+    p_latitude: pos?.coords.latitude ?? null,
+    p_longitude: pos?.coords.longitude ?? null,
+    p_accuracy: pos?.coords.accuracy ?? null,
     p_intent: intent,
-    p_is_mock: positionIsMock(pos),
+    p_is_mock: pos ? positionIsMock(pos) : false,
   });
   if (error) {
     const msg = String(error.message || '');
@@ -372,9 +392,9 @@ export async function submitGeoClockEvent(intent: GeoClockIntent): Promise<GeoPi
   const result = data as GeoPingResult;
   dispatchGeoPing({
     result,
-    latitude: pos.coords.latitude,
-    longitude: pos.coords.longitude,
-    accuracy: pos.coords.accuracy ?? null,
+    latitude: pos?.coords.latitude ?? undefined,
+    longitude: pos?.coords.longitude ?? undefined,
+    accuracy: pos?.coords.accuracy ?? null,
     auto: false,
     checkedAt: Date.now(),
   });

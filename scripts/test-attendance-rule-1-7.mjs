@@ -169,14 +169,14 @@ BEGIN
   SELECT * INTO v_chk FROM public.attendance_office_presence_check(
     v_emp, NULL, NULL, NULL, false, '203.0.113.10', 'check_in'
   );
-  PERFORM pg_temp.tassert('R17 shared: wifi-only rejected',
-    NOT COALESCE(v_chk.ok,true) AND v_chk.reason = 'gps_unusable', v_chk::text);
+  PERFORM pg_temp.tassert('R17 shared: wifi-only OK (no GPS)',
+    COALESCE(v_chk.ok,false) AND v_chk.match_kind = 'wifi_no_gps', v_chk::text);
 
   SELECT * INTO v_chk FROM public.attendance_office_presence_check(
     v_emp, v_inside_lat, v_inside_lng, 150, false, '203.0.113.10', 'check_in'
   );
-  PERFORM pg_temp.tassert('R17 shared: accuracy 150 rejected',
-    NOT COALESCE(v_chk.ok,true) AND v_chk.reason = 'gps_unusable', v_chk::text);
+  PERFORM pg_temp.tassert('R17 shared: accuracy 150 → wifi_no_gps',
+    COALESCE(v_chk.ok,false) AND v_chk.match_kind = 'wifi_no_gps', v_chk::text);
 
   SELECT * INTO v_chk FROM public.attendance_office_presence_check(
     v_emp, v_inside_lat, v_inside_lng, 20, true, '203.0.113.10', 'check_in'
@@ -207,8 +207,10 @@ BEGIN
     (v_res->>'action') = 'outside_radius', v_res::text);
 
   v_res := public.process_geo_attendance_ping(v_inside_lat, v_inside_lng, 150, 'clock_in', false);
-  PERFORM pg_temp.tassert('R17 manual: accuracy 150 rejected',
-    (v_res->>'action') = 'gps_unusable', v_res::text);
+  PERFORM pg_temp.tassert('R17 manual: accuracy 150 → clock_in (wifi_no_gps)',
+    (v_res->>'action') = 'clock_in', v_res::text);
+  DELETE FROM public.attendance_visit_segments WHERE user_id = v_emp;
+  DELETE FROM public.attendance_records WHERE user_id = v_emp;
 
   v_res := public.process_geo_attendance_ping(v_inside_lat, v_inside_lng, 20, 'clock_in', true);
   PERFORM pg_temp.tassert('R17 manual: mock rejected',
@@ -247,11 +249,13 @@ BEGIN
     (EXTRACT(EPOCH FROM v_now)*1000)::bigint, (EXTRACT(EPOCH FROM v_now)*1000)::bigint,
     'UTC', false, 'laptop-'||v_sfx, 'windows', '1.3.9', '203.0.113.10'
   );
-  PERFORM pg_temp.tassert('R17 auto: laptop office IP no GPS rejected',
-    (v_res->>'action') IN ('need_fresh_location', 'gps_unusable')
-    AND (v_res->>'action') IS DISTINCT FROM 'clock_in',
+  PERFORM pg_temp.tassert('R17 auto: laptop office IP no GPS → clock_in',
+    (v_res->>'action') = 'clock_in',
     v_res::text);
-  UPDATE public.attendance_devices SET platform = 'android', device_id = 'phone-'||v_sfx WHERE id = v_dev;
+  DELETE FROM public.attendance_visit_segments WHERE user_id = v_emp;
+  DELETE FROM public.attendance_records WHERE user_id = v_emp;
+  DELETE FROM public.attendance_events_log WHERE user_id = v_emp;
+  UPDATE public.attendance_devices SET platform = 'android', device_id = 'phone-'||v_sfx, presence_state = NULL WHERE id = v_dev;
 
   v_res := public.process_auto_attendance_event(
     v_hash, 'enter', v_zone, v_inside_lat, v_inside_lng, 20,

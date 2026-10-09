@@ -88,10 +88,10 @@ final class AttendanceScheduleController {
             return "Auto attendance not enabled";
         }
         String err = fetchAndCacheSchedule(app);
-        if (err != null) return err;
+        // Always arm from cache so reboot / offline boot still starts the window FGS.
         armFromCache(app);
         AttendanceEventClient.flushQueue(app);
-        return null;
+        return err;
     }
 
     static String fetchAndCacheSchedule(Context app) {
@@ -139,10 +139,28 @@ final class AttendanceScheduleController {
                 stopAll(app);
                 return json.optString("reason", "stop_tracking");
             }
+            long prevVer = AttendancePingStore.officeVersion(app);
+            long nextVer = json.optLong("office_version", 0);
+            if (nextVer <= 0) {
+                try {
+                    org.json.JSONArray zones = json.optJSONArray("zones");
+                    if (zones != null) {
+                        for (int i = 0; i < zones.length(); i++) {
+                            nextVer = Math.max(nextVer, zones.getJSONObject(i).optLong("office_version", 0));
+                        }
+                    }
+                } catch (Exception ignored) {
+                }
+            }
             AttendancePingStore.saveScheduleJson(app, json.toString());
+            AttendancePingStore.saveOfficeVersion(app, nextVer);
             String companyTz = json.optString("company_tz", null);
             if (companyTz != null && !companyTz.isEmpty()) {
                 AttendancePingStore.saveCompanyTz(app, companyTz);
+            }
+            if (nextVer > 0 && nextVer != prevVer) {
+                // Radius/pin changed — re-arm geofences from the new schedule.
+                armFromCache(app);
             }
             return null;
         } catch (Exception e) {
