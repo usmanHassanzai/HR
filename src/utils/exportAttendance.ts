@@ -79,6 +79,7 @@ export function downloadTeamAttendanceCsv(
     'Status',
     ...zoneHeaders,
     'Duration (min)',
+    'Visits',
     'Source',
     'Approval',
     'Notes',
@@ -89,6 +90,7 @@ export function downloadTeamAttendanceCsv(
       escapeCsv(clockInZone(r.clock_in_at, z)),
       escapeCsv(clockInZone(outAt, z)),
     ]);
+    const visitCount = (r as { visit_count?: number | null }).visit_count;
     return [
       escapeCsv(r.employee_name),
       r.employee_role,
@@ -97,6 +99,7 @@ export function downloadTeamAttendanceCsv(
       ATTENDANCE_STATUS_LABEL[r.status as keyof typeof ATTENDANCE_STATUS_LABEL] || r.status,
       ...zoneCells,
       String(r.work_minutes ?? ''),
+      visitCount != null && visitCount > 0 ? String(visitCount) : '',
       exportSourceLabel(r.attendance_source),
       APPROVAL_LABEL[r.approval_status as keyof typeof APPROVAL_LABEL] || r.approval_status,
       escapeCsv(r.notes || ''),

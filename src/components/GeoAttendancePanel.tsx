@@ -109,16 +109,49 @@ function isVisitOpen(v: AttendanceVisit): boolean {
   return Boolean(v.clock_in_at && !visitOutAt(v));
 }
 
-function visitDurationMs(v: AttendanceVisit, nowMs: number): number {
+/** Per-visit duration: clock-out − clock-in (open → now). Prefer timestamps over stored work_minutes. */
+function visitDurationMs(v: AttendanceVisit, nowMs: number, openCapMs?: number | null): number {
+  const start = Date.parse(v.clock_in_at);
+  if (!Number.isFinite(start)) return 0;
   const out = visitOutAt(v);
-  if (out) {
-    if (v.work_minutes != null && v.work_minutes >= 0) return v.work_minutes * 60000;
-    return Math.max(0, Date.parse(out) - Date.parse(v.clock_in_at));
+  let end = out ? Date.parse(out) : nowMs;
+  if (!Number.isFinite(end)) return 0;
+  if (!out && openCapMs != null && Number.isFinite(openCapMs) && end > openCapMs) {
+    end = openCapMs;
   }
-  if (v.clock_in_at && isVisitOpen(v)) {
-    return Math.max(0, nowMs - Date.parse(v.clock_in_at));
+  return Math.max(0, end - start);
+}
+
+/** Merge overlapping visit intervals so phone+laptop double-coverage counts once. */
+function mergedVisitsDurationMs(
+  visits: AttendanceVisit[],
+  nowMs: number,
+  openCapMs?: number | null,
+): number {
+  const intervals = visits
+    .map((v) => {
+      const start = Date.parse(v.clock_in_at);
+      if (!Number.isFinite(start)) return null;
+      const dur = visitDurationMs(v, nowMs, openCapMs);
+      return { start, end: start + dur };
+    })
+    .filter((x): x is { start: number; end: number } => x != null && x.end >= x.start)
+    .sort((a, b) => a.start - b.start);
+  if (intervals.length === 0) return 0;
+  let total = 0;
+  let curS = intervals[0].start;
+  let curE = intervals[0].end;
+  for (let i = 1; i < intervals.length; i++) {
+    const x = intervals[i];
+    if (x.start <= curE) curE = Math.max(curE, x.end);
+    else {
+      total += Math.max(0, curE - curS);
+      curS = x.start;
+      curE = x.end;
+    }
   }
-  return 0;
+  total += Math.max(0, curE - curS);
+  return total;
 }
 
 function headerTimesFromVisits(
@@ -623,17 +656,28 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
   )[0];
   const sessionStartAt = openVisitRow?.clock_in_at || (openShift ? clockIn : null);
   const sessionMs = sessionStartAt ? Math.max(0, nowMs - Date.parse(sessionStartAt)) : 0;
-  const closedVisitsMs = visits.reduce((s, v) => {
-    if (isVisitOpen(v)) return s;
-    return s + visitDurationMs(v, nowMs);
-  }, 0);
+  // Open visits count until now, capped at shift end + 1 hour when the window is known.
+  const openCapMs = (() => {
+    if (!windowInfo?.end_time) return null;
+    try {
+      const endIso = (windowInfo as { shift_end_utc?: string; window_end_utc?: string }).shift_end_utc
+        || (windowInfo as { window_end_utc?: string }).window_end_utc;
+      if (endIso) {
+        const end = Date.parse(endIso);
+        if (Number.isFinite(end)) return end + 60 * 60_000;
+      }
+    } catch {
+      /* ignore */
+    }
+    return null;
+  })();
   // No visit rows yet (legacy / race): count from header clock-in while open.
   const fallbackOpenMs = visits.length === 0 && openShift && clockIn
     ? Math.max(0, nowMs - Date.parse(clockIn))
     : 0;
-  const totalShiftMs = closedVisitsMs
-    + (openVisitRow ? visitDurationMs(openVisitRow, nowMs) : 0)
-    + fallbackOpenMs;
+  const totalShiftMs = (visits.length > 0
+    ? mergedVisitsDurationMs(visits, nowMs, openCapMs)
+    : 0) + fallbackOpenMs;
 
   return (
     <div className="attendance-card geo-attendance-panel">
@@ -926,7 +970,7 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
                   </span>
                 </div>
                 <span className="geo-visit-history__dur">
-                  {formatDurationMs(visitDurationMs(v, nowMs), open)}
+                  {formatDurationMs(visitDurationMs(v, nowMs, openCapMs), open)}
                 </span>
               </li>
               );

@@ -53,6 +53,8 @@ export interface AttendanceHistoryRow {
   work_minutes: number | null;
   shift_name: string | null;
   notes: string | null;
+  /** Number of visits in the shift (from shared duration SSOT). */
+  visit_count?: number | null;
 }
 
 export interface TeamAttendanceHistoryRow extends AttendanceHistoryRow {
@@ -238,27 +240,21 @@ export function resolveWorkMinutes(row: {
   clock_out_at?: string | null;
   work_minutes?: number | null;
 }): number | null {
-  const inMs = row.clock_in_at ? Date.parse(row.clock_in_at) : NaN;
-  const outMs = row.clock_out_at ? Date.parse(row.clock_out_at) : NaN;
-  const span =
-    Number.isFinite(inMs) && Number.isFinite(outMs) && outMs > inMs
-      ? Math.round((outMs - inMs) / 60000)
-      : null;
-  const stored = row.work_minutes != null && row.work_minutes > 0 ? row.work_minutes : null;
+  const stored = row.work_minutes != null && row.work_minutes >= 0 ? row.work_minutes : null;
 
-  // Clock-out is on the row. Duration stops there.
-  // A saved total that ran past that clock-out (the old live timer) is ignored.
-  if (span != null && span > 0) {
-    if (stored != null && stored <= span + 15) return stored;
-    return span;
-  }
-
-  // No clock-out: they are still in. Count worked time, including a later check-in.
+  // History / team RPCs already return the shared shift sum of every visit.
+  // Trust that total — do not replace it with first-in→last-out wall clock.
   if (row.clock_in_at && !row.clock_out_at) {
     return liveOpenWorkedMinutes(row);
   }
+  if (stored != null) return stored;
 
-  return stored;
+  const inMs = row.clock_in_at ? Date.parse(row.clock_in_at) : NaN;
+  const outMs = row.clock_out_at ? Date.parse(row.clock_out_at) : NaN;
+  if (Number.isFinite(inMs) && Number.isFinite(outMs) && outMs > inMs) {
+    return Math.round((outMs - inMs) / 60000);
+  }
+  return null;
 }
 
 function formatHistoryDateTime(iso: string): string {
@@ -278,6 +274,7 @@ export function describeAttendanceHistory(row: {
   clock_out_at?: string | null;
   work_minutes?: number | null;
   attendance_date?: string | null;
+  visit_count?: number | null;
 }): {
   shift: string;
   clockIn: string;
@@ -301,12 +298,17 @@ export function describeAttendanceHistory(row: {
       ? formatHistoryDateTime(effectiveOut)
       : 'No clock-out';
   const mins = resolveWorkMinutes(row);
+  const visits =
+    row.visit_count != null && row.visit_count > 0
+      ? ` · ${row.visit_count} visit${row.visit_count === 1 ? '' : 's'}`
+      : '';
   let duration = formatWorkDuration(mins);
   if (stillOpen) {
     duration = mins != null && mins > 0
       ? `${formatWorkDuration(mins)} · still working`
       : 'Still working';
   }
+  if (duration && visits) duration = `${duration}${visits}`;
   return {
     shift,
     clockIn,
