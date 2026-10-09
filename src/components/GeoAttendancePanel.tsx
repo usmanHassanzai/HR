@@ -16,6 +16,7 @@ import {
   localYmd,
   attendanceActionMessage,
   attendanceCheckoutMessage,
+  friendlyClockOutError,
   isAttendanceSuccessAction,
   submitGeoClockEvent,
 } from '../utils/geoAttendance';
@@ -35,9 +36,14 @@ interface WorkSite {
   radius_meters: number;
 }
 
-function rpcErrorMessage(err: unknown): string {
+function rpcErrorMessage(err: unknown, intent?: 'clock_in' | 'clock_out'): string {
+  if (intent === 'clock_out') return friendlyClockOutError(err);
   if (err && typeof err === 'object' && 'message' in err) {
-    return String((err as { message: string }).message);
+    const raw = String((err as { message: string }).message);
+    if (/v_chk|not assigned|PL\/pgSQL|SQLSTATE/i.test(raw)) {
+      return 'Could not complete attendance.';
+    }
+    return raw;
   }
   if (err instanceof Error) return err.message;
   return 'Location check failed';
@@ -470,10 +476,13 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
         onClockUpdate?.();
       }
     } catch (e: unknown) {
-      const msg = rpcErrorMessage(e);
-      const offline = /fetch|network|Failed to fetch|offline/i.test(msg);
-      setError(offline ? 'No connection - will check when online' : msg);
-      setStatusMessage(offline ? 'No connection - will check when online' : msg);
+      const raw = e instanceof Error ? e.message : String(e || '');
+      const offline = /fetch|network|Failed to fetch|offline/i.test(raw);
+      const msg = offline
+        ? 'No connection - will check when online'
+        : rpcErrorMessage(e, intent);
+      setError(msg);
+      setStatusMessage(msg);
     } finally {
       setChecking(null);
     }

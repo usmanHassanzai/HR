@@ -27,6 +27,7 @@ import { canMarkRemoteAttendance, workModeLabel } from '../utils/workModeHelpers
 import {
   GEO_CLOCK_EVENT,
   attendanceActionMessage,
+  friendlyClockOutError,
   isAttendanceSuccessAction,
   localYmd,
   requestCurrentPosition,
@@ -450,12 +451,7 @@ export default function AttendanceLeavePanel({
         p_is_mock: isMock,
       });
       if (error) {
-        const raw = error.message || '';
-        if (raw.includes('not_on_office_wifi')) setMsg(attendanceActionMessage('not_on_office_wifi'));
-        else if (raw.includes('gps_unusable')) setMsg(attendanceActionMessage('gps_unusable'));
-        else if (raw.includes('outside_radius')) setMsg(attendanceActionMessage('outside_radius'));
-        else if (raw.includes('outside_window')) setMsg(attendanceActionMessage('outside_window'));
-        else setMsg(raw);
+        setMsg(friendlyClockOutError(error));
         return;
       }
       setMsg(
@@ -476,7 +472,7 @@ export default function AttendanceLeavePanel({
         else setEmployeeTab('leave');
       }
     } catch (e: unknown) {
-      setMsg(e instanceof Error ? e.message : attendanceActionMessage('gps_unusable'));
+      setMsg(friendlyClockOutError(e));
     } finally {
       setSubmitting(false);
     }

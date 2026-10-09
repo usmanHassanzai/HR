@@ -447,7 +447,13 @@ async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = nul
   } else if (res?.action === 'event_too_old') {
     notify('Scorr', 'Reading was too old — get a fresh location');
   } else if (res?.ok === false && res?.reason && res.reason !== 'already_checked_in') {
-    notify('Scorr', String(res.reason).replace(/_/g, ' '));
+    const r = String(res.reason);
+    if (/v_chk|not assigned|PL\/pgSQL|SQLSTATE|\s/.test(r)) {
+      console.warn('[scorr-att] server error', r);
+      notify('Scorr', 'Clock out failed, please try again');
+    } else {
+      notify('Scorr', r.replace(/_/g, ' '));
+    }
   } else if (res?.action === 'presence_left_pending' || res?.action === 'device_left_others_present') {
     // Off office network — keep heartbeats so sticky present clears for phone auto priority.
   }

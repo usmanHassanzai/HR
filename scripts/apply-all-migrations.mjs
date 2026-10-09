@@ -254,6 +254,7 @@ const MIGRATIONS = [
   'attendance_checkin_wifi_no_gps_2026-10-09.sql',
   'office_radius_single_source_2026-10-09.sql',
   'attendance_manual_checkout_wifi_no_gps_2026-10-09.sql',
+  'FIX_manual_checkout_v_chk_unassigned_2026-10-09.sql',
 ];
 
 async function runMigration(filename) {

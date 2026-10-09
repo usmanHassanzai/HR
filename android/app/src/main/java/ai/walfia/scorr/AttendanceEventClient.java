@@ -338,6 +338,14 @@ final class AttendanceEventClient {
             case "already_clocked_in":
                 return "Checked in";
             default:
+                // Never show raw database / plpgsql errors.
+                if (reason.contains("v_chk") || reason.contains("not assigned")
+                    || reason.contains("PL/pgSQL") || reason.contains("SQLSTATE")) {
+                    return "Clock out failed, please try again";
+                }
+                if (reason.contains(" ") || reason.contains("\n")) {
+                    return "Clock out failed, please try again";
+                }
                 return reason.replace('_', ' ');
         }
     }

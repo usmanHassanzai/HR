@@ -105,6 +105,11 @@ export interface GeoPingResult {
 
 /** Exact user-facing rejection / status copy for attendance presence checks. */
 export function attendanceActionMessage(action: string | null | undefined): string {
+  const raw = String(action || '');
+  // Never surface raw database / plpgsql errors to users.
+  if (/v_chk|not assigned|PL\/pgSQL|postgres|SQLSTATE|relation |column /i.test(raw)) {
+    return 'Clock out failed, please try again';
+  }
   switch (action) {
     case 'not_on_office_wifi':
     case 'not_on_office_network':
@@ -136,8 +141,36 @@ export function attendanceActionMessage(action: string | null | undefined): stri
     case 'event_too_old':
       return 'Reading was too old — get a fresh location';
     default:
-      return action ? `Could not complete attendance (${action})` : 'Could not complete attendance.';
+      if (!action) return 'Could not complete attendance.';
+      // Snake_case server codes stay readable; free-text / SQL errors stay hidden.
+      if (/^[a-z0-9_]+$/i.test(action)) return `Could not complete attendance (${action})`;
+      return 'Clock out failed, please try again';
   }
+}
+
+/** Map thrown / RPC errors for clock-out (never show raw DB text). */
+export function friendlyClockOutError(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err || '');
+  console.warn('[scorr-att] clock-out error', raw);
+  if (/not_on_office_wifi|not_on_office_network/i.test(raw)) {
+    return attendanceActionMessage('not_on_office_wifi');
+  }
+  if (/outside_radius|outside_office/i.test(raw)) {
+    return attendanceActionMessage('outside_radius');
+  }
+  if (/outside_window|attendance_outside_window/i.test(raw)) {
+    return attendanceActionMessage('outside_window');
+  }
+  if (/gps_unusable|need_fresh_location/i.test(raw)) {
+    return attendanceActionMessage('gps_unusable');
+  }
+  if (/Check in first|no_open_visit/i.test(raw)) {
+    return 'Clock in first, then clock out.';
+  }
+  if (/Already checked out|already_clocked_out/i.test(raw)) {
+    return 'Checked out';
+  }
+  return 'Clock out failed, please try again';
 }
 
 /** Server-confirmed checkout copy with local leave time when available. */

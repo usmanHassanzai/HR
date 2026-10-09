@@ -1332,8 +1332,7 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
         case "outside_radius", "outside_office":
             return "You are outside the office radius"
         case "gps_unusable", "need_fresh_location":
-            // Check-out still needs GPS; check-in uses Wi-Fi-only path instead.
-            return "Turn on location for exact check-out"
+            return "Location unavailable, try again"
         case "checkin_blocked_shift_ended":
             return "The shift has ended. You cannot check in."
         case "outside_window":
@@ -1341,6 +1340,11 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
         case "event_too_old":
             return "Reading was too old — get a fresh location"
         default:
+            if reason.contains("v_chk") || reason.contains("not assigned")
+                || reason.contains("PL/pgSQL") || reason.contains("SQLSTATE")
+                || reason.contains(" ") || reason.contains("\n") {
+                return "Clock out failed, please try again"
+            }
             return reason.replacingOccurrences(of: "_", with: " ")
         }
     }
