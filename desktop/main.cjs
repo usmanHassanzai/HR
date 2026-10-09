@@ -493,6 +493,10 @@ async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = nul
       const t = res?.local_time || null;
       notify('Scorr', t ? `Checked out - left the office radius at ${t}` : 'Checked out');
     }
+    // Still on office network: send immediately so a new visit can open within 1 minute.
+    setTimeout(() => {
+      void sendEvent('heartbeat');
+    }, 1500);
   } else if (res?.action === 'not_on_office_wifi' || res?.action === 'not_on_office_network') {
     notify('Scorr', 'Connect to the office Wi-Fi');
   } else if (res?.action === 'outside_radius') {

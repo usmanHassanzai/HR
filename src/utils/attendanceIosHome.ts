@@ -292,7 +292,7 @@ async function sendPingWithPosition(pos: GeolocationPosition | null, force: bool
           location_fix_utc_ms: fixTs,
           precise_location: true,
           platform: 'ios' as const,
-          app_version: '1.3.16',
+          app_version: '1.3.17',
           location_error_code: null as number | null,
         }
       : {
@@ -301,7 +301,7 @@ async function sendPingWithPosition(pos: GeolocationPosition | null, force: bool
           location_fix_utc_ms: fixTs,
           precise_location: !imprecise,
           platform: 'ios' as const,
-          app_version: '1.3.16',
+          app_version: '1.3.17',
           location_error_code: lastLocationError?.code ?? null,
         };
     const res = await sendAutoAttendanceEvent('ping', payload);

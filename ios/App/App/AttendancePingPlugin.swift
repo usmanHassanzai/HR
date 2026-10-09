@@ -1627,6 +1627,13 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
             } else if let response {
                 self.notifyIfClocked(response)
             }
+            let action = (response?["action"] as? String) ?? ""
+            if action == "clock_out" {
+                // Still on office Wi-Fi: send again so a new visit can open quickly.
+                DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 1.5) {
+                    self.sendNetworkTriggeredCheck()
+                }
+            }
             // Continue flushing
             DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 0.2) {
                 self.flushQueue()
@@ -1681,7 +1688,7 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
             "device_timezone": TimeZone.current.identifier,
             "is_mock": event.isMock,
             "platform": "ios",
-            "app_version": AttendanceStore.appVersion ?? "1.3.16",
+            "app_version": AttendanceStore.appVersion ?? "1.3.17",
             "precise_location": event.preciseLocation ?? isPreciseLocationOn(),
         ]
         if let fixMs = event.locationFixUtcMs {

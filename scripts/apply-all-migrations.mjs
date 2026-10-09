@@ -259,6 +259,7 @@ const MIGRATIONS = [
   'attendance_ios_silence_rule5_2026-10-09.sql',
   'attendance_laptop_rules_2026-10-09.sql',
   'attendance_ios_home_location_2026-10-09.sql',
+  'attendance_false_checkout_fix_2026-10-09.sql',
 ];
 
 async function runMigration(filename) {

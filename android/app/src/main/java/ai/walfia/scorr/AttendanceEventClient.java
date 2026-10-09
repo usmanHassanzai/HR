@@ -344,6 +344,16 @@ final class AttendanceEventClient {
                     msg = "Checked out";
                 }
                 updateStatusNotification(app, msg, requestBody);
+                // Still on office Wi-Fi: ping again so a new visit can open quickly.
+                IO.execute(() -> {
+                    try {
+                        Thread.sleep(1500L);
+                        String[] wifi = AttendancePingStore.readCurrentWifiIdentity(app);
+                        sendWifiOnly(app, "ping", wifi[0], wifi[1]);
+                    } catch (Exception e) {
+                        Log.w(TAG, "re-ping after clock_out", e);
+                    }
+                });
             } else if ("already_clocked_out".equals(action)) {
                 String notify = firstString(json, "notify_message");
                 if (notify != null && !notify.isEmpty()) {
