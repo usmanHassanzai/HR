@@ -66,25 +66,6 @@ export function employeeCanSelfMark(_category?: string | null): boolean {
   return true;
 }
 
-/** Calendar YYYY-MM-DD in Asia/Karachi (date-only strings pass through). */
-function karachiCalendarYmd(value: string | null | undefined, fallback: string): string {
-  if (!value) return fallback;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value.slice(0, 10) || fallback;
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Karachi',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(d);
-  const y = parts.find((p) => p.type === 'year')?.value;
-  const mo = parts.find((p) => p.type === 'month')?.value;
-  const day = parts.find((p) => p.type === 'day')?.value;
-  if (!y || !mo || !day) return value.slice(0, 10) || fallback;
-  return `${y}-${mo}-${day}`;
-}
-
 /** Tasks that overlap the calendar month in Asia/Karachi. */
 export function kpiOverlapsMonth(
   kpi: { start_date?: string | null; end_date?: string | null; created_at?: string },
@@ -95,9 +76,8 @@ export function kpiOverlapsMonth(
   const monthStart = `${year}-${m}-01`;
   const last = new Date(year, monthIndex + 1, 0).getDate();
   const monthEnd = `${year}-${m}-${String(last).padStart(2, '0')}`;
-  // Use Karachi calendar days — UTC `.slice(0, 10)` on created_at shifts month boundaries.
-  const start = karachiCalendarYmd(kpi.start_date || kpi.created_at || null, monthStart);
-  const end = karachiCalendarYmd(kpi.end_date || null, start);
+  const start = (kpi.start_date || kpi.created_at || monthStart).slice(0, 10);
+  const end = (kpi.end_date || start).slice(0, 10);
   return start <= monthEnd && end >= monthStart;
 }
 
@@ -125,8 +105,8 @@ export function kpiOverlapsYear(
 ): boolean {
   const yearStart = `${year}-01-01`;
   const yearEnd = `${year}-12-31`;
-  const start = karachiCalendarYmd(kpi.start_date || kpi.created_at || null, yearStart);
-  const end = karachiCalendarYmd(kpi.end_date || null, start);
+  const start = (kpi.start_date || kpi.created_at || yearStart).slice(0, 10);
+  const end = (kpi.end_date || start).slice(0, 10);
   return start <= yearEnd && end >= yearStart;
 }
 

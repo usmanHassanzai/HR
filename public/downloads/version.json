@@ -1,33 +1,33 @@
 {
-  "generatedAt": "2026-10-09T20:03:40.331Z",
-  "webBuildId": "1.3.19-2026-10-09200333",
+  "generatedAt": "2026-10-09T20:43:40.105Z",
+  "webBuildId": "1.3.14-2026-10-09204340",
   "mandatory": false,
-  "notes": "Automatic attendance, Office Wi-Fi, 1-hour sessions, auto-updates. If install fails with a signature error, uninstall the old debug APK once, then install this release — after that, updates install over the old app.",
+  "notes": "Rollback ship 1.3.14 (restores 1.3.8 baseline behavior).",
   "android": {
-    "versionName": "1.3.19",
-    "versionCode": 25,
+    "versionName": "1.3.14",
+    "versionCode": 26,
     "apkUrl": "https://scorr.walfia.ai/downloads/scorr.apk",
-    "notes": "Automatic attendance, Office Wi-Fi, 1-hour sessions, auto-updates. If install fails with a signature error, uninstall the old debug APK once, then install this release — after that, updates install over the old app.",
+    "notes": "Rollback ship 1.3.14 (restores 1.3.8 baseline behavior).",
     "minSupportedCode": 1,
-    "sizeBytes": 5755181
+    "sizeBytes": 5738535
   },
   "windows": {
-    "version": "1.3.19",
+    "version": "1.3.14",
     "setupUrl": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.9/Scorr-Setup.exe",
     "latestYmlUrl": "https://scorr.walfia.ai/downloads/desktop/latest.yml",
-    "notes": "Automatic attendance, Office Wi-Fi, 1-hour sessions, auto-updates. If install fails with a signature error, uninstall the old debug APK once, then install this release — after that, updates install over the old app."
+    "notes": "Rollback ship 1.3.14 (restores 1.3.8 baseline behavior)."
   },
   "linux": {
-    "version": "1.3.19",
+    "version": "1.3.14",
     "debUrl": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.9/Scorr.deb",
     "appImageUrl": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.9/Scorr.AppImage",
     "latestYmlUrl": "https://scorr.walfia.ai/downloads/desktop/latest-linux.yml",
-    "notes": "Automatic attendance, Office Wi-Fi, 1-hour sessions, auto-updates. If install fails with a signature error, uninstall the old debug APK once, then install this release — after that, updates install over the old app."
+    "notes": "Rollback ship 1.3.14 (restores 1.3.8 baseline behavior)."
   },
   "ios": {
-    "version": "1.3.19",
+    "version": "1.3.14",
     "pwaUrl": "https://scorr.walfia.ai/?app=1",
     "storeUrl": null,
-    "notes": "Home Screen / PWA updates with the website. Native IPA uses TestFlight or the App Store when published."
+    "notes": "Rollback ship 1.3.14 (restores 1.3.8 baseline behavior)."
   }
 }

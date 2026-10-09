@@ -4,7 +4,7 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
 import { supabase } from '../lib/supabase';
-import { isDesktopApp, isIosHomeScreen, isNativeApp, clientAttendancePlatform } from './nativePlatform';
+import { isDesktopApp, isNativeApp } from './nativePlatform';
 import { withTimeout } from './withTimeout';
 import { getAttendanceDeviceToken } from './attendanceDevice';
 
@@ -45,7 +45,6 @@ interface SetupPlugin {
     coarseLocation?: string;
     backgroundLocation?: string;
     precise?: boolean;
-    backgroundAppRefresh?: string;
     locationServicesEnabled?: boolean;
     notifications?: string;
     batteryUnrestricted?: boolean | null;
@@ -109,15 +108,18 @@ export async function registerDeviceViaRpc(appVersion = '1.3.7'): Promise<{
   device_token?: string;
   error?: string;
 }> {
-  const platform = clientAttendancePlatform();
+  const platform = Capacitor.getPlatform() === 'android'
+    ? 'android'
+    : Capacitor.getPlatform() === 'ios'
+      ? 'ios'
+      : isDesktopApp()
+        ? navigator.userAgent.toLowerCase().includes('windows')
+          ? 'windows'
+          : 'linux'
+        : 'web';
 
   if (platform === 'web') {
-    return {
-      ok: false,
-      error: isIosHomeScreen()
-        ? 'Open Scorr from the Home Screen icon, then set up automatic attendance again.'
-        : 'On iPhone, tap Share → Add to Home Screen, open Scorr from that icon, then set up automatic attendance. Android and the desktop app can set it up from the installed app.',
-    };
+    return { ok: false, error: 'Automatic attendance needs the Android, iPhone or desktop app.' };
   }
 
   try {
@@ -170,15 +172,10 @@ export async function registerDeviceViaRpc(appVersion = '1.3.7'): Promise<{
       localStorage.setItem('scorr_attendance_device_token', token);
     }
 
-    // Desktop main process must persist the token and start heartbeats immediately
-    // so auto check-in has priority without waiting for a manual clock action.
     try {
-      const save = (
-        window as unknown as {
-          scorrDesktop?: { saveAttendanceToken?: (t: string) => Promise<boolean> | boolean | void };
-        }
-      ).scorrDesktop?.saveAttendanceToken;
-      if (save) await Promise.resolve(save(token));
+      (
+        window as unknown as { scorrDesktop?: { saveAttendanceToken?: (t: string) => void } }
+      ).scorrDesktop?.saveAttendanceToken?.(token);
     } catch {
       /* ignore */
     }
@@ -218,24 +215,7 @@ export async function requestAlwaysLocation(): Promise<{ ok: boolean; detail: st
   }
 }
 
-async function requestBrowserLocation(): Promise<{ ok: boolean; detail: string }> {
-  if (!navigator.geolocation) {
-    return {
-      ok: false,
-      detail: 'This iPhone cannot share location with the Home Screen app.',
-    };
-  }
-  const { allowIosHomeLocationFromTap, iosHomeLocationErrorMessage } = await import('./attendanceIosHome');
-  const res = await allowIosHomeLocationFromTap();
-  if (res.ok) return { ok: true, detail: 'Location allowed' };
-  return {
-    ok: false,
-    detail: res.message || iosHomeLocationErrorMessage(1),
-  };
-}
-
 export async function requestWhileUsingLocation(): Promise<{ ok: boolean; detail: string }> {
-  if (isIosHomeScreen()) return requestBrowserLocation();
   if (!isNativeApp()) return { ok: true, detail: 'Not required on this platform' };
   try {
     const perm = await withTimeout(Geolocation.checkPermissions(), 10_000, 'Checking location permission');
@@ -257,35 +237,6 @@ export async function requestWhileUsingLocation(): Promise<{ ok: boolean; detail
 }
 
 export async function getNativePermissionSnapshot() {
-  if (isIosHomeScreen()) {
-    // Do not rely on navigator.permissions on iOS Safari — it is often wrong.
-    // Infer from the last Home Screen location attempt instead.
-    const { getIosHomeLastFix, getIosHomeLocationError } = await import('./attendanceIosHome');
-    const err = getIosHomeLocationError();
-    const fix = getIosHomeLastFix();
-    let location: 'granted' | 'denied' | 'prompt' = 'prompt';
-    if (fix) location = 'granted';
-    else if (err?.code === 1) location = 'denied';
-    const notif =
-      typeof Notification === 'undefined'
-        ? 'granted'
-        : Notification.permission === 'granted'
-          ? 'granted'
-          : Notification.permission === 'denied'
-            ? 'denied'
-            : 'prompt';
-    return {
-      location,
-      coarseLocation: location === 'granted' ? 'granted' : 'prompt',
-      // Home Screen has no background region monitoring.
-      backgroundLocation: 'denied',
-      precise: true,
-      locationServicesEnabled: true,
-      notifications: notif,
-      batteryUnrestricted: true,
-      manufacturer: 'Apple',
-    };
-  }
   if (!isNativeApp()) {
     return {
       location: 'granted',
@@ -330,18 +281,6 @@ export async function openNativeBatterySettings(): Promise<void> {
 }
 
 export async function requestNativeNotifications(): Promise<{ ok: boolean; detail: string }> {
-  if (isIosHomeScreen()) {
-    if (typeof Notification === 'undefined' || !('requestPermission' in Notification)) {
-      return { ok: true, detail: 'Notifications are not available on this iPhone. Check-in still works.' };
-    }
-    try {
-      const status = await Notification.requestPermission();
-      if (status === 'granted') return { ok: true, detail: 'Notifications allowed' };
-      return { ok: true, detail: 'Notifications were not allowed. Check-in still works.' };
-    } catch (e) {
-      return { ok: true, detail: e instanceof Error ? e.message : 'Check-in still works without notifications.' };
-    }
-  }
   if (!isNativeApp()) return { ok: true, detail: 'Not required' };
   try {
     const res = await withTimeout(AttendancePing.requestNotifications(), 15_000, 'Waiting for notification permission');

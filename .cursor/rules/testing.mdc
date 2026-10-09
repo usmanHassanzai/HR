@@ -1,0 +1,12 @@
+---
+description: Attendance and DB testing safety rules for Scorr
+alwaysApply: true
+---
+
+# Testing rules (Scorr)
+
+- Do **not** test on the live production database with durable writes.
+- Prefer local / staging tests. If a live check is unavoidable, wrap all writes in `BEGIN` … `ROLLBACK` and confirm **0 test rows left**.
+- Never leave `@scorr.test` companies, users, shifts, or devices on production.
+- Do not INSERT/UPDATE/DELETE real attendance records, visits, or devices for experiments.
+- Migration apply scripts that hit production must be intentional and reviewed; prefer re-runnable SQL with `IF EXISTS` / `CREATE OR REPLACE`.

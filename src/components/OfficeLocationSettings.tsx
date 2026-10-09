@@ -28,9 +28,7 @@ const MapLocationPicker = lazy(() => import('./MapLocationPicker'));
 type OfficeTab = 'create' | 'assign' | 'offices';
 
 function isAlertError(message: string): boolean {
-  // Successful save (with or without a Wi-Fi note) must stay green — never red.
-  if (/saved|updated|succeed/i.test(message)) return false;
-  return /fail|denied|required|please|error|must|cannot/i.test(message);
+  return /fail|denied|required|please|error|must|cannot|warn/i.test(message);
 }
 
 function emptyWifiNetwork(label = ''): OfficeWifiNetwork {
@@ -191,22 +189,6 @@ export default function OfficeLocationSettings() {
     void load();
   }, [load]);
 
-  useEffect(() => {
-    const channel = supabase
-      .channel('office-settings-live')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'office_locations' },
-        () => {
-          void load();
-        },
-      )
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [load]);
-
   const resetForm = () => {
     setForm({
       id: null,
@@ -310,22 +292,17 @@ export default function OfficeLocationSettings() {
           if (!candidateIps.some((ip) => ips.includes(ip))) continue;
           const bssids = splitList(n.wifi_bssids).map((b) => b.toLowerCase());
           const ssids = splitList(n.ssid);
-          const ssidOk =
-            ssids.length === 0 ||
-            (Boolean(probed.ssid) &&
-              ssids.some((s) => s.toLowerCase() === probed.ssid.toLowerCase()));
           if (bssids.length) {
-            // Prefer BSSID when the device can read it; otherwise same IP + SSID still matches
-            // (browsers / some OS builds often omit BSSID).
             if (probed.bssid && bssids.includes(probed.bssid.toLowerCase())) {
               matchedLabel = n.label || 'Untitled';
               break;
             }
-            if (!probed.bssid && ssidOk) {
+          } else if (ssids.length) {
+            if (probed.ssid && ssids.includes(probed.ssid)) {
               matchedLabel = n.label || 'Untitled';
               break;
             }
-          } else if (ssidOk) {
+          } else {
             matchedLabel = n.label || 'Untitled';
             break;
           }
@@ -472,7 +449,7 @@ export default function OfficeLocationSettings() {
       p_wifi_ssids: [],
       p_wifi_bssids: [],
       p_public_ip_cidrs: [],
-      p_detection_mode: 'gps_or_wifi',
+      p_detection_mode: form.detection_mode,
     });
     if (error) {
       setSaving(false);
@@ -523,14 +500,11 @@ export default function OfficeLocationSettings() {
         p_default_display_timezones: splitList(form.default_display_timezones),
       });
     }
-    const warns = (wifiWarnings.length ? wifiWarnings : dupes) as string[];
-    const warnNote = warns.length
-      ? ` Save succeeded. Note: ${warns.join('; ')} (not an error — multiple APs may share one public IP).`
-      : '';
+    const warnNote = wifiWarnings.length || dupes.length ? ` Warnings: ${(wifiWarnings.length ? wifiWarnings : dupes).join('; ')}` : '';
     showMsg(
       wasNew
-        ? `"${savedName}" saved. Assigned people use this office pin and radius.${warnNote}`
-        : `"${savedName}" updated. Assigned people now use this office pin and radius.${warnNote}`,
+        ? `"${savedName}" saved at your current location. Everyone assigned to it will use this exact pin.${warnNote}`
+        : `"${savedName}" updated. Assigned people now use this exact live pin.${warnNote}`,
     );
     resetForm();
     await load();
@@ -731,11 +705,21 @@ export default function OfficeLocationSettings() {
                 />
               </div>
               <div className="form-group admin-office-span-full">
-                <label htmlFor="office-detect">Detection</label>
-                <p id="office-detect" className="admin-office-item__meta">
-                  Check-in uses both: the public IP must match an active office Wi-Fi, and a GPS reading
-                  (accuracy 100 m or better) must be inside this radius. GPS only and Wi-Fi only are not used.
-                </p>
+                <label htmlFor="office-detect">Detection mode</label>
+                <select
+                  id="office-detect"
+                  value={form.detection_mode}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      detection_mode: e.target.value as 'gps_only' | 'wifi_only' | 'gps_or_wifi',
+                    })
+                  }
+                >
+                  <option value="gps_or_wifi">GPS or Wi-Fi</option>
+                  <option value="gps_only">GPS only</option>
+                  <option value="wifi_only">Wi-Fi only</option>
+                </select>
               </div>
 
               <div className="form-group admin-office-span-full admin-office-wifi-block">
@@ -757,8 +741,8 @@ export default function OfficeLocationSettings() {
                 </p>
                 {wifiProbe && <p className="admin-office-wifi-probe" role="status">{wifiProbe}</p>}
                 {wifiWarnings.length > 0 && (
-                  <div className="admin-office-alert admin-office-alert--note admin-office-alert--tight" role="status">
-                    <Info size={16} />
+                  <div className="admin-office-alert admin-office-alert--error admin-office-alert--tight" role="status">
+                    <AlertCircle size={16} />
                     <span>{wifiWarnings.join(' · ')}</span>
                   </div>
                 )}
@@ -954,7 +938,7 @@ export default function OfficeLocationSettings() {
                     <div className="admin-office-item__coords">
                       {o.latitude.toFixed(5)}, {o.longitude.toFixed(5)} · {o.radius_meters}m radius
                       {' · '}
-                      Wi-Fi and GPS
+                      {(o.detection_mode || 'gps_or_wifi').replace(/_/g, ' ')}
                     </div>
                     <p className="admin-office-item__meta">
                       <Wifi size={12} className="admin-office-item__meta-icon" />

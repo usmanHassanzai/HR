@@ -37,9 +37,6 @@ export interface TeamShiftAssignment {
   start_time: string | null;
   end_time: string | null;
   effective_from: string | null;
-  /** True when this person has personal hours instead of the shared shift template. */
-  hours_custom?: boolean | null;
-  crosses_midnight?: boolean | null;
 }
 
 export interface AttendanceHistoryRow {
@@ -53,8 +50,6 @@ export interface AttendanceHistoryRow {
   work_minutes: number | null;
   shift_name: string | null;
   notes: string | null;
-  /** Number of visits in the shift (from shared duration SSOT). */
-  visit_count?: number | null;
 }
 
 export interface TeamAttendanceHistoryRow extends AttendanceHistoryRow {
@@ -166,106 +161,27 @@ export function formatDateTime(iso: string | null | undefined): string {
   });
 }
 
-/** True when out is missing or not after in (same-minute / inverted bad rows). */
-export function isInvalidClockOutPair(
-  clockInAt?: string | null,
-  clockOutAt?: string | null,
-): boolean {
-  if (!clockInAt || !clockOutAt) return true;
-  const inMs = Date.parse(clockInAt);
-  const outMs = Date.parse(clockOutAt);
-  if (!Number.isFinite(inMs) || !Number.isFinite(outMs)) return true;
-  return outMs <= inMs;
-}
-
-/**
- * Prefer a real out stamp after in; if the stored out equals/precedes in but
- * work_minutes is known (common auto_gps / admin_correction bug), derive out.
- */
-export function resolveEffectiveClockOut(row: {
-  clock_in_at?: string | null;
-  clock_out_at?: string | null;
-  work_minutes?: number | null;
-}): string | null {
-  if (!row.clock_in_at) return row.clock_out_at ?? null;
-  if (!isInvalidClockOutPair(row.clock_in_at, row.clock_out_at)) {
-    return row.clock_out_at ?? null;
-  }
-  const mins = row.work_minutes != null && row.work_minutes > 0 ? row.work_minutes : null;
-  if (mins != null) {
-    const inMs = Date.parse(row.clock_in_at);
-    if (Number.isFinite(inMs)) return new Date(inMs + mins * 60_000).toISOString();
-  }
-  // Invalid/equal out with no duration → treat as still open for display.
-  return null;
-}
-
-function elapsedMinutesSince(iso: string): number {
-  const inMs = Date.parse(iso);
-  if (!Number.isFinite(inMs)) return 0;
-  return Math.max(0, Math.round((Date.now() - inMs) / 60000));
-}
-
-/**
- * Open re-check-ins store the worked total (closed visits + the current visit),
- * which is shorter than the wall clock since the first clock-in because of the gaps.
- * Keep counting from that snapshot so the open visit does not freeze.
- */
-const openVisitBaselines = new Map<string, { minutes: number; at: number }>();
-
-function liveOpenWorkedMinutes(row: {
-  attendance_date?: string | null;
-  clock_in_at?: string | null;
-  work_minutes?: number | null;
-}): number {
-  const clockIn = row.clock_in_at || '';
-  const wall = elapsedMinutesSince(clockIn);
-  const stored = row.work_minutes != null && row.work_minutes > 0 ? row.work_minutes : null;
-  // One continuous visit: minutes track the clock. Use the clock so it keeps moving.
-  if (stored == null || wall <= stored + 15) return wall;
-
-  const key = `${row.attendance_date || ''}|${clockIn}|${stored}`;
-  let base = openVisitBaselines.get(key);
-  if (!base) {
-    base = { minutes: stored, at: Date.now() };
-    openVisitBaselines.set(key, base);
-  }
-  const extra = Math.max(0, Math.round((Date.now() - base.at) / 60000));
-  return base.minutes + extra;
-}
-
 export function resolveWorkMinutes(row: {
-  attendance_date?: string | null;
   clock_in_at?: string | null;
   clock_out_at?: string | null;
   work_minutes?: number | null;
 }): number | null {
-  const stored = row.work_minutes != null && row.work_minutes >= 0 ? row.work_minutes : null;
+  const fromStamps =
+    row.clock_in_at && row.clock_out_at
+      ? Math.round((Date.parse(row.clock_out_at) - Date.parse(row.clock_in_at)) / 60000)
+      : null;
+  const stored = row.work_minutes != null && row.work_minutes > 0 ? row.work_minutes : null;
 
-  // History / team RPCs already return the shared shift sum of every visit.
-  // Trust that total — do not replace it with first-in→last-out wall clock.
+  // Open visit: prefer live elapsed from clock-in; fall back to stored.
   if (row.clock_in_at && !row.clock_out_at) {
-    return liveOpenWorkedMinutes(row);
+    const live = Math.round((Date.now() - Date.parse(row.clock_in_at)) / 60000);
+    return live > 0 ? live : stored;
   }
+
+  // Closed: use stored visit totals when present (multi check-in/out), else clock span.
   if (stored != null) return stored;
-
-  const inMs = row.clock_in_at ? Date.parse(row.clock_in_at) : NaN;
-  const outMs = row.clock_out_at ? Date.parse(row.clock_out_at) : NaN;
-  if (Number.isFinite(inMs) && Number.isFinite(outMs) && outMs > inMs) {
-    return Math.round((outMs - inMs) / 60000);
-  }
+  if (fromStamps != null && fromStamps > 0) return fromStamps;
   return null;
-}
-
-function formatHistoryDateTime(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    weekday: 'short',
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 }
 
 export function describeAttendanceHistory(row: {
@@ -274,7 +190,6 @@ export function describeAttendanceHistory(row: {
   clock_out_at?: string | null;
   work_minutes?: number | null;
   attendance_date?: string | null;
-  visit_count?: number | null;
 }): {
   shift: string;
   clockIn: string;
@@ -286,36 +201,43 @@ export function describeAttendanceHistory(row: {
   stillPresent: boolean;
 } {
   const shift = row.shift_name?.trim() || 'Unassigned';
-  const effectiveOut = resolveEffectiveClockOut(row);
-  // A missing clock-out means a visit is still open, including a check-in after an earlier visit.
-  // Do not turn the worked-minutes total into a clock-out — that total is shorter than the
-  // wall clock when they left and came back.
-  const stillOpen = Boolean(row.clock_in_at) && !row.clock_out_at;
-  const clockIn = row.clock_in_at ? formatHistoryDateTime(row.clock_in_at) : 'No clock-in';
-  const clockOut = stillOpen
-    ? 'Still present in office'
-    : effectiveOut
-      ? formatHistoryDateTime(effectiveOut)
+  const clockIn = row.clock_in_at
+    ? new Date(row.clock_in_at).toLocaleString(undefined, {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : 'No clock-in';
+  const stillOpen = Boolean(row.clock_in_at && !row.clock_out_at);
+  const clockOut = row.clock_out_at
+    ? new Date(row.clock_out_at).toLocaleString(undefined, {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : stillOpen
+      ? 'Still present in office'
       : 'No clock-out';
   const mins = resolveWorkMinutes(row);
-  const visits =
-    row.visit_count != null && row.visit_count > 0
-      ? ` · ${row.visit_count} visit${row.visit_count === 1 ? '' : 's'}`
-      : '';
   let duration = formatWorkDuration(mins);
   if (stillOpen) {
     duration = mins != null && mins > 0
       ? `${formatWorkDuration(mins)} · still working`
       : 'Still working';
   }
-  if (duration && visits) duration = `${duration}${visits}`;
   return {
     shift,
     clockIn,
     clockOut,
     duration,
     shiftEmpty: !row.shift_name?.trim(),
-    clockOutEmpty: !effectiveOut && !stillOpen,
+    clockOutEmpty: !row.clock_out_at && !stillOpen,
     durationEmpty: !stillOpen && (mins == null || mins <= 0),
     stillPresent: stillOpen,
   };

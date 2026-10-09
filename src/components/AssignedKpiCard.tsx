@@ -51,7 +51,7 @@ export default function AssignedKpiCard({
   const progress = isCompleted
     ? (latePenalized
       ? `Approved after the due date — late penalty applied (${scoring.penaltyValue}% of score)`
-      : 'Approved')
+      : `Approved — awarded ${formatKpiWeight(kpiAssignedScore(kpi))}`)
     : awaitingReview
       ? 'They marked Complete — set the final weightage below to approve'
       : paused
@@ -167,17 +167,16 @@ export default function AssignedKpiCard({
           <dt>Health</dt>
           <dd>{healthLabel}</dd>
         </div>
-        {isCompleted ? (
-          <div>
-            <dt>Awarded</dt>
-            <dd>{formatKpiWeight(kpiAssignedScore(kpi))}</dd>
-          </div>
-        ) : awaitingReview ? (
-          <div>
-            <dt>Status</dt>
-            <dd>Awaiting review</dd>
-          </div>
-        ) : null}
+        <div>
+          <dt>Achieved</dt>
+          <dd>
+            {isCompleted
+              ? formatKpiWeight(kpiAssignedScore(kpi))
+              : awaitingReview
+                ? 'Awaiting review'
+                : 'Open'}
+          </dd>
+        </div>
       </dl>
 
       {description ? (

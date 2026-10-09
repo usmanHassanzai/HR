@@ -3,10 +3,8 @@ import {
   refreshNativeAttendanceSession,
   startNativeAttendancePings,
 } from '../utils/attendanceNativePing';
-import { startIosHomeAttendance } from '../utils/attendanceIosHome';
-import { getAttendanceDeviceToken, sendAutoAttendanceEventWithLocation } from '../utils/attendanceDevice';
-import { startAppBackgroundedReporter } from '../utils/attendanceAppBackgrounded';
-import { isDesktopApp, isIosHomeScreen, isNativeApp } from '../utils/nativePlatform';
+import { getAttendanceDeviceToken } from '../utils/attendanceDevice';
+import { isNativeApp } from '../utils/nativePlatform';
 
 /**
  * Keeps native automatic attendance armed after dashboard logout when a
@@ -14,43 +12,24 @@ import { isDesktopApp, isIosHomeScreen, isNativeApp } from '../utils/nativePlatf
  */
 export default function SilentGeoAttendance() {
   useEffect(() => {
+    if (!isNativeApp()) return;
     let cancelled = false;
-    let desktopTimer: number | undefined;
 
     const arm = async () => {
       const token = await getAttendanceDeviceToken();
       if (cancelled || !token) return;
-      if (isNativeApp()) {
-        await startNativeAttendancePings();
-        await refreshNativeAttendanceSession();
-      }
-      if (isIosHomeScreen()) await startIosHomeAttendance();
-      if (isDesktopApp()) await sendAutoAttendanceEventWithLocation('ping');
-      // Browser tab / Home Screen: report close so 5c is not applied for grace.
-      if (!isNativeApp() && !isDesktopApp()) {
-        await startAppBackgroundedReporter();
-      }
+      await startNativeAttendancePings();
+      await refreshNativeAttendanceSession();
     };
 
     void arm();
-    if (isDesktopApp()) {
-      desktopTimer = window.setInterval(() => {
-        void arm();
-      }, 5 * 60 * 1000);
-    }
     const onVis = () => {
       if (document.visibilityState === 'visible') void arm();
     };
-    const onOnline = () => {
-      void arm();
-    };
     document.addEventListener('visibilitychange', onVis);
-    window.addEventListener('online', onOnline);
     return () => {
       cancelled = true;
-      if (desktopTimer) window.clearInterval(desktopTimer);
       document.removeEventListener('visibilitychange', onVis);
-      window.removeEventListener('online', onOnline);
     };
   }, []);
 

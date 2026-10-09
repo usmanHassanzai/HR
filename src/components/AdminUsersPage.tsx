@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase, supabaseSignup } from '../lib/supabase';
 import { Profile, UserRole, displayRoleLabel, roleNeedsDepartment, roleNeedsJobTitle, roleNeedsReportsTo } from '../utils/kpiHelpers';
@@ -111,45 +111,6 @@ function avatarClass(role: Profile['role']): string {
   return base;
 }
 
-type PeopleMenuPos = {
-  top?: number;
-  bottom?: number;
-  left: number;
-  width: number;
-  maxHeight: number;
-};
-
-const PEOPLE_MENU_MIN_W = 220;
-const PEOPLE_MENU_MAX_W = 280;
-const PEOPLE_MENU_GAP = 6;
-const PEOPLE_MENU_PAD = 8;
-
-function computePeopleMenuPos(anchor: DOMRect): PeopleMenuPos {
-  const width = Math.max(
-    PEOPLE_MENU_MIN_W,
-    Math.min(PEOPLE_MENU_MAX_W, window.innerWidth - PEOPLE_MENU_PAD * 2),
-  );
-  let left = anchor.right - width;
-  left = Math.max(PEOPLE_MENU_PAD, Math.min(left, window.innerWidth - width - PEOPLE_MENU_PAD));
-
-  const spaceBelow = window.innerHeight - anchor.bottom - PEOPLE_MENU_PAD;
-  const spaceAbove = anchor.top - PEOPLE_MENU_PAD;
-  // Prefer below; flip above only when below cannot fit a usable menu.
-  const openBelow = spaceBelow >= 280 || spaceBelow >= spaceAbove;
-  const available = (openBelow ? spaceBelow : spaceAbove) - PEOPLE_MENU_GAP;
-  const maxHeight = Math.max(180, Math.min(560, available));
-
-  if (openBelow) {
-    return { top: anchor.bottom + PEOPLE_MENU_GAP, left, width, maxHeight };
-  }
-  return {
-    bottom: window.innerHeight - anchor.top + PEOPLE_MENU_GAP,
-    left,
-    width,
-    maxHeight,
-  };
-}
-
 interface AdminUsersPageProps {
   profile: Profile;
   users: Profile[];
@@ -189,11 +150,6 @@ export default function AdminUsersPage({
   const [deptFilter, setDeptFilter] = useState('all');
   const [addOpen, setAddOpen] = useState(false);
   const [menuId, setMenuId] = useState<string | null>(null);
-  const [menuPos, setMenuPos] = useState<PeopleMenuPos | null>(null);
-  const menuBtnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-  const [narrowPeopleUi, setNarrowPeopleUi] = useState(() =>
-    typeof window !== 'undefined' ? window.matchMedia('(max-width: 899px)').matches : false,
-  );
   const [selectedUserForHub, setSelectedUserForHub] = useState<Profile | null>(null);
 
   const [email, setEmail] = useState(() => readDraft().email);
@@ -243,57 +199,16 @@ export default function AdminUsersPage({
   }, [demo, profile.role, users.length]);
 
   useEffect(() => {
-    const mq = window.matchMedia('(max-width: 899px)');
-    const sync = () => setNarrowPeopleUi(mq.matches);
-    sync();
-    mq.addEventListener('change', sync);
-    return () => mq.removeEventListener('change', sync);
-  }, []);
-
-  useEffect(() => {
     if (!menuId && !quickEdit) return;
-    const openedAt = Date.now();
-    const close = (e: PointerEvent) => {
-      // Ignore the opening gesture and any immediate follow-up in Electron.
-      if (Date.now() - openedAt < 280) return;
-      const el = e.target as Element | null;
-      if (!el) return;
-      if (el.closest?.('#people-actions-menu-portal')) return;
-      if (el.closest?.('.people-actions-sheet')) return;
-      if (el.closest?.('.people-actions__btn--icon')) return;
+    const close = () => {
       setMenuId(null);
-      setMenuPos(null);
       setQuickEdit(null);
       setQuickError('');
       setPendingRole(null);
     };
-    const timer = window.setTimeout(() => {
-      window.addEventListener('pointerdown', close, true);
-    }, 0);
-    return () => {
-      window.clearTimeout(timer);
-      window.removeEventListener('pointerdown', close, true);
-    };
+    window.addEventListener('click', close);
+    return () => window.removeEventListener('click', close);
   }, [menuId, quickEdit]);
-
-  useEffect(() => {
-    if (!menuId) {
-      setMenuPos(null);
-      return;
-    }
-    const update = () => {
-      const el = menuBtnRefs.current[menuId];
-      if (!el) return;
-      setMenuPos(computePeopleMenuPos(el.getBoundingClientRect()));
-    };
-    update();
-    window.addEventListener('resize', update);
-    window.addEventListener('scroll', update, true);
-    return () => {
-      window.removeEventListener('resize', update);
-      window.removeEventListener('scroll', update, true);
-    };
-  }, [menuId]);
 
   useEffect(() => {
     if (!addOpen && !menuId && !quickEdit) return;
@@ -303,10 +218,8 @@ export default function AdminUsersPage({
         setQuickEdit(null);
         setQuickError('');
         setPendingRole(null);
-      } else if (menuId) {
-        setMenuId(null);
-        setMenuPos(null);
-      } else setAddOpen(false);
+      } else if (menuId) setMenuId(null);
+      else setAddOpen(false);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -574,10 +487,7 @@ export default function AdminUsersPage({
     { id: 'employee', label: 'Employee', count: counts.employee },
   ];
 
-  const closeMoreMenu = () => {
-    setMenuId(null);
-    setMenuPos(null);
-  };
+  const closeMoreMenu = () => setMenuId(null);
 
   const moreMenuButtons = (u: Profile) => (
     <>
@@ -772,119 +682,68 @@ export default function AdminUsersPage({
       <div className="people-actions__more">
         <button
           type="button"
-          ref={(el) => {
-            menuBtnRefs.current[u.id] = el;
-          }}
           className="people-actions__btn people-actions__btn--icon"
           aria-label={`More actions for ${u.full_name}`}
-          title={`More actions for ${u.full_name}`}
           aria-expanded={menuId === u.id}
           aria-haspopup="menu"
           onClick={(e) => {
-            e.preventDefault();
             e.stopPropagation();
-            const rect = e.currentTarget.getBoundingClientRect();
-            if (menuId === u.id) {
-              closeMoreMenu();
-              return;
-            }
-            setMenuPos(computePeopleMenuPos(rect));
-            setMenuId(u.id);
+            setMenuId((id) => (id === u.id ? null : u.id));
           }}
         >
           <MoreHorizontal size={16} />
         </button>
+        {menuId === u.id && (
+          <div className="people-actions__menu people-actions__menu--popover" role="menu">
+            {moreMenuButtons(u)}
+          </div>
+        )}
       </div>
     </div>
   );
 
   const menuUser = menuId ? users.find((u) => u.id === menuId) ?? null : null;
 
-  // Sheet only on truly narrow viewports. Desktop Electron + web use a body-portaled
-  // popover (no fullscreen catcher — Electron was painting that as a blank white screen).
-  const usePeopleSheet = narrowPeopleUi;
-
-  const resolvedMenuPos =
-    menuPos ??
-    (typeof window !== 'undefined'
-      ? {
-          top: Math.max(PEOPLE_MENU_PAD, Math.round(window.innerHeight * 0.2)),
-          left: Math.max(PEOPLE_MENU_PAD, Math.round((window.innerWidth - PEOPLE_MENU_MIN_W) / 2)),
-          width: PEOPLE_MENU_MIN_W,
-          maxHeight: Math.min(560, window.innerHeight - PEOPLE_MENU_PAD * 2),
-        }
-      : { top: PEOPLE_MENU_PAD, left: PEOPLE_MENU_PAD, width: PEOPLE_MENU_MIN_W, maxHeight: 360 });
-  const menuStyle =
-    resolvedMenuPos.top != null
-      ? {
-          top: resolvedMenuPos.top,
-          left: resolvedMenuPos.left,
-          width: resolvedMenuPos.width,
-          maxHeight: resolvedMenuPos.maxHeight,
-        }
-      : {
-          bottom: resolvedMenuPos.bottom,
-          left: resolvedMenuPos.left,
-          width: resolvedMenuPos.width,
-          maxHeight: resolvedMenuPos.maxHeight,
-        };
-
-  const moreMenuPortal =
+  const moreMenuSheet =
     menuUser &&
     typeof document !== 'undefined' &&
     createPortal(
-      usePeopleSheet ? (
-        <div className="people-actions-sheet people-actions-sheet--open" role="presentation">
-          <div
-            className="people-actions-sheet__backdrop"
-            role="button"
-            tabIndex={-1}
-            aria-label="Close menu"
-            onClick={closeMoreMenu}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') closeMoreMenu();
-            }}
-          />
-          <div
-            className="people-actions-sheet__panel"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="people-actions-sheet-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="people-actions-sheet__grab" aria-hidden />
-            <header className="people-actions-sheet__head">
-              <div>
-                <p className="people-actions-sheet__eyebrow">Actions</p>
-                <h3 id="people-actions-sheet-title">{menuUser.full_name}</h3>
-                {menuUser.email ? <p className="people-actions-sheet__email">{menuUser.email}</p> : null}
-              </div>
-              <button
-                type="button"
-                className="scorr-dialog-close"
-                onClick={closeMoreMenu}
-                aria-label="Close"
-                title="Close"
-              >
-                ×
-              </button>
-            </header>
-            <div className="people-actions-sheet__list" role="menu">
-              {moreMenuButtons(menuUser)}
-            </div>
-          </div>
-        </div>
-      ) : (
+      <div className="people-actions-sheet" role="presentation">
+        <button
+          type="button"
+          className="people-actions-sheet__backdrop"
+          aria-label="Close menu"
+          onClick={closeMoreMenu}
+        />
         <div
-          id="people-actions-menu-portal"
-          className="people-actions__menu people-actions__menu--popover people-actions__menu--fixed"
-          role="menu"
-          style={menuStyle}
+          className="people-actions-sheet__panel"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="people-actions-sheet-title"
           onClick={(e) => e.stopPropagation()}
         >
-          {moreMenuButtons(menuUser)}
+          <div className="people-actions-sheet__grab" aria-hidden />
+          <header className="people-actions-sheet__head">
+            <div>
+              <p className="people-actions-sheet__eyebrow">Actions</p>
+              <h3 id="people-actions-sheet-title">{menuUser.full_name}</h3>
+              {menuUser.email ? <p className="people-actions-sheet__email">{menuUser.email}</p> : null}
+            </div>
+            <button
+              type="button"
+              className="scorr-dialog-close"
+              onClick={closeMoreMenu}
+              aria-label="Close"
+              title="Close"
+            >
+              ×
+            </button>
+          </header>
+          <div className="people-actions-sheet__list" role="menu">
+            {moreMenuButtons(menuUser)}
+          </div>
         </div>
-      ),
+      </div>,
       document.body,
     );
 
@@ -1394,12 +1253,12 @@ export default function AdminUsersPage({
                   key={u.id}
                   className={`people-card people-card--interactive${isQuickEditing ? ' people-card--editing' : ''}`}
                   onClick={() => setSelectedUserForHub(u)}
+                  title={`Click to view ${u.full_name}'s full profile & related modules`}
                 >
                   <div className="people-card__top">
                     <button
                       type="button"
                       className="people-card__top-btn"
-                      title={`Click to view ${u.full_name}'s full profile & related modules`}
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedUserForHub(u);
@@ -1645,7 +1504,7 @@ export default function AdminUsersPage({
         </>
       )}
 
-      {moreMenuPortal}
+      {moreMenuSheet}
 
       {selectedUserForHub && (
         <AdminUserHubModal

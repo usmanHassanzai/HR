@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, lazy, Suspense } from 'react';
-import { BarChart2, CalendarClock, Gift, KeyRound, Settings } from 'lucide-react';
+import { CalendarClock, Gift, KeyRound, Settings } from 'lucide-react';
 import { Profile } from '../utils/kpiHelpers';
 import TabFallback from './TabFallback';
 import ChangePasswordModal from './ChangePasswordModal';
@@ -16,15 +16,12 @@ const AttendanceLeavePanel = lazy(() => import('./AttendanceLeavePanel'));
 const MyShiftCard = lazy(() => import('./MyShiftCard'));
 const AdminRewards = lazy(() => import('./AdminRewards'));
 const AccountSecurityPanel = lazy(() => import('./AccountSecurityPanel'));
-const AutoAttendanceSettings = lazy(() => import('./AutoAttendanceSettings'));
 const BackupCodesLowBanner = lazy(() => import('./BackupCodesLowBanner'));
-const DeleteAccountSection = lazy(() => import('./DeleteAccountSection'));
-const ManagerPersonalPanel = lazy(() => import('./ManagerPersonalPanel'));
 
-type HrTab = 'mine' | 'attendance' | 'rewards' | 'settings';
+type HrTab = 'attendance' | 'rewards' | 'settings';
 
 const HR_TAB_KEY = 'scorr-hr-active-tab';
-const HR_TABS: HrTab[] = ['mine', 'attendance', 'rewards', 'settings'];
+const HR_TABS: HrTab[] = ['attendance', 'rewards', 'settings'];
 
 function initialHrTab(): HrTab {
   const raw = readSessionString(HR_TAB_KEY);
@@ -39,10 +36,6 @@ interface HrDashboardProps {
 
 function getHrNavMeta(id: string): { label: string; description: string } {
   const map: Record<string, { label: string; description: string }> = {
-    mine: {
-      label: 'My KPIs',
-      description: 'Tasks assigned to you.',
-    },
     attendance: {
       label: 'Attendance',
       description: 'Browse every employee’s attendance and manage company shifts.',
@@ -63,7 +56,6 @@ export default function HrDashboard({ profile, organizationName }: HrDashboardPr
   const [activeTab, setActiveTab] = useState<HrTab>(() => initialHrTab());
   const [navOpen, setNavOpen] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
-  const [mineFocusKpiId, setMineFocusKpiId] = useState<string | null>(null);
 
   useEffect(() => {
     writeSessionString(HR_TAB_KEY, activeTab);
@@ -74,25 +66,11 @@ export default function HrDashboard({ profile, organizationName }: HrDashboardPr
     trapAtRoot: !isNativeApp(),
   });
 
-  useEffect(() => {
-    const openTab = (e: Event) => {
-      const detail = (e as CustomEvent<{ tab?: string; kpiId?: string }>).detail;
-      if (!detail?.tab) return;
-      if (!HR_TABS.includes(detail.tab as HrTab)) return;
-      if (detail.tab === 'mine' && detail.kpiId) setMineFocusKpiId(detail.kpiId);
-      setActiveTab(detail.tab as HrTab);
-      setNavOpen(false);
-    };
-    window.addEventListener('scorr-open-hr-tab', openTab);
-    return () => window.removeEventListener('scorr-open-hr-tab', openTab);
-  }, []);
-
   const navGroups = useMemo<AdminNavGroup[]>(
     () => [
       {
         label: 'Workspace',
         items: [
-          { id: 'mine', label: 'My KPIs', icon: <BarChart2 size={16} /> },
           { id: 'attendance', label: 'Attendance', icon: <CalendarClock size={16} /> },
           { id: 'rewards', label: 'Rewards', icon: <Gift size={16} /> },
           { id: 'settings', label: 'Settings', icon: <Settings size={16} /> },
@@ -151,9 +129,7 @@ export default function HrDashboard({ profile, organizationName }: HrDashboardPr
         <div className="admin-shell__content">
           <div className="admin-shell__panel">
             <Suspense fallback={<TabFallback />}>
-              {activeTab === 'mine' ? (
-                <ManagerPersonalPanel profile={profile} focusKpiId={mineFocusKpiId} />
-              ) : activeTab === 'attendance' ? (
+              {activeTab === 'attendance' ? (
                 <div className="hr-page-stack">
                   <section className="hr-intro glass-panel">
                     <div className="hr-intro__copy">
@@ -185,16 +161,8 @@ export default function HrDashboard({ profile, organizationName }: HrDashboardPr
                     </button>
                   </div>
                   <details className="app-settings-block" open>
-                    <summary>Automatic attendance</summary>
-                    <AutoAttendanceSettings mode="self" />
-                  </details>
-                  <details className="app-settings-block" open>
                     <summary>Account security (2FA recovery)</summary>
-                    <AccountSecurityPanel fullName={profile.full_name} omitDelete />
-                  </details>
-                  <details className="app-settings-block" open>
-                    <summary>Delete my account</summary>
-                    <DeleteAccountSection embedded />
+                    <AccountSecurityPanel fullName={profile.full_name} />
                   </details>
                 </div>
               )}

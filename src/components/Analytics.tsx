@@ -272,15 +272,9 @@ export default function Analytics({
     setError('');
 
     try {
-      const now = new Date();
-      const y = now.getFullYear();
-      const m = now.getMonth() + 1;
-      const prevY = m === 1 ? y - 1 : y;
-      const prevM = m === 1 ? 12 : m - 1;
-      const [kpiRes, histCur, histPrev, repRes, rewards, balance] = await Promise.all([
+      const [kpiRes, attRes, repRes, rewards, balance] = await Promise.all([
         supabase.from('kpis').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
-        supabase.rpc('get_attendance_history', { p_year: y, p_month: m, p_user_id: uid }),
-        supabase.rpc('get_attendance_history', { p_year: prevY, p_month: prevM, p_user_id: uid }),
+        supabase.from('attendance_records').select('*').eq('user_id', uid).order('attendance_date', { ascending: false }).limit(60),
         supabase.from('daily_work_reports').select('*').eq('user_id', uid).order('report_date', { ascending: false }).limit(30),
         fetchRewardsSummary(uid).catch(() => null),
         fetchMonthWeightageBalance(uid),
@@ -292,14 +286,7 @@ export default function Analytics({
       setKpis(userKpis);
       setRewardsSummary(rewards);
       setMonthBalance(balance);
-      // Prefer history RPC (shared shift-sum duration) over raw attendance_records.work_minutes.
-      const histRows = [
-        ...(((histCur.error ? [] : histCur.data) || []) as AttendanceRecord[]),
-        ...(((histPrev.error ? [] : histPrev.data) || []) as AttendanceRecord[]),
-      ]
-        .sort((a, b) => String(b.attendance_date).localeCompare(String(a.attendance_date)))
-        .slice(0, 60);
-      setAttendance(histRows);
+      setAttendance((attRes.data || []) as AttendanceRecord[]);
       setDailyReports((repRes.data || []) as DailyWorkReport[]);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to fetch user analytics');

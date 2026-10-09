@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
   Building2,
@@ -117,26 +117,20 @@ export default function AdminAttendanceDirectory({ departments, initialUserId }:
   const [viewStep, setViewStep] = useState<ViewStep>('departments');
   const [selectedDeptId, setSelectedDeptId] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  /** Only apply deep-link once per initialUserId — do not reset browse on refresh. */
-  const appliedInitialUserId = useRef<string | null>(null);
 
   const yearOptions = attendanceYearOptions(null, now, 8);
   const monthLabel = new Date(year, month - 1, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
   const yearLabel = String(year);
   const periodLabel = browsePeriod === 'month' ? monthLabel : yearLabel;
 
-  const load = useCallback(async (silent = false) => {
-    if (!silent) {
-      setLoading(true);
-      await reconcileEndedShiftAttendance();
-    }
+  const load = useCallback(async () => {
+    setLoading(true);
+    await reconcileEndedShiftAttendance();
     const { data: users, error: usersErr } = await supabase.rpc('get_all_users_admin');
     if (usersErr) {
-      if (!silent) {
-        setEmployees([]);
-        setRows([]);
-        setLoading(false);
-      }
+      setEmployees([]);
+      setRows([]);
+      setLoading(false);
       return;
     }
 
@@ -154,29 +148,19 @@ export default function AdminAttendanceDirectory({ departments, initialUserId }:
     const allRows = !error ? ((data || []) as TeamAttendanceHistoryRow[]) : [];
     const allowedIds = new Set(orgEmployees.map((u) => u.id));
     setRows(allRows.filter((r) => allowedIds.has(r.user_id)));
-    if (!silent) setLoading(false);
+    setLoading(false);
   }, [year, month, browsePeriod]);
 
   useEffect(() => {
-    void load(false);
+    void load();
   }, [load]);
 
   useEffect(() => {
-    const id = window.setInterval(() => {
-      void load(true);
-    }, 20000);
-    return () => window.clearInterval(id);
-  }, [load]);
-
-  useEffect(() => {
-    if (!initialUserId || employees.length === 0) return;
-    if (appliedInitialUserId.current === initialUserId) return;
+    if (employees.length === 0) return;
     const nav = resolveInitialNav(initialUserId, employees);
-    if (!nav.userId) return;
     setViewStep(nav.step);
     setSelectedDeptId(nav.deptId);
     setSelectedUserId(nav.userId);
-    appliedInitialUserId.current = initialUserId;
   }, [initialUserId, employees]);
 
   const departmentSections = useMemo(() => {

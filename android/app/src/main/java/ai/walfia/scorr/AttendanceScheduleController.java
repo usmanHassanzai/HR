@@ -88,10 +88,10 @@ final class AttendanceScheduleController {
             return "Auto attendance not enabled";
         }
         String err = fetchAndCacheSchedule(app);
-        // Always arm from cache so reboot / offline boot still starts the window FGS.
+        if (err != null) return err;
         armFromCache(app);
         AttendanceEventClient.flushQueue(app);
-        return err;
+        return null;
     }
 
     static String fetchAndCacheSchedule(Context app) {
@@ -127,49 +127,22 @@ final class AttendanceScheduleController {
             if (code < 200 || code >= 300) {
                 try {
                     JSONObject err = new JSONObject(resp);
-                    String reason = err.optString("reason", "");
-                    if (err.optBoolean("stop_tracking", false) && isHardStopReason(reason)) {
+                    if (err.optBoolean("stop_tracking", false)) {
                         stopAll(app);
-                    } else if ("outside_window".equals(reason)) {
-                        exitWindow(app);
                     }
                 } catch (Exception ignored) {
                 }
                 return "Schedule HTTP " + code;
             }
             JSONObject json = new JSONObject(resp);
-            String stopReason = json.optString("reason", "");
-            if (!json.optBoolean("ok", true) && json.optBoolean("stop_tracking", false)
-                && isHardStopReason(stopReason)) {
+            if (!json.optBoolean("ok", true) && json.optBoolean("stop_tracking", false)) {
                 stopAll(app);
-                return stopReason.isEmpty() ? "stop_tracking" : stopReason;
-            }
-            if ("outside_window".equals(stopReason)) {
-                exitWindow(app);
-                // Keep token; next window start re-arms from cache/alarms.
-            }
-            long prevVer = AttendancePingStore.officeVersion(app);
-            long nextVer = json.optLong("office_version", 0);
-            if (nextVer <= 0) {
-                try {
-                    org.json.JSONArray zones = json.optJSONArray("zones");
-                    if (zones != null) {
-                        for (int i = 0; i < zones.length(); i++) {
-                            nextVer = Math.max(nextVer, zones.getJSONObject(i).optLong("office_version", 0));
-                        }
-                    }
-                } catch (Exception ignored) {
-                }
+                return json.optString("reason", "stop_tracking");
             }
             AttendancePingStore.saveScheduleJson(app, json.toString());
-            AttendancePingStore.saveOfficeVersion(app, nextVer);
             String companyTz = json.optString("company_tz", null);
             if (companyTz != null && !companyTz.isEmpty()) {
                 AttendancePingStore.saveCompanyTz(app, companyTz);
-            }
-            if (nextVer > 0 && nextVer != prevVer) {
-                // Radius/pin changed — re-arm geofences from the new schedule.
-                armFromCache(app);
             }
             return null;
         } catch (Exception e) {
@@ -231,22 +204,6 @@ final class AttendanceScheduleController {
         try {
             WorkManager.getInstance(app).cancelAllWorkByTag("scorr_attendance");
         } catch (Exception ignored) {
-        }
-    }
-
-    /** Revoke enrollment only for hard auth/feature failures — never after check-out. */
-    private static boolean isHardStopReason(String reason) {
-        if (reason == null) return false;
-        switch (reason) {
-            case "missing_token":
-            case "invalid_token":
-            case "revoked_token":
-            case "user_gone":
-            case "feature_off":
-            case "work_mode_remote":
-                return true;
-            default:
-                return false;
         }
     }
 

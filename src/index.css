@@ -1133,10 +1133,9 @@ svg.brand-logo {
   color: var(--text-primary);
 }
 
-.app-update-banner--mandatory,
-.app-update-banner--applying {
-  background: color-mix(in srgb, var(--accent-primary) 16%, var(--bg-card, #fff));
-  border-bottom-color: color-mix(in srgb, var(--accent-primary) 45%, var(--border-color));
+.app-update-banner--mandatory {
+  background: color-mix(in srgb, var(--color-warning, #b45309) 14%, var(--bg-card, #fff));
+  border-bottom-color: color-mix(in srgb, var(--color-warning, #b45309) 40%, var(--border-color));
 }
 
 .app-update-banner__body {

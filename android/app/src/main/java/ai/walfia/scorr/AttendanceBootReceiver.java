@@ -26,19 +26,7 @@ public class AttendanceBootReceiver extends BroadcastReceiver {
         final BroadcastReceiver.PendingResult pending = goAsync();
         Executors.newSingleThreadExecutor().execute(() -> {
             try {
-                if ("scorr.action.RESTART_FGS".equals(action)) {
-                    // Swipe-away delayed restart — keep FGS + heartbeats without a full sync wait.
-                    AttendanceScheduleController.armFromCache(app);
-                    if (AttendancePingStore.isInsideActiveWindow(app)) {
-                        AttendancePingService.start(app);
-                    }
-                    return;
-                }
                 AttendanceScheduleController.syncAndArm(app);
-                // After reboot / app update: if already inside W, FGS must be running now.
-                if (AttendancePingStore.isInsideActiveWindow(app)) {
-                    AttendancePingService.start(app);
-                }
             } finally {
                 pending.finish();
             }

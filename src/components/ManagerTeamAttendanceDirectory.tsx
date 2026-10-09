@@ -83,7 +83,6 @@ function mapHistoryRow(r: AttendanceHistoryRow, user: Profile): TeamAttendanceHi
     work_minutes: r.work_minutes,
     shift_name: r.shift_name,
     notes: r.notes,
-    visit_count: r.visit_count ?? null,
   };
 }
 

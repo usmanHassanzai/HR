@@ -32,8 +32,7 @@ export interface OfficeLocation {
 }
 
 /** Foreground auto GPS interval while the dashboard is open (office / hybrid). */
-/** While the portal is open, check location often so leaving the radius checks out quickly. */
-export const AUTO_LOCATION_CHECK_MS = 20_000;
+export const AUTO_LOCATION_CHECK_MS = 60_000;
 
 export const GEO_PING_EVENT = 'scorr-geo-ping';
 export const GEO_CLOCK_EVENT = 'scorr-geo-clock';
@@ -63,30 +62,8 @@ export function localYmd(d = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export type GeoPingAction =
-  | 'clock_in'
-  | 'clock_out'
-  | 'clock_out_shift_end'
-  | 'already_clocked_in'
-  | 'already_clocked_out'
-  | 'outside_office'
-  | 'not_on_office_network'
-  | 'not_on_office_wifi'
-  | 'outside_radius'
-  | 'gps_unusable'
-  | 'need_fresh_location'
-  | 'shift_not_started'
-  | 'not_work_day'
-  | 'checkin_blocked_shift_ended'
-  | 'outside_window'
-  | 'no_open_visit'
-  | 'no_connection'
-  | 'event_too_old'
-  | 'none'
-  | 'skipped'
-
 export interface GeoPingResult {
-  action: GeoPingAction;
+  action: 'clock_in' | 'clock_out' | 'clock_out_shift_end' | 'already_clocked_in' | 'already_clocked_out' | 'outside_office' | 'shift_not_started' | 'not_work_day' | 'none' | 'skipped';
   inside_office?: boolean;
   office_name?: string;
   distance_meters?: number;
@@ -103,113 +80,6 @@ export interface GeoPingResult {
   work_minutes?: number;
 }
 
-/** Exact user-facing rejection / status copy for attendance presence checks. */
-export function attendanceActionMessage(action: string | null | undefined): string {
-  const raw = String(action || '');
-  // Never surface raw database / plpgsql errors to users.
-  if (/v_chk|not assigned|PL\/pgSQL|postgres|SQLSTATE|relation |column /i.test(raw)) {
-    return 'Clock out failed, please try again';
-  }
-  switch (action) {
-    case 'not_on_office_wifi':
-    case 'not_on_office_network':
-      return 'Connect to the office Wi-Fi';
-    case 'gps_unusable':
-    case 'need_fresh_location':
-      return 'Location unavailable, try again';
-    case 'outside_radius':
-    case 'outside_office':
-      return 'You are outside the office radius';
-    case 'checkin_blocked_shift_ended':
-      return 'The shift has ended. You cannot check in.';
-    case 'outside_window':
-      return 'Outside the attendance window';
-    case 'shift_not_started':
-      return 'You can clock in from 1 hour before your shift starts.';
-    case 'clock_in':
-    case 'already_clocked_in':
-      return 'Checked in';
-    case 'auto_wifi_no_gps':
-    case 'manual_wifi_no_gps':
-      return 'Checked in on office Wi-Fi (location is off)';
-    case 'clock_out':
-    case 'clock_out_shift_end':
-    case 'already_clocked_out':
-      return 'Checked out';
-    case 'no_connection':
-      return 'No connection - will check when online';
-    case 'event_too_old':
-      return 'Reading was too old — get a fresh location';
-    default:
-      if (!action) return 'Could not complete attendance.';
-      // Snake_case server codes stay readable; free-text / SQL errors stay hidden.
-      if (/^[a-z0-9_]+$/i.test(action)) return `Could not complete attendance (${action})`;
-      return 'Clock out failed, please try again';
-  }
-}
-
-/** Map thrown / RPC errors for clock-out (never show raw DB text). */
-export function friendlyClockOutError(err: unknown): string {
-  const raw = err instanceof Error ? err.message : String(err || '');
-  console.warn('[scorr-att] clock-out error', raw);
-  if (/not_on_office_wifi|not_on_office_network/i.test(raw)) {
-    return attendanceActionMessage('not_on_office_wifi');
-  }
-  if (/outside_radius|outside_office/i.test(raw)) {
-    return attendanceActionMessage('outside_radius');
-  }
-  if (/outside_window|attendance_outside_window/i.test(raw)) {
-    return attendanceActionMessage('outside_window');
-  }
-  if (/gps_unusable|need_fresh_location/i.test(raw)) {
-    return attendanceActionMessage('gps_unusable');
-  }
-  if (/Check in first|no_open_visit/i.test(raw)) {
-    return 'Clock in first, then clock out.';
-  }
-  if (/Already checked out|already_clocked_out/i.test(raw)) {
-    return 'Checked out';
-  }
-  return 'Clock out failed, please try again';
-}
-
-/** Server-confirmed checkout copy with local leave time when available. */
-export function attendanceCheckoutMessage(result: {
-  action?: string | null;
-  clock_out_at?: string | null;
-  local_time?: string | null;
-}): string {
-  if (result.action !== 'clock_out' && result.action !== 'clock_out_shift_end') {
-    return attendanceActionMessage(result.action);
-  }
-  const t =
-    result.local_time ||
-    (result.clock_out_at
-      ? new Date(result.clock_out_at).toLocaleTimeString(undefined, {
-          hour: '2-digit',
-          minute: '2-digit',
-        })
-      : null);
-  if (t) return `Checked out - left the office radius at ${t}`;
-  return 'Checked out';
-}
-
-export function isAttendanceSuccessAction(action: string | null | undefined): boolean {
-  return (
-    action === 'clock_in' ||
-    action === 'clock_out' ||
-    action === 'clock_out_shift_end' ||
-    action === 'already_clocked_in' ||
-    action === 'already_clocked_out'
-  );
-}
-
-function positionIsMock(pos: GeolocationPosition): boolean {
-  const coords = pos.coords as GeolocationCoordinates & { mocked?: boolean };
-  const anyPos = pos as GeolocationPosition & { mocked?: boolean };
-  return Boolean(coords?.mocked ?? anyPos?.mocked ?? false);
-}
-
 export interface AttendanceVisit {
   id: string;
   visit_number: number;
@@ -220,9 +90,10 @@ export interface AttendanceVisit {
   notes: string | null;
 }
 
-/** Effective geofence = configured office radius exactly (no accuracy pad). */
-export function effectiveGeofenceRadius(radiusMeters: number, _accuracyMeters?: number | null): number {
-  return radiusMeters;
+/** Match server geofence: radius + GPS accuracy buffer (min 40m, max +120m). */
+export function effectiveGeofenceRadius(radiusMeters: number, accuracyMeters?: number | null): number {
+  const accuracy = accuracyMeters == null || Number.isNaN(accuracyMeters) ? 40 : accuracyMeters;
+  return radiusMeters + Math.min(120, Math.max(40, accuracy));
 }
 
 const GEO_ENABLED_KEY = 'scorr-geo-attendance';
@@ -377,55 +248,26 @@ export async function pingAttendanceBeforeLogout(): Promise<void> {
 
 export type GeoClockIntent = 'clock_in' | 'clock_out';
 
-/** Brief GPS read (≤3s); if unavailable, send without GPS for Wi-Fi check-in. */
-async function requestPositionOrNull(timeoutMs = 3000): Promise<GeolocationPosition | null> {
-  try {
-    return await Promise.race([
-      requestCurrentPosition({
-        maximumAge: 0,
-        timeout: timeoutMs,
-        enableHighAccuracy: true,
-      }),
-      new Promise<null>((resolve) => {
-        window.setTimeout(() => resolve(null), timeoutMs);
-      }),
-    ]);
-  } catch {
-    return null;
-  }
-}
-
-/** One GPS read (or none), then server clock-in or clock-out. */
+/** One GPS read, then server clock-in or clock-out. No interval logging. */
 export async function submitGeoClockEvent(intent: GeoClockIntent): Promise<GeoPingResult> {
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-    const result: GeoPingResult = { action: 'no_connection' as GeoPingAction, reason: 'no_connection' };
-    dispatchGeoPing({ result, auto: false, checkedAt: Date.now() });
-    return result;
-  }
-  // Manual clock-in / clock-out: wait ≤3s for GPS; if unavailable send gps_available=false.
-  const pos = await requestPositionOrNull(3000);
-  const { data, error } = await supabase.rpc('process_geo_attendance_ping', {
-    p_latitude: pos?.coords.latitude ?? null,
-    p_longitude: pos?.coords.longitude ?? null,
-    p_accuracy: pos?.coords.accuracy ?? null,
-    p_intent: intent,
-    p_is_mock: pos ? positionIsMock(pos) : false,
+  const pos = await requestCurrentPosition({
+    maximumAge: 0,
+    timeout: 20_000,
+    enableHighAccuracy: true,
   });
-  if (error) {
-    const msg = String(error.message || '');
-    if (/fetch|network|Failed to fetch|offline/i.test(msg)) {
-      const result: GeoPingResult = { action: 'no_connection' as GeoPingAction, reason: 'no_connection' };
-      dispatchGeoPing({ result, auto: false, checkedAt: Date.now() });
-      return result;
-    }
-    throw error;
-  }
+  const { data, error } = await supabase.rpc('process_geo_attendance_ping', {
+    p_latitude: pos.coords.latitude,
+    p_longitude: pos.coords.longitude,
+    p_accuracy: pos.coords.accuracy ?? null,
+    p_intent: intent,
+  });
+  if (error) throw error;
   const result = data as GeoPingResult;
   dispatchGeoPing({
     result,
-    latitude: pos?.coords.latitude ?? undefined,
-    longitude: pos?.coords.longitude ?? undefined,
-    accuracy: pos?.coords.accuracy ?? null,
+    latitude: pos.coords.latitude,
+    longitude: pos.coords.longitude,
+    accuracy: pos.coords.accuracy ?? null,
     auto: false,
     checkedAt: Date.now(),
   });
@@ -436,51 +278,19 @@ export async function submitGeoClockEvent(intent: GeoClockIntent): Promise<GeoPi
  * Periodic / watch GPS ping for auto geofence attendance.
  * Server decides auto clock-in (enter office) or auto clock-out (leave office).
  */
-/** Up to 3 fresh readings within ~15s until accuracy is usable (≤ maxAcc). */
-async function requestPositionWithAccuracyRetries(maxAcc: number): Promise<GeolocationPosition> {
-  let best: GeolocationPosition | null = null;
-  let lastErr: unknown;
-  for (let i = 0; i < 3; i++) {
-    try {
-      const pos = await requestCurrentPosition({
-        maximumAge: 0,
-        timeout: 5_000,
-        enableHighAccuracy: true,
-      });
-      if (!best || (pos.coords.accuracy ?? 9999) < (best.coords.accuracy ?? 9999)) best = pos;
-      if ((pos.coords.accuracy ?? 9999) <= maxAcc) return pos;
-    } catch (err) {
-      lastErr = err;
-    }
-  }
-  if (best) return best;
-  throw lastErr instanceof Error ? lastErr : new Error('Location unavailable, try again');
-}
-
 export async function submitGeoAutoPing(): Promise<GeoPingResult> {
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-    const result: GeoPingResult = { action: 'no_connection' as GeoPingAction, reason: 'no_connection' };
-    dispatchGeoPing({ result, auto: true, checkedAt: Date.now() });
-    return result;
-  }
-  // Prefer ≤50 m so a single outside reading can check out (Rule 5).
-  const pos = await requestPositionWithAccuracyRetries(50);
+  const pos = await requestCurrentPosition({
+    maximumAge: 60_000,
+    timeout: 15_000,
+    enableHighAccuracy: false,
+  });
   const { data, error } = await supabase.rpc('process_geo_attendance_ping', {
     p_latitude: pos.coords.latitude,
     p_longitude: pos.coords.longitude,
     p_accuracy: pos.coords.accuracy ?? null,
     p_intent: 'auto',
-    p_is_mock: positionIsMock(pos),
   });
-  if (error) {
-    const msg = String(error.message || '');
-    if (/fetch|network|Failed to fetch|offline/i.test(msg)) {
-      const result: GeoPingResult = { action: 'no_connection' as GeoPingAction, reason: 'no_connection' };
-      dispatchGeoPing({ result, auto: true, checkedAt: Date.now() });
-      return result;
-    }
-    throw error;
-  }
+  if (error) throw error;
   const result = data as GeoPingResult;
   dispatchGeoPing({
     result,
@@ -597,22 +407,16 @@ function requestBrowserPosition(opts?: {
 
 export function geoActionLabel(action: GeoPingResult['action']): string {
   switch (action) {
-    case 'clock_in':
-      return 'Clocked in at office';
-    case 'clock_out':
-      return 'Clocked out (exit location saved)';
-    case 'clock_out_shift_end':
-      return 'Clocked out (shift ended)';
-    case 'already_clocked_in':
-      return 'On site · visit in progress';
-    case 'already_clocked_out':
-      return 'Checked out · you can clock in again during the shift';
-    case 'skipped':
-      return 'Geo attendance not applicable';
-    case 'none':
-      return 'No attendance change';
-    default:
-      return attendanceActionMessage(action);
+    case 'clock_in': return 'Clocked in at office';
+    case 'clock_out': return 'Clocked out (exit location saved)';
+    case 'clock_out_shift_end': return 'Clocked out (shift ended)';
+    case 'already_clocked_in': return 'On site · visit in progress';
+    case 'already_clocked_out': return 'Checked out · you can clock in again during the shift';
+    case 'outside_office': return 'Outside office zone';
+    case 'shift_not_started': return 'Shift has not started yet';
+    case 'not_work_day': return 'Not scheduled to work today';
+    case 'skipped': return 'Geo attendance not applicable';
+    default: return 'Location checked';
   }
 }
 

@@ -90,31 +90,9 @@ const webBuildId =
   process.env.VITE_WEB_BUILD_ID ||
   `${appVersion}-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '')}`
 
-/** Writes the exact id baked into JS so write-version-json.mjs cannot drift. */
-function persistWebBuildId(): Plugin {
-  return {
-    name: 'persist-web-build-id',
-    apply: 'build',
-    buildStart() {
-      try {
-        mkdirSync(resolve('public'), { recursive: true })
-        writeFileSync(resolve('public', '.web-build-id'), webBuildId, 'utf8')
-      } catch {
-        /* ignore */
-      }
-    },
-    writeBundle(options) {
-      const dir = options.dir || resolve('dist')
-      mkdirSync(dir, { recursive: true })
-      writeFileSync(resolve(dir, '.web-build-id'), webBuildId, 'utf8')
-      writeFileSync(resolve('public', '.web-build-id'), webBuildId, 'utf8')
-    },
-  }
-}
-
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), persistWebBuildId(), moduleSizeReport()],
+  plugins: [react(), moduleSizeReport()],
   define: {
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion),
     'import.meta.env.VITE_WEB_BUILD_ID': JSON.stringify(webBuildId),

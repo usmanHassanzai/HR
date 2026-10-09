@@ -21,23 +21,7 @@ export default function AboutUpdatesPanel() {
     try {
       const next = await checkForUpdatesNow();
       setResult(next);
-      if (next.kind === 'none') {
-        setMsg('You are on the latest version.');
-        return;
-      }
-      setMsg('Updating…');
-      if (next.kind === 'refresh') {
-        hardRefreshWeb();
-        return;
-      }
-      if (next.kind === 'native') {
-        const applied = await applyNativeUpdate(next);
-        setMsg(
-          next.platform === 'android'
-            ? 'Downloading update… Confirm Install when Android asks.'
-            : applied || 'Updating…',
-        );
-      }
+      if (next.kind === 'none') setMsg('You are on the latest version.');
     } catch (e) {
       setMsg(e instanceof Error ? e.message : 'Could not check for updates.');
     } finally {
@@ -53,7 +37,7 @@ export default function AboutUpdatesPanel() {
         </div>
         <div>
           <h3>About &amp; updates</h3>
-          <p>Checks for updates daily around 5:00 AM and installs them automatically when available.</p>
+          <p>App version, web build, and update checks for every platform.</p>
         </div>
       </div>
       <dl className="about-updates__meta">
@@ -83,6 +67,22 @@ export default function AboutUpdatesPanel() {
           {busy ? <Loader2 size={14} className="spin-icon" /> : <RefreshCw size={14} />}
           Check for updates
         </button>
+        {result?.kind === 'refresh' && (
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => hardRefreshWeb()}>
+            Refresh now
+          </button>
+        )}
+        {result?.kind === 'native' && (
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => {
+              void applyNativeUpdate(result).then(setMsg);
+            }}
+          >
+            Install {result.version}
+          </button>
+        )}
       </div>
       {msg && <p className="about-updates__msg">{msg}</p>}
       {result?.kind === 'native' && result.notes && <p className="about-updates__msg">{result.notes}</p>}

@@ -19,7 +19,10 @@ public class AttendanceGeofenceReceiver extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         Context app = context.getApplicationContext();
         if (!AttendancePingStore.enabled(app)) return;
-        // Server decides the attendance window — never drop EXIT/ENTER locally.
+        if (!AttendancePingStore.isInsideActiveWindow(app)) {
+            Log.d(TAG, "Ignoring geofence outside window");
+            return;
+        }
 
         GeofencingEvent event = GeofencingEvent.fromIntent(intent);
         if (event == null) return;
@@ -44,21 +47,29 @@ public class AttendanceGeofenceReceiver extends BroadcastReceiver {
             zoneId = triggering.get(0).getRequestId();
         }
 
-        String[] wifi = AttendancePingStore.readCurrentWifiIdentity(app);
-        String ssid = wifi[0];
-        String bssid = wifi[1];
-        if (ssid == null && bssid == null) {
-            ssid = AttendancePingStore.lastSsid(app);
-            bssid = AttendancePingStore.lastBssid(app);
+        // R69: on EXIT, attach current Wi-Fi identity immediately so the server can
+        // decide leave-confirmed vs GPS-drift (still on office Wi-Fi) without waiting
+        // for the next 5-minute backup ping.
+        String ssid = null;
+        String bssid = null;
+        if ("exit".equals(eventName)) {
+            String[] wifi = AttendancePingStore.readCurrentWifiIdentity(app);
+            ssid = wifi[0];
+            bssid = wifi[1];
+            if (ssid == null && bssid == null) {
+                ssid = AttendancePingStore.lastSsid(app);
+                bssid = AttendancePingStore.lastBssid(app);
+            }
         }
 
-        if ("exit".equals(eventName)) {
-            // Instant EXIT with a fresh GPS reading (not a cached geofence fix).
-            AttendancePingService.sendFreshExit(app, zoneId, ssid, bssid);
+        if (event.getTriggeringLocation() != null) {
+            android.location.Location loc = event.getTriggeringLocation();
+            Double lat = loc.getLatitude();
+            Double lng = loc.getLongitude();
+            Float acc = loc.hasAccuracy() ? loc.getAccuracy() : null;
+            AttendanceEventClient.send(app, eventName, zoneId, lat, lng, acc, ssid, bssid);
         } else {
-            // ENTER: ensure FGS is up and send a fresh GPS+Wi-Fi combined check.
-            AttendancePingService.start(app);
-            AttendancePingService.sendFreshEnter(app, zoneId, ssid, bssid);
+            AttendanceEventClient.send(app, eventName, zoneId, null, null, null, ssid, bssid);
         }
     }
 }

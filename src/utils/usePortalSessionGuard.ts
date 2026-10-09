@@ -124,8 +124,7 @@ export function isPortalSessionExpired(): boolean {
 
 /**
  * Sign out locally, clear Supabase auth persistence.
- * Does NOT clear remember-me credentials (Keystore/Keychain/safeStorage/IndexedDB vault)
- * or device-token auto attendance. Explicit Sign out & forget clears those separately.
+ * Does NOT clear remember-me credentials or device-token auto attendance.
  */
 export async function lockPortalSession(options?: { force?: boolean; reason?: AuthNotice }) {
   if (lockingSession) return;
@@ -134,7 +133,6 @@ export async function lockPortalSession(options?: { force?: boolean; reason?: Au
     if (options?.reason) setAuthNotice(options.reason);
     clearGeoHold();
     // R32: shift-end / session lock must NOT stop device-token auto attendance.
-    // Remember-me: never call clearRememberedLogin / clearLoginCredentials here.
     clearAuthStorageSync();
     try {
       await supabase.auth.signOut({ scope: 'local' });

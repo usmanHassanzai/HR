@@ -53,30 +53,20 @@ BEGIN
   );
   v_hash := public.attendance_hash_device_token(v_token);
 
-  -- Upsert: same device_id after turn-off/revoke must not hit unique (user_id, device_id)
+  -- Revoke prior row for same device_id
   UPDATE public.attendance_devices
-  SET
-    platform = p_platform,
-    device_timezone = COALESCE(NULLIF(btrim(p_device_timezone), ''), device_timezone),
-    app_version = COALESCE(NULLIF(btrim(p_app_version), ''), app_version),
-    token_hash = v_hash,
-    revoked_at = NULL,
-    last_seen_at = timezone('utc', now()),
-    company_id = v_me.company_id
-  WHERE user_id = v_uid AND device_id = btrim(p_device_id)
-  RETURNING * INTO v_row;
+  SET revoked_at = timezone('utc', now())
+  WHERE user_id = v_uid AND device_id = btrim(p_device_id) AND revoked_at IS NULL;
 
-  IF NOT FOUND THEN
-    INSERT INTO public.attendance_devices (
-      user_id, company_id, device_id, platform, device_timezone, app_version, token_hash,
-      created_at, last_seen_at
-    ) VALUES (
-      v_uid, v_me.company_id, btrim(p_device_id), p_platform,
-      NULLIF(btrim(p_device_timezone), ''), NULLIF(btrim(p_app_version), ''),
-      v_hash, timezone('utc', now()), timezone('utc', now())
-    )
-    RETURNING * INTO v_row;
-  END IF;
+  INSERT INTO public.attendance_devices (
+    user_id, company_id, device_id, platform, device_timezone, app_version, token_hash,
+    created_at, last_seen_at
+  ) VALUES (
+    v_uid, v_me.company_id, btrim(p_device_id), p_platform,
+    NULLIF(btrim(p_device_timezone), ''), NULLIF(btrim(p_app_version), ''),
+    v_hash, timezone('utc', now()), timezone('utc', now())
+  )
+  RETURNING * INTO v_row;
 
   -- Enable per-user toggle for this platform family when registering
   IF p_platform IN ('android', 'ios') THEN

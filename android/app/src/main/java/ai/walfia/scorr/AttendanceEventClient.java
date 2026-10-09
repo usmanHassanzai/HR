@@ -25,16 +25,12 @@ import java.util.concurrent.Executors;
 
 /**
  * Posts auto-attendance events with device-token auth (never JWT).
- * Drops queued readings older than 10 minutes; sends only the newest fresh event.
+ * Rejects mock locations, queues offline with UTC timestamps, notifies on clock in/out.
  */
 final class AttendanceEventClient {
     private static final String TAG = "ScorrAttEvent";
     private static final String NOTIFY_CHANNEL = "scorr_attendance_events";
-    private static final String STATUS_CHANNEL = "scorr_attendance_status";
     private static final int NOTIFY_ID = 42;
-    private static final int STATUS_NOTIFY_ID = 41;
-    /** Drop queued events older than 10 minutes. */
-    private static final long MAX_EVENT_AGE_MS = 10L * 60L * 1000L;
     private static final ExecutorService IO = Executors.newSingleThreadExecutor();
 
     private AttendanceEventClient() {}
@@ -48,17 +44,6 @@ final class AttendanceEventClient {
         return loc.isFromMockProvider();
     }
 
-    /** Fresh event time: never trust stale GPS fix timestamps (they caused event_too_old). */
-    static long freshOccurredMs(Location loc) {
-        long now = System.currentTimeMillis();
-        if (loc == null) return now;
-        long t = loc.getTime();
-        if (t <= 0) return now;
-        // Accept GPS time only when it is recent; otherwise use device now.
-        if (now - t > 2L * 60L * 1000L || t - now > 60L * 1000L) return now;
-        return t;
-    }
-
     static void sendLocationEvent(Context ctx, String event, Location loc, String zoneId) {
         if (loc == null) return;
         if (isMockLocation(loc)) {
@@ -68,49 +53,7 @@ final class AttendanceEventClient {
         Double lat = loc.getLatitude();
         Double lng = loc.getLongitude();
         Float acc = loc.hasAccuracy() ? loc.getAccuracy() : null;
-        send(ctx, event, zoneId, lat, lng, acc, null, null, freshOccurredMs(loc));
-    }
-
-    /** GPS + Wi-Fi in one event when a usable fix is available. */
-    static void sendCombined(Context ctx, String event, Location loc, String zoneId,
-                             String ssid, String bssid) {
-        if (loc == null) {
-            sendWifiOnly(ctx, event, ssid, bssid);
-            return;
-        }
-        if (isMockLocation(loc)) {
-            Log.w(TAG, "Rejected mock location for event=" + event);
-            return;
-        }
-        Double lat = loc.getLatitude();
-        Double lng = loc.getLongitude();
-        Float acc = loc.hasAccuracy() ? loc.getAccuracy() : null;
-        send(ctx, event, zoneId, lat, lng, acc, ssid, bssid, freshOccurredMs(loc));
-    }
-
-    /** Office Wi-Fi event with no GPS (location off / timed out). */
-    static void sendWifiOnly(Context ctx, String event, String ssid, String bssid) {
-        Context app = ctx.getApplicationContext();
-        if (!AttendancePingStore.enabled(app)) return;
-        try {
-            JSONObject body = new JSONObject();
-            body.put("device_token", AttendancePingStore.deviceToken(app));
-            body.put("event", event);
-            if (ssid != null) body.put("ssid", stripQuotes(ssid));
-            if (bssid != null) body.put("bssid", bssid.toLowerCase(Locale.US));
-            long now = System.currentTimeMillis();
-            body.put("occurred_at_utc_ms", now);
-            body.put("device_now_utc_ms", now);
-            body.put("device_timezone", AttendancePingStore.deviceTimezone());
-            body.put("is_mock", false);
-            body.put("gps_available", false);
-            body.put("device_id", AttendancePingStore.deviceId(app));
-            body.put("platform", "android");
-            body.put("app_version", AttendancePingStore.appVersion(app));
-            IO.execute(() -> postOrQueue(app, body));
-        } catch (Exception e) {
-            Log.w(TAG, "build wifi-only event failed", e);
-        }
+        send(ctx, event, zoneId, lat, lng, acc, null, null);
     }
 
     static void sendWifiEvent(Context ctx, String event, String ssid, String bssid) {
@@ -120,23 +63,15 @@ final class AttendanceEventClient {
     static void send(Context ctx, String event, String zoneId,
                      Double lat, Double lng, Float accuracyM,
                      String ssid, String bssid) {
-        send(ctx, event, zoneId, lat, lng, accuracyM, ssid, bssid, null);
-    }
-
-    static void send(Context ctx, String event, String zoneId,
-                     Double lat, Double lng, Float accuracyM,
-                     String ssid, String bssid, Long occurredAtUtcMs) {
         Context app = ctx.getApplicationContext();
         if (!AttendancePingStore.enabled(app)) return;
-
-        long now = System.currentTimeMillis();
-        long occurred = occurredAtUtcMs != null && occurredAtUtcMs > 0 ? occurredAtUtcMs : now;
-        // connection_lost may arrive late — used only to close a visit.
-        boolean connectionLost = event != null && "connection_lost".equalsIgnoreCase(event);
-        if (!connectionLost && now - occurred > MAX_EVENT_AGE_MS) {
-            logStaleDrop(app, event, occurred, now - occurred, "pre-send");
+        // Never emit attendance signals outside W (R70).
+        if (!AttendancePingStore.isInsideActiveWindow(app)) {
+            Log.d(TAG, "Skip event outside window: " + event);
             return;
         }
+
+        long now = System.currentTimeMillis();
         try {
             JSONObject body = new JSONObject();
             body.put("device_token", AttendancePingStore.deviceToken(app));
@@ -147,7 +82,7 @@ final class AttendanceEventClient {
             if (accuracyM != null) body.put("accuracy_m", accuracyM.doubleValue());
             if (ssid != null) body.put("ssid", stripQuotes(ssid));
             if (bssid != null) body.put("bssid", bssid.toLowerCase(Locale.US));
-            body.put("occurred_at_utc_ms", occurred);
+            body.put("occurred_at_utc_ms", now);
             body.put("device_now_utc_ms", now);
             body.put("device_timezone", AttendancePingStore.deviceTimezone());
             body.put("is_mock", false);
@@ -161,96 +96,31 @@ final class AttendanceEventClient {
         }
     }
 
-    /** Flush offline queue: send connection_lost first, then newest fresh reading. */
     static void flushQueue(Context ctx) {
         Context app = ctx.getApplicationContext();
         IO.execute(() -> {
             JSONArray queue = AttendancePingStore.drainQueue(app);
-            long now = System.currentTimeMillis();
-            JSONObject connectionLost = null;
-            JSONObject newest = null;
-            long newestOccurred = -1;
+            JSONArray failed = new JSONArray();
             for (int i = 0; i < queue.length(); i++) {
                 try {
                     JSONObject body = queue.getJSONObject(i);
-                    String ev = body.optString("event", "");
-                    long occurred = body.optLong("occurred_at_utc_ms", 0L);
-                    boolean isLost = "connection_lost".equalsIgnoreCase(ev);
-                    if (!isLost && (occurred <= 0 || now - occurred > MAX_EVENT_AGE_MS)) {
-                        logStaleDrop(
-                            app,
-                            ev.isEmpty() ? "?" : ev,
-                            occurred,
-                            occurred > 0 ? now - occurred : -1,
-                            "queue-flush"
-                        );
-                        continue;
-                    }
-                    if (isLost) {
-                        if (connectionLost == null
-                            || occurred <= connectionLost.optLong("occurred_at_utc_ms", Long.MAX_VALUE)) {
-                            connectionLost = body;
-                        }
-                        continue;
-                    }
-                    if (occurred >= newestOccurred) {
-                        newestOccurred = occurred;
-                        newest = body;
-                    } else {
-                        logStaleDrop(app, ev, occurred, now - occurred, "queue-superseded");
+                    body.put("device_now_utc_ms", System.currentTimeMillis());
+                    if (!postOnce(app, body)) {
+                        failed.put(body);
                     }
                 } catch (Exception e) {
                     /* drop corrupt */
                 }
             }
-            JSONArray failed = new JSONArray();
-            try {
-                if (connectionLost != null) {
-                    connectionLost.put("device_now_utc_ms", System.currentTimeMillis());
-                    if (!postOnce(app, connectionLost)) failed.put(connectionLost);
-                }
-                if (newest != null) {
-                    newest.put("device_now_utc_ms", System.currentTimeMillis());
-                    if (!postOnce(app, newest)) failed.put(newest);
-                }
-                if (failed.length() > 0) {
-                    AttendancePingStore.restoreQueue(app, failed);
-                    updateStatusNotification(app, "No connection - will check when online", null);
-                }
-            } catch (Exception e) {
-                Log.w(TAG, "flush newest failed", e);
+            if (failed.length() > 0) {
+                AttendancePingStore.restoreQueue(app, failed);
             }
         });
-    }
-
-    /** Persist a local connection_lost marker (exact disconnect time). */
-    static void saveConnectionLost(Context ctx) {
-        Context app = ctx.getApplicationContext();
-        if (!AttendancePingStore.enabled(app)) return;
-        long now = System.currentTimeMillis();
-        try {
-            JSONObject body = new JSONObject();
-            body.put("device_token", AttendancePingStore.deviceToken(app));
-            body.put("event", "connection_lost");
-            body.put("occurred_at_utc_ms", now);
-            body.put("device_now_utc_ms", now);
-            body.put("device_timezone", AttendancePingStore.deviceTimezone());
-            body.put("is_mock", false);
-            body.put("gps_available", false);
-            body.put("device_id", AttendancePingStore.deviceId(app));
-            body.put("platform", "android");
-            body.put("app_version", AttendancePingStore.appVersion(app));
-            AttendancePingStore.enqueueEvent(app, body);
-            Log.i(TAG, "queued connection_lost at " + now);
-        } catch (Exception e) {
-            Log.w(TAG, "saveConnectionLost failed", e);
-        }
     }
 
     private static void postOrQueue(Context app, JSONObject body) {
         if (!postOnce(app, body)) {
             AttendancePingStore.enqueueEvent(app, body);
-            updateStatusNotification(app, "No connection - will check when online", null);
         }
     }
 
@@ -264,13 +134,14 @@ final class AttendanceEventClient {
         try {
             URL url = new URL(base.replaceAll("/$", "") + "/functions/v1/auto-attendance-event");
             conn = (HttpURLConnection) url.openConnection();
-            conn.setConnectTimeout(12000);
-            conn.setReadTimeout(12000);
+            conn.setConnectTimeout(20000);
+            conn.setReadTimeout(20000);
             conn.setRequestMethod("POST");
             conn.setDoOutput(true);
             conn.setRequestProperty("Content-Type", "application/json");
             conn.setRequestProperty("apikey", anon);
             conn.setRequestProperty("x-device-token", token);
+            // Device-token auth only — never send JWT Authorization.
             byte[] bytes = body.toString().getBytes(StandardCharsets.UTF_8);
             conn.setFixedLengthStreamingMode(bytes.length);
             try (OutputStream os = conn.getOutputStream()) {
@@ -281,14 +152,13 @@ final class AttendanceEventClient {
                 code >= 200 && code < 300 ? conn.getInputStream() : conn.getErrorStream()
             );
             if (code >= 200 && code < 300) {
-                handleResponse(app, respText, body);
+                handleResponse(app, respText);
                 return true;
             }
             if (code == 401) {
                 try {
                     JSONObject err = new JSONObject(respText);
-                    String reason = err.optString("reason", "");
-                    if (err.optBoolean("stop_tracking", false) && isHardStopReason(reason)) {
+                    if (err.optBoolean("stop_tracking", false)) {
                         AttendanceScheduleController.stopAll(app);
                     }
                 } catch (Exception ignored) {
@@ -304,149 +174,19 @@ final class AttendanceEventClient {
         }
     }
 
-    /** Only revoke enrollment for hard failures — never after a normal check-out. */
-    private static boolean isHardStopReason(String reason) {
-        if (reason == null) return false;
-        switch (reason) {
-            case "missing_token":
-            case "invalid_token":
-            case "revoked_token":
-            case "user_gone":
-            case "feature_off":
-            case "work_mode_remote":
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    private static void handleResponse(Context app, String respText, JSONObject requestBody) {
+    private static void handleResponse(Context app, String respText) {
         try {
             JSONObject json = new JSONObject(respText);
-            String action = json.optString("action", "");
-            String reason = json.optString("reason", action);
-            if (json.optBoolean("stop_tracking", false) && isHardStopReason(reason)) {
+            if (json.optBoolean("stop_tracking", false)) {
                 AttendanceScheduleController.stopAll(app);
                 return;
             }
-            if ("clock_in".equals(action)) {
+            String action = json.optString("action", "");
+            if ("clock_in".equals(action) || "clock_out".equals(action)) {
                 showCheckNotification(app, action, json);
-                String notify = firstString(json, "notify_message");
-                String src = firstString(json, "attendance_source", "source");
-                boolean noGps = "auto_wifi_no_gps".equals(src)
-                    || (requestBody != null && !requestBody.has("lat"));
-                String localTime = firstString(json, "local_time", "local_check_time");
-                long occurredMs = parseOccurredMs(json);
-                if (localTime == null && occurredMs > 0) {
-                    localTime = formatInTz(occurredMs, AttendancePingStore.deviceTimezone());
-                }
-                String msg;
-                if (notify != null && !notify.isEmpty()) {
-                    msg = notify;
-                } else if (noGps) {
-                    msg = "Checked in on office Wi-Fi (location is off)";
-                } else if (localTime != null) {
-                    msg = "Checked in at " + localTime;
-                } else {
-                    msg = "Checked in";
-                }
-                updateStatusNotification(app, msg, requestBody);
-                AttendancePingStore.setAwaitingOfficeWifi(app, false);
-            } else if ("clock_out".equals(action)) {
-                showCheckNotification(app, action, json);
-                String notify = firstString(json, "notify_message");
-                String localTime = firstString(json, "local_time", "local_check_time");
-                long occurredMs = parseOccurredMs(json);
-                if (localTime == null && occurredMs > 0) {
-                    localTime = formatInTz(occurredMs, AttendancePingStore.deviceTimezone());
-                }
-                String msg;
-                if (notify != null && !notify.isEmpty()) {
-                    msg = notify;
-                } else if (localTime != null) {
-                    msg = "Checked out - left the office radius at " + localTime;
-                } else {
-                    msg = "Checked out";
-                }
-                updateStatusNotification(app, msg, requestBody);
-                // Keep FGS + geofences + heartbeat; watch for return.
-                AttendancePingStore.setAwaitingOfficeWifi(app, true);
-                AttendancePingService.start(app);
-                AttendanceScheduleController.armFromCache(app);
-                IO.execute(() -> {
-                    try {
-                        Thread.sleep(1500L);
-                        String[] wifi = AttendancePingStore.readCurrentWifiIdentity(app);
-                        sendWifiOnly(app, "ping", wifi[0], wifi[1]);
-                    } catch (Exception e) {
-                        Log.w(TAG, "re-ping after clock_out", e);
-                    }
-                });
-            } else if ("not_on_office_wifi".equals(action) || "not_on_office_network".equals(action)) {
-                AttendancePingStore.setAwaitingOfficeWifi(app, true);
-                AttendancePingService.start(app);
-                String notify = firstString(json, "notify_message");
-                String msg = notify != null && !notify.isEmpty() ? notify : humanReason(reason);
-                updateStatusNotification(app, msg, requestBody);
-            } else if ("already_clocked_out".equals(action)) {
-                String notify = firstString(json, "notify_message");
-                if (notify != null && !notify.isEmpty()) {
-                    showRejectNotification(app, notify);
-                    updateStatusNotification(app, notify, requestBody);
-                } else {
-                    updateStatusNotification(app, null, requestBody);
-                }
-            } else if (!action.isEmpty() && !"none".equals(action) && !"already_clocked_in".equals(action)
-                && !"already_checked_in".equals(action)) {
-                String notify = firstString(json, "notify_message");
-                String msg = notify != null && !notify.isEmpty() ? notify : humanReason(reason);
-                showRejectNotification(app, msg);
-                updateStatusNotification(app, msg, requestBody);
-            } else {
-                String notify = firstString(json, "notify_message");
-                if (notify != null && !notify.isEmpty()) {
-                    showRejectNotification(app, notify);
-                    updateStatusNotification(app, notify, requestBody);
-                } else {
-                    updateStatusNotification(app, null, requestBody);
-                }
             }
-            AttendancePingStore.setLastServerAction(app, action, System.currentTimeMillis());
         } catch (Exception e) {
             Log.w(TAG, "parse response", e);
-        }
-    }
-
-    private static String humanReason(String reason) {
-        if (reason == null || reason.isEmpty()) return "Attendance update";
-        switch (reason) {
-            case "not_on_office_wifi":
-            case "not_on_office_network":
-                return "Connect to the office Wi-Fi";
-            case "outside_radius":
-            case "outside_office":
-                return "You are outside the office radius";
-            case "gps_unusable":
-            case "need_fresh_location":
-                return "Location unavailable, try again";
-            case "checkin_blocked_shift_ended":
-                return "The shift has ended. You cannot check in.";
-            case "outside_window":
-                return "Outside the attendance window";
-            case "event_too_old":
-                return "Reading was too old — get a fresh location";
-            case "already_clocked_in":
-                return "Checked in";
-            default:
-                // Never show raw database / plpgsql errors.
-                if (reason.contains("v_chk") || reason.contains("not assigned")
-                    || reason.contains("PL/pgSQL") || reason.contains("SQLSTATE")) {
-                    return "Clock out failed, please try again";
-                }
-                if (reason.contains(" ") || reason.contains("\n")) {
-                    return "Clock out failed, please try again";
-                }
-                return reason.replace('_', ' ');
         }
     }
 
@@ -457,93 +197,44 @@ final class AttendanceEventClient {
 
         String localTime = firstString(json,
             "local_time", "local_check_time", "check_local_time", "device_local_time");
+        String officeTime = firstString(json,
+            "office_time", "office_check_time", "check_office_time", "company_local_time");
+
         long occurredMs = parseOccurredMs(json);
         if (localTime == null && occurredMs > 0) {
             localTime = formatInTz(occurredMs, AttendancePingStore.deviceTimezone());
         }
+        if (officeTime == null && occurredMs > 0) {
+            officeTime = formatInTz(occurredMs, AttendancePingStore.companyTz(app));
+        }
 
-        String text;
-        if (checkIn) {
-            String src = firstString(json, "attendance_source", "source");
-            boolean noGps = "auto_wifi_no_gps".equals(src) || "manual_wifi_no_gps".equals(src);
-            if (noGps) {
-                text = "Checked in on office Wi-Fi (location is off)";
-            } else {
-                text = localTime != null ? "Checked in at " + localTime : "Checked in";
-            }
-        } else if (localTime != null) {
-            text = "Checked out - left the office radius at " + localTime;
+        String notifyMsg = firstString(json, "notify_message");
+        StringBuilder text = new StringBuilder();
+        if (notifyMsg != null) {
+            text.append(notifyMsg);
+        } else if (!checkIn && localTime != null) {
+            text.append("Checked out at ").append(localTime).append(" — you left the office.");
         } else {
-            text = "Checked out";
+            text.append(checkIn ? "Auto check-in" : "Auto check-out");
+            if (localTime != null && officeTime != null && !localTime.equals(officeTime)) {
+                text.append(": ").append(localTime).append(" (local) / ").append(officeTime).append(" (office)");
+            } else if (localTime != null) {
+                text.append(" at ").append(localTime);
+            } else if (officeTime != null) {
+                text.append(" at ").append(officeTime).append(" (office)");
+            }
         }
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(app, NOTIFY_CHANNEL)
             .setContentTitle(title)
-            .setContentText(text)
-            .setStyle(new NotificationCompat.BigTextStyle().bigText(text))
+            .setContentText(text.toString())
+            .setStyle(new NotificationCompat.BigTextStyle().bigText(text.toString()))
             .setSmallIcon(R.mipmap.ic_launcher)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT);
 
         NotificationManager nm = app.getSystemService(NotificationManager.class);
         if (nm != null) nm.notify(NOTIFY_ID + (checkIn ? 1 : 2), builder.build());
-    }
-
-    private static void showRejectNotification(Context app, String reason) {
-        if (reason == null || reason.isEmpty()) return;
-        createNotifyChannel(app);
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(app, NOTIFY_CHANNEL)
-            .setContentTitle("Attendance check")
-            .setContentText(reason)
-            .setStyle(new NotificationCompat.BigTextStyle().bigText(reason))
-            .setSmallIcon(R.mipmap.ic_launcher)
-            .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW);
-        NotificationManager nm = app.getSystemService(NotificationManager.class);
-        if (nm != null) nm.notify(NOTIFY_ID + 3, builder.build());
-    }
-
-    static void updateStatusNotification(Context app, String statusOverride, JSONObject lastBody) {
-        createStatusChannel(app);
-        String status = statusOverride;
-        if (status == null || status.isEmpty()) {
-            status = AttendancePingStore.lastStatusText(app);
-            if (status == null || status.isEmpty()) status = "Tracking office presence";
-        } else {
-            AttendancePingStore.setLastStatusText(app, status);
-        }
-
-        StringBuilder text = new StringBuilder(status);
-        if (lastBody != null) {
-            if (lastBody.has("lat") && lastBody.has("lng")) {
-                text.append(" · GPS ok");
-            }
-            long occurred = lastBody.optLong("occurred_at_utc_ms", 0L);
-            if (occurred > 0) {
-                String t = formatInTz(occurred, AttendancePingStore.deviceTimezone());
-                if (t != null) text.append(" · signal ").append(t);
-            }
-        }
-
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(app, STATUS_CHANNEL)
-            .setContentTitle("Scorr attendance")
-            .setContentText(text.toString())
-            .setStyle(new NotificationCompat.BigTextStyle().bigText(text.toString()))
-            .setSmallIcon(R.mipmap.ic_launcher)
-            .setOngoing(true)
-            .setSilent(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW);
-
-        NotificationManager nm = app.getSystemService(NotificationManager.class);
-        if (nm != null) nm.notify(STATUS_NOTIFY_ID, builder.build());
-    }
-
-    private static void logStaleDrop(Context app, String event, long occurred, long ageMs, String source) {
-        Log.i(TAG, "dropped stale event source=" + source
-            + " event=" + event
-            + " age_ms=" + ageMs
-            + " occurred_at_utc_ms=" + occurred);
-        AttendancePingStore.recordStaleDrop(app, event, ageMs, source);
     }
 
     private static String firstString(JSONObject json, String... keys) {
@@ -606,18 +297,6 @@ final class AttendanceEventClient {
             NotificationManager.IMPORTANCE_DEFAULT
         );
         channel.setDescription("Notifies you when Scorr automatically checks you in or out.");
-        NotificationManager nm = app.getSystemService(NotificationManager.class);
-        if (nm != null) nm.createNotificationChannel(channel);
-    }
-
-    private static void createStatusChannel(Context app) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
-        NotificationChannel channel = new NotificationChannel(
-            STATUS_CHANNEL,
-            "Attendance location",
-            NotificationManager.IMPORTANCE_LOW
-        );
-        channel.setDescription("Shows current attendance tracking status during your shift.");
         NotificationManager nm = app.getSystemService(NotificationManager.class);
         if (nm != null) nm.createNotificationChannel(channel);
     }

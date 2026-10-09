@@ -279,8 +279,20 @@ export default function AutoAttendanceSettings({
     );
   }
 
-  // Never return a fullscreen-only wizard here — Settings siblings
-  // (Change password / Account security / Delete account) must stay visible.
+  if (showWizard && isAutoAttendanceClient()) {
+    return (
+      <AutoAttendanceSetupWizard
+        onClose={() => {
+          setShowWizard(false);
+          void load();
+        }}
+        onFinished={() => {
+          setHasToken(true);
+          void load();
+        }}
+      />
+    );
+  }
 
   const msgLooksError = /fail|error|denied|cannot|must|please/i.test(msg);
 
@@ -374,36 +386,8 @@ export default function AutoAttendanceSettings({
                 </>
               )}
             </div>
-          ) : showWizard ? (
-            <AutoAttendanceSetupWizard
-              inline
-              onFinished={() => {
-                setShowWizard(false);
-                setHasToken(true);
-                void load();
-              }}
-              onClose={() => {
-                setShowWizard(false);
-                void load();
-              }}
-            />
           ) : hasToken ? (
-            /* Status card only — never mount the step wizard (avoids fullscreen overlay). */
-            <AutoAttendanceSetupWizard
-              inline
-              statusOnly
-              onFinished={() => {
-                setHasToken(false);
-                setShowWizard(false);
-                void load();
-              }}
-              onClose={() => {
-                setHasToken(false);
-                setShowWizard(false);
-                void load();
-              }}
-              onFixProblem={() => setShowWizard(true)}
-            />
+            <AutoAttendanceSetupWizard onFinished={() => void load()} />
           ) : (
             <>
               <p className="aas-device-block__lead">

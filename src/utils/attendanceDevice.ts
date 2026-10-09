@@ -7,16 +7,16 @@ import { Preferences } from '@capacitor/preferences';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '../lib/supabase';
 import { supabaseUrl, supabaseAnonKey } from '../lib/supabaseConfig';
-import { isNativeApp, isDesktopApp, isIosHomeScreen, clientAttendancePlatform } from './nativePlatform';
+import { isNativeApp, isDesktopApp } from './nativePlatform';
 
 const TOKEN_KEY = 'scorr_attendance_device_token';
 const DEVICE_ID_KEY = 'scorr_attendance_device_id';
 
 export const PHONE_OPT_IN_TEXT =
-  'After this one-time setup, Scorr checks you in on office Wi-Fi during your shift window. If location is on and accurate, you must also be inside the office radius. If location is off, office Wi-Fi alone is enough to check in. Check-in runs from 1 hour before your shift until the shift ends.';
+  'After this one-time setup, Scorr checks you in when you arrive at the office or join the office Wi-Fi, and out when you leave. It only checks from 1 hour before your shift until 1 hour after it ends. Outside that time, location and Wi-Fi are never used.';
 
 export const LAPTOP_OPT_IN_TEXT =
-  'This laptop checks in on office Wi-Fi during your shift window. If location is on and accurate, you must also be inside the office radius. If location is off or weak, office Wi-Fi alone is enough to check in. Shutting the laptop down does not check you out.';
+  'When this laptop is switched on at the office during your shift window, you are checked in. Shutting it down or putting it to sleep checks you out.';
 
 async function secureGet(key: string): Promise<string | null> {
   try {
@@ -66,7 +66,14 @@ export async function getAttendanceDeviceToken(): Promise<string | null> {
 }
 
 function detectPlatform(): 'android' | 'ios' | 'windows' | 'linux' | 'web' {
-  return clientAttendancePlatform();
+  if (Capacitor.getPlatform() === 'android') return 'android';
+  if (Capacitor.getPlatform() === 'ios') return 'ios';
+  if (isDesktopApp()) {
+    const ua = navigator.userAgent.toLowerCase();
+    if (ua.includes('windows')) return 'windows';
+    return 'linux';
+  }
+  return 'web';
 }
 
 async function ensureDeviceId(): Promise<string> {
@@ -84,7 +91,7 @@ export async function registerAttendanceDevice(appVersion?: string): Promise<{
 }> {
   // Prefer direct RPC (JWT) — edge function historically hit BOOT_ERROR and hung clients with no timeout.
   const { registerDeviceViaRpc } = await import('./autoAttendanceSetup');
-  return registerDeviceViaRpc(appVersion || '1.3.19');
+  return registerDeviceViaRpc(appVersion || '1.3.7');
 }
 
 export async function disableAutoAttendanceOnDevice(kind: 'phone' | 'laptop' = 'phone'): Promise<void> {
@@ -94,12 +101,6 @@ export async function disableAutoAttendanceOnDevice(kind: 'phone' | 'laptop' = '
     try {
       const { stopNativeAttendancePings } = await import('./attendanceNativePing');
       await stopNativeAttendancePings();
-    } catch {
-      /* ignore */
-    }
-    try {
-      const { stopIosHomeAttendance } = await import('./attendanceIosHome');
-      stopIosHomeAttendance();
     } catch {
       /* ignore */
     }
@@ -131,25 +132,11 @@ export async function sendAutoAttendanceEvent(
   const token = await getAttendanceDeviceToken();
   if (!token || !supabaseUrl || !supabaseAnonKey) return null;
 
-  const { isAttendanceEventFresh, logStaleAttendanceDrop } = await import('./attendanceStaleQueue');
   const now = Date.now();
-  const occurredRaw = extra.occurred_at_utc_ms;
-  const occurred =
-    typeof occurredRaw === 'number' && Number.isFinite(occurredRaw) ? occurredRaw : now;
-  if (!isAttendanceEventFresh(occurred, now, event)) {
-    logStaleAttendanceDrop({
-      source: 'web-auto-event',
-      event,
-      age_ms: now - occurred,
-      occurred_at_utc_ms: occurred,
-    });
-    return { ok: false, reason: 'event_too_old', action: 'event_too_old', client_dropped: true };
-  }
-
   const body = {
     device_token: token,
     event,
-    occurred_at_utc_ms: occurred,
+    occurred_at_utc_ms: now,
     device_now_utc_ms: now,
     device_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     device_id: await ensureDeviceId(),
@@ -157,77 +144,18 @@ export async function sendAutoAttendanceEvent(
     ...extra,
   };
 
-  try {
-    const res = await fetch(`${supabaseUrl}/functions/v1/auto-attendance-event`, {
-      method: 'POST',
-      headers: {
-        apikey: supabaseAnonKey,
-        'Content-Type': 'application/json',
-        'x-device-token': token,
-      },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(12_000),
-    });
-    return (await res.json().catch(() => null)) as Record<string, unknown> | null;
-  } catch {
-    return {
-      ok: false,
-      reason: 'no_connection',
-      action: 'no_connection',
-      message: 'No connection - will check when online',
-    };
-  }
-}
-
-/** Attach GPS if available within 3s; otherwise send Wi-Fi-only (gps_available=false). */
-export async function sendAutoAttendanceEventWithLocation(
-  event: string,
-  extra: Record<string, unknown> = {},
-): Promise<Record<string, unknown> | null> {
-  const { requestCurrentPosition } = await import('./geoAttendance');
-  const readFix = async (timeout = 3000) => {
-    const pos = await Promise.race([
-      requestCurrentPosition({
-        enableHighAccuracy: true,
-        timeout,
-        maximumAge: 0,
-      }),
-      new Promise<null>((resolve) => {
-        window.setTimeout(() => resolve(null), timeout);
-      }),
-    ]);
-    if (!pos) return null;
-    return {
-      latitude: pos.coords.latitude,
-      longitude: pos.coords.longitude,
-      accuracy_m: pos.coords.accuracy ?? null,
-    };
-  };
-
-  let fix: Record<string, unknown> | null = null;
-  try {
-    fix = await readFix(3000);
-  } catch {
-    fix = null;
-  }
-  const payload = fix
-    ? { ...extra, ...fix, gps_available: true }
-    : { ...extra, gps_available: false };
-  let res = await sendAutoAttendanceEvent(event, payload);
-  // Check-out may still ask for GPS.
-  if (res?.action === 'need_fresh_location' || res?.action === 'gps_unusable') {
-    try {
-      fix = await readFix(8000);
-      if (fix) {
-        res = await sendAutoAttendanceEvent(event, { ...extra, ...fix, gps_available: true });
-      }
-    } catch {
-      /* keep the server reason */
-    }
-  }
-  return res;
+  const res = await fetch(`${supabaseUrl}/functions/v1/auto-attendance-event`, {
+    method: 'POST',
+    headers: {
+      apikey: supabaseAnonKey,
+      'Content-Type': 'application/json',
+      'x-device-token': token,
+    },
+    body: JSON.stringify(body),
+  });
+  return (await res.json().catch(() => null)) as Record<string, unknown> | null;
 }
 
 export function isAutoAttendanceClient(): boolean {
-  return isNativeApp() || isDesktopApp() || isIosHomeScreen();
+  return isNativeApp() || isDesktopApp();
 }

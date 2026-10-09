@@ -20,11 +20,9 @@ import { supabase } from '../lib/supabase';
 
 interface AccountSecurityPanelProps {
   fullName?: string;
-  /** When true, parent dashboard shows Delete my account as its own Settings section. */
-  omitDelete?: boolean;
 }
 
-export default function AccountSecurityPanel({ fullName, omitDelete = false }: AccountSecurityPanelProps) {
+export default function AccountSecurityPanel({ fullName }: AccountSecurityPanelProps) {
   const [status, setStatus] = useState<MfaRecoveryStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -92,14 +90,10 @@ export default function AccountSecurityPanel({ fullName, omitDelete = false }: A
     }
   };
 
-  // Never gate the whole panel behind MFA status so Settings stays reachable.
   if (loading && !status) {
     return (
-      <div className="account-security">
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '1.5rem' }}>
-          <Loader2 className="spin-icon" size={24} />
-        </div>
-        {!omitDelete && <DeleteAccountSection />}
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '1.5rem' }}>
+        <Loader2 className="spin-icon" size={24} />
       </div>
     );
   }
@@ -268,7 +262,7 @@ export default function AccountSecurityPanel({ fullName, omitDelete = false }: A
 
       <AboutUpdatesPanel />
 
-      {!omitDelete && <DeleteAccountSection />}
+      <DeleteAccountSection />
 
       {audit.length > 0 && (
         <div className="app-settings-block">

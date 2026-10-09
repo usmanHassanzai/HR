@@ -14,23 +14,9 @@ import {
   bootstrapAttendanceLocation,
   effectiveGeofenceRadius,
   localYmd,
-  attendanceActionMessage,
-  attendanceCheckoutMessage,
-  friendlyClockOutError,
-  isAttendanceSuccessAction,
   submitGeoClockEvent,
 } from '../utils/geoAttendance';
-import { LocationWindow, formatShiftTimeRange, hasAssignedShiftEnded, isWithinShiftExitWindow, locationWindowToMyShift, shouldCaptureLocationNow } from '../utils/shiftHelpers';
-import { Capacitor } from '@capacitor/core';
-import { isDesktopApp, isIosHomeScreen, isNativeApp } from '../utils/nativePlatform';
-import {
-  allowIosHomeLocationFromTap,
-  getIosHomeLocationError,
-  IOS_HOME_BACKGROUND_BANNER,
-  IOS_HOME_LOCATION_EVENT,
-  IOS_HOME_LOCATION_STEPS,
-} from '../utils/attendanceIosHome';
-import { getNativePermissionSnapshot } from '../utils/autoAttendanceSetup';
+import { LocationWindow, formatShiftTimeRange, isWithinShiftExitWindow, locationWindowToMyShift, shouldCaptureLocationNow } from '../utils/shiftHelpers';
 
 interface GeoAttendancePanelProps {
   onClockUpdate?: () => void;
@@ -44,142 +30,32 @@ interface WorkSite {
   radius_meters: number;
 }
 
-function rpcErrorMessage(err: unknown, intent?: 'clock_in' | 'clock_out'): string {
-  if (intent === 'clock_out') return friendlyClockOutError(err);
-  const raw =
-    err instanceof Error
-      ? err.message
-      : err && typeof err === 'object' && 'message' in err
-        ? String((err as { message: string }).message)
-        : String(err || '');
-  console.warn('[scorr-att] clock-in error', raw);
-  if (/v_chk|not assigned|PL\/pgSQL|SQLSTATE|relation |column /i.test(raw)) {
-    return 'Check-in failed, please try again';
+function rpcErrorMessage(err: unknown): string {
+  if (err && typeof err === 'object' && 'message' in err) {
+    return String((err as { message: string }).message);
   }
-  if (raw && !/^[a-z0-9_]+$/i.test(raw) && (raw.includes(' ') || raw.includes('\n'))) {
-    return 'Check-in failed, please try again';
-  }
-  if (/not_on_office_wifi|not_on_office_network/i.test(raw)) {
-    return attendanceActionMessage('not_on_office_wifi');
-  }
-  if (/outside_radius|outside_office/i.test(raw)) {
-    return attendanceActionMessage('outside_radius');
-  }
-  if (/checkin_blocked_shift_ended/i.test(raw)) {
-    return attendanceActionMessage('checkin_blocked_shift_ended');
-  }
-  if (raw) return attendanceActionMessage(raw);
-  return 'Check-in failed, please try again';
+  if (err instanceof Error) return err.message;
+  return 'Location check failed';
 }
 
-function formatClosedDuration(mins: number): string {
-  if (mins < 0) return '—';
+function formatDuration(mins: number | null | undefined): string {
+  if (mins == null || mins < 0) return '—';
   const h = Math.floor(mins / 60);
   const m = mins % 60;
   if (h <= 0) return `${m}m`;
   return `${h}h ${m}m`;
 }
 
-/** Live elapsed as mm:ss (or h:mm:ss). */
-function formatLiveDuration(ms: number): string {
-  const totalSec = Math.max(0, Math.floor(ms / 1000));
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-  const mm = String(m).padStart(2, '0');
-  const ss = String(s).padStart(2, '0');
-  if (h > 0) return `${h}:${mm}:${ss}`;
-  return `${mm}:${ss}`;
-}
-
-function formatDurationMs(ms: number, live: boolean): string {
-  if (live) return formatLiveDuration(ms);
-  return formatClosedDuration(Math.round(ms / 60000));
-}
-
-/** Valid closed out, or null when open / inverted (out before in). */
-function visitOutAt(v: AttendanceVisit): string | null {
-  if (!v.clock_out_at || !v.clock_in_at) return null;
-  if (Date.parse(v.clock_out_at) < Date.parse(v.clock_in_at)) return null;
-  return v.clock_out_at;
-}
-
-/** Open visit: null out, or inverted out-before-in (stale close race). */
-function isVisitOpen(v: AttendanceVisit): boolean {
-  return Boolean(v.clock_in_at && !visitOutAt(v));
-}
-
-/** Per-visit duration: clock-out − clock-in (open → now). Prefer timestamps over stored work_minutes. */
-function visitDurationMs(v: AttendanceVisit, nowMs: number, openCapMs?: number | null): number {
-  const start = Date.parse(v.clock_in_at);
-  if (!Number.isFinite(start)) return 0;
-  const out = visitOutAt(v);
-  let end = out ? Date.parse(out) : nowMs;
-  if (!Number.isFinite(end)) return 0;
-  if (!out && openCapMs != null && Number.isFinite(openCapMs) && end > openCapMs) {
-    end = openCapMs;
+function visitMinutes(v: AttendanceVisit): number {
+  if (v.work_minutes != null && v.work_minutes >= 0 && v.clock_out_at) return v.work_minutes;
+  if (v.work_minutes != null && v.work_minutes > 0) return v.work_minutes;
+  if (v.clock_in_at && v.clock_out_at) {
+    return Math.max(0, Math.round((Date.parse(v.clock_out_at) - Date.parse(v.clock_in_at)) / 60000));
   }
-  return Math.max(0, end - start);
-}
-
-/** Merge overlapping visit intervals so phone+laptop double-coverage counts once. */
-function mergedVisitsDurationMs(
-  visits: AttendanceVisit[],
-  nowMs: number,
-  openCapMs?: number | null,
-): number {
-  const intervals = visits
-    .map((v) => {
-      const start = Date.parse(v.clock_in_at);
-      if (!Number.isFinite(start)) return null;
-      const dur = visitDurationMs(v, nowMs, openCapMs);
-      return { start, end: start + dur };
-    })
-    .filter((x): x is { start: number; end: number } => x != null && x.end >= x.start)
-    .sort((a, b) => a.start - b.start);
-  if (intervals.length === 0) return 0;
-  let total = 0;
-  let curS = intervals[0].start;
-  let curE = intervals[0].end;
-  for (let i = 1; i < intervals.length; i++) {
-    const x = intervals[i];
-    if (x.start <= curE) curE = Math.max(curE, x.end);
-    else {
-      total += Math.max(0, curE - curS);
-      curS = x.start;
-      curE = x.end;
-    }
+  if (v.clock_in_at && !v.clock_out_at) {
+    return Math.max(0, Math.round((Date.now() - Date.parse(v.clock_in_at)) / 60000));
   }
-  total += Math.max(0, curE - curS);
-  return total;
-}
-
-function headerTimesFromVisits(
-  visits: AttendanceVisit[],
-  recordIn: string | null,
-  recordOut: string | null,
-): { clockIn: string | null; clockOut: string | null } {
-  if (visits.length === 0) {
-    if (recordIn && recordOut && Date.parse(recordOut) < Date.parse(recordIn)) {
-      return { clockIn: recordIn, clockOut: null };
-    }
-    return { clockIn: recordIn, clockOut: recordOut };
-  }
-  const sorted = [...visits].sort(
-    (a, b) => Date.parse(a.clock_in_at) - Date.parse(b.clock_in_at) || a.visit_number - b.visit_number,
-  );
-  const clockIn = sorted[0]?.clock_in_at || recordIn;
-  // Null out or inverted out-before-in keeps the shift open (CLOCK OUT blank).
-  if (sorted.some(isVisitOpen)) {
-    return { clockIn, clockOut: null };
-  }
-  let latestOut: string | null = null;
-  for (const v of sorted) {
-    const out = visitOutAt(v);
-    if (out && (!latestOut || Date.parse(out) > Date.parse(latestOut))) latestOut = out;
-  }
-  // Prefer latest valid visit out over a stale parent-record out (e.g. R69 race).
-  return { clockIn, clockOut: latestOut };
+  return 0;
 }
 
 function timeSlice(t: string | null | undefined): string {
@@ -197,80 +73,8 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
   const [checking, setChecking] = useState<'clock_in' | 'clock_out' | null>(null);
   const [nearby, setNearby] = useState<{ name: string; dist: number; inside: boolean; radius: number } | null>(null);
   const [error, setError] = useState('');
+  const [lastAccuracy, setLastAccuracy] = useState<number | null>(null);
   const [windowInfo, setWindowInfo] = useState<LocationWindow | null>(null);
-  const [nowMs, setNowMs] = useState(() => Date.now());
-  const [lastSignalAt, setLastSignalAt] = useState<number | null>(null);
-  const [wifiMatch, setWifiMatch] = useState<boolean | null>(null);
-  const [deviceInside, setDeviceInside] = useState<{ inside: boolean; distM: number | null } | null>(null);
-  const [statusMessage, setStatusMessage] = useState('');
-  /** iOS native only: surface While Using vs Always for background check-out. */
-  const [iosLocPermission, setIosLocPermission] = useState<string | null>(null);
-  const [iosPrecise, setIosPrecise] = useState<boolean | null>(null);
-  const [iosBgRefresh, setIosBgRefresh] = useState<string | null>(null);
-  const [lastOfficeSignalAt, setLastOfficeSignalAt] = useState<number | null>(null);
-  const [lastAnySignalAt, setLastAnySignalAt] = useState<number | null>(null);
-  const [laptopAsleepSince, setLaptopAsleepSince] = useState<number | null>(null);
-  const [iosHomeLocError, setIosHomeLocError] = useState<string | null>(null);
-  const [iosHomeLocBusy, setIosHomeLocBusy] = useState(false);
-
-  /** Apply latest enrolled-device event (not only in-browser portal pings). */
-  const applyDeviceEventRow = useCallback((row: {
-    created_at?: string | null;
-    occurred_at?: string | null;
-    accepted?: boolean | null;
-    reason_code?: string | null;
-    matched_method?: string | null;
-    latitude?: number | null;
-    longitude?: number | null;
-    accuracy_m?: number | null;
-    payload?: Record<string, unknown> | null;
-  } | null) => {
-    if (!row) return;
-    const at = row.occurred_at || row.created_at;
-    if (at) setLastSignalAt(new Date(at).getTime());
-    const payload = (row.payload && typeof row.payload === 'object') ? row.payload : {};
-    const wifiOk = payload.wifi_ok;
-    if (typeof wifiOk === 'boolean') {
-      setWifiMatch(wifiOk);
-    } else if (row.matched_method === 'wifi' || row.matched_method === 'laptop') {
-      setWifiMatch(true);
-    } else if (
-      row.reason_code === 'not_on_office_wifi'
-      || row.reason_code === 'not_on_office_network'
-    ) {
-      setWifiMatch(false);
-    }
-    const gpsOutside = payload.gps_outside;
-    const distRaw = payload.distance_m ?? payload.distance_meters ?? payload.distance;
-    const distM = typeof distRaw === 'number' && Number.isFinite(distRaw) ? Math.round(distRaw) : null;
-    if (typeof gpsOutside === 'boolean') {
-      setDeviceInside({ inside: !gpsOutside, distM });
-    } else if (row.reason_code === 'outside_radius' || row.reason_code === 'outside_office') {
-      setDeviceInside({ inside: false, distM });
-    } else if (row.accepted && (row.reason_code === 'clock_in' || row.reason_code === 'already_checked_in')) {
-      setDeviceInside({ inside: true, distM });
-    }
-    if (row.reason_code === 'clock_in' || row.reason_code === 'already_checked_in') {
-      setStatusMessage('Checked in');
-    } else if (row.reason_code === 'clock_out' || row.reason_code === 'clock_out_shift_end') {
-      setStatusMessage(attendanceActionMessage(row.reason_code));
-    } else if (row.accepted === false && row.reason_code) {
-      setStatusMessage(attendanceActionMessage(row.reason_code));
-    }
-  }, []);
-
-  const loadDeviceSignal = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data } = await supabase
-      .from('attendance_events_log')
-      .select('created_at, occurred_at, accepted, reason_code, matched_method, latitude, longitude, accuracy_m, payload')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    applyDeviceEventRow(data as Parameters<typeof applyDeviceEventRow>[0]);
-  }, [applyDeviceEventRow]);
 
   const loadToday = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -289,21 +93,15 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
       supabase.rpc('get_my_attendance_visits', { p_date: shiftDate }),
       supabase.rpc('get_my_location_window'),
     ]);
-    const visitList = (visitRows as AttendanceVisit[]) || [];
-    setVisits(visitList);
     if (data) {
-      const derived = headerTimesFromVisits(visitList, data.clock_in_at, data.clock_out_at);
-      setClockIn(derived.clockIn);
-      setClockOut(derived.clockOut);
+      setClockIn(data.clock_in_at);
+      setClockOut(data.clock_out_at);
       setSource(data.attendance_source || 'manual');
-    } else if (visitList.length > 0) {
-      const derived = headerTimesFromVisits(visitList, null, null);
-      setClockIn(derived.clockIn);
-      setClockOut(derived.clockOut);
     } else {
       setClockIn(null);
       setClockOut(null);
     }
+    setVisits((visitRows as AttendanceVisit[]) || []);
     const win = (winRows as LocationWindow[] | null)?.[0];
     if (win) {
       setWindowInfo({
@@ -312,8 +110,7 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
         end_time: timeSlice(win.end_time),
       });
     }
-    void loadDeviceSignal();
-  }, [loadDeviceSignal]);
+  }, []);
 
   const loadSites = useCallback(async () => {
     const [{ data: officesData }, { data: siteData, error: siteErr }] = await Promise.all([
@@ -340,165 +137,8 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
     void bootstrapAttendanceLocation();
   }, [loadToday, loadSites]);
 
-  useEffect(() => {
-    let cancelled = false;
-    const loadSignals = async () => {
-      try {
-        const { data } = await supabase.rpc('get_my_attendance_signal_times');
-        if (cancelled || !data || typeof data !== 'object') return;
-        const row = data as {
-          last_office_signal_at?: string | null;
-          last_any_signal_at?: string | null;
-          laptop_sleep_at?: string | null;
-        };
-        setLastOfficeSignalAt(
-          row.last_office_signal_at ? new Date(row.last_office_signal_at).getTime() : null,
-        );
-        setLastAnySignalAt(
-          row.last_any_signal_at ? new Date(row.last_any_signal_at).getTime() : null,
-        );
-        if (isDesktopApp()) {
-          const fromServer = row.laptop_sleep_at
-            ? new Date(row.laptop_sleep_at).getTime()
-            : null;
-          let fromLocal: number | null = null;
-          try {
-            const snap = await window.scorrDesktop?.getLaptopSleepStatus?.();
-            if (snap?.asleep && snap.asleepSinceMs) fromLocal = Number(snap.asleepSinceMs);
-          } catch {
-            /* ignore */
-          }
-          setLaptopAsleepSince(fromLocal ?? fromServer);
-        } else {
-          setLaptopAsleepSince(null);
-        }
-      } catch {
-        /* ignore */
-      }
-    };
-    void loadSignals();
-    const id = window.setInterval(() => void loadSignals(), 60_000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(id);
-    };
-  }, []);
-
-  useEffect(() => {
-    const isIosNative = isNativeApp() && Capacitor.getPlatform() === 'ios';
-    if (!isIosNative && !isIosHomeScreen()) return;
-    let cancelled = false;
-    const refresh = async () => {
-      try {
-        const snap = await getNativePermissionSnapshot();
-        if (cancelled) return;
-        if (isIosNative && snap.backgroundLocation !== 'granted' && snap.location === 'granted') {
-          setIosLocPermission('when_in_use');
-        } else if (isIosNative && snap.backgroundLocation === 'granted') {
-          setIosLocPermission('always');
-        } else if (isIosHomeScreen()) {
-          setIosLocPermission(snap.location === 'granted' ? 'home_granted' : snap.location === 'denied' ? 'home_denied' : 'home_prompt');
-        } else {
-          setIosLocPermission(null);
-        }
-        if (isIosNative) {
-          setIosPrecise(typeof snap.precise === 'boolean' ? snap.precise : null);
-          setIosBgRefresh(
-            typeof snap.backgroundAppRefresh === 'string' ? snap.backgroundAppRefresh : null,
-          );
-        } else {
-          setIosPrecise(null);
-          setIosBgRefresh(null);
-        }
-      } catch {
-        /* ignore */
-      }
-    };
-    void refresh();
-    const onVis = () => {
-      if (document.visibilityState === 'visible') void refresh();
-    };
-    const onIosHomeLoc = () => {
-      const err = getIosHomeLocationError();
-      setIosHomeLocError(err?.message ?? null);
-      void refresh();
-    };
-    window.addEventListener(IOS_HOME_LOCATION_EVENT, onIosHomeLoc);
-    document.addEventListener('visibilitychange', onVis);
-    return () => {
-      window.removeEventListener(IOS_HOME_LOCATION_EVENT, onIosHomeLoc);
-      cancelled = true;
-      document.removeEventListener('visibilitychange', onVis);
-    };
-  }, []);
-
-  // Realtime: attendance_records / visits / enrolled-device events_log.
-  useEffect(() => {
-    let channel: ReturnType<typeof supabase.channel> | null = null;
-    let cancelled = false;
-    void (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user || cancelled) return;
-      channel = supabase
-        .channel(`att-status-${user.id}`)
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'attendance_records', filter: `user_id=eq.${user.id}` },
-          () => {
-            void loadToday();
-            onClockUpdate?.();
-          },
-        )
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'attendance_visit_segments', filter: `user_id=eq.${user.id}` },
-          () => {
-            void loadToday();
-            onClockUpdate?.();
-          },
-        )
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'attendance_events_log', filter: `user_id=eq.${user.id}` },
-          (payload) => {
-            applyDeviceEventRow(payload.new as Parameters<typeof applyDeviceEventRow>[0]);
-            void loadToday();
-          },
-        )
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'office_locations' },
-          () => {
-            void loadSites();
-          },
-        )
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'employee_work_sites', filter: `user_id=eq.${user.id}` },
-          () => {
-            void loadSites();
-          },
-        )
-        .subscribe();
-    })();
-    return () => {
-      cancelled = true;
-      if (channel) void supabase.removeChannel(channel);
-    };
-  }, [loadToday, loadSites, onClockUpdate, applyDeviceEventRow]);
-
-  const openVisit = visits.some(isVisitOpen);
-  const openShiftPreview = Boolean(openVisit || (clockIn && !clockOut));
-
-  // Tick every second while checked in so session + shift totals count live.
-  useEffect(() => {
-    if (!openShiftPreview) return;
-    setNowMs(Date.now());
-    const id = window.setInterval(() => setNowMs(Date.now()), 1000);
-    return () => window.clearInterval(id);
-  }, [openShiftPreview]);
-
   const updateNearby = useCallback((lat: number, lng: number, accuracy?: number | null) => {
+    setLastAccuracy(accuracy ?? null);
     if (workSite) {
       const dist = distanceMeters(lat, lng, workSite.latitude, workSite.longitude);
       const radius = effectiveGeofenceRadius(workSite.radius_meters, accuracy);
@@ -535,28 +175,6 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
       const detail = (e as CustomEvent<GeoPingEventDetail>).detail;
       if (!detail?.result) return;
       setLastResult(detail.result);
-      setLastSignalAt(detail.checkedAt || Date.now());
-      if (detail.result.inside_office != null || detail.latitude != null) {
-        /* wifi match inferred from check-in success / reason codes */
-        const reason = detail.result.reason || detail.result.action;
-        if (reason === 'not_on_office_wifi' || reason === 'not_on_office_network') {
-          setWifiMatch(false);
-        } else if (
-          detail.result.action === 'clock_in' ||
-          detail.result.action === 'already_clocked_in'
-        ) {
-          setWifiMatch(true);
-        }
-      }
-      if (detail.result.action === 'clock_in' || detail.result.action === 'already_clocked_in') {
-        setStatusMessage('Checked in');
-      } else if (detail.result.action === 'clock_out' || detail.result.action === 'clock_out_shift_end') {
-        setStatusMessage(attendanceCheckoutMessage(detail.result));
-      } else if (detail.result.action === 'no_connection') {
-        setStatusMessage('No connection - will check when online');
-      } else if (!isAttendanceSuccessAction(detail.result.action)) {
-        setStatusMessage(attendanceActionMessage(detail.result.action || detail.result.reason));
-      }
       if (detail.latitude != null && detail.longitude != null) {
         updateNearby(detail.latitude, detail.longitude, detail.accuracy);
       }
@@ -597,49 +215,33 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
     }
     setChecking(intent);
     setError('');
-    setStatusMessage('');
     try {
       const result = await submitGeoClockEvent(intent);
       setLastResult(result);
-      setLastSignalAt(Date.now());
-      if (result.action === 'clock_in' || result.action === 'already_clocked_in') {
-        setStatusMessage('Checked in');
-        setWifiMatch(true);
-        setError('');
-      } else if (result.action === 'clock_out' || result.action === 'clock_out_shift_end') {
-        setStatusMessage(attendanceCheckoutMessage(result));
-        setError('');
-      } else if (result.action === 'no_connection') {
-        setStatusMessage('No connection - will check when online');
-        setError('No connection - will check when online');
-      } else if (!isAttendanceSuccessAction(result.action)) {
-        if (result.action === 'outside_office' && !workSite && offices.filter((o) => o.active).length === 0) {
+      if (result.action === 'outside_office') {
+        if (!workSite && offices.filter((o) => o.active).length === 0) {
           setError('No work location assigned. Ask admin: Office & Attendance → Assign people.');
-        } else if (result.action === 'no_open_visit') {
-          setError('Clock in first, then clock out.');
+        } else if (intent === 'clock_in') {
+          setError('You must be inside the office zone to clock in.');
         } else {
-          const msg = attendanceActionMessage(result.action || result.reason);
-          setError(msg);
-          setStatusMessage(msg);
+          setError('Clock in first, then clock out.');
         }
-        if (result.action === 'not_on_office_wifi' || result.action === 'not_on_office_network') {
-          setWifiMatch(false);
-        }
-      } else {
-        setError('');
+      }
+      if (result.action === 'shift_not_started') {
+        setError('You can clock in from 1 hour before your shift starts.');
       }
       await loadToday();
-      if (isAttendanceSuccessAction(result.action)) {
+      if (
+        result.action === 'clock_in' ||
+        result.action === 'clock_out' ||
+        result.action === 'clock_out_shift_end' ||
+        result.action === 'already_clocked_in' ||
+        result.action === 'already_clocked_out'
+      ) {
         onClockUpdate?.();
       }
     } catch (e: unknown) {
-      const raw = e instanceof Error ? e.message : String(e || '');
-      const offline = /fetch|network|Failed to fetch|offline/i.test(raw);
-      const msg = offline
-        ? 'No connection - will check when online'
-        : rpcErrorMessage(e, intent);
-      setError(msg);
-      setStatusMessage(msg);
+      setError(rpcErrorMessage(e));
     } finally {
       setChecking(null);
     }
@@ -648,36 +250,9 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
   const hasAnySite = !!workSite || offices.some((o) => o.active);
   const siteRadius = workSite?.radius_meters ?? offices.find((o) => o.active)?.radius_meters ?? 150;
   const inWindow = shouldCaptureLocationNow(windowInfo);
-  const shiftEnded = windowInfo ? hasAssignedShiftEnded(locationWindowToMyShift(windowInfo)) : false;
   const inExitWindow = windowInfo ? isWithinShiftExitWindow(locationWindowToMyShift(windowInfo)) : false;
+  const openVisit = visits.some((v) => !v.clock_out_at);
   const openShift = Boolean((clockIn && !clockOut) || openVisit);
-  const openVisitRow = [...visits].filter(isVisitOpen).sort(
-    (a, b) => Date.parse(b.clock_in_at) - Date.parse(a.clock_in_at),
-  )[0];
-  const sessionStartAt = openVisitRow?.clock_in_at || (openShift ? clockIn : null);
-  const sessionMs = sessionStartAt ? Math.max(0, nowMs - Date.parse(sessionStartAt)) : 0;
-  // Open visits count until now, capped at shift end + 1 hour when the window is known.
-  const openCapMs = (() => {
-    if (!windowInfo?.end_time) return null;
-    try {
-      const endIso = (windowInfo as { shift_end_utc?: string; window_end_utc?: string }).shift_end_utc
-        || (windowInfo as { window_end_utc?: string }).window_end_utc;
-      if (endIso) {
-        const end = Date.parse(endIso);
-        if (Number.isFinite(end)) return end + 60 * 60_000;
-      }
-    } catch {
-      /* ignore */
-    }
-    return null;
-  })();
-  // No visit rows yet (legacy / race): count from header clock-in while open.
-  const fallbackOpenMs = visits.length === 0 && openShift && clockIn
-    ? Math.max(0, nowMs - Date.parse(clockIn))
-    : 0;
-  const totalShiftMs = (visits.length > 0
-    ? mergedVisitsDurationMs(visits, nowMs, openCapMs)
-    : 0) + fallbackOpenMs;
 
   return (
     <div className="attendance-card geo-attendance-panel">
@@ -686,8 +261,8 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
         <span className="badge badge-on-track geo-attendance-panel__badge">Entry + exit</span>
       </h3>
       <p className="attendance-card__subtitle">
-        Check-in needs both the office Wi-Fi and a GPS reading inside the office radius. Mobile data, home Wi-Fi, or a copied Wi-Fi name does not check you in. GPS inside the office without the office Wi-Fi does not check you in. Work-from-home days marked by Admin or HR are exempt.
-        Manual Clock in / Clock out stay available as an override. Multiple visits in one shift are saved and minutes are added (time away is not counted).
+        GPS auto check-in when you enter the office during shift hours, and auto check-out when you leave — no need to open the dashboard each time (phone app runs in the background after you sign in once).
+        Manual Clock in / Clock out still work anytime. Multiple visits in one shift are saved and minutes are added (time away is not counted).
         {windowInfo
           ? ` Hours: ${formatShiftTimeRange(windowInfo.start_time, windowInfo.end_time, windowInfo.crosses_midnight)}${windowInfo.source === 'shift' && windowInfo.shift_name ? ` · ${windowInfo.shift_name}` : ' · company window'}.`
           : ' Hours follow your assigned shift, or the company window.'}
@@ -696,7 +271,8 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
       {workSite && (
         <p className="geo-hint geo-hint--spaced">
           <Radio size={14} /> Your team site: <strong>{workSite.site_name}</strong>
-          {' '}({workSite.radius_meters}m zone)
+          {' '}({workSite.radius_meters}m zone
+          {lastAccuracy != null ? ` + ~${Math.round(lastAccuracy)}m GPS buffer` : ''})
         </p>
       )}
 
@@ -708,17 +284,12 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
       )}
       {openShift && (
         <p className="attendance-present-banner attendance-present-banner--spaced" role="status">
-          You are still present in the office and working. Auto check-out runs when a GPS reading is outside the office radius; use Clock out only if you need to leave early.
+          You are still present in the office and working. Check out when you leave — you can check in again any time during the shift.
         </p>
       )}
-      {!openShift && clockIn && clockOut && inWindow && !shiftEnded && (
+      {!openShift && clockIn && clockOut && inWindow && (
         <p className="attendance-present-banner attendance-present-banner--out attendance-present-banner--spaced" role="status">
-          Checked out. Auto check-in runs if you return during the shift; Clock in is only needed as a backup.
-        </p>
-      )}
-      {!openShift && clockIn && clockOut && shiftEnded && (
-        <p className="attendance-present-banner attendance-present-banner--out attendance-present-banner--spaced" role="status">
-          Checked out. Shift has ended — auto check-in will not run. Manual Clock in is blocked after shift end.
+          Checked out. Clock in again if you return before the shift ends.
         </p>
       )}
       {openShift && !inWindow && inExitWindow && (
@@ -727,7 +298,7 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
         </p>
       )}
 
-      <div className={`geo-clock-stats${openShift || totalShiftMs > 0 ? ' geo-clock-stats--with-duration' : ''}`}>
+      <div className="geo-clock-stats">
         <div className="geo-clock-stat">
           <span className="geo-clock-stat__label">Clock in</span>
           <strong>{formatClockTime(clockIn)}</strong>
@@ -735,200 +306,30 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
         </div>
         <div className="geo-clock-stat">
           <span className="geo-clock-stat__label">Clock out</span>
-          <strong>{openShift ? '—' : formatClockTime(clockOut)}</strong>
+          <strong>{formatClockTime(clockOut)}</strong>
         </div>
-        {(openShift || totalShiftMs > 0) && (
-          <div className="geo-clock-stat geo-clock-stat--duration">
-            <span className="geo-clock-stat__label">{openShift ? 'On site now' : 'Shift total'}</span>
-            <strong className={openShift ? 'geo-clock-stat__live' : undefined}>
-              {formatDurationMs(openShift ? sessionMs : totalShiftMs, openShift)}
-            </strong>
-            {openShift && totalShiftMs > sessionMs && (
-              <span className="geo-clock-stat__tag">
-                {formatDurationMs(totalShiftMs, true)} shift
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-
-      {isIosHomeScreen() && (
-        <>
-          <p className="geo-hint geo-hint--spaced" role="note">
-            {IOS_HOME_BACKGROUND_BANNER}
-          </p>
-          <p className="geo-hint geo-hint--spaced" role="note">
-            {IOS_HOME_LOCATION_STEPS}
-          </p>
-          {(iosHomeLocError ||
-            iosLocPermission === 'home_denied' ||
-            iosLocPermission === 'home_prompt' ||
-            deviceInside == null) && (
-            <div className="geo-hint geo-hint--spaced" role="status">
-              {iosHomeLocError && <p>{iosHomeLocError}</p>}
-              <button
-                type="button"
-                className="btn btn-primary"
-                disabled={iosHomeLocBusy}
-                onClick={() => {
-                  setIosHomeLocBusy(true);
-                  void allowIosHomeLocationFromTap()
-                    .then((r) => {
-                      setIosHomeLocError(r.ok ? null : r.message);
-                      if (r.ok) setIosLocPermission('home_granted');
-                    })
-                    .finally(() => setIosHomeLocBusy(false));
-                }}
-              >
-                {iosHomeLocBusy ? 'Getting location…' : 'Allow location'}
-              </button>
-            </div>
-          )}
-        </>
-      )}
-      {iosLocPermission === 'when_in_use' && (
-        <p className="geo-hint geo-hint--spaced" role="status">
-          Location is set to While Using. Open Settings → Scorr → Location → Always so check-out still runs when you leave the office with the app closed.
-        </p>
-      )}
-      {iosLocPermission === 'home_denied' && (
-        <p className="geo-hint geo-hint--spaced" role="status">
-          Location is off. On office Wi-Fi, check-in and Clock out still work; turn location on for GPS check-out.
-        </p>
-      )}
-      {iosPrecise === false && (
-        <p className="geo-hint geo-hint--spaced" role="status">
-          Precise Location is off. Open Settings → Scorr → Location → turn on Precise Location so office check-out works correctly.
-        </p>
-      )}
-      {iosBgRefresh === 'off' && (
-        <p className="geo-hint geo-hint--spaced" role="status">
-          Background App Refresh is off. Open Settings → General → Background App Refresh → On (and allow Scorr) so attendance can update in the background.
-        </p>
-      )}
-
-      <div className="geo-status-card" role="status">
-        {(iosLocPermission === 'when_in_use' || iosLocPermission === 'always' || iosLocPermission?.startsWith('home_')) && (
-          <div className="geo-status-card__row">
-            <span>Location permission</span>
-            <strong>
-              {iosLocPermission === 'always'
-                ? 'Always'
-                : iosLocPermission === 'when_in_use'
-                  ? 'While Using'
-                  : iosLocPermission === 'home_granted'
-                    ? 'Allowed (Home Screen)'
-                    : iosLocPermission === 'home_denied'
-                      ? 'Off / denied'
-                      : 'Not decided'}
-            </strong>
-          </div>
-        )}
-        {iosPrecise != null && (
-          <div className="geo-status-card__row">
-            <span>Precise Location</span>
-            <strong>{iosPrecise ? 'On' : 'Off'}</strong>
-          </div>
-        )}
-        {iosBgRefresh != null && (
-          <div className="geo-status-card__row">
-            <span>Background App Refresh</span>
-            <strong>{iosBgRefresh === 'on' ? 'On' : 'Off'}</strong>
-          </div>
-        )}
-        <div className="geo-status-card__row">
-          <span>Last signal</span>
-          <strong>
-            {(lastAnySignalAt || lastSignalAt)
-              ? new Date(lastAnySignalAt || lastSignalAt!).toLocaleTimeString(undefined, {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  second: '2-digit',
-                })
-              : '—'}
-          </strong>
-        </div>
-        <div className="geo-status-card__row">
-          <span>Last office signal</span>
-          <strong>
-            {lastOfficeSignalAt
-              ? new Date(lastOfficeSignalAt).toLocaleTimeString(undefined, {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  second: '2-digit',
-                })
-              : '—'}
-          </strong>
-        </div>
-        <div className="geo-status-card__row">
-          <span>Wi-Fi match</span>
-          <strong>{wifiMatch == null ? '—' : wifiMatch ? 'yes' : 'no'}</strong>
-        </div>
-        <div className="geo-status-card__row">
-          <span>Inside radius</span>
-          <strong>
-            {nearby
-              ? nearby.inside
-                ? `yes · ${nearby.dist}m`
-                : `no · ${nearby.dist}m`
-              : deviceInside
-                ? deviceInside.inside
-                  ? `yes${deviceInside.distM != null ? ` · ${deviceInside.distM}m` : ''}`
-                  : `no${deviceInside.distM != null ? ` · ${deviceInside.distM}m` : ''}`
-              : lastResult?.inside_office != null
-                ? lastResult.inside_office
-                  ? `yes${lastResult.distance_meters != null ? ` · ${Math.round(lastResult.distance_meters)}m` : ''}`
-                  : `no${lastResult.distance_meters != null ? ` · ${Math.round(lastResult.distance_meters)}m` : ''}`
-                : '—'}
-          </strong>
-        </div>
-        <div className="geo-status-card__row">
-          <span>Current state</span>
-          <strong>
-            {laptopAsleepSince
-              ? `Laptop asleep since ${new Date(laptopAsleepSince).toLocaleTimeString(undefined, {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}`
-              : openShiftPreview
-                ? source === 'auto_wifi_no_gps' || source === 'manual_wifi_no_gps'
-                  ? 'Checked in · No location - Wi-Fi only'
-                  : 'Checked in'
-                : clockIn && clockOut
-                  ? 'Checked out'
-                  : 'Not checked in'}
-          </strong>
-        </div>
-        {statusMessage && <p className="geo-status-card__msg">{statusMessage}</p>}
-        {(source === 'auto_wifi_no_gps' || source === 'manual_wifi_no_gps') && openShiftPreview && (
-          <p className="geo-status-card__msg" role="note">
-            Turn on location for exact check-out
-          </p>
-        )}
       </div>
 
       {nearby && (
         <p className={`geo-nearby ${nearby.inside ? '' : 'geo-nearby--out'}`}>
           <Radio size={14} />
           {nearby.inside
-            ? `Inside ${nearby.name} · ${nearby.dist}m from center. Check-in also needs the office Wi-Fi.`
-            : `Outside ${nearby.name} · ${nearby.dist}m away. Not inside the office radius.`}
+            ? `Inside ${nearby.name} · ${nearby.dist}m from center (zone ~${nearby.radius}m)`
+            : `Outside ${nearby.name} · ${nearby.dist}m away (need within ~${nearby.radius}m)`}
         </p>
       )}
 
       {lastResult && (
-        <p className={`geo-last-action ${lastResult.action === 'outside_office' || lastResult.action === 'outside_radius' || lastResult.action === 'need_fresh_location' || lastResult.action === 'not_on_office_network' || lastResult.action === 'not_on_office_wifi' || lastResult.action === 'shift_not_started' || lastResult.action === 'no_connection' ? 'geo-last-action--warn' : ''}`}>
+        <p className={`geo-last-action ${lastResult.action === 'outside_office' || lastResult.action === 'shift_not_started' ? 'geo-last-action--warn' : ''}`}>
           {lastResult.action === 'outside_office' ? (
             <>
               Still outside the office zone
               {lastResult.office_name ? ` · ${lastResult.office_name}` : ''}
               {lastResult.distance_meters != null ? ` · ${Math.round(lastResult.distance_meters)}m away` : ''}
               {lastResult.effective_radius_meters != null
-                ? ` · zone ${lastResult.effective_radius_meters}m`
-                : ` · zone ${siteRadius}m`}
+                ? ` · allowed up to ~${lastResult.effective_radius_meters}m`
+                : ` · zone ${siteRadius}m + GPS buffer`}
             </>
-          ) : lastResult.action === 'clock_out' || lastResult.action === 'clock_out_shift_end' ? (
-            <>{attendanceCheckoutMessage(lastResult)}</>
           ) : (
             <>
               Last action: {geoActionLabel(lastResult.action)}
@@ -947,34 +348,23 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
             <span>
               {visits.length} session{visits.length === 1 ? '' : 's'}
               {' · '}
-              {formatDurationMs(totalShiftMs, openShift)} total
+              {formatDuration(visits.reduce((s, v) => s + visitMinutes(v), 0))} total
             </span>
           </div>
           <ul className="geo-visit-history__list">
-            {visits.map((v) => {
-              const out = visitOutAt(v);
-              const open = isVisitOpen(v);
-              const inverted = Boolean(v.clock_out_at && !out);
-              return (
-              <li key={v.id} className={`geo-visit-history__item${open ? ' geo-visit-history__item--open' : ''}`}>
+            {visits.map((v) => (
+              <li key={v.id} className={`geo-visit-history__item${!v.clock_out_at ? ' geo-visit-history__item--open' : ''}`}>
                 <span className="geo-visit-history__num">#{v.visit_number}</span>
                 <div className="geo-visit-history__times">
                   <span><LogIn size={12} /> In {formatClockTime(v.clock_in_at)}</span>
                   <span>
                     <LogOut size={12} />
-                    {out
-                      ? ` Out ${formatClockTime(out)}`
-                      : inverted
-                        ? ' Out —'
-                        : ' On site now'}
+                    {v.clock_out_at ? ` Out ${formatClockTime(v.clock_out_at)}` : ' On site now'}
                   </span>
                 </div>
-                <span className="geo-visit-history__dur">
-                  {formatDurationMs(visitDurationMs(v, nowMs, openCapMs), open)}
-                </span>
+                <span className="geo-visit-history__dur">{formatDuration(visitMinutes(v))}</span>
               </li>
-              );
-            })}
+            ))}
           </ul>
         </div>
       )}

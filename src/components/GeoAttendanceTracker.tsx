@@ -5,8 +5,6 @@ import {
   refreshNativeAttendanceSession,
   startNativeAttendancePings,
 } from '../utils/attendanceNativePing';
-import { startIosHomeAttendance } from '../utils/attendanceIosHome';
-import { isIosHomeScreen } from '../utils/nativePlatform';
 import {
   AUTO_LOCATION_CHECK_MS,
   GEO_DASHBOARD_OPEN_EVENT,
@@ -23,10 +21,10 @@ interface GeoAttendanceTrackerProps {
 }
 
 /**
- * Auto geofence attendance for office/hybrid staff (priority over manual buttons):
+ * Auto geofence attendance for office/hybrid staff:
  * - Native apps: CL region monitoring / Android geofence via device token (no daily login)
  * - Web / foreground: ping while the portal session is active (including geo-hold)
- * Manual Clock in / Clock out remain in GeoAttendancePanel as override only.
+ * Manual Clock in / Clock out remain in GeoAttendancePanel.
  */
 export default function GeoAttendanceTracker({ profile, onUpdate }: GeoAttendanceTrackerProps) {
   const isEligible =
@@ -43,7 +41,6 @@ export default function GeoAttendanceTracker({ profile, onUpdate }: GeoAttendanc
     }
 
     void startNativeAttendancePings();
-    void startIosHomeAttendance();
 
     let cancelled = false;
     let watchId: AttendanceWatchId | null = null;
@@ -53,7 +50,7 @@ export default function GeoAttendanceTracker({ profile, onUpdate }: GeoAttendanc
 
     const ping = async (force = false) => {
       if (cancelled || inFlight) return;
-      if (document.visibilityState === 'hidden' && !force && !isIosHomeScreen()) return;
+      if (document.visibilityState === 'hidden' && !force) return;
       const minGap = Math.max(45_000, Math.floor(AUTO_LOCATION_CHECK_MS * 0.75));
       if (!force && Date.now() - lastPingAt < minGap) return;
       inFlight = true;
@@ -101,20 +98,13 @@ export default function GeoAttendanceTracker({ profile, onUpdate }: GeoAttendanc
       void ping(true);
     };
 
-    const onOnline = () => {
-      void refreshNativeAttendanceSession();
-      void ping(true);
-    };
-
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener(GEO_DASHBOARD_OPEN_EVENT, onDashboardOpen);
-    window.addEventListener('online', onOnline);
 
     return () => {
       cancelled = true;
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener(GEO_DASHBOARD_OPEN_EVENT, onDashboardOpen);
-      window.removeEventListener('online', onOnline);
       if (intervalId) clearInterval(intervalId);
       void clearAttendanceWatch(watchId);
       // Do not stop native pings here — they must keep running with the app closed.

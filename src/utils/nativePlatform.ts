@@ -12,9 +12,6 @@ type ScorrDesktopApi = {
   saveAttendanceToken?: (token: string) => Promise<boolean> | void;
   clearAttendanceToken?: () => Promise<boolean> | void;
   hasAttendanceToken?: () => Promise<boolean> | boolean;
-  getLaptopSleepStatus?: () =>
-    | Promise<{ asleep?: boolean; asleepSinceMs?: number | null }>
-    | { asleep?: boolean; asleepSinceMs?: number | null };
   saveLoginCredentials?: (email: string, password: string) => Promise<boolean> | boolean;
   loadLoginCredentials?: () => Promise<{ email: string; password: string } | null> | { email: string; password: string } | null;
   clearLoginCredentials?: () => Promise<boolean> | boolean;
@@ -22,7 +19,7 @@ type ScorrDesktopApi = {
   getAutoLaunch?: () => Promise<{ enabled?: boolean }> | { enabled?: boolean };
   checkForUpdates?: () => Promise<{ ok?: boolean; message?: string }>;
   quitAndInstall?: () => Promise<{ ok?: boolean }> | { ok?: boolean };
-  onUpdateReady?: (cb: (payload: { version?: string; message?: string; autoInstall?: boolean }) => void) => () => void;
+  onUpdateReady?: (cb: (payload: { version?: string; message?: string }) => void) => () => void;
 };
 
 declare global {
@@ -96,37 +93,6 @@ export function isIosUa(): boolean {
   if (/iPad|iPhone|iPod/i.test(ua)) return true;
   // iPadOS 13+ desktop UA
   return navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1;
-}
-
-/**
- * iPhone/iPad website saved with Add to Home Screen (standalone), not Safari tabs
- * and not the Capacitor shell.
- */
-export function isIosHomeScreen(): boolean {
-  if (!isIosUa() || isNativeApp()) return false;
-  if (typeof window === 'undefined') return false;
-  try {
-    if (window.matchMedia('(display-mode: standalone)').matches) return true;
-  } catch {
-    /* ignore */
-  }
-  return (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
-}
-
-/** Capacitor iOS app or the iOS Home Screen app. */
-export function isIosPhoneClient(): boolean {
-  return isIosApp() || isIosHomeScreen();
-}
-
-/** Platform stored on the attendance device row. Home Screen iPhone counts as ios. */
-export function clientAttendancePlatform(): 'android' | 'ios' | 'windows' | 'linux' | 'web' {
-  if (Capacitor.getPlatform() === 'android') return 'android';
-  if (Capacitor.getPlatform() === 'ios' || isIosHomeScreen()) return 'ios';
-  if (isDesktopApp()) {
-    const ua = navigator.userAgent.toLowerCase();
-    return ua.includes('windows') ? 'windows' : 'linux';
-  }
-  return 'web';
 }
 
 /** Initialize native shell (status bar, back button). Safe to call on web. */

@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import {
   TeamAttendanceHistoryRow,
   describeAttendanceHistory,
@@ -37,11 +36,7 @@ interface AttendanceHistoryRecordsProps {
 }
 
 function sourceLabel(source: string | null | undefined): string {
-  if (source === 'geo' || source === 'auto_gps') return 'GPS';
-  if (source === 'auto_wifi_no_gps' || source === 'manual_wifi_no_gps') return 'No location - Wi-Fi only';
-  if (source === 'auto_wifi') return 'Wi-Fi + GPS';
-  if (source === 'auto_laptop') return 'Laptop';
-  if (source === 'manual') return 'Manual';
+  if (source === 'geo') return 'GPS';
   return source || 'Manual';
 }
 
@@ -56,15 +51,6 @@ export default function AttendanceHistoryRecords({
   showDepartment = false,
   variant = 'detailed',
 }: AttendanceHistoryRecordsProps) {
-  const someoneStillIn = rows.some((r) => r.clock_in_at && !r.clock_out_at);
-  const [tick, setTick] = useState(0);
-
-  useEffect(() => {
-    if (!someoneStillIn) return;
-    const id = window.setInterval(() => setTick((n) => n + 1), 30_000);
-    return () => window.clearInterval(id);
-  }, [someoneStillIn]);
-
   if (rows.length === 0) return null;
 
   return (
@@ -87,7 +73,6 @@ export default function AttendanceHistoryRecords({
           </thead>
           <tbody>
             {rows.map((r) => {
-              void tick;
               const timing = describeAttendanceHistory(r);
               return (
                 <tr key={r.id}>
@@ -150,7 +135,6 @@ export default function AttendanceHistoryRecords({
 
       <div className="attendance-record-cards" aria-label="Attendance records">
         {rows.map((r) => {
-          void tick;
           const timing = describeAttendanceHistory(r);
           return (
             <article key={`card-${r.id}`} className="attendance-record-card">

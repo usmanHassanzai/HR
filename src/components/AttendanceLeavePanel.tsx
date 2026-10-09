@@ -24,15 +24,7 @@ import ManagerTeamAttendanceDirectory from './ManagerTeamAttendanceDirectory';
 import EmployeeAttendanceHistory from './EmployeeAttendanceHistory';
 import { Department } from '../utils/departmentHelpers';
 import { canMarkRemoteAttendance, workModeLabel } from '../utils/workModeHelpers';
-import {
-  GEO_CLOCK_EVENT,
-  attendanceActionMessage,
-  friendlyClockOutError,
-  isAttendanceSuccessAction,
-  localYmd,
-  requestCurrentPosition,
-  submitGeoClockEvent,
-} from '../utils/geoAttendance';
+import { GEO_CLOCK_EVENT, localYmd } from '../utils/geoAttendance';
 import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
 import { scrollNavTarget } from '../utils/notificationDeepLink';
 import { useHistorySyncedTab } from '../utils/useHistoryNavigation';
@@ -131,9 +123,6 @@ export default function AttendanceLeavePanel({
     }
   }, [initialLeaveId, mode, pendingLeaves]);
 
-  const [policyAnnual, setPolicyAnnual] = useState('20');
-  const [policySick, setPolicySick] = useState('10');
-  const [policySaving, setPolicySaving] = useState(false);
   const [leaveType, setLeaveType] = useState<LeaveType>('annual');
   const [leaveCustomType, setLeaveCustomType] = useState('');
   const [leaveStart, setLeaveStart] = useState('');
@@ -397,63 +386,24 @@ export default function AttendanceLeavePanel({
   const checkInToday = async () => {
     setSubmitting(true);
     setMsg('');
-    try {
-      const result = await submitGeoClockEvent('clock_in');
-      if (isAttendanceSuccessAction(result.action)) {
-        setMsg(attendanceActionMessage(result.action));
-        load();
-        setHistoryRefreshKey((k) => k + 1);
-        window.dispatchEvent(new CustomEvent(GEO_CLOCK_EVENT));
-      } else {
-        setMsg(attendanceActionMessage(result.action || result.reason));
-      }
-    } catch (e: unknown) {
-      setMsg(e instanceof Error ? e.message : 'Could not check in.');
-    } finally {
-      setSubmitting(false);
+    const { error } = await supabase.rpc('check_in_attendance');
+    setSubmitting(false);
+    if (error) setMsg(error.message);
+    else {
+      setMsg('Checked in successfully — approved automatically.');
+      load();
+      setHistoryRefreshKey((k) => k + 1);
+      window.dispatchEvent(new CustomEvent(GEO_CLOCK_EVENT));
     }
   };
 
   const checkOutToday = async (opts?: { thenRequestLeave?: boolean }) => {
     setSubmitting(true);
     setMsg('');
-    try {
-      // Wait ≤3s for GPS; if location is off, send without GPS (office Wi-Fi may allow clock-out).
-      let lat: number | null = null;
-      let lng: number | null = null;
-      let acc: number | null = null;
-      let isMock = false;
-      try {
-        const pos = await Promise.race([
-          requestCurrentPosition({
-            maximumAge: 0,
-            timeout: 3000,
-            enableHighAccuracy: true,
-          }),
-          new Promise<null>((resolve) => {
-            window.setTimeout(() => resolve(null), 3000);
-          }),
-        ]);
-        if (pos) {
-          lat = pos.coords.latitude;
-          lng = pos.coords.longitude;
-          acc = pos.coords.accuracy ?? null;
-          const coords = pos.coords as GeolocationCoordinates & { mocked?: boolean };
-          isMock = Boolean(coords?.mocked);
-        }
-      } catch {
-        /* location off / denied — proceed without GPS */
-      }
-      const { error } = await supabase.rpc('check_out_attendance', {
-        p_latitude: lat,
-        p_longitude: lng,
-        p_accuracy: acc,
-        p_is_mock: isMock,
-      });
-      if (error) {
-        setMsg(friendlyClockOutError(error));
-        return;
-      }
+    const { error } = await supabase.rpc('check_out_attendance');
+    setSubmitting(false);
+    if (error) setMsg(error.message);
+    else {
       setMsg(
         opts?.thenRequestLeave
           ? 'Checked out for the rest of your shift. Submit your leave request on the next tab.'
@@ -471,10 +421,6 @@ export default function AttendanceLeavePanel({
         if (mode === 'hr') setAdminTab('today');
         else setEmployeeTab('leave');
       }
-    } catch (e: unknown) {
-      setMsg(friendlyClockOutError(e));
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -571,78 +517,6 @@ export default function AttendanceLeavePanel({
   );
   const selfCardClass =
     mode === 'employee' ? 'emp-attendance-card' : mode === 'hr' ? 'admin-attendance-card glass-panel' : 'mgr-attendance-card';
-
-  useEffect(() => {
-    if (mode !== 'admin' && mode !== 'hr') return;
-    void (async () => {
-      const { data, error } = await supabase.rpc('get_company_leave_policy');
-      const row = Array.isArray(data) ? data[0] : null;
-      if (!error && row) {
-        setPolicyAnnual(String(row.annual_leave_days));
-        setPolicySick(String(row.sick_leave_days));
-      }
-    })();
-  }, [mode]);
-
-  const saveLeavePolicy = async () => {
-    const annual = Number(policyAnnual);
-    const sick = Number(policySick);
-    if (!Number.isInteger(annual) || !Number.isInteger(sick) || annual < 0 || sick < 0 || annual > 366 || sick > 366) {
-      setMsg('Enter annual and sick leave days between 0 and 366.');
-      return;
-    }
-    setPolicySaving(true);
-    const { error } = await supabase.rpc('set_company_leave_policy', {
-      p_annual: annual,
-      p_sick: sick,
-    });
-    setPolicySaving(false);
-    if (error) setMsg(error.message);
-    else {
-      setMsg('Office leave allowance saved.');
-      void load();
-    }
-  };
-
-  const renderLeavePolicy = () => (
-    <section className="admin-attendance-card glass-panel">
-      <h3>
-        <Palmtree size={18} /> Office leave allowance
-      </h3>
-      <p>
-        Set the annual and sick leave days for this office. Saving applies the new totals to everyone for this year.
-        Days already taken stay counted, and the remaining balance updates.
-      </p>
-      <div className="attendance-form-grid">
-        <div className="form-group">
-          <label htmlFor="office-annual-leave">Annual leave days</label>
-          <input
-            id="office-annual-leave"
-            type="number"
-            min={0}
-            max={366}
-            value={policyAnnual}
-            onChange={(e) => setPolicyAnnual(e.target.value)}
-          />
-        </div>
-        <div className="form-group">
-          <label htmlFor="office-sick-leave">Sick leave days</label>
-          <input
-            id="office-sick-leave"
-            type="number"
-            min={0}
-            max={366}
-            value={policySick}
-            onChange={(e) => setPolicySick(e.target.value)}
-          />
-        </div>
-        <button type="button" className="btn btn-primary" disabled={policySaving} onClick={() => void saveLeavePolicy()}>
-          {policySaving ? <Loader2 size={14} className="spin-icon" /> : <CheckCircle size={14} />}
-          Save leave allowance
-        </button>
-      </div>
-    </section>
-  );
   const remoteStaffKey = remoteStaff.map((m) => m.id).sort().join(',');
 
   useEffect(() => {
@@ -759,9 +633,6 @@ export default function AttendanceLeavePanel({
           Today: <strong>{ATTENDANCE_STATUS_LABEL[todayRecord.status]}</strong>
           {todayRecord.attendance_source === 'geo' || todayRecord.attendance_source === 'auto_gps'
             ? ' · Auto GPS'
-            : todayRecord.attendance_source === 'auto_wifi_no_gps'
-                || todayRecord.attendance_source === 'manual_wifi_no_gps'
-              ? ' · No location - Wi-Fi only'
             : todayRecord.attendance_source === 'auto_wifi'
               ? ' · Auto Wi-Fi'
               : todayRecord.attendance_source === 'auto_laptop'
@@ -838,8 +709,8 @@ export default function AttendanceLeavePanel({
     <div className="attendance-hero">
       <h3 className="attendance-hero__title">Today — {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</h3>
       <p className="attendance-hero__hint">
-        Automatic check-in only works on office Wi-Fi while you are inside the office radius. Use Check in only as a backup with the same rules.
-        Check out when you leave early (for example to request leave). Each visit is saved separately and added to your hours.
+        Check in when you arrive and check out when you leave — even in the middle of your shift (for example urgent leave).
+        Each visit is saved separately and added to your hours.
       </p>
       <div className="attendance-hero__actions">
         <button
@@ -1042,7 +913,6 @@ export default function AttendanceLeavePanel({
                 {renderCheckInHero('Admin')}
               </>
             )}
-            {renderLeavePolicy()}
             {renderQuickStats()}
             {renderLeaveForm('Your leave goes to admin for approval (you report to admin).')}
             {myLeaves.length > 0 && (
@@ -1072,16 +942,13 @@ export default function AttendanceLeavePanel({
         )}
 
         {adminTab === 'leave' && (
-          <>
-            {renderLeavePolicy()}
-            <section className="admin-attendance-card glass-panel">
-              <h3>
-                <Inbox size={18} /> Pending leave requests
-              </h3>
-              <p>Review time-off requests from employees and managers across all departments.</p>
-              {renderLeaveApprovals('All caught up — no pending leave requests.')}
-            </section>
-          </>
+          <section className="admin-attendance-card glass-panel">
+            <h3>
+              <Inbox size={18} /> Pending leave requests
+            </h3>
+            <p>Review time-off requests from employees and managers across all departments.</p>
+            {renderLeaveApprovals('All caught up — no pending leave requests.')}
+          </section>
         )}
 
         {adminTab === 'remote' && (
@@ -1219,16 +1086,13 @@ export default function AttendanceLeavePanel({
         )}
 
         {adminTab === 'leave' && (
-          <>
-            {renderLeavePolicy()}
-            <section className="admin-attendance-card glass-panel">
-              <h3>
-                <Inbox size={18} /> Pending leave requests
-              </h3>
-              <p>Review time-off requests from employees and managers across all departments.</p>
-              {renderLeaveApprovals('All caught up — no pending leave requests.')}
-            </section>
-          </>
+          <section className="admin-attendance-card glass-panel">
+            <h3>
+              <Inbox size={18} /> Pending leave requests
+            </h3>
+            <p>Review time-off requests from employees and managers across all departments.</p>
+            {renderLeaveApprovals('All caught up — no pending leave requests.')}
+          </section>
         )}
 
         {adminTab === 'shifts' && (

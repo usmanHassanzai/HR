@@ -84,7 +84,7 @@ export default function ReviewKpiCompletionPanel({
           <p>
             They marked this complete. Award up to this task&apos;s weight ({formatKpiWeight(taskWeight)}).
             You can give less based on performance — not more than was assigned.
-            They are notified that the task was approved. Awarded weightage is shown on the last day of the month.
+            The weightage email goes only to this person&apos;s inbox and dashboard.
           </p>
         </div>
       </div>

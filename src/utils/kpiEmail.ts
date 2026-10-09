@@ -99,7 +99,7 @@ export async function emailKpiWeightageAwarded(opts: {
   note?: string;
   approved: boolean;
 }) {
-  const { toEmail, toName, kpiName, reviewerName, note, approved } = opts;
+  const { toEmail, toName, kpiName, weightLabel, reviewerName, note, approved } = opts;
   if (!toEmail) return;
   const by = reviewerName?.trim() ? `\nReviewed by: ${reviewerName.trim()}` : '';
   const noteLine = note?.trim() ? `\nNote: ${note.trim()}` : '';
@@ -107,7 +107,7 @@ export async function emailKpiWeightageAwarded(opts: {
     await sendKpiEmail(
       toEmail,
       `KPI approved: ${kpiName}`,
-      `Hi ${toName || 'there'},\n\nYour KPI task "${kpiName}" was approved.${by}${noteLine}\n\nYour awarded weightage is posted on the last day of the month. Until then, the task stays in History as approved.`,
+      `Hi ${toName || 'there'},\n\nYour KPI task "${kpiName}" was approved.\n\nWeightage to be posted: ${weightLabel}${by}${noteLine}\n\nYour awarded weightage appears on your dashboard on the last day of the month (28, 29, 30, or 31). Until then, the task stays in History as approved.`,
     );
     return;
   }

@@ -94,30 +94,6 @@ export default function AssignManagerLocationPanel({
     void load();
   }, [load]);
 
-  // Live office pin/radius changes must refresh Assignments immediately.
-  useEffect(() => {
-    const channel = supabase
-      .channel('office-assign-live')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'office_locations' },
-        () => {
-          void load();
-        },
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'employee_work_sites' },
-        () => {
-          void load();
-        },
-      )
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [load]);
-
   useEffect(() => {
     if (initialOfficeId) {
       setOfficeId(initialOfficeId);

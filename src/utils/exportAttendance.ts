@@ -1,5 +1,5 @@
 import { AttendanceRecord, ATTENDANCE_STATUS_LABEL, APPROVAL_LABEL } from './attendanceHelpers';
-import { resolveEffectiveClockOut, TeamAttendanceHistoryRow } from './shiftHelpers';
+import { TeamAttendanceHistoryRow } from './shiftHelpers';
 import { formatClockTime } from './geoAttendance';
 import { suggestBrowserTimeZone } from './ianaTimezones';
 import { utcToZonedWall } from './shiftMultiZone';
@@ -32,17 +32,16 @@ export function downloadAttendanceCsv(
   const zoneHeaders = zones.flatMap((z) => [`Clock In (${z})`, `Clock Out (${z})`]);
   const header = ['Employee', 'Date', 'Status', ...zoneHeaders, 'Source', 'Approval', 'Notes'].join(',');
   const rows = records.map((r) => {
-    const outAt = resolveEffectiveClockOut(r);
     const zoneCells = zones.flatMap((z) => [
       escapeCsv(clockInZone(r.clock_in_at, z)),
-      escapeCsv(clockInZone(outAt, z)),
+      escapeCsv(clockInZone(r.clock_out_at, z)),
     ]);
     return [
       escapeCsv(employeeName),
       r.attendance_date,
       ATTENDANCE_STATUS_LABEL[r.status],
       ...zoneCells,
-      exportSourceLabel(r.attendance_source),
+      r.attendance_source || 'manual',
       APPROVAL_LABEL[r.approval_status],
       escapeCsv(r.notes || ''),
     ].join(',');
@@ -51,14 +50,6 @@ export function downloadAttendanceCsv(
     [header, ...rows].join('\n'),
     `attendance-${employeeName.replace(/\s+/g, '-').toLowerCase()}-${periodLabel.replace(/\s+/g, '-').toLowerCase()}.csv`,
   );
-}
-
-function exportSourceLabel(source: string | null | undefined): string {
-  if (source === 'auto_wifi_no_gps' || source === 'manual_wifi_no_gps') return 'No location - Wi-Fi only';
-  if (source === 'auto_wifi') return 'Wi-Fi + GPS';
-  if (source === 'auto_laptop') return 'Laptop';
-  if (source === 'auto_gps' || source === 'geo') return 'GPS';
-  return source || 'manual';
 }
 
 export function downloadTeamAttendanceCsv(
@@ -79,18 +70,15 @@ export function downloadTeamAttendanceCsv(
     'Status',
     ...zoneHeaders,
     'Duration (min)',
-    'Visits',
     'Source',
     'Approval',
     'Notes',
   ].join(',');
   const csvRows = rows.map((r) => {
-    const outAt = resolveEffectiveClockOut(r);
     const zoneCells = zones.flatMap((z) => [
       escapeCsv(clockInZone(r.clock_in_at, z)),
-      escapeCsv(clockInZone(outAt, z)),
+      escapeCsv(clockInZone(r.clock_out_at, z)),
     ]);
-    const visitCount = (r as { visit_count?: number | null }).visit_count;
     return [
       escapeCsv(r.employee_name),
       r.employee_role,
@@ -99,8 +87,7 @@ export function downloadTeamAttendanceCsv(
       ATTENDANCE_STATUS_LABEL[r.status as keyof typeof ATTENDANCE_STATUS_LABEL] || r.status,
       ...zoneCells,
       String(r.work_minutes ?? ''),
-      visitCount != null && visitCount > 0 ? String(visitCount) : '',
-      exportSourceLabel(r.attendance_source),
+      r.attendance_source || 'manual',
       APPROVAL_LABEL[r.approval_status as keyof typeof APPROVAL_LABEL] || r.approval_status,
       escapeCsv(r.notes || ''),
     ].join(',');

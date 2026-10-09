@@ -555,49 +555,21 @@ button.ws-dept-list__toggle {
 .app-settings-stack {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  max-width: 960px;
+  gap: 0.85rem;
 }
 
 .app-settings-block {
-  border: 1px solid var(--dash-card-border, var(--border-color));
-  border-radius: 14px;
-  background:
-    linear-gradient(165deg, color-mix(in srgb, var(--accent-primary) 5%, transparent) 0%, transparent 42%),
-    var(--dash-card-bg, var(--surface, #fff));
-  padding: 1rem 1.15rem 1.15rem;
-  box-shadow: 0 8px 22px color-mix(in srgb, #0b1120 4%, transparent);
+  border: 1px solid var(--dash-card-border);
+  border-radius: 12px;
+  background: var(--dash-card-bg);
+  padding: 0.85rem 1rem 1rem;
 }
 
 .app-settings-block > summary {
   cursor: pointer;
-  font-weight: 700;
-  font-size: 1.02rem;
-  font-family: var(--font-display, inherit);
-  letter-spacing: -0.01em;
+  font-weight: 650;
+  font-size: 1rem;
   list-style: none;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  color: var(--text-primary);
-}
-
-.app-settings-block > summary::after {
-  content: '';
-  width: 0.45rem;
-  height: 0.45rem;
-  border-right: 2px solid var(--text-muted);
-  border-bottom: 2px solid var(--text-muted);
-  transform: rotate(45deg);
-  transition: transform 0.15s ease;
-  flex-shrink: 0;
-  margin-top: -0.2rem;
-}
-
-.app-settings-block[open] > summary::after {
-  transform: rotate(225deg);
-  margin-top: 0.15rem;
 }
 
 .app-settings-block > summary::-webkit-details-marker {
@@ -605,9 +577,7 @@ button.ws-dept-list__toggle {
 }
 
 .app-settings-block[open] > summary {
-  margin-bottom: 0.95rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 0.85rem;
 }
 
 .app-page-stack {
@@ -1686,11 +1656,7 @@ body.app-shell .admin-users-table-wrap,
 html.native-app .admin-users-mobile-list,
 body.native-app .admin-users-mobile-list,
 body.app-shell .admin-users-mobile-list,
-#root.native-app-root .admin-users-mobile-list,
-html.native-app .admin-users-mobile-list.people-cards,
-body.native-app .admin-users-mobile-list.people-cards,
-body.app-shell .admin-users-mobile-list.people-cards,
-#root.native-app-root .admin-users-mobile-list.people-cards {
+#root.native-app-root .admin-users-mobile-list {
   display: flex !important;
 }
 
@@ -3033,45 +2999,6 @@ body.app-shell .admin-users-mobile-list.people-cards,
   flex-direction: column;
 }
 
-/* Body-portaled kebab menu — escape table/card overflow:hidden.
-   No fullscreen catcher: Electron/Chromium often paints inset:0 layers as a blank white screen. */
-.people-actions__menu--fixed {
-  position: fixed;
-  right: auto;
-  top: auto;
-  z-index: 120150;
-  margin: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-  box-sizing: border-box;
-  display: flex !important;
-  flex-direction: column;
-  visibility: visible !important;
-  opacity: 1 !important;
-  pointer-events: auto;
-  /* Hard colors so portal on document.body stays readable even if theme vars lag */
-  background: #ffffff !important;
-  color: #0f172a !important;
-  border: 1px solid rgba(15, 23, 42, 0.14);
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.22);
-  min-width: 13.5rem;
-  max-width: min(20rem, calc(100vw - 1rem));
-  padding: 0.4rem;
-  border-radius: 12px;
-}
-
-[data-theme='dark'] .people-actions__menu--fixed {
-  background: #1a2438 !important;
-  color: #f1f5f9 !important;
-  border-color: rgba(241, 245, 249, 0.14);
-}
-
-.people-actions__menu--fixed button {
-  color: inherit !important;
-}
-
 .people-actions__menu button {
   display: flex;
   align-items: center;
@@ -3079,7 +3006,7 @@ body.app-shell .admin-users-mobile-list.people-cards,
   width: 100%;
   border: 0;
   background: transparent;
-  color: inherit;
+  color: var(--text-primary);
   padding: 0.5rem 0.6rem;
   border-radius: 8px;
   font-size: 0.82rem;
@@ -3088,7 +3015,7 @@ body.app-shell .admin-users-mobile-list.people-cards,
 }
 
 .people-actions__menu button:hover {
-  background: var(--surface-muted, rgba(15, 23, 42, 0.06));
+  background: var(--surface-muted);
 }
 
 .people-actions__danger {
@@ -3454,157 +3381,159 @@ body.app-shell .admin-users-mobile-list.people-cards,
   z-index: 120060;
 }
 
-.people-actions__menu:not(.people-actions__menu--fixed) {
+.people-actions__menu {
   z-index: 40;
 }
 
-/* Mobile sheet — only mounted when narrowPeopleUi (AdminUsersPage). Never used on wide Electron. */
-.people-actions-sheet--open {
-  display: block;
-  position: fixed;
-  inset: 0;
-  z-index: 120200;
-  pointer-events: none;
+.people-actions-sheet {
+  display: none;
 }
 
-.people-actions-sheet__backdrop {
-  position: absolute;
-  inset: 0;
-  border: 0;
-  padding: 0;
-  margin: 0;
-  cursor: pointer;
-  pointer-events: auto;
-  /* Solid dim — avoid backdrop-filter (Electron Linux can flash blank white) */
-  background: rgba(15, 23, 42, 0.45);
-}
-
-.people-actions-sheet__panel {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  pointer-events: auto;
-  max-height: min(88dvh, 40rem);
-  display: flex;
-  flex-direction: column;
-  visibility: visible;
-  border-radius: 1.15rem 1.15rem 0 0;
-  background: #ffffff !important;
-  color: #0f172a !important;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  border-bottom: 0;
-  box-shadow: 0 -18px 48px rgba(15, 23, 42, 0.22);
-  padding: 0.35rem 0 calc(0.85rem + env(safe-area-inset-bottom, 0px));
-  animation: peopleActionsSheetUp 0.22s ease-out;
-}
-
-[data-theme='dark'] .people-actions-sheet__panel {
-  background: #1a2438 !important;
-  color: #f1f5f9 !important;
-}
-
-@keyframes peopleActionsSheetUp {
-  from {
-    opacity: 0.6;
-    transform: translateY(1.25rem);
+@media (max-width: 899px) {
+  .people-actions__menu--popover {
+    display: none !important;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+
+  .people-actions-sheet {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 120200;
+    pointer-events: none;
   }
-}
 
-.people-actions-sheet__grab {
-  width: 2.4rem;
-  height: 0.28rem;
-  border-radius: 999px;
-  margin: 0.35rem auto 0.55rem;
-  background: color-mix(in srgb, var(--text-muted) 45%, transparent);
-}
+  .people-actions-sheet__backdrop {
+    position: absolute;
+    inset: 0;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    pointer-events: auto;
+    background: rgba(15, 23, 42, 0.52);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
 
-.people-actions-sheet__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0 1rem 0.85rem;
-  border-bottom: 1px solid var(--border-color);
-}
+  .people-actions-sheet__panel {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: auto;
+    max-height: min(88dvh, 40rem);
+    display: flex;
+    flex-direction: column;
+    border-radius: 1.15rem 1.15rem 0 0;
+    background: var(--dash-card-bg, #fff);
+    border: 1px solid var(--dash-card-border, rgba(15, 23, 42, 0.08));
+    border-bottom: 0;
+    box-shadow: 0 -18px 48px rgba(15, 23, 42, 0.22);
+    padding: 0.35rem 0 calc(0.85rem + env(safe-area-inset-bottom, 0px));
+    animation: peopleActionsSheetUp 0.22s ease-out;
+  }
 
-.people-actions-sheet__eyebrow {
-  margin: 0 0 0.15rem;
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
+  @keyframes peopleActionsSheetUp {
+    from {
+      opacity: 0.6;
+      transform: translateY(1.25rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 
-.people-actions-sheet__head h3 {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 1.05rem;
-  color: var(--text-primary, #0f172a);
-  line-height: 1.25;
-}
+  .people-actions-sheet__grab {
+    width: 2.4rem;
+    height: 0.28rem;
+    border-radius: 999px;
+    margin: 0.35rem auto 0.55rem;
+    background: color-mix(in srgb, var(--text-muted) 45%, transparent);
+  }
 
-.people-actions-sheet__email {
-  margin: 0.2rem 0 0;
-  font-size: 0.78rem;
-  color: var(--text-muted);
-  overflow-wrap: anywhere;
-}
+  .people-actions-sheet__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0 1rem 0.85rem;
+    border-bottom: 1px solid var(--border-color);
+  }
 
-.people-actions-sheet__list {
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
-  padding: 0.45rem 0.55rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-  min-height: 8rem;
-}
+  .people-actions-sheet__eyebrow {
+    margin: 0 0 0.15rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
 
-.people-actions-sheet__list button {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  width: 100%;
-  border: 0;
-  background: transparent;
-  color: var(--text-primary, #0f172a);
-  padding: 0.85rem 0.8rem;
-  border-radius: 12px;
-  font-size: 0.94rem;
-  font-weight: 600;
-  text-align: left;
-  cursor: pointer;
-  line-height: 1.25;
-}
+  .people-actions-sheet__head h3 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    color: var(--text-primary);
+    line-height: 1.25;
+  }
 
-.people-actions-sheet__list button svg {
-  flex-shrink: 0;
-  color: var(--text-muted);
-}
+  .people-actions-sheet__email {
+    margin: 0.2rem 0 0;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    overflow-wrap: anywhere;
+  }
 
-.people-actions-sheet__list button:hover,
-.people-actions-sheet__list button:focus-visible {
-  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
-}
+  .people-actions-sheet__list {
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 0.45rem 0.55rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+  }
 
-.people-actions-sheet__list button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+  .people-actions-sheet__list button {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: var(--text-primary);
+    padding: 0.85rem 0.8rem;
+    border-radius: 12px;
+    font-size: 0.94rem;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    line-height: 1.25;
+  }
 
-.people-actions-sheet__list .people-actions__danger {
-  color: var(--color-danger, #dc2626);
-  margin-top: 0.25rem;
-}
+  .people-actions-sheet__list button svg {
+    flex-shrink: 0;
+    color: var(--text-muted);
+  }
 
-.people-actions-sheet__list .people-actions__danger svg {
-  color: inherit;
+  .people-actions-sheet__list button:hover,
+  .people-actions-sheet__list button:focus-visible {
+    background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+  }
+
+  .people-actions-sheet__list button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .people-actions-sheet__list .people-actions__danger {
+    color: var(--color-danger, #dc2626);
+    margin-top: 0.25rem;
+  }
+
+  .people-actions-sheet__list .people-actions__danger svg {
+    color: inherit;
+  }
 }
 
 @media (max-width: 720px) {

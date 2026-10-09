@@ -45,22 +45,7 @@ function loadDesktopUrls() {
 const version = packageVersion(root);
 const buildInfo = readBuildInfo(root);
 const desktopUrls = loadDesktopUrls();
-
-function readViteWebBuildId() {
-  // dist/.web-build-id is written in Vite writeBundle with the exact define id.
-  for (const rel of ['dist/.web-build-id', 'public/.web-build-id']) {
-    const p = join(root, rel);
-    if (!existsSync(p)) continue;
-    const v = readFileSync(p, 'utf8').trim();
-    if (v) return v;
-  }
-  return '';
-}
-
-// Prefer the id Vite already baked into the JS bundle (see vite.config.ts).
-// Do not prefer a stale process.env.VITE_WEB_BUILD_ID over the file Vite just wrote.
 const webBuildId =
-  readViteWebBuildId() ||
   process.env.VITE_WEB_BUILD_ID ||
   `${version}-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '')}`;
 
@@ -73,18 +58,17 @@ const winPath = join(downloads, 'Scorr-Setup.exe');
 const debPath = join(downloads, 'Scorr.deb');
 const appImagePath = join(downloads, 'Scorr.AppImage');
 
-// Prefer .env.desktop-urls (written by publish-desktop-release) over stale .env.
 const winUrl =
-  desktopUrls.VITE_DESKTOP_WIN_URL ||
   process.env.VITE_DESKTOP_WIN_URL ||
+  desktopUrls.VITE_DESKTOP_WIN_URL ||
   `${base}/downloads/Scorr-Setup.exe`;
 const debUrl =
-  desktopUrls.VITE_DESKTOP_LINUX_DEB_URL ||
   process.env.VITE_DESKTOP_LINUX_DEB_URL ||
+  desktopUrls.VITE_DESKTOP_LINUX_DEB_URL ||
   `${base}/downloads/Scorr.deb`;
 const appImageUrl =
-  desktopUrls.VITE_DESKTOP_LINUX_APPIMAGE_URL ||
   process.env.VITE_DESKTOP_LINUX_APPIMAGE_URL ||
+  desktopUrls.VITE_DESKTOP_LINUX_APPIMAGE_URL ||
   (existsSync(appImagePath) ? `${base}/downloads/Scorr.AppImage` : null);
 
 const manifest = {
@@ -122,20 +106,16 @@ const manifest = {
 };
 
 mkdirSync(downloads, { recursive: true });
-const versionJson = `${JSON.stringify(manifest, null, 2)}\n`;
-writeFileSync(join(downloads, 'version.json'), versionJson);
+writeFileSync(join(downloads, 'version.json'), `${JSON.stringify(manifest, null, 2)}\n`);
 
 const desktopDir = join(downloads, 'desktop');
 mkdirSync(desktopDir, { recursive: true });
-
-let latestYml = '';
-let latestLinuxYml = '';
 
 if (existsSync(winPath)) {
   const size = statSync(winPath).size;
   const sha = sha512File(winPath);
   // Absolute URL so Vercel can host only the yml while binaries live on GitHub Releases.
-  latestYml = [
+  const yml = [
     `version: ${version}`,
     `files:`,
     `  - url: ${winUrl}`,
@@ -146,13 +126,13 @@ if (existsSync(winPath)) {
     `releaseDate: ${new Date().toISOString()}`,
     '',
   ].join('\n');
-  writeFileSync(join(desktopDir, 'latest.yml'), latestYml);
+  writeFileSync(join(desktopDir, 'latest.yml'), yml);
 }
 
 if (existsSync(appImagePath) && appImageUrl) {
   const size = statSync(appImagePath).size;
   const sha = sha512File(appImagePath);
-  latestLinuxYml = [
+  const yml = [
     `version: ${version}`,
     `files:`,
     `  - url: ${appImageUrl}`,
@@ -163,7 +143,7 @@ if (existsSync(appImagePath) && appImageUrl) {
     `releaseDate: ${new Date().toISOString()}`,
     '',
   ].join('\n');
-  writeFileSync(join(desktopDir, 'latest-linux.yml'), latestLinuxYml);
+  writeFileSync(join(desktopDir, 'latest-linux.yml'), yml);
 }
 
 const meta = {
@@ -172,21 +152,12 @@ const meta = {
   generatedAt: manifest.generatedAt,
   updatedLabel: formatUpdatedLabel(),
 };
-const metaJson = `${JSON.stringify(meta, null, 2)}\n`;
-writeFileSync(join(root, 'public', 'build-meta.json'), metaJson);
-
-// Vercel deploys dist/ — vite copies public/ before write-version-json runs, so
-// we must mirror manifests into dist or production stays on a stale webBuildId.
-const distDownloads = join(root, 'dist', 'downloads');
-const distDesktop = join(distDownloads, 'desktop');
-mkdirSync(distDesktop, { recursive: true });
+writeFileSync(join(root, 'public', 'build-meta.json'), `${JSON.stringify(meta, null, 2)}\n`);
+mkdirSync(join(root, 'dist'), { recursive: true });
 try {
-  writeFileSync(join(root, 'dist', 'build-meta.json'), metaJson);
-  writeFileSync(join(distDownloads, 'version.json'), versionJson);
-  if (latestYml) writeFileSync(join(distDesktop, 'latest.yml'), latestYml);
-  if (latestLinuxYml) writeFileSync(join(distDesktop, 'latest-linux.yml'), latestLinuxYml);
-} catch (e) {
-  console.warn('Could not mirror manifests into dist/', e?.message || e);
+  writeFileSync(join(root, 'dist', 'build-meta.json'), `${JSON.stringify(meta, null, 2)}\n`);
+} catch {
+  /* dist may not exist yet */
 }
 
-console.log('Wrote downloads/version.json + build-meta.json', { version, webBuildId, winUrl, appImageUrl });
+console.log('Wrote downloads/version.json + build-meta.json', { version, webBuildId });

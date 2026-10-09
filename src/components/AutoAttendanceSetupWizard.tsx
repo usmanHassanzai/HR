@@ -37,11 +37,10 @@ import {
 import {
   disableAutoAttendanceOnDevice,
   PHONE_OPT_IN_TEXT,
-  sendAutoAttendanceEventWithLocation,
+  sendAutoAttendanceEvent,
 } from '../utils/attendanceDevice';
-import { isAndroidApp, isIosApp, isIosHomeScreen, isIosPhoneClient } from '../utils/nativePlatform';
+import { isAndroidApp, isIosApp } from '../utils/nativePlatform';
 import { startNativeAttendancePings } from '../utils/attendanceNativePing';
-import { startIosHomeAttendance } from '../utils/attendanceIosHome';
 import '../styles/auto-attendance-setup.css';
 
 type StepStatus = 'waiting' | 'busy' | 'done' | 'action' | 'failed';
@@ -75,33 +74,19 @@ function statusClass(s: StepStatus): string {
 export default function AutoAttendanceSetupWizard({
   onClose,
   onFinished,
-  /** Keep the wizard/status card inside Settings — never cover sibling sections. */
-  inline = true,
-  /** When enrolled: show only the compact ON status card (no step UI, never fullscreen). */
-  statusOnly = false,
-  /** Parent switches from status card → setup steps (e.g. “Fix a problem”). */
-  onFixProblem,
 }: {
   onClose?: () => void;
   onFinished?: () => void;
-  inline?: boolean;
-  statusOnly?: boolean;
-  onFixProblem?: () => void;
 }) {
   const native = isNativeApp();
-  const iosHome = isIosHomeScreen();
-  const phoneClient = native || iosHome;
   const desktop = isDesktopApp();
-  // Settings embeds status + steps as an inline card. Never use aas-wizard--fullscreen —
-  // that overlay hid Change password / Account security / Delete account on native.
-  void inline;
 
   const steps: StepDef[] = useMemo(() => {
     if (desktop) {
       return [
         { id: 'account', title: 'Your account is ready', explanation: 'Checking company settings, office zone, and shift.', icon: Shield },
         { id: 'autolaunch', title: 'Start Scorr when the computer starts', explanation: 'Keeps laptop attendance working after reboot.', icon: Laptop },
-        { id: 'network', title: 'Office network and location', explanation: 'Check-in needs office Wi-Fi and a GPS reading inside the office radius. Either one alone is not enough.', icon: Wifi },
+        { id: 'network', title: 'Office network', explanation: 'Checks whether this computer is on an office Wi-Fi / IP.', icon: Wifi },
         { id: 'register', title: 'Register this laptop', explanation: 'Securely enrolls this device for automatic attendance.', icon: CheckCircle2 },
       ];
     }
@@ -109,8 +94,8 @@ export default function AutoAttendanceSetupWizard({
       {
         id: 'disclosure',
         title: 'Why Scorr needs your location',
-        explanation: isIosPhoneClient()
-          ? 'Apple requires a clear explanation before location is used — read before continuing.'
+        explanation: isIosApp()
+          ? 'Apple requires a clear explanation before Always location — read before continuing.'
           : 'Google Play prominent disclosure — read before continuing.',
         icon: MapPin,
       },
@@ -118,11 +103,9 @@ export default function AutoAttendanceSetupWizard({
       {
         id: 'location',
         title: 'Location access',
-        explanation: iosHome
-          ? 'Scorr is a Safari website on the Home Screen — it does not appear under Location Services by name. Tap Allow location, then: Settings > Privacy & Security > Location Services > Safari Websites > While Using the App (Precise Location on). Also Settings > Apps > Safari > Location > Allow or Ask. The Home Screen app works only while open; for automatic check-in and check-out, install the Scorr iPhone app.'
-          : isIosApp()
-            ? 'Allow While Using, then Always. A geofence exit checks you out when you leave the office, even if the app is closed.'
-            : 'Allow all the time, and set battery to Unrestricted, so a geofence exit can check you out in the background.',
+        explanation: isIosApp()
+          ? 'Allow While Using, then Always, so check-in works when the app is closed.'
+          : 'While using the app, then Allow all the time.',
         icon: MapPin,
       },
       { id: 'notifications', title: 'Notifications', explanation: 'So you know when you are checked in or out.', icon: Bell },
@@ -131,7 +114,7 @@ export default function AutoAttendanceSetupWizard({
       base.push({
         id: 'battery',
         title: 'Keep Scorr running',
-        explanation: 'Set battery to Unrestricted so background location and check-out keep running during the shift.',
+        explanation: 'Battery unrestricted so background check-in keeps working.',
         icon: BatteryCharging,
       });
     }
@@ -142,7 +125,7 @@ export default function AutoAttendanceSetupWizard({
       icon: Smartphone,
     });
     return base;
-  }, [desktop, iosHome]);
+  }, [desktop]);
 
   const totalSteps = steps.length;
   const [stepIndex, setStepIndex] = useState(() => Math.min(loadSetupProgress(), Math.max(0, totalSteps - 1)));
@@ -152,7 +135,7 @@ export default function AutoAttendanceSetupWizard({
   const [setup, setSetup] = useState<SetupStatus | null>(null);
   const [manufacturer, setManufacturer] = useState('');
   const [networkMsg, setNetworkMsg] = useState('');
-  const [finished, setFinished] = useState(statusOnly);
+  const [finished, setFinished] = useState(false);
   const [finishMeta, setFinishMeta] = useState<{
     status: string;
     lastCheck: string;
@@ -210,7 +193,7 @@ export default function AutoAttendanceSetupWizard({
   }, [goTo, runWithBusy, setStepStatus, steps]);
 
   const refreshPermissions = useCallback(async () => {
-    if (!phoneClient) return;
+    if (!native) return;
     try {
       const snap = await getNativePermissionSnapshot();
       setManufacturer(snap.manufacturer || '');
@@ -249,32 +232,25 @@ export default function AutoAttendanceSetupWizard({
     } catch {
       /* ignore resume failures */
     }
-  }, [current?.id, goTo, phoneClient, setStepStatus, stepIndex]);
+  }, [current?.id, goTo, native, setStepStatus, stepIndex]);
 
   useEffect(() => {
-    if (statusOnly) {
-      setFinished(true);
-      clearSetupProgress();
-      return;
-    }
     void isDeviceAlreadyEnrolled().then((ok) => {
       if (ok) {
         setFinished(true);
         clearSetupProgress();
       }
     });
-  }, [statusOnly]);
+  }, []);
 
   useEffect(() => {
-    if (!phoneClient) return;
+    if (!native) return;
     let handle: { remove: () => Promise<void> } | undefined;
-    if (native) {
-      void CapApp.addListener('appStateChange', ({ isActive }) => {
-        if (isActive) void refreshPermissions();
-      }).then((h) => {
-        handle = h;
-      });
-    }
+    void CapApp.addListener('appStateChange', ({ isActive }) => {
+      if (isActive) void refreshPermissions();
+    }).then((h) => {
+      handle = h;
+    });
     const onVis = () => {
       if (document.visibilityState === 'visible') void refreshPermissions();
     };
@@ -283,7 +259,7 @@ export default function AutoAttendanceSetupWizard({
       void handle?.remove();
       document.removeEventListener('visibilitychange', onVis);
     };
-  }, [native, phoneClient, refreshPermissions]);
+  }, [native, refreshPermissions]);
 
   const continueDisclosure = () => {
     setStepStatus('disclosure', 'done');
@@ -296,11 +272,6 @@ export default function AutoAttendanceSetupWizard({
       if (!whileUsing.ok) {
         setStepStatus('location', 'action');
         setError(whileUsing.detail);
-        return;
-      }
-      if (iosHome) {
-        setStepStatus('location', 'done');
-        goTo(stepIndex + 1);
         return;
       }
       if (isIosApp()) {
@@ -372,7 +343,7 @@ export default function AutoAttendanceSetupWizard({
       setNetworkMsg(
         match.matched
           ? `Matched${match.label ? `: ${match.label}` : ''} (IP ${match.ip})`
-          : `No match yet (IP ${match.ip}). You can still register. Check-in later needs office Wi-Fi and a GPS reading inside the office radius.`,
+          : `No match yet (IP ${match.ip}). You can still register — presence needs office Wi-Fi later.`,
       );
       setStepStatus('network', match.matched ? 'done' : 'action');
       goTo(stepIndex + 1);
@@ -394,13 +365,6 @@ export default function AutoAttendanceSetupWizard({
           /* optional */
         }
       }
-      if (iosHome) {
-        try {
-          await startIosHomeAttendance();
-        } catch {
-          /* optional */
-        }
-      }
       setStepStatus('register', 'done');
       clearSetupProgress();
       setFinished(true);
@@ -411,26 +375,20 @@ export default function AutoAttendanceSetupWizard({
   const testNow = async () => {
     setFinishMeta((m) => ({ ...m, testResult: 'Running live check…' }));
     try {
-      const res = await sendAutoAttendanceEventWithLocation('ping');
+      const res = await sendAutoAttendanceEvent('ping', {});
       const action = (res?.action as string) || (res?.reason as string) || 'ok';
       const status =
-        action === 'clock_in' || action === 'already_checked_in' || action === 'device_left_others_present'
-          ? 'Checked in'
+        action === 'clock_in' || action === 'already_checked_in'
+          ? 'Inside office zone / On office Wi-Fi'
           : action === 'clock_out'
-            ? 'Checked out'
+            ? 'Outside'
             : action === 'outside_window'
-              ? 'Outside shift hours'
-              : action === 'not_on_office_network' || action === 'not_on_office_wifi'
-                ? 'Not on office Wi-Fi'
-                : action === 'outside_radius' || action === 'need_fresh_location'
-                  ? 'Not inside the office radius'
-                  : action === 'duplicate_ignored'
-                  ? 'Check finished. Click Test now again to check in.'
-                  : 'Check finished';
+              ? 'Window closed'
+              : String(action);
       setFinishMeta({
         status,
         lastCheck: new Date().toLocaleString(),
-        testResult: status,
+        testResult: `Result: ${action}`,
       });
     } catch (e) {
       setFinishMeta((m) => ({
@@ -442,72 +400,54 @@ export default function AutoAttendanceSetupWizard({
   };
 
   const turnOff = async () => {
-    setBusyText('Turning off automatic attendance…');
-    setError('');
-    try {
-      await disableAutoAttendanceOnDevice(desktop ? 'laptop' : 'phone');
-      clearSetupProgress();
-      // Parent unmounts this status card and shows “Set up” again. Do not flip to
-      // step UI here — that briefly replaced siblings / looked like a stuck wizard.
-      if (!statusOnly) {
-        setFinished(false);
-        setStatuses({});
-        goTo(0);
-      }
-      onFinished?.();
-      onClose?.();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusyText('');
-    }
+    await disableAutoAttendanceOnDevice(desktop ? 'laptop' : 'phone');
+    setFinished(false);
+    goTo(0);
+    onClose?.();
   };
 
   if (finished) {
     return (
-      <div className="aas-finish aas-finish--inline">
-        <div className="aas-finish__card">
-          <h3>Automatic attendance is ON on this {desktop ? 'laptop' : 'phone'}</h3>
-          <p className="aas-finish__meta">
-            Current status: {finishMeta.status}
-            <br />
-            Last check: {finishMeta.lastCheck}
-            {finishMeta.testResult ? (
-              <>
-                <br />
-                {finishMeta.testResult}
-              </>
-            ) : null}
-          </p>
+      <div className={`aas-wizard ${native ? 'aas-wizard--fullscreen' : ''}`}>
+        <div className="aas-finish">
+          <div className="aas-finish__card">
+            <h3>Automatic attendance is ON on this {desktop ? 'laptop' : 'phone'}</h3>
+            <p className="aas-finish__meta">
+              Current status: {finishMeta.status}
+              <br />
+              Last check: {finishMeta.lastCheck}
+              {finishMeta.testResult ? (
+                <>
+                  <br />
+                  {finishMeta.testResult}
+                </>
+              ) : null}
+            </p>
+          </div>
+          <div className="aas-finish__actions">
+            <button type="button" className="btn btn-primary" onClick={() => void testNow()}>
+              Test now
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => {
+                setFinished(false);
+                goTo(0);
+              }}
+            >
+              Fix a problem
+            </button>
+            <button type="button" className="btn btn-secondary" onClick={() => void turnOff()}>
+              Turn off on this {desktop ? 'laptop' : 'phone'}
+            </button>
+            {onClose && (
+              <button type="button" className="btn btn-secondary" onClick={onClose}>
+                Close
+              </button>
+            )}
+          </div>
         </div>
-        <div className="aas-finish__actions">
-          <button type="button" className="btn btn-primary" onClick={() => void testNow()}>
-            Test now
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => {
-              if (onFixProblem) {
-                onFixProblem();
-                return;
-              }
-              setFinished(false);
-              goTo(0);
-            }}
-          >
-            Fix a problem
-          </button>
-          <button type="button" className="btn btn-secondary" onClick={() => void turnOff()}>
-            Turn off on this {desktop ? 'laptop' : 'phone'}
-          </button>
-        </div>
-        {busyText ? (
-          <p className="aas-busy-line">
-            <Loader2 size={14} className="spin-icon" /> {busyText}
-          </p>
-        ) : null}
-        {error ? <p className="aas-error">{error}</p> : null}
       </div>
     );
   }
@@ -515,7 +455,7 @@ export default function AutoAttendanceSetupWizard({
   const progressPct = ((stepIndex + 1) / steps.length) * 100;
 
   return (
-    <div className="aas-wizard aas-wizard--inline">
+    <div className={`aas-wizard ${native ? 'aas-wizard--fullscreen' : ''}`}>
       <div className="aas-wizard__header">
         <h2 className="aas-wizard__title">Set up automatic attendance</h2>
         <p className="aas-wizard__progress-label">
@@ -528,22 +468,12 @@ export default function AutoAttendanceSetupWizard({
 
       {current?.id === 'disclosure' && (
         <div className="aas-disclosure">
-          {iosHome ? (
-            <p>
-              The Home Screen app works only while open. Scorr checks location when you open it and every 60 seconds
-              while it stays open. Scorr does not appear under iOS Location Services by name — allow location for
-              Safari Websites (While Using, Precise Location on) and Safari → Location → Allow or Ask. For automatic
-              check-in and check-out with the app closed, install the Scorr iPhone app. You can turn this off any time
-              in Automatic attendance settings.
-            </p>
-          ) : (
-            <p>
-              Scorr collects location data to enable automatic office check-in and check-out even when the app is closed
-              or not in use. On Android, background location and an unrestricted battery setting keep that check running.
-              On the iPhone app, Always location and a geofence exit do the same. Location is used from 1 hour before
-              your shift starts until 1 hour after it ends. You can turn this off any time in Automatic attendance settings.
-            </p>
-          )}
+          <p>
+            Scorr collects location data to enable automatic office check-in and check-out even when the app is closed
+            or not in use. Location is used only from 1 hour before your shift starts until 1 hour after it ends (your
+            shift time zone). Outside that window, Scorr does not use your location. You can turn this off any time in
+            Automatic attendance settings.
+          </p>
           <p style={{ fontSize: '0.86rem' }}>{PHONE_OPT_IN_TEXT}</p>
           <div className="aas-step__actions">
             <button type="button" className="btn btn-primary" onClick={continueDisclosure}>
@@ -613,11 +543,9 @@ export default function AutoAttendanceSetupWizard({
                         <button type="button" className="btn btn-primary" onClick={() => void requestLocation()}>
                           {st === 'failed' || st === 'action' ? 'Try again' : 'Allow location'}
                         </button>
-                        {!iosHome && (
-                          <button type="button" className="btn btn-secondary" onClick={() => void openNativeAppSettings()}>
-                            Open settings
-                          </button>
-                        )}
+                        <button type="button" className="btn btn-secondary" onClick={() => void openNativeAppSettings()}>
+                          Open settings
+                        </button>
                         <button type="button" className="btn btn-secondary" onClick={() => void refreshPermissions()}>
                           <RefreshCw size={14} /> I changed settings
                         </button>
@@ -628,11 +556,9 @@ export default function AutoAttendanceSetupWizard({
                         <button type="button" className="btn btn-primary" onClick={() => void requestNotifs()}>
                           {st === 'failed' ? 'Try again' : 'Allow notifications'}
                         </button>
-                        {!iosHome && (
-                          <button type="button" className="btn btn-secondary" onClick={() => void openNativeAppSettings()}>
-                            Open settings
-                          </button>
-                        )}
+                        <button type="button" className="btn btn-secondary" onClick={() => void openNativeAppSettings()}>
+                          Open settings
+                        </button>
                       </>
                     )}
                     {s.id === 'battery' && isAndroidApp() && (

@@ -63,22 +63,8 @@ final class AttendancePingStore {
             .apply();
     }
 
-    /**
-     * Clear auto-attendance enrollment only.
-     * Remember-me login + MFA trusted-device tokens must survive stop/unenroll
-     * and session-timeout sign-out (they have dedicated clear APIs).
-     */
     static void clear(Context ctx) {
-        SharedPreferences p = prefs(ctx);
-        String loginEmail = p.getString("login_email", null);
-        String loginPassword = p.getString("login_password", null);
-        String trusted = p.getString("trusted_device_token", null);
-        p.edit().clear().apply();
-        SharedPreferences.Editor restore = prefs(ctx).edit();
-        if (loginEmail != null) restore.putString("login_email", loginEmail);
-        if (loginPassword != null) restore.putString("login_password", loginPassword);
-        if (trusted != null) restore.putString("trusted_device_token", trusted);
-        restore.apply();
+        prefs(ctx).edit().clear().apply();
     }
 
     static void setEnabled(Context ctx, boolean enabled) {
@@ -161,14 +147,6 @@ final class AttendancePingStore {
 
     static String scheduleJson(Context ctx) {
         return prefs(ctx).getString("schedule_json", null);
-    }
-
-    static void saveOfficeVersion(Context ctx, long version) {
-        prefs(ctx).edit().putLong("office_version", version).apply();
-    }
-
-    static long officeVersion(Context ctx) {
-        return prefs(ctx).getLong("office_version", 0L);
     }
 
     static void saveCompanyTz(Context ctx, String tz) {
@@ -262,61 +240,6 @@ final class AttendancePingStore {
 
     static boolean wifiConnected(Context ctx) {
         return prefs(ctx).getBoolean("wifi_connected", false);
-    }
-
-    static void setLastStatusText(Context ctx, String text) {
-        if (text != null) prefs(ctx).edit().putString("last_status_text", text).apply();
-    }
-
-    static String lastStatusText(Context ctx) {
-        return prefs(ctx).getString("last_status_text", null);
-    }
-
-    /** After check-out / inside without Wi-Fi: retry office Wi-Fi every 30s. */
-    static void setAwaitingOfficeWifi(Context ctx, boolean awaiting) {
-        prefs(ctx).edit().putBoolean("awaiting_office_wifi", awaiting).apply();
-    }
-
-    static boolean awaitingOfficeWifi(Context ctx) {
-        return prefs(ctx).getBoolean("awaiting_office_wifi", false);
-    }
-
-    static void setLastServerAction(Context ctx, String action, long atMs) {
-        prefs(ctx).edit()
-            .putString("last_server_action", action != null ? action : "")
-            .putLong("last_server_action_at", atMs)
-            .apply();
-    }
-
-    static void setLastOutsideOrEdge(Context ctx, boolean outsideOrEdge) {
-        prefs(ctx).edit().putBoolean("last_outside_or_edge", outsideOrEdge).apply();
-    }
-
-    static boolean lastOutsideOrEdge(Context ctx) {
-        return prefs(ctx).getBoolean("last_outside_or_edge", false);
-    }
-
-    /** Append a stale-drop log line (capped) so drop frequency is visible. */
-    static synchronized void recordStaleDrop(Context ctx, String event, long ageMs, String source) {
-        try {
-            SharedPreferences p = prefs(ctx);
-            JSONArray arr = new JSONArray(p.getString("stale_drop_log", "[]"));
-            JSONObject row = new JSONObject();
-            row.put("at", System.currentTimeMillis());
-            row.put("event", event != null ? event : "");
-            row.put("age_ms", ageMs);
-            row.put("source", source != null ? source : "");
-            arr.put(row);
-            while (arr.length() > 100) {
-                JSONArray next = new JSONArray();
-                for (int i = 1; i < arr.length(); i++) next.put(arr.get(i));
-                arr = next;
-            }
-            p.edit().putString("stale_drop_log", arr.toString()).apply();
-            Log.i(TAG, "stale_drop_log size=" + arr.length() + " last=" + row);
-        } catch (Exception e) {
-            Log.w(TAG, "recordStaleDrop", e);
-        }
     }
 
     /** Best-effort current Wi-Fi SSID/BSSID for immediate EXIT / disconnect events (R69). */

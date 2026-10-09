@@ -34,7 +34,6 @@ supabase/.temp/
 *.sw?
 .vercel
 .cache/
-public/.web-build-id
 
 # Capacitor native build artifacts
 android/.gradle
@@ -70,3 +69,4 @@ public/downloads/desktop/*.exe
 public/downloads/desktop/*.AppImage
 public/downloads/desktop/*.deb
 public/downloads/desktop/*.blockmap
+backups/
