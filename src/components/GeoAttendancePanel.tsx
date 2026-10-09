@@ -14,6 +14,8 @@ import {
   bootstrapAttendanceLocation,
   effectiveGeofenceRadius,
   localYmd,
+  attendanceActionMessage,
+  isAttendanceSuccessAction,
   submitGeoClockEvent,
 } from '../utils/geoAttendance';
 import { LocationWindow, formatShiftTimeRange, hasAssignedShiftEnded, isWithinShiftExitWindow, locationWindowToMyShift, shouldCaptureLocationNow } from '../utils/shiftHelpers';
@@ -291,32 +293,19 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
     try {
       const result = await submitGeoClockEvent(intent);
       setLastResult(result);
-      if (result.action === 'not_on_office_network' || result.action === 'not_on_office_wifi') {
-        setError('Not on office Wi-Fi');
-      }
-      if (result.action === 'outside_radius' || result.action === 'need_fresh_location') {
-        setError('Not inside the office radius');
-      }
-      if (result.action === 'outside_office') {
-        if (!workSite && offices.filter((o) => o.active).length === 0) {
+      if (!isAttendanceSuccessAction(result.action)) {
+        if (result.action === 'outside_office' && !workSite && offices.filter((o) => o.active).length === 0) {
           setError('No work location assigned. Ask admin: Office & Attendance → Assign people.');
-        } else if (intent === 'clock_in') {
-          setError('Not inside the office radius');
-        } else {
+        } else if (result.action === 'no_open_visit') {
           setError('Clock in first, then clock out.');
+        } else {
+          setError(attendanceActionMessage(result.action || result.reason));
         }
-      }
-      if (result.action === 'shift_not_started') {
-        setError('You can clock in from 1 hour before your shift starts.');
+      } else {
+        setError('');
       }
       await loadToday();
-      if (
-        result.action === 'clock_in' ||
-        result.action === 'clock_out' ||
-        result.action === 'clock_out_shift_end' ||
-        result.action === 'already_clocked_in' ||
-        result.action === 'already_clocked_out'
-      ) {
+      if (isAttendanceSuccessAction(result.action)) {
         onClockUpdate?.();
       }
     } catch (e: unknown) {

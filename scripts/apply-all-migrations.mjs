@@ -245,6 +245,9 @@ const MIGRATIONS = [
   'FIX_shift_times_drive_attendance_2026-10-09.sql',
   'FIX_per_user_shift_hours_2026-10-09.sql',
   'FIX_checkin_wifi_and_radius_restore_2026-10-09.sql',
+  'attendance_rule_6_2026-10-09.sql',
+  'attendance_rule_1_7_2026-10-09.sql',
+  'attendance_rule_2_overnight_early_2026-10-09.sql',
 ];
 
 async function runMigration(filename) {

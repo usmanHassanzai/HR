@@ -63,8 +63,28 @@ export function localYmd(d = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+export type GeoPingAction =
+  | 'clock_in'
+  | 'clock_out'
+  | 'clock_out_shift_end'
+  | 'already_clocked_in'
+  | 'already_clocked_out'
+  | 'outside_office'
+  | 'not_on_office_network'
+  | 'not_on_office_wifi'
+  | 'outside_radius'
+  | 'gps_unusable'
+  | 'need_fresh_location'
+  | 'shift_not_started'
+  | 'not_work_day'
+  | 'checkin_blocked_shift_ended'
+  | 'outside_window'
+  | 'no_open_visit'
+  | 'none'
+  | 'skipped';
+
 export interface GeoPingResult {
-  action: 'clock_in' | 'clock_out' | 'clock_out_shift_end' | 'already_clocked_in' | 'already_clocked_out' | 'outside_office' | 'not_on_office_network' | 'not_on_office_wifi' | 'outside_radius' | 'need_fresh_location' | 'shift_not_started' | 'not_work_day' | 'checkin_blocked_shift_ended' | 'none' | 'skipped';
+  action: GeoPingAction;
   inside_office?: boolean;
   office_name?: string;
   distance_meters?: number;
@@ -79,6 +99,52 @@ export interface GeoPingResult {
   shift_start?: string;
   shift_end?: string;
   work_minutes?: number;
+}
+
+/** Exact user-facing rejection / status copy for attendance presence checks. */
+export function attendanceActionMessage(action: string | null | undefined): string {
+  switch (action) {
+    case 'not_on_office_wifi':
+    case 'not_on_office_network':
+      return 'Connect to the office Wi-Fi';
+    case 'gps_unusable':
+    case 'need_fresh_location':
+      return 'Location unavailable, try again';
+    case 'outside_radius':
+    case 'outside_office':
+      return 'You are outside the office radius';
+    case 'checkin_blocked_shift_ended':
+      return 'The shift has ended. You cannot check in.';
+    case 'outside_window':
+      return 'Outside the attendance window';
+    case 'shift_not_started':
+      return 'You can clock in from 1 hour before your shift starts.';
+    case 'clock_in':
+    case 'already_clocked_in':
+      return 'Checked in';
+    case 'clock_out':
+    case 'clock_out_shift_end':
+    case 'already_clocked_out':
+      return 'Checked out';
+    default:
+      return action ? `Could not complete attendance (${action})` : 'Could not complete attendance.';
+  }
+}
+
+export function isAttendanceSuccessAction(action: string | null | undefined): boolean {
+  return (
+    action === 'clock_in' ||
+    action === 'clock_out' ||
+    action === 'clock_out_shift_end' ||
+    action === 'already_clocked_in' ||
+    action === 'already_clocked_out'
+  );
+}
+
+function positionIsMock(pos: GeolocationPosition): boolean {
+  const coords = pos.coords as GeolocationCoordinates & { mocked?: boolean };
+  const anyPos = pos as GeolocationPosition & { mocked?: boolean };
+  return Boolean(coords?.mocked ?? anyPos?.mocked ?? false);
 }
 
 export interface AttendanceVisit {
@@ -260,6 +326,7 @@ export async function submitGeoClockEvent(intent: GeoClockIntent): Promise<GeoPi
     p_longitude: pos.coords.longitude,
     p_accuracy: pos.coords.accuracy ?? null,
     p_intent: intent,
+    p_is_mock: positionIsMock(pos),
   });
   if (error) throw error;
   const result = data as GeoPingResult;
@@ -289,6 +356,7 @@ export async function submitGeoAutoPing(): Promise<GeoPingResult> {
     p_longitude: pos.coords.longitude,
     p_accuracy: pos.coords.accuracy ?? null,
     p_intent: 'auto',
+    p_is_mock: positionIsMock(pos),
   });
   if (error) throw error;
   const result = data as GeoPingResult;
@@ -407,20 +475,22 @@ function requestBrowserPosition(opts?: {
 
 export function geoActionLabel(action: GeoPingResult['action']): string {
   switch (action) {
-    case 'clock_in': return 'Clocked in at office';
-    case 'clock_out': return 'Clocked out (exit location saved)';
-    case 'clock_out_shift_end': return 'Clocked out (shift ended)';
-    case 'already_clocked_in': return 'On site · visit in progress';
-    case 'already_clocked_out': return 'Checked out · you can clock in again during the shift';
-    case 'outside_office': return 'Outside office zone';
-    case 'not_on_office_network':
-    case 'not_on_office_wifi': return 'Not on office Wi-Fi';
-    case 'outside_radius':
-    case 'need_fresh_location': return 'Not inside the office radius';
-    case 'shift_not_started': return 'Shift has not started yet';
-    case 'not_work_day': return 'Not scheduled to work today';
-    case 'skipped': return 'Geo attendance not applicable';
-    default: return 'Location checked';
+    case 'clock_in':
+      return 'Clocked in at office';
+    case 'clock_out':
+      return 'Clocked out (exit location saved)';
+    case 'clock_out_shift_end':
+      return 'Clocked out (shift ended)';
+    case 'already_clocked_in':
+      return 'On site · visit in progress';
+    case 'already_clocked_out':
+      return 'Checked out · you can clock in again during the shift';
+    case 'skipped':
+      return 'Geo attendance not applicable';
+    case 'none':
+      return 'No attendance change';
+    default:
+      return attendanceActionMessage(action);
   }
 }
 

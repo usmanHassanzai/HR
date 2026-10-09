@@ -347,6 +347,10 @@ async function sendEvent(event, coords, allowRetry = true) {
   const token = loadToken();
   if (!token || !SUPABASE_ANON) return null;
   const now = Date.now();
+  let fix = coords;
+  if (!fix || fix.latitude == null || fix.longitude == null) {
+    fix = await readFreshLocation();
+  }
   const res = await httpJson(`${SUPABASE_URL}/functions/v1/auto-attendance-event`, {
     method: 'POST',
     headers: {
@@ -363,27 +367,34 @@ async function sendEvent(event, coords, allowRetry = true) {
       device_id: deviceId(),
       platform: platformName(),
       app_version: app.getVersion(),
-      latitude: coords?.latitude ?? null,
-      longitude: coords?.longitude ?? null,
-      accuracy_m: coords?.accuracy_m ?? null,
+      latitude: fix?.latitude ?? null,
+      longitude: fix?.longitude ?? null,
+      accuracy_m: fix?.accuracy_m ?? null,
+      is_mock: false,
     },
   });
 
-  if (allowRetry && res?.action === 'need_fresh_location') {
+  if (allowRetry && (res?.action === 'need_fresh_location' || res?.action === 'gps_unusable')) {
     const pos = await readFreshLocation();
     if (pos && pos.latitude != null && pos.longitude != null) {
       return sendEvent(event, pos, false);
     }
+    notify('Scorr', 'Location unavailable, try again');
+    return res;
   }
 
   if (res?.action === 'clock_in') {
     notify('Scorr', 'Checked in (laptop)');
   } else if (res?.action === 'clock_out') {
     notify('Scorr', 'Checked out (laptop)');
-  } else if (event === 'power_on' && (res?.action === 'not_on_office_wifi' || res?.action === 'not_on_office_network')) {
-    notify('Scorr', 'Not on office Wi-Fi');
-  } else if (event === 'power_on' && (res?.action === 'outside_radius' || res?.action === 'need_fresh_location')) {
-    notify('Scorr', 'Not inside the office radius');
+  } else if (res?.action === 'not_on_office_wifi' || res?.action === 'not_on_office_network') {
+    notify('Scorr', 'Connect to the office Wi-Fi');
+  } else if (res?.action === 'outside_radius') {
+    notify('Scorr', 'You are outside the office radius');
+  } else if (res?.action === 'need_fresh_location' || res?.action === 'gps_unusable') {
+    notify('Scorr', 'Location unavailable, try again');
+  } else if (res?.action === 'checkin_blocked_shift_ended') {
+    notify('Scorr', 'The shift has ended. You cannot check in.');
   } else if (res?.action === 'presence_left_pending' || res?.action === 'device_left_others_present') {
     // Off office network — keep heartbeats so sticky present clears for phone auto priority.
   }
@@ -411,7 +422,7 @@ function startHeartbeatIfInWindow() {
   const win = activeWindow(sched, nowMs);
   if (!win) return;
 
-  // Immediate present signal
+  // Immediate present signal with a fresh GPS reading
   void sendEvent('power_on');
   heartbeatTimer = setInterval(() => {
     const w = activeWindow(cachedSchedule, Date.now());
@@ -420,7 +431,7 @@ function startHeartbeatIfInWindow() {
       return;
     }
     void sendEvent('heartbeat');
-  }, 5 * 60 * 1000);
+  }, 60 * 1000);
 }
 
 function armScheduleLoop() {

@@ -72,11 +72,7 @@ final class AttendanceEventClient {
                      String ssid, String bssid, Long occurredAtUtcMs) {
         Context app = ctx.getApplicationContext();
         if (!AttendancePingStore.enabled(app)) return;
-        // Never emit attendance signals outside W (R70).
-        if (!AttendancePingStore.isInsideActiveWindow(app)) {
-            Log.d(TAG, "Skip event outside window: " + event);
-            return;
-        }
+        // Server decides the attendance window. Keep client rate limits only.
 
         long now = System.currentTimeMillis();
         long occurred = occurredAtUtcMs != null && occurredAtUtcMs > 0 ? occurredAtUtcMs : now;

@@ -24,7 +24,14 @@ import ManagerTeamAttendanceDirectory from './ManagerTeamAttendanceDirectory';
 import EmployeeAttendanceHistory from './EmployeeAttendanceHistory';
 import { Department } from '../utils/departmentHelpers';
 import { canMarkRemoteAttendance, workModeLabel } from '../utils/workModeHelpers';
-import { GEO_CLOCK_EVENT, localYmd, submitGeoClockEvent } from '../utils/geoAttendance';
+import {
+  GEO_CLOCK_EVENT,
+  attendanceActionMessage,
+  isAttendanceSuccessAction,
+  localYmd,
+  requestCurrentPosition,
+  submitGeoClockEvent,
+} from '../utils/geoAttendance';
 import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
 import { scrollNavTarget } from '../utils/notificationDeepLink';
 import { useHistorySyncedTab } from '../utils/useHistoryNavigation';
@@ -391,19 +398,13 @@ export default function AttendanceLeavePanel({
     setMsg('');
     try {
       const result = await submitGeoClockEvent('clock_in');
-      if (result.action === 'not_on_office_wifi' || result.action === 'not_on_office_network') {
-        setMsg('Not on office Wi-Fi — check-in needs office Wi-Fi and being inside the office radius.');
-      } else if (result.action === 'outside_radius' || result.action === 'need_fresh_location' || result.action === 'outside_office') {
-        setMsg('Not inside the office radius — check-in needs office Wi-Fi and being inside the office radius.');
-      } else if (result.action === 'clock_in' || result.action === 'already_clocked_in') {
-        setMsg('Checked in — office Wi-Fi and radius confirmed.');
+      if (isAttendanceSuccessAction(result.action)) {
+        setMsg(attendanceActionMessage(result.action));
         load();
         setHistoryRefreshKey((k) => k + 1);
         window.dispatchEvent(new CustomEvent(GEO_CLOCK_EVENT));
-      } else if (result.action === 'checkin_blocked_shift_ended') {
-        setMsg('Shift has ended — check-in is closed.');
       } else {
-        setMsg(result.reason || result.action || 'Could not check in.');
+        setMsg(attendanceActionMessage(result.action || result.reason));
       }
     } catch (e: unknown) {
       setMsg(e instanceof Error ? e.message : 'Could not check in.');
@@ -415,10 +416,28 @@ export default function AttendanceLeavePanel({
   const checkOutToday = async (opts?: { thenRequestLeave?: boolean }) => {
     setSubmitting(true);
     setMsg('');
-    const { error } = await supabase.rpc('check_out_attendance');
-    setSubmitting(false);
-    if (error) setMsg(error.message);
-    else {
+    try {
+      const pos = await requestCurrentPosition({
+        maximumAge: 0,
+        timeout: 20_000,
+        enableHighAccuracy: true,
+      });
+      const coords = pos.coords as GeolocationCoordinates & { mocked?: boolean };
+      const { error } = await supabase.rpc('check_out_attendance', {
+        p_latitude: pos.coords.latitude,
+        p_longitude: pos.coords.longitude,
+        p_accuracy: pos.coords.accuracy ?? null,
+        p_is_mock: Boolean(coords?.mocked),
+      });
+      if (error) {
+        const raw = error.message || '';
+        if (raw.includes('not_on_office_wifi')) setMsg(attendanceActionMessage('not_on_office_wifi'));
+        else if (raw.includes('gps_unusable')) setMsg(attendanceActionMessage('gps_unusable'));
+        else if (raw.includes('outside_radius')) setMsg(attendanceActionMessage('outside_radius'));
+        else if (raw.includes('outside_window')) setMsg(attendanceActionMessage('outside_window'));
+        else setMsg(raw);
+        return;
+      }
       setMsg(
         opts?.thenRequestLeave
           ? 'Checked out for the rest of your shift. Submit your leave request on the next tab.'
@@ -436,6 +455,10 @@ export default function AttendanceLeavePanel({
         if (mode === 'hr') setAdminTab('today');
         else setEmployeeTab('leave');
       }
+    } catch (e: unknown) {
+      setMsg(e instanceof Error ? e.message : attendanceActionMessage('gps_unusable'));
+    } finally {
+      setSubmitting(false);
     }
   };
 

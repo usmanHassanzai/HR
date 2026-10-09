@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-08T21:42:53.010Z",
-  "webBuildId": "1.3.9-2026-10-08214244",
+  "generatedAt": "2026-10-09T09:39:03.802Z",
+  "webBuildId": "1.3.9-2026-10-09093857",
   "mandatory": false,
   "notes": "Automatic attendance, Office Wi-Fi, 1-hour sessions, auto-updates. If install fails with a signature error, uninstall the old debug APK once, then install this release — after that, updates install over the old app.",
   "android": {
