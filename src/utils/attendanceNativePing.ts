@@ -64,7 +64,7 @@ export async function startNativeAttendancePings(): Promise<void> {
       anonKey: supabaseAnonKey,
       deviceToken,
       deviceId,
-      appVersion: '1.3.15',
+      appVersion: '1.3.16',
     });
   } catch {
     /* web / plugin unavailable */

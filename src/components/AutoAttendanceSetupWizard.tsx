@@ -119,7 +119,7 @@ export default function AutoAttendanceSetupWizard({
         id: 'location',
         title: 'Location access',
         explanation: iosHome
-          ? 'This Home Screen app cannot run in the background. Scorr checks location when you open it, and every 60 seconds while it stays open.'
+          ? 'Scorr is a Safari website on the Home Screen — it does not appear under Location Services by name. Tap Allow location, then: Settings > Privacy & Security > Location Services > Safari Websites > While Using the App (Precise Location on). Also Settings > Apps > Safari > Location > Allow or Ask. The Home Screen app works only while open; for automatic check-in and check-out, install the Scorr iPhone app.'
           : isIosApp()
             ? 'Allow While Using, then Always. A geofence exit checks you out when you leave the office, even if the app is closed.'
             : 'Allow all the time, and set battery to Unrestricted, so a geofence exit can check you out in the background.',
@@ -530,9 +530,11 @@ export default function AutoAttendanceSetupWizard({
         <div className="aas-disclosure">
           {iosHome ? (
             <p>
-              This Home Screen app cannot run in the background. Scorr checks your location when you open it, and
-              every 60 seconds while it stays open. Check-out uses the first GPS reading outside the office radius on
-              those checks. You can turn this off any time in Automatic attendance settings.
+              The Home Screen app works only while open. Scorr checks location when you open it and every 60 seconds
+              while it stays open. Scorr does not appear under iOS Location Services by name — allow location for
+              Safari Websites (While Using, Precise Location on) and Safari → Location → Allow or Ask. For automatic
+              check-in and check-out with the app closed, install the Scorr iPhone app. You can turn this off any time
+              in Automatic attendance settings.
             </p>
           ) : (
             <p>

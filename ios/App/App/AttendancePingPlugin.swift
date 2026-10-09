@@ -1681,7 +1681,7 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
             "device_timezone": TimeZone.current.identifier,
             "is_mock": event.isMock,
             "platform": "ios",
-            "app_version": AttendanceStore.appVersion ?? "1.3.15",
+            "app_version": AttendanceStore.appVersion ?? "1.3.16",
             "precise_location": event.preciseLocation ?? isPreciseLocationOn(),
         ]
         if let fixMs = event.locationFixUtcMs {

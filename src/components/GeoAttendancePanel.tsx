@@ -23,7 +23,13 @@ import {
 import { LocationWindow, formatShiftTimeRange, hasAssignedShiftEnded, isWithinShiftExitWindow, locationWindowToMyShift, shouldCaptureLocationNow } from '../utils/shiftHelpers';
 import { Capacitor } from '@capacitor/core';
 import { isDesktopApp, isIosHomeScreen, isNativeApp } from '../utils/nativePlatform';
-import { IOS_HOME_BACKGROUND_BANNER } from '../utils/attendanceIosHome';
+import {
+  allowIosHomeLocationFromTap,
+  getIosHomeLocationError,
+  IOS_HOME_BACKGROUND_BANNER,
+  IOS_HOME_LOCATION_EVENT,
+  IOS_HOME_LOCATION_STEPS,
+} from '../utils/attendanceIosHome';
 import { getNativePermissionSnapshot } from '../utils/autoAttendanceSetup';
 
 interface GeoAttendancePanelProps {
@@ -171,6 +177,8 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
   const [lastOfficeSignalAt, setLastOfficeSignalAt] = useState<number | null>(null);
   const [lastAnySignalAt, setLastAnySignalAt] = useState<number | null>(null);
   const [laptopAsleepSince, setLaptopAsleepSince] = useState<number | null>(null);
+  const [iosHomeLocError, setIosHomeLocError] = useState<string | null>(null);
+  const [iosHomeLocBusy, setIosHomeLocBusy] = useState(false);
 
   /** Apply latest enrolled-device event (not only in-browser portal pings). */
   const applyDeviceEventRow = useCallback((row: {
@@ -377,8 +385,15 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
     const onVis = () => {
       if (document.visibilityState === 'visible') void refresh();
     };
+    const onIosHomeLoc = () => {
+      const err = getIosHomeLocationError();
+      setIosHomeLocError(err?.message ?? null);
+      void refresh();
+    };
+    window.addEventListener(IOS_HOME_LOCATION_EVENT, onIosHomeLoc);
     document.addEventListener('visibilitychange', onVis);
     return () => {
+      window.removeEventListener(IOS_HOME_LOCATION_EVENT, onIosHomeLoc);
       cancelled = true;
       document.removeEventListener('visibilitychange', onVis);
     };
@@ -694,9 +709,38 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
       </div>
 
       {isIosHomeScreen() && (
-        <p className="geo-hint geo-hint--spaced" role="note">
-          {IOS_HOME_BACKGROUND_BANNER}
-        </p>
+        <>
+          <p className="geo-hint geo-hint--spaced" role="note">
+            {IOS_HOME_BACKGROUND_BANNER}
+          </p>
+          <p className="geo-hint geo-hint--spaced" role="note">
+            {IOS_HOME_LOCATION_STEPS}
+          </p>
+          {(iosHomeLocError ||
+            iosLocPermission === 'home_denied' ||
+            iosLocPermission === 'home_prompt' ||
+            deviceInside == null) && (
+            <div className="geo-hint geo-hint--spaced" role="status">
+              {iosHomeLocError && <p>{iosHomeLocError}</p>}
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={iosHomeLocBusy}
+                onClick={() => {
+                  setIosHomeLocBusy(true);
+                  void allowIosHomeLocationFromTap()
+                    .then((r) => {
+                      setIosHomeLocError(r.ok ? null : r.message);
+                      if (r.ok) setIosLocPermission('home_granted');
+                    })
+                    .finally(() => setIosHomeLocBusy(false));
+                }}
+              >
+                {iosHomeLocBusy ? 'Getting location…' : 'Allow location'}
+              </button>
+            </div>
+          )}
+        </>
       )}
       {iosLocPermission === 'when_in_use' && (
         <p className="geo-hint geo-hint--spaced" role="status">

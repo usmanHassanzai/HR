@@ -218,33 +218,20 @@ export async function requestAlwaysLocation(): Promise<{ ok: boolean; detail: st
   }
 }
 
-function requestBrowserLocation(): Promise<{ ok: boolean; detail: string }> {
+async function requestBrowserLocation(): Promise<{ ok: boolean; detail: string }> {
   if (!navigator.geolocation) {
-    return Promise.resolve({
+    return {
       ok: false,
       detail: 'This iPhone cannot share location with the Home Screen app.',
-    });
+    };
   }
-  return new Promise((resolve) => {
-    navigator.geolocation.getCurrentPosition(
-      () => resolve({ ok: true, detail: 'Location allowed' }),
-      (err) => {
-        if (err.code === err.PERMISSION_DENIED) {
-          resolve({
-            ok: false,
-            detail:
-              'Location was blocked. Open iPhone Settings → Privacy & Security → Location Services → Scorr (or Safari Websites) → While Using the App, then return here.',
-          });
-          return;
-        }
-        resolve({
-          ok: false,
-          detail: 'Could not read location. Turn on Location Services and try again.',
-        });
-      },
-      { enableHighAccuracy: true, timeout: 20_000, maximumAge: 0 },
-    );
-  });
+  const { allowIosHomeLocationFromTap, iosHomeLocationErrorMessage } = await import('./attendanceIosHome');
+  const res = await allowIosHomeLocationFromTap();
+  if (res.ok) return { ok: true, detail: 'Location allowed' };
+  return {
+    ok: false,
+    detail: res.message || iosHomeLocationErrorMessage(1),
+  };
 }
 
 export async function requestWhileUsingLocation(): Promise<{ ok: boolean; detail: string }> {
@@ -271,13 +258,14 @@ export async function requestWhileUsingLocation(): Promise<{ ok: boolean; detail
 
 export async function getNativePermissionSnapshot() {
   if (isIosHomeScreen()) {
-    let location: PermissionState | 'prompt' = 'prompt';
-    try {
-      const status = await navigator.permissions.query({ name: 'geolocation' });
-      location = status.state;
-    } catch {
-      location = 'prompt';
-    }
+    // Do not rely on navigator.permissions on iOS Safari — it is often wrong.
+    // Infer from the last Home Screen location attempt instead.
+    const { getIosHomeLastFix, getIosHomeLocationError } = await import('./attendanceIosHome');
+    const err = getIosHomeLocationError();
+    const fix = getIosHomeLastFix();
+    let location: 'granted' | 'denied' | 'prompt' = 'prompt';
+    if (fix) location = 'granted';
+    else if (err?.code === 1) location = 'denied';
     const notif =
       typeof Notification === 'undefined'
         ? 'granted'
@@ -287,7 +275,7 @@ export async function getNativePermissionSnapshot() {
             ? 'denied'
             : 'prompt';
     return {
-      location: location === 'granted' ? 'granted' : location === 'denied' ? 'denied' : 'prompt',
+      location,
       coarseLocation: location === 'granted' ? 'granted' : 'prompt',
       // Home Screen has no background region monitoring.
       backgroundLocation: 'denied',
