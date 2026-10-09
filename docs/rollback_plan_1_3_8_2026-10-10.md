@@ -451,3 +451,21 @@ Production SELECTs via Supabase Management API **succeeded** (function defs, cro
 
 STEP 0 COMPLETE — WAITING FOR GO  
 NO CHANGES MADE
+
+---
+
+## STEP 1–4 execution record (2026-10-10)
+
+**Branch:** `rollback-1.3.8` @ `72dd014`  
+**Baseline restored:** `52f8774`  
+**Ship version:** 1.3.14 (Android versionCode **26**, iOS build **22**)
+
+| Step | Result |
+|---|---|
+| 1 Backup | Logical dump (Management API; no DB password for pg_dump) at `/home/usman/walfia.ai/backups/rollback_2026-10-10.sql` (~801KB, **PII — not committed**) |
+| 2 Code | Tree restored to 52f8774; post-1.3.8 files removed; `testing.mdc` created; apply-all ends with `attendance_auto_tests` + `rollback_to_1_3_8_2026-10-10.sql` |
+| 3 DB | Migration applied live; cron `scorr-attendance-cron` = `*/5`; retention + KPI weightage crons removed; 5b/5c/laptop helpers dropped; 1.3.8 RPC bodies restored |
+| 4 Verify | `npx tsc -b` pass; `npm run build` pass; attendance_records **55**, visits **101** unchanged; devices 18→17; **0** `@scorr.test` users |
+
+**Test data removed:** EdgeIP company `edge-ip-0f9f49a4`, users `admin_edge_*/emp_edge_*@scorr.test`, shift `EdgeIP Shift`, 1 android device, related events.
+
