@@ -69,8 +69,8 @@ Done! All platforms use the same features:
   • Shift management + GPS attendance
   • KPI assign with auto weights
 
-Deploy web:
-  npx vercel --prod
+Deploy web (always project hr → scorr.walfia.ai):
+  npm run deploy:site
 
 Android APK:
   public/downloads/scorr.apk → commit & push for website download

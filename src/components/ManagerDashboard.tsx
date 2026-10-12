@@ -293,10 +293,9 @@ export default function ManagerDashboard({ profile, organizationName }: ManagerD
                 <KeyRound size={16} /> Change password
               </button>
             </div>
-            <details className="app-settings-block" open>
-              <summary>Automatic attendance</summary>
+            <div className="app-settings-block">
               <AutoAttendanceSettings mode="self" />
-            </details>
+            </div>
             <details className="app-settings-block" open>
               <summary>Account security (2FA recovery)</summary>
               <AccountSecurityPanel fullName={profile.full_name} omitDelete />

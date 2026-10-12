@@ -38,13 +38,13 @@ console.log(`
 Option A — Git push (if Vercel is linked to GitHub):
   git push origin master:main
 
-Option B — Vercel CLI:
+Option B — Vercel CLI (must use project hr; bare deploy creates orphan projects):
   npx vercel login
-  npx vercel deploy --prod --yes
+  npm run deploy:site
 
 Option C — Vercel prebuilt (after vercel login):
   npx vercel build --prod --yes
-  npx vercel --prebuilt --prod --yes
+  npx vercel --prebuilt --prod --yes --scope walfia --project hr
 
 Then hard-refresh: https://scorr.walfia.ai
 `);
