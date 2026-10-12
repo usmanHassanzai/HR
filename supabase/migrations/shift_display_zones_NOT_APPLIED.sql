@@ -344,7 +344,7 @@ $$;
 GRANT EXECUTE ON FUNCTION public.update_office_default_timezones(UUID, TEXT, TEXT[]) TO authenticated;
 
 COMMENT ON TABLE public.shift_display_zones IS
-  'R77: Extra office times for display only. Attendance window follows work_shifts.timezone (main).';
+  'Extra country/timezone times for a shift. Each row is an equal attendance window alongside work_shifts.timezone; attendance ORs across zones.';
 
 DROP FUNCTION IF EXISTS public.get_manager_shifts();
 

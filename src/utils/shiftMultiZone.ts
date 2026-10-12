@@ -232,7 +232,8 @@ export type FormattedZoneRange = {
 };
 
 /**
- * Display ranges for main + display zones, recalculated from main for `onYmd`.
+ * Display ranges for all configured shift zones, recalculated from the first
+ * (schema-main) zone for `onYmd`. Every listed zone is a real attendance window.
  */
 export function formatShiftZonesForDate(
   main: ShiftOfficeTime,
