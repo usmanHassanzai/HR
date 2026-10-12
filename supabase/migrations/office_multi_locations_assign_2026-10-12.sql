@@ -646,6 +646,9 @@ GRANT EXECUTE ON FUNCTION public.assign_office_to_all_employees(UUID) TO authent
 -- ---------------------------------------------------------------------------
 -- 7) List assignments with location + parent office ids
 -- ---------------------------------------------------------------------------
+-- Older shape lacked office_* columns; CREATE OR REPLACE cannot change OUT row type.
+DROP FUNCTION IF EXISTS public.get_employee_work_sites() CASCADE;
+
 CREATE OR REPLACE FUNCTION public.get_employee_work_sites()
 RETURNS TABLE(
   site_id UUID,
@@ -735,6 +738,10 @@ GRANT EXECUTE ON FUNCTION public.get_employee_work_sites() TO authenticated;
 -- ---------------------------------------------------------------------------
 -- 8) Presence: only assigned locations; OR across them
 -- ---------------------------------------------------------------------------
+-- May already exist without office_* OUT columns (42P13 without DROP).
+DROP FUNCTION IF EXISTS public.get_work_sites_for_user(uuid) CASCADE;
+DROP FUNCTION IF EXISTS public.get_my_work_sites() CASCADE;
+
 CREATE OR REPLACE FUNCTION public.get_work_sites_for_user(p_user_id UUID)
 RETURNS TABLE(
   site_id UUID,

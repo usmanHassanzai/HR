@@ -6,6 +6,9 @@
 -- ---------------------------------------------------------------------------
 -- 1) Propagate office pin + radius to everyone assigned to that office
 -- ---------------------------------------------------------------------------
+-- Stub from attendance_rules_reset was RETURNS void; must DROP before integer.
+DROP FUNCTION IF EXISTS public.sync_work_sites_to_office(uuid) CASCADE;
+
 CREATE OR REPLACE FUNCTION public.sync_work_sites_to_office(p_office_id uuid)
 RETURNS integer
 LANGUAGE plpgsql
