@@ -17,6 +17,35 @@ import {
   saveAccountForAutoAttendance,
   type AutoAttendanceSaveStatus,
 } from '../utils/autoAttendanceEnroll';
+import { friendlyAutoAttendanceError } from '../utils/attendanceDevice';
+
+type UiState = 'active' | 'needs_setup' | 'off';
+
+function resolveUiState(status: AutoAttendanceSaveStatus): UiState {
+  if (!status.saved) return 'off';
+  if (status.backgroundArmed) {
+    const blocking =
+      status.needsLocation ||
+      status.needsBackgroundLocation ||
+      status.needsNotifications ||
+      status.needsBattery ||
+      status.setupIssues.length > 0;
+    return blocking ? 'needs_setup' : 'active';
+  }
+  return 'needs_setup';
+}
+
+function statusLabel(state: UiState): string {
+  if (state === 'active') return 'Active';
+  if (state === 'needs_setup') return 'Needs setup';
+  return 'Off';
+}
+
+function statusDetail(state: UiState): string {
+  if (state === 'active') return 'Automatic check-in is on';
+  if (state === 'needs_setup') return 'Tap Enable to finish setup';
+  return 'Automatic check-in is off on this device';
+}
 
 export default function AutoAttendanceSavePanel() {
   const [status, setStatus] = useState<AutoAttendanceSaveStatus | null>(null);
@@ -30,7 +59,7 @@ export default function AutoAttendanceSavePanel() {
     try {
       setStatus(await getAutoAttendanceSaveStatus());
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not load auto attendance status.');
+      setError(friendlyAutoAttendanceError(e, 'Could not load automatic check-in status.'));
     } finally {
       setLoading(false);
     }
@@ -47,18 +76,20 @@ export default function AutoAttendanceSavePanel() {
     try {
       const res = await saveAccountForAutoAttendance();
       if (!res.ok) {
-        setError(res.error || 'Could not save this account on the device.');
+        setError(
+          friendlyAutoAttendanceError(res.error, 'Couldn’t enable automatic check-in. Try again.'),
+        );
         return;
       }
       const extra = res.warnings.filter(Boolean);
       setNote(
         extra.length
-          ? `Saved on this device. ${extra.join(' ')}`
-          : 'Saved on this device. Background check-in is on — you can close the app.',
+          ? `Automatic check-in updated. ${extra.join(' ')}`
+          : 'Automatic check-in is on — you can close the app.',
       );
       await refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save this account on the device.');
+      setError(friendlyAutoAttendanceError(e, 'Couldn’t enable automatic check-in. Try again.'));
     } finally {
       setBusy(false);
     }
@@ -67,7 +98,7 @@ export default function AutoAttendanceSavePanel() {
   const onRemove = async () => {
     if (
       !confirm(
-        'Remove this device from auto attendance? Background check-in will stop until you save again.',
+        'Turn off automatic check-in on this device? You can enable it again anytime.',
       )
     ) {
       return;
@@ -78,13 +109,13 @@ export default function AutoAttendanceSavePanel() {
     try {
       const res = await removeAccountFromAutoAttendance();
       if (!res.ok) {
-        setError(res.error || 'Could not remove this device.');
+        setError(friendlyAutoAttendanceError(res.error, 'Could not turn off on this device.'));
       } else {
-        setNote('Removed from this device. Background check-in is off.');
+        setNote('Automatic check-in is off on this device.');
       }
       await refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not remove this device.');
+      setError(friendlyAutoAttendanceError(e, 'Could not turn off on this device.'));
     } finally {
       setBusy(false);
     }
@@ -103,30 +134,42 @@ export default function AutoAttendanceSavePanel() {
   if (status.kind === 'unsupported') {
     return (
       <div className="auto-attend-save">
-        <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-          Background check-in (office Wi‑Fi or radius, without opening Scorr) is available in the{' '}
-          <strong>Android app</strong> and <strong>desktop app</strong>. Open Settings there and choose
-          Save account for auto attendance. iOS and the browser cannot stay enrolled in the background.
+        <p style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+          Automatic check-in
+        </p>
+        <p style={{ margin: '0.4rem 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+          Available in the <strong>Android app</strong> and <strong>desktop app</strong>. Open Settings
+          there to enable it. iOS and the browser cannot stay enrolled in the background.
         </p>
         <p style={{ margin: '0.65rem 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-          This client: {status.platformLabel}
+          This device: {status.platformLabel}
         </p>
       </div>
     );
   }
 
+  const uiState = resolveUiState(status);
   const saved = status.saved;
-  const armed = status.backgroundArmed;
   const needsPerm =
     status.needsLocation ||
     status.needsBackgroundLocation ||
     status.needsNotifications ||
     status.needsBattery ||
-    (saved && !armed);
+    (saved && !status.backgroundArmed);
+
+  const statusColor =
+    uiState === 'active'
+      ? 'var(--color-success, #0f766e)'
+      : uiState === 'needs_setup'
+        ? 'var(--color-warning, #b45309)'
+        : 'var(--text-primary)';
 
   return (
     <div className="auto-attend-save">
-      <p style={{ margin: '0 0 0.75rem', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+      <p style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+        Automatic check-in
+      </p>
+      <p style={{ margin: '0.35rem 0 0.85rem', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
         {status.optInText}
       </p>
 
@@ -146,20 +189,12 @@ export default function AutoAttendanceSavePanel() {
             alignItems: 'center',
             gap: '0.35rem',
             fontWeight: 600,
-            color:
-              saved && armed
-                ? 'var(--color-success, #0f766e)'
-                : saved
-                  ? 'var(--color-warning, #b45309)'
-                  : 'var(--text-primary)',
+            color: statusColor,
           }}
         >
-          {saved && armed ? <CheckCircle2 size={16} /> : <ShieldOff size={16} />}
-          {saved && armed
-            ? 'Saved on this device'
-            : saved
-              ? 'Saved — background not armed'
-              : 'Not saved on this device'}
+          {uiState === 'active' ? <CheckCircle2 size={16} /> : <ShieldOff size={16} />}
+          {statusLabel(uiState)}
+          <span style={{ fontWeight: 500, opacity: 0.9 }}>— {statusDetail(uiState)}</span>
         </span>
         <span style={{ color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
           <Smartphone size={14} /> {status.platformLabel}
@@ -177,11 +212,11 @@ export default function AutoAttendanceSavePanel() {
       >
         <li style={{ marginBottom: '0.25rem' }}>
           <Wifi size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-          Office Wi‑Fi match checks you in first
+          Office Wi‑Fi checks you in first
         </li>
         <li>
           <MapPin size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-          Else office radius (location on)
+          Otherwise, office area (with location on)
         </li>
       </ul>
 
@@ -197,7 +232,7 @@ export default function AutoAttendanceSavePanel() {
             lineHeight: 1.45,
           }}
         >
-          <strong>Before auto check-in works</strong>
+          <strong>Before automatic check-in works</strong>
           <ul style={{ margin: '0.35rem 0 0', paddingLeft: '1.1rem' }}>
             {status.setupIssues.map((issue) => (
               <li key={issue}>{issue}</li>
@@ -209,7 +244,7 @@ export default function AutoAttendanceSavePanel() {
       {status.permissionLines.length > 0 && (
         <div style={{ marginBottom: '0.85rem', fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
           <strong style={{ color: 'var(--text-primary)' }}>
-            {needsPerm ? 'Permissions needed' : 'Permissions'}
+            {needsPerm ? 'Finish setup' : 'Permissions'}
           </strong>
           <ul style={{ margin: '0.35rem 0 0', paddingLeft: '1.1rem' }}>
             {status.permissionLines.map((line) => (
@@ -227,21 +262,21 @@ export default function AutoAttendanceSavePanel() {
       )}
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.55rem', alignItems: 'center' }}>
-        {!saved ? (
+        {!saved || uiState === 'needs_setup' ? (
           <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void onSave()}>
             {busy ? <Loader2 size={16} className="spin-icon" /> : <Radio size={16} />}
-            Save account on this device
+            Enable
           </button>
         ) : (
-          <>
-            <button type="button" className="btn btn-secondary" disabled={busy} onClick={() => void onSave()}>
-              {busy ? <Loader2 size={16} className="spin-icon" /> : <Radio size={16} />}
-              Re-save / refresh
-            </button>
-            <button type="button" className="btn btn-secondary" disabled={busy} onClick={() => void onRemove()}>
-              Remove from this device
-            </button>
-          </>
+          <button type="button" className="btn btn-secondary" disabled={busy} onClick={() => void onSave()}>
+            {busy ? <Loader2 size={16} className="spin-icon" /> : <Radio size={16} />}
+            Refresh
+          </button>
+        )}
+        {saved && (
+          <button type="button" className="btn btn-secondary" disabled={busy} onClick={() => void onRemove()}>
+            Turn off on this device
+          </button>
         )}
         {status.kind === 'android' && (
           <>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { isKpiViewedByAssignee, kpiProgressBadge, Profile, Kpi } from '../utils/kpiHelpers';
+import { isKpiPaused, isKpiViewedByAssignee, kpiProgressBadge, Profile, Kpi } from '../utils/kpiHelpers';
 import { hydrateKpiLastEdits } from '../utils/kpiAssignmentEdits';
 import { markAssignedKpisViewed } from '../utils/kpiViewed';
 import { formatKpiWeight, KPI_WEIGHT_CAP } from '../utils/kpiWeightHelpers';
@@ -29,6 +29,7 @@ import {
   CheckCircle2,
   Clock3,
   Loader2,
+  PauseCircle,
   RefreshCw,
   Search,
   Target,
@@ -200,6 +201,14 @@ export default function ManagerPersonalPanel({ profile, focusKpiId }: ManagerPer
       ),
     [visibleKpis],
   );
+  const activeOpenKpis = useMemo(
+    () => openKpis.filter((k) => !isKpiPaused(k)),
+    [openKpis],
+  );
+  const pausedOpenKpis = useMemo(
+    () => openKpis.filter((k) => isKpiPaused(k)),
+    [openKpis],
+  );
   /** History: completed only in the selected calendar month/year (not date-span). */
   const historyKpis = useMemo(() => {
     const q = kpiSearch.trim().toLowerCase();
@@ -217,8 +226,8 @@ export default function ManagerPersonalPanel({ profile, focusKpiId }: ManagerPer
     });
   }, [kpis, periodMode, filterYear, filterMonth, kpiSearch]);
   const historyGroups = useMemo(() => groupCompletedKpisByMonth(historyKpis), [historyKpis]);
-  const listedKpis = listMode === 'history' ? historyKpis : openKpis;
-  const awaitingCount = openKpis.filter((k) => k.completion_status === 'pending_review').length;
+  const listedKpis = listMode === 'history' ? historyKpis : activeOpenKpis;
+  const awaitingCount = activeOpenKpis.filter((k) => k.completion_status === 'pending_review').length;
   const firstName = profile.full_name.trim().split(/\s+/)[0] || 'there';
 
   if (loading && kpis.length === 0) {
@@ -252,9 +261,20 @@ export default function ManagerPersonalPanel({ profile, focusKpiId }: ManagerPer
             </span>
             <div>
               <span className="mgr-my-kpis-stat__label">Open</span>
-              <strong>{openKpis.length}</strong>
+              <strong>{activeOpenKpis.length}</strong>
             </div>
           </div>
+          {pausedOpenKpis.length > 0 ? (
+            <div className="mgr-my-kpis-stat" role="listitem">
+              <span className="mgr-my-kpis-stat__icon mgr-my-kpis-stat__icon--review">
+                <PauseCircle size={15} />
+              </span>
+              <div>
+                <span className="mgr-my-kpis-stat__label">Paused</span>
+                <strong>{pausedOpenKpis.length}</strong>
+              </div>
+            </div>
+          ) : null}
           <div className="mgr-my-kpis-stat" role="listitem">
             <span className="mgr-my-kpis-stat__icon mgr-my-kpis-stat__icon--review">
               <Clock3 size={15} />
@@ -358,7 +378,8 @@ export default function ManagerPersonalPanel({ profile, focusKpiId }: ManagerPer
                 aria-selected={listMode === 'open'}
                 onClick={() => setListMode('open')}
               >
-                Open ({openKpis.length})
+                Open ({activeOpenKpis.length}
+                {pausedOpenKpis.length > 0 ? ` · ${pausedOpenKpis.length} paused` : ''})
               </button>
               <button
                 type="button"
@@ -432,7 +453,7 @@ export default function ManagerPersonalPanel({ profile, focusKpiId }: ManagerPer
                 }}
               />
             )
-          ) : listedKpis.length === 0 ? (
+          ) : listedKpis.length === 0 && pausedOpenKpis.length === 0 ? (
             <div className="mgr-personal-empty glass-panel mgr-personal-empty--compact">
               <Target size={28} strokeWidth={1.35} />
               <h4>No open tasks</h4>
@@ -443,70 +464,138 @@ export default function ManagerPersonalPanel({ profile, focusKpiId }: ManagerPer
               </p>
             </div>
           ) : (
-            listedKpis.map((kpi) => {
-              const badge = kpiProgressBadge(kpi);
-              const awaitingReview = kpi.completion_status === 'pending_review';
-              const complete = kpi.completion_status === 'completed';
-              const penaltyLabel = formatLatePenaltyLabel(kpiScoringRule(kpi));
-              const awarded = complete
-                ? displayedAwardedWeightage(kpi, { deferUntilMonthEnd: true })
-                : null;
-              return (
-                <article
-                  key={kpi.id}
-                  data-nav-id={kpi.id}
-                  className={`emp-kpi-item mgr-my-kpi-card kpi-card--${badge.light}${awaitingReview ? ' emp-kpi-item--review' : ''}`}
-                >
-                  <div className="emp-kpi-item__top">
-                    <div className="emp-kpi-item__tags">
-                      <span className="emp-kpi-item__cat">{kpiCategoryMeta(kpi.kpi_category).label}</span>
-                      {penaltyLabel ? <span className="emp-kpi-item__rule">{penaltyLabel}</span> : null}
-                      {awaitingReview ? <span className="emp-kpi-item__rule">Pending review</span> : null}
-                    </div>
-                    <span className={`kpi-traffic kpi-traffic--${badge.light}`}>{badge.label}</span>
-                  </div>
-                  <h3>{kpi.name}</h3>
-                  <KpiViewedBadge kpi={kpi} />
-                  <dl className="emp-kpi-facts">
-                    <div>
-                      <dt>KPI weightage</dt>
-                      <dd>{formatKpiWeight(kpi.weight)}</dd>
-                    </div>
-                    {awarded != null ? (
-                      <div>
-                        <dt>Awarded</dt>
-                        <dd>{formatKpiWeight(awarded)}</dd>
+            <>
+              {listedKpis.length === 0 ? (
+                <div className="mgr-personal-empty glass-panel mgr-personal-empty--compact">
+                  <PauseCircle size={28} strokeWidth={1.35} />
+                  <h4>No active tasks</h4>
+                  <p>Paused tasks are listed below. Progress stays locked until they are resumed.</p>
+                </div>
+              ) : (
+                listedKpis.map((kpi) => {
+                  const badge = kpiProgressBadge(kpi);
+                  const awaitingReview = kpi.completion_status === 'pending_review';
+                  const complete = kpi.completion_status === 'completed';
+                  const penaltyLabel = formatLatePenaltyLabel(kpiScoringRule(kpi));
+                  const awarded = complete
+                    ? displayedAwardedWeightage(kpi, { deferUntilMonthEnd: true })
+                    : null;
+                  return (
+                    <article
+                      key={kpi.id}
+                      data-nav-id={kpi.id}
+                      className={`emp-kpi-item mgr-my-kpi-card kpi-card--${badge.light}${awaitingReview ? ' emp-kpi-item--review' : ''}`}
+                    >
+                      <div className="emp-kpi-item__top">
+                        <div className="emp-kpi-item__tags">
+                          <span className="emp-kpi-item__cat">{kpiCategoryMeta(kpi.kpi_category).label}</span>
+                          {penaltyLabel ? <span className="emp-kpi-item__rule">{penaltyLabel}</span> : null}
+                          {awaitingReview ? <span className="emp-kpi-item__rule">Pending review</span> : null}
+                        </div>
+                        <span className={`kpi-traffic kpi-traffic--${badge.light}`}>{badge.label}</span>
                       </div>
-                    ) : null}
-                    <div>
-                      <dt>Dates</dt>
-                      <dd>{dateRange(kpi.start_date, kpi.end_date)}</dd>
-                    </div>
-                  </dl>
-                  <p className="kpi-score-line">
-                    {complete
-                      ? (awarded != null
-                        ? `Awarded ${formatKpiWeight(awarded)}`
-                        : 'Awarded weightage posts on the last day of the month')
-                      : awaitingReview
-                        ? 'Submitted — waiting for review'
-                        : `Assigned weightage ${formatKpiWeight(kpi.weight)} — awarded after approval`}
-                  </p>
-                  <KpiAssignmentDetails
-                    kpi={kpi}
-                    recordAssigneeView
-                    onMarkedViewed={patchKpiViewed}
-                  />
-                  <KpiEvaluationBlock
-                    kpi={kpi}
-                    mode="employee"
-                    onUpdated={(patch) => {
-                      setKpis((prev) => prev.map((k) => (k.id === kpi.id ? { ...k, ...patch } : k)));
-                    }}
-                  />
-                </article>
-              );
-            })
+                      <h3>{kpi.name}</h3>
+                      <KpiViewedBadge kpi={kpi} />
+                      <dl className="emp-kpi-facts">
+                        <div>
+                          <dt>KPI weightage</dt>
+                          <dd>{formatKpiWeight(kpi.weight)}</dd>
+                        </div>
+                        {awarded != null ? (
+                          <div>
+                            <dt>Awarded</dt>
+                            <dd>{formatKpiWeight(awarded)}</dd>
+                          </div>
+                        ) : null}
+                        <div>
+                          <dt>Dates</dt>
+                          <dd>{dateRange(kpi.start_date, kpi.end_date)}</dd>
+                        </div>
+                      </dl>
+                      <p className="kpi-score-line">
+                        {complete
+                          ? (awarded != null
+                            ? `Awarded ${formatKpiWeight(awarded)}`
+                            : 'Awarded weightage posts on the last day of the month')
+                          : awaitingReview
+                            ? 'Submitted — waiting for review'
+                            : `Assigned weightage ${formatKpiWeight(kpi.weight)} — awarded after approval`}
+                      </p>
+                      <KpiAssignmentDetails
+                        kpi={kpi}
+                        recordAssigneeView
+                        onMarkedViewed={patchKpiViewed}
+                      />
+                      <KpiEvaluationBlock
+                        kpi={kpi}
+                        mode="employee"
+                        onUpdated={(patch) => {
+                          setKpis((prev) => prev.map((k) => (k.id === kpi.id ? { ...k, ...patch } : k)));
+                        }}
+                      />
+                    </article>
+                  );
+                })
+              )}
+
+              {pausedOpenKpis.length > 0 ? (
+                <section className="emp-kpi-paused-section" aria-label="Paused tasks">
+                  <div className="emp-kpi-paused-section__head">
+                    <p className="emp-kpi-paused-section__eyebrow">
+                      <PauseCircle size={14} aria-hidden="true" />
+                      Paused
+                    </p>
+                    <h4>On hold ({pausedOpenKpis.length})</h4>
+                    <p>These tasks are not active. Progress is locked until they are resumed.</p>
+                  </div>
+                  {pausedOpenKpis.map((kpi) => {
+                    const badge = kpiProgressBadge(kpi);
+                    const penaltyLabel = formatLatePenaltyLabel(kpiScoringRule(kpi));
+                    return (
+                      <article
+                        key={kpi.id}
+                        data-nav-id={kpi.id}
+                        className={`emp-kpi-item mgr-my-kpi-card kpi-card--${badge.light} emp-kpi-item--paused`}
+                      >
+                        <div className="emp-kpi-item__top">
+                          <div className="emp-kpi-item__tags">
+                            <span className="emp-kpi-item__cat">{kpiCategoryMeta(kpi.kpi_category).label}</span>
+                            <span className="emp-kpi-item__rule">Paused</span>
+                            {penaltyLabel ? <span className="emp-kpi-item__rule">{penaltyLabel}</span> : null}
+                          </div>
+                          <span className={`kpi-traffic kpi-traffic--${badge.light}`}>{badge.label}</span>
+                        </div>
+                        <h3>{kpi.name}</h3>
+                        <KpiViewedBadge kpi={kpi} />
+                        <dl className="emp-kpi-facts">
+                          <div>
+                            <dt>KPI weightage</dt>
+                            <dd>{formatKpiWeight(kpi.weight)}</dd>
+                          </div>
+                          <div>
+                            <dt>Dates</dt>
+                            <dd>{dateRange(kpi.start_date, kpi.end_date)}</dd>
+                          </div>
+                        </dl>
+                        <p className="kpi-score-line">Paused — resume unlocks progress and may extend the due date</p>
+                        <KpiAssignmentDetails
+                          kpi={kpi}
+                          recordAssigneeView
+                          onMarkedViewed={patchKpiViewed}
+                        />
+                        <KpiEvaluationBlock
+                          kpi={kpi}
+                          mode="employee"
+                          onUpdated={(patch) => {
+                            setKpis((prev) => prev.map((k) => (k.id === kpi.id ? { ...k, ...patch } : k)));
+                          }}
+                        />
+                      </article>
+                    );
+                  })}
+                </section>
+              ) : null}
+            </>
           )}
         </section>
       )}

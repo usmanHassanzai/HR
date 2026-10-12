@@ -193,13 +193,25 @@ export async function registerDeviceViaRpc(appVersion?: string): Promise<{
       'Registering this device',
     );
 
-    if (error) return { ok: false, error: error.message };
+    if (error) {
+      const { friendlyAutoAttendanceError } = await import('./attendanceDevice');
+      return { ok: false, error: friendlyAutoAttendanceError(error.message) };
+    }
     const row = data as { ok?: boolean; device_token?: string; message?: string; status?: string } | null;
     if (row && row.ok === false) {
-      return { ok: false, error: row.message || row.status || 'Registration failed.' };
+      const { friendlyAutoAttendanceError } = await import('./attendanceDevice');
+      return {
+        ok: false,
+        error: friendlyAutoAttendanceError(
+          row.message || row.status || 'Registration failed.',
+          'Couldn’t enable automatic check-in. Try again.',
+        ),
+      };
     }
     const token = row?.device_token;
-    if (!token) return { ok: false, error: 'Registration failed — no device token returned.' };
+    if (!token) {
+      return { ok: false, error: 'Couldn’t enable automatic check-in. Try again.' };
+    }
 
     if (Capacitor.isNativePlatform()) {
       await withTimeout(
@@ -224,7 +236,11 @@ export async function registerDeviceViaRpc(appVersion?: string): Promise<{
 
     return { ok: true, device_token: token };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+    const { friendlyAutoAttendanceError } = await import('./attendanceDevice');
+    return {
+      ok: false,
+      error: friendlyAutoAttendanceError(e, 'Couldn’t enable automatic check-in. Try again.'),
+    };
   }
 }
 

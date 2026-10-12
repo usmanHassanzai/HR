@@ -5,6 +5,7 @@
 import { packageVersion } from './appUpdate';
 import {
   disableAutoAttendanceOnDevice,
+  friendlyAutoAttendanceError,
   getAttendanceDeviceToken,
   PHONE_OPT_IN_TEXT,
   LAPTOP_OPT_IN_TEXT,
@@ -106,21 +107,19 @@ export async function getAutoAttendanceSaveStatus(): Promise<AutoAttendanceSaveS
         batteryLines = batteryTips(String(snap.manufacturer || ''));
       }
       if (needsLocation) {
-        permissionLines.push('Location (While using the app) is required for office-radius check-in.');
+        permissionLines.push('Allow location while using the app for office-area check-in.');
       }
       if (needsBackgroundLocation) {
         permissionLines.push('Allow location “All the time” so check-in works when Scorr is closed.');
       }
       if (needsNotifications) {
-        permissionLines.push('Notifications let Android keep the attendance service visible.');
+        permissionLines.push('Allow notifications so automatic check-in can keep running.');
       }
       if (needsBattery) {
-        permissionLines.push('Set battery to Unrestricted so background check-in is not killed.');
+        permissionLines.push('Set battery use to Unrestricted so automatic check-in is not paused.');
       }
       if (saved && !backgroundArmed) {
-        permissionLines.push(
-          'Account token is saved, but background check-in is not armed. Tap Re-save / refresh.',
-        );
+        permissionLines.push('Tap Enable to finish setup on this phone.');
       }
       const anyGap =
         needsLocation ||
@@ -132,14 +131,14 @@ export async function getAutoAttendanceSaveStatus(): Promise<AutoAttendanceSaveS
         permissionLines.push('Permissions look ready on this phone.');
       }
     } catch {
-      permissionLines.push('Could not read permission status. Tap Save to request them.');
+      permissionLines.push('Could not read permission status. Tap Enable to try again.');
     }
   } else if (kind === 'desktop') {
     permissionLines.push(
-      'Desktop uses Wi‑Fi probing and optional location while the app (or tray) is running after save.',
+      'After you enable, this computer can check in while the app or tray icon is running.',
     );
   } else {
-    permissionLines.push('Use the Android app or desktop app to save this account for background check-in.');
+    permissionLines.push('Use the Android app or desktop app to turn on automatic check-in.');
   }
 
   return {
@@ -191,7 +190,7 @@ export async function saveAccountForAutoAttendance(): Promise<{
     return {
       ok: false,
       error:
-        'Background check-in needs the Android app or desktop app. The browser and iOS cannot stay enrolled.',
+        'Automatic check-in needs the Android app or desktop app. The browser and iOS cannot stay enrolled.',
       warnings,
     };
   }
@@ -199,7 +198,14 @@ export async function saveAccountForAutoAttendance(): Promise<{
   if (kind === 'android') {
     const whileUsing = await requestWhileUsingLocation();
     if (!whileUsing.ok) {
-      return { ok: false, error: whileUsing.detail, warnings };
+      return {
+        ok: false,
+        error: friendlyAutoAttendanceError(
+          whileUsing.detail,
+          'Couldn’t enable automatic check-in. Try again.',
+        ),
+        warnings,
+      };
     }
     const always = await requestAlwaysLocation();
     if (!always.ok) {
@@ -213,7 +219,14 @@ export async function saveAccountForAutoAttendance(): Promise<{
 
   const reg = await registerAttendanceDevice(packageVersion());
   if (!reg.ok || !reg.device_token) {
-    return { ok: false, error: reg.error || 'Could not register this device.', warnings };
+    return {
+      ok: false,
+      error: friendlyAutoAttendanceError(
+        reg.error,
+        'Couldn’t enable automatic check-in. Try again.',
+      ),
+      warnings,
+    };
   }
 
   clearSetupProgress();
@@ -223,12 +236,12 @@ export async function saveAccountForAutoAttendance(): Promise<{
       await startNativeAttendancePings();
       const armed = await isNativeAutoAttendanceArmed();
       if (!armed) {
-        warnings.push(
-          'Device registered, but native background check-in did not arm. Tap Re-save / refresh.',
-        );
+        warnings.push('Almost done — tap Enable again to finish setup on this phone.');
       }
     } catch (e) {
-      warnings.push(e instanceof Error ? e.message : 'Background service did not start yet.');
+      warnings.push(
+        friendlyAutoAttendanceError(e, 'Automatic check-in did not start yet. Tap Enable again.'),
+      );
     }
   }
 
@@ -268,7 +281,10 @@ export async function removeAccountFromAutoAttendance(): Promise<{
     await clearDesktopAttendanceToken();
     return {
       ok: false,
-      error: e instanceof Error ? e.message : 'Could not revoke on server; local save was cleared.',
+      error: friendlyAutoAttendanceError(
+        e,
+        'Could not turn off on the server; this device was cleared locally.',
+      ),
     };
   }
 

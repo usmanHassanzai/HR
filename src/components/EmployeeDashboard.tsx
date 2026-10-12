@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { supabase } from '../lib/supabase';
-import { isKpiViewedByAssignee, kpiProgressBadge, Profile, Kpi } from '../utils/kpiHelpers';
+import { isKpiPaused, isKpiViewedByAssignee, kpiProgressBadge, Profile, Kpi } from '../utils/kpiHelpers';
 import { hydrateKpiLastEdits } from '../utils/kpiAssignmentEdits';
 import { markAssignedKpisViewed } from '../utils/kpiViewed';
-import { RefreshCw, BarChart2, Trophy, KeyRound, CalendarCheck, Settings, Target, Search, FileText } from 'lucide-react';
+import { RefreshCw, BarChart2, Trophy, KeyRound, CalendarCheck, Settings, Target, Search, FileText, PauseCircle } from 'lucide-react';
 import ExportButton from './ExportButton';
 import ChangePasswordModal from './ChangePasswordModal';
 import { emailKpiOverdue } from '../utils/kpiEmail';
@@ -337,6 +337,14 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
       ),
     [visibleKpis],
   );
+  const activeOpenKpis = useMemo(
+    () => openKpis.filter((k) => !isKpiPaused(k)),
+    [openKpis],
+  );
+  const pausedOpenKpis = useMemo(
+    () => openKpis.filter((k) => isKpiPaused(k)),
+    [openKpis],
+  );
   /** History: completed only in the selected calendar month/year (not date-span). */
   const historyKpis = useMemo(() => {
     const q = kpiSearch.trim().toLowerCase();
@@ -354,7 +362,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
     });
   }, [kpis, periodMode, filterYear, filterMonth, kpiSearch]);
   const historyGroups = useMemo(() => groupCompletedKpisByMonth(historyKpis), [historyKpis]);
-  const listedKpis = listMode === 'history' ? historyKpis : openKpis;
+  const listedKpis = listMode === 'history' ? historyKpis : activeOpenKpis;
 
   const patchKpi = (id: string, patch: Partial<Kpi>) => {
     setKpis((prev) => prev.map((k) => (k.id === id ? { ...k, ...patch } : k)));
@@ -460,8 +468,14 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
             </div>
             <div className="emp-kpi-summary__chip">
               <span>Open</span>
-              <strong>{openKpis.length}</strong>
+              <strong>{activeOpenKpis.length}</strong>
             </div>
+            {pausedOpenKpis.length > 0 ? (
+              <div className="emp-kpi-summary__chip">
+                <span>Paused</span>
+                <strong>{pausedOpenKpis.length}</strong>
+              </div>
+            ) : null}
             <div className="emp-kpi-summary__chip">
               <span>In history</span>
               <strong>{historyKpis.length}</strong>
@@ -518,7 +532,8 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
                 aria-selected={listMode === 'open'}
                 onClick={() => setListMode('open')}
               >
-                Open ({openKpis.length})
+                Open ({activeOpenKpis.length}
+                {pausedOpenKpis.length > 0 ? ` · ${pausedOpenKpis.length} paused` : ''})
               </button>
               <button
                 type="button"
@@ -609,7 +624,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
                 }}
               />
             )
-          ) : listedKpis.length === 0 ? (
+          ) : listedKpis.length === 0 && pausedOpenKpis.length === 0 ? (
             <div className="emp-kpi-empty glass-panel emp-kpi-empty--compact">
               <Target size={28} strokeWidth={1.5} />
               <h3>No open KPIs</h3>
@@ -620,97 +635,168 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
               </p>
             </div>
           ) : (
-            listedKpis.map((kpi) => {
-            const badge = kpiProgressBadge(kpi);
-            const paused = Boolean(kpi.paused_at) && kpi.completion_status !== 'completed' && kpi.completion_status !== 'pending_review';
-            const complete = kpi.completion_status === 'completed';
-            const awaitingReview = kpi.completion_status === 'pending_review';
-            const latePenalized = isKpiLatePenaltyApplied(kpi);
-            const penaltyLabel = formatLatePenaltyLabel(kpiScoringRule(kpi));
-            const awarded = complete
-              ? displayedAwardedWeightage(kpi, { deferUntilMonthEnd: !isReadOnly })
-              : null;
-            return (
-              <article
-                key={kpi.id}
-                data-nav-id={kpi.id}
-                className={`emp-kpi-item kpi-card--${badge.light}${paused ? ' emp-kpi-item--paused' : ''}${awaitingReview ? ' emp-kpi-item--review' : ''}`}
-              >
-                <div className="emp-kpi-item__top">
-                  <div className="emp-kpi-item__tags">
-                    <span className="emp-kpi-item__cat">{kpiCategoryMeta(kpi.kpi_category).label}</span>
-                    {penaltyLabel ? <span className="emp-kpi-item__rule">{penaltyLabel}</span> : null}
-                    {periodMode !== 'overall' && (
-                      <span className="emp-kpi-item__scope">{selectedLabel}</span>
-                    )}
-                  </div>
-                  <span className={`kpi-traffic kpi-traffic--${badge.light}`}>{badge.label}</span>
+            <>
+              {listedKpis.length === 0 ? (
+                <div className="emp-kpi-empty glass-panel emp-kpi-empty--compact">
+                  <PauseCircle size={28} strokeWidth={1.5} />
+                  <h3>No active tasks</h3>
+                  <p>Paused tasks are listed below. Progress stays locked until they are resumed.</p>
                 </div>
-                <h3>{kpi.name}</h3>
-                <dl className="emp-kpi-facts">
-                  <div>
-                    <dt>KPI weightage</dt>
-                    <dd>{formatKpiWeight(kpi.weight)}</dd>
+              ) : (
+                listedKpis.map((kpi) => {
+                  const badge = kpiProgressBadge(kpi);
+                  const complete = kpi.completion_status === 'completed';
+                  const awaitingReview = kpi.completion_status === 'pending_review';
+                  const latePenalized = isKpiLatePenaltyApplied(kpi);
+                  const penaltyLabel = formatLatePenaltyLabel(kpiScoringRule(kpi));
+                  const awarded = complete
+                    ? displayedAwardedWeightage(kpi, { deferUntilMonthEnd: !isReadOnly })
+                    : null;
+                  return (
+                    <article
+                      key={kpi.id}
+                      data-nav-id={kpi.id}
+                      className={`emp-kpi-item kpi-card--${badge.light}${awaitingReview ? ' emp-kpi-item--review' : ''}`}
+                    >
+                      <div className="emp-kpi-item__top">
+                        <div className="emp-kpi-item__tags">
+                          <span className="emp-kpi-item__cat">{kpiCategoryMeta(kpi.kpi_category).label}</span>
+                          {penaltyLabel ? <span className="emp-kpi-item__rule">{penaltyLabel}</span> : null}
+                          {periodMode !== 'overall' && (
+                            <span className="emp-kpi-item__scope">{selectedLabel}</span>
+                          )}
+                        </div>
+                        <span className={`kpi-traffic kpi-traffic--${badge.light}`}>{badge.label}</span>
+                      </div>
+                      <h3>{kpi.name}</h3>
+                      <dl className="emp-kpi-facts">
+                        <div>
+                          <dt>KPI weightage</dt>
+                          <dd>{formatKpiWeight(kpi.weight)}</dd>
+                        </div>
+                        {awarded != null ? (
+                          <div>
+                            <dt>Awarded</dt>
+                            <dd>{formatKpiWeight(awarded)}</dd>
+                          </div>
+                        ) : null}
+                        <div>
+                          <dt>Dates</dt>
+                          <dd>{dateRange(kpi.start_date, kpi.end_date)}</dd>
+                        </div>
+                      </dl>
+                      <div className="emp-kpi-detail">
+                        <div className="emp-kpi-detail__row">
+                          <span>Timing</span>
+                          <strong>
+                            {!complete
+                              ? awaitingReview
+                                ? 'Submitted — waiting for review'
+                                : 'Open — mark Complete to submit for review'
+                              : latePenalized
+                                ? 'Completed after due date (late penalty applied)'
+                                : 'Completed on time'}
+                          </strong>
+                        </div>
+                        {awarded != null ? (
+                          <div className="emp-kpi-detail__row">
+                            <span>Awarded</span>
+                            <strong>
+                              {`${formatKpiWeight(awarded)} of ${formatKpiWeight(kpi.weight)} weightage`}
+                            </strong>
+                          </div>
+                        ) : null}
+                      </div>
+                      <KpiAssignmentDetails
+                        kpi={kpi}
+                        compact
+                        recordAssigneeView={!isReadOnly}
+                        onMarkedViewed={patchKpiViewed}
+                      />
+                      <p className="kpi-score-line">
+                        {complete
+                          ? (awarded != null
+                            ? `Awarded ${formatKpiWeight(awarded)}`
+                            : 'Awarded weightage posts on the last day of the month')
+                          : awaitingReview
+                            ? 'Submitted — awaiting review'
+                            : `Assigned weightage ${formatKpiWeight(kpi.weight)}`}
+                      </p>
+                      <KpiEvaluationBlock
+                        kpi={kpi}
+                        compact
+                        mode={isReadOnly ? 'manager' : 'employee'}
+                        onUpdated={(patch) => {
+                          patchKpi(kpi.id, patch);
+                        }}
+                      />
+                    </article>
+                  );
+                })
+              )}
+
+              {pausedOpenKpis.length > 0 ? (
+                <section className="emp-kpi-paused-section" aria-label="Paused tasks">
+                  <div className="emp-kpi-paused-section__head">
+                    <p className="emp-kpi-paused-section__eyebrow">
+                      <PauseCircle size={14} aria-hidden="true" />
+                      Paused
+                    </p>
+                    <h4>On hold ({pausedOpenKpis.length})</h4>
+                    <p>These tasks are not active. Progress is locked until your manager, admin, or HR resumes them.</p>
                   </div>
-                  {awarded != null ? (
-                    <div>
-                      <dt>Awarded</dt>
-                      <dd>{formatKpiWeight(awarded)}</dd>
-                    </div>
-                  ) : null}
-                  <div>
-                    <dt>Dates</dt>
-                    <dd>{dateRange(kpi.start_date, kpi.end_date)}</dd>
-                  </div>
-                </dl>
-                <div className="emp-kpi-detail">
-                  <div className="emp-kpi-detail__row">
-                    <span>Timing</span>
-                    <strong>
-                      {!complete
-                        ? awaitingReview
-                          ? 'Submitted — waiting for review'
-                          : 'Open — mark Complete to submit for review'
-                        : latePenalized
-                          ? 'Completed after due date (late penalty applied)'
-                          : 'Completed on time'}
-                    </strong>
-                  </div>
-                  {awarded != null ? (
-                    <div className="emp-kpi-detail__row">
-                      <span>Awarded</span>
-                      <strong>
-                        {`${formatKpiWeight(awarded)} of ${formatKpiWeight(kpi.weight)} weightage`}
-                      </strong>
-                    </div>
-                  ) : null}
-                </div>
-                <KpiAssignmentDetails
-                  kpi={kpi}
-                  compact
-                  recordAssigneeView={!isReadOnly}
-                  onMarkedViewed={patchKpiViewed}
-                />
-                <p className="kpi-score-line">
-                  {complete
-                    ? (awarded != null
-                      ? `Awarded ${formatKpiWeight(awarded)}`
-                      : 'Awarded weightage posts on the last day of the month')
-                    : awaitingReview
-                      ? 'Submitted — awaiting review'
-                      : `Assigned weightage ${formatKpiWeight(kpi.weight)}`}
-                </p>
-                <KpiEvaluationBlock
-                  kpi={kpi}
-                  compact
-                  mode={isReadOnly ? 'manager' : 'employee'}
-                  onUpdated={(patch) => {
-                    patchKpi(kpi.id, patch);
-                  }}
-                />
-              </article>
-            );
-          })
+                  {pausedOpenKpis.map((kpi) => {
+                    const badge = kpiProgressBadge(kpi);
+                    const penaltyLabel = formatLatePenaltyLabel(kpiScoringRule(kpi));
+                    return (
+                      <article
+                        key={kpi.id}
+                        data-nav-id={kpi.id}
+                        className={`emp-kpi-item kpi-card--${badge.light} emp-kpi-item--paused`}
+                      >
+                        <div className="emp-kpi-item__top">
+                          <div className="emp-kpi-item__tags">
+                            <span className="emp-kpi-item__cat">{kpiCategoryMeta(kpi.kpi_category).label}</span>
+                            <span className="emp-kpi-item__rule">Paused</span>
+                            {penaltyLabel ? <span className="emp-kpi-item__rule">{penaltyLabel}</span> : null}
+                            {periodMode !== 'overall' && (
+                              <span className="emp-kpi-item__scope">{selectedLabel}</span>
+                            )}
+                          </div>
+                          <span className={`kpi-traffic kpi-traffic--${badge.light}`}>{badge.label}</span>
+                        </div>
+                        <h3>{kpi.name}</h3>
+                        <dl className="emp-kpi-facts">
+                          <div>
+                            <dt>KPI weightage</dt>
+                            <dd>{formatKpiWeight(kpi.weight)}</dd>
+                          </div>
+                          <div>
+                            <dt>Dates</dt>
+                            <dd>{dateRange(kpi.start_date, kpi.end_date)}</dd>
+                          </div>
+                        </dl>
+                        <KpiAssignmentDetails
+                          kpi={kpi}
+                          compact
+                          recordAssigneeView={!isReadOnly}
+                          onMarkedViewed={patchKpiViewed}
+                        />
+                        <p className="kpi-score-line">Paused — resume unlocks progress and may extend the due date</p>
+                        <KpiEvaluationBlock
+                          kpi={kpi}
+                          compact
+                          mode={isReadOnly ? 'manager' : 'employee'}
+                          onUpdated={(patch) => {
+                            patchKpi(kpi.id, patch);
+                          }}
+                        />
+                      </article>
+                    );
+                  })}
+                </section>
+              ) : null}
+            </>
           )}
 
           {listMode === 'history' && redemptions.length > 0 && (
@@ -821,7 +907,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
             </div>
           )}
           <details className="app-settings-block" open>
-            <summary>Background check-in</summary>
+            <summary>Automatic check-in</summary>
             <AutoAttendanceSavePanel />
           </details>
           <details className="app-settings-block" open>

@@ -114,7 +114,12 @@ export default function KpiEvaluationBlock({
       {paused && (
         <div className="kpi-paused-banner" role="status">
           <PauseCircle size={14} />
-          <span>Paused for an urgent task. Due date will extend by the paused days when resumed.</span>
+          <span>
+            This task is paused — progress is locked until it is resumed.
+            {pauseText
+              ? ` ${pauseText}. Due date extends when work resumes.`
+              : ' The due date will extend by the paused days when resumed.'}
+          </span>
         </div>
       )}
       {mode === 'employee' && !approved && (

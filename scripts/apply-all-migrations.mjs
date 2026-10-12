@@ -210,7 +210,9 @@ const MIGRATIONS = [
   'FIX_daily_work_report_local_today_2026-10-13.sql',
   'kpi_assignee_viewed_open_fix_2026-10-13.sql',
   'fix_pause_delete_assigned_kpi_2026-10-13.sql',
+  'pause_kpi_assignee_notify_ux_2026-10-13.sql',
   'fix_office_wifi_match_robust_2026-10-13.sql',
+  'FIX_register_attendance_device_upsert_2026-10-13.sql',
 ];
 
 async function runMigration(filename) {

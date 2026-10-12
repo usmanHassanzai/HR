@@ -569,7 +569,7 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
             </Suspense>
           </details>
           <details className="app-settings-block" open>
-            <summary>Background check-in</summary>
+            <summary>Automatic check-in</summary>
             <Suspense fallback={<Loader2 className="spin-icon" size={24} />}>
               <AutoAttendanceSavePanel />
             </Suspense>

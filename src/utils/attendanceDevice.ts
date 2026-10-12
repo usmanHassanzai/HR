@@ -13,10 +13,43 @@ const TOKEN_KEY = 'scorr_attendance_device_token';
 const DEVICE_ID_KEY = 'scorr_attendance_device_id';
 
 export const PHONE_OPT_IN_TEXT =
-  'After this one-time setup, Scorr checks you in automatically when this Android phone is on your configured office Wi-Fi (no radius needed), or — if not on that Wi-Fi — when location is on and you are inside the office radius. Window: 1 hour before shift start until shift end. After checkout, returning on office Wi-Fi or inside the radius checks you in again. Public Wi-Fi does not count. If the same account is already checked in on another device, this phone is ignored for check-in.';
+  'Scorr can check you in automatically when this phone is on office Wi‑Fi or inside the office area during your shift. Public Wi‑Fi does not count.';
 
 export const LAPTOP_OPT_IN_TEXT =
-  'After this one-time setup, Scorr checks you in automatically when this computer is on your configured office Wi-Fi (no radius needed), or — if not on that Wi-Fi — when location is available and you are inside the office radius. Window: 1 hour before shift start until shift end. After checkout, returning on office Wi-Fi or inside the radius checks you in again. Public Wi-Fi does not count. If the same account is already checked in on another device, this laptop is ignored for check-in.';
+  'Scorr can check you in automatically when this computer is on office Wi‑Fi or inside the office area during your shift. Public Wi‑Fi does not count.';
+
+/** Map raw Supabase / Postgres errors to short user-facing copy. */
+export function friendlyAutoAttendanceError(raw: unknown, fallback?: string): string {
+  const msg = (raw instanceof Error ? raw.message : typeof raw === 'string' ? raw : '') || '';
+  const lower = msg.toLowerCase();
+
+  if (
+    lower.includes('attendance_devices_user_id_device_id_key') ||
+    (lower.includes('duplicate key') && lower.includes('attendance_devices'))
+  ) {
+    return 'This device is already registered — refreshing…';
+  }
+  if (lower.includes('not authenticated') || lower.includes('jwt')) {
+    return 'Please sign in again, then try enabling automatic check-in.';
+  }
+  if (lower.includes('timeout') || lower.includes('timed out') || lower.includes('failed to fetch')) {
+    return 'Connection timed out. Check your network and try again.';
+  }
+  if (lower.includes('platform_disabled') || lower.includes('not available on ios')) {
+    return msg.trim() || 'Automatic check-in needs the Android app or desktop app.';
+  }
+  // Hide constraint names, SQLSTATE, stack-like detail
+  if (
+    /violates unique constraint|duplicate key value|sqlstate|postgres|stack|exception/i.test(msg) ||
+    msg.length > 180
+  ) {
+    return fallback || 'Couldn’t enable automatic check-in. Try again.';
+  }
+  if (!msg.trim()) {
+    return fallback || 'Couldn’t enable automatic check-in. Try again.';
+  }
+  return msg.trim();
+}
 
 async function secureGet(key: string): Promise<string | null> {
   try {

@@ -149,7 +149,9 @@ export function isKpiViewedByAssignee(kpi: Pick<Kpi, 'user_id' | 'viewed_at' | '
 }
 
 export function isKpiPaused(kpi: Pick<Kpi, 'paused_at' | 'completion_status'>): boolean {
-  return Boolean(kpi.paused_at) && kpi.completion_status !== 'completed';
+  return Boolean(kpi.paused_at)
+    && kpi.completion_status !== 'completed'
+    && kpi.completion_status !== 'pending_review';
 }
 
 export function isKpiAwaitingReview(kpi: Pick<Kpi, 'completion_status' | 'employee_progress'>): boolean {

@@ -192,7 +192,7 @@ export default function HrDashboard({ profile, organizationName }: HrDashboardPr
                     </button>
                   </div>
                   <details className="app-settings-block" open>
-                    <summary>Background check-in</summary>
+                    <summary>Automatic check-in</summary>
                     <AutoAttendanceSavePanel />
                   </details>
                   <details className="app-settings-block" open>

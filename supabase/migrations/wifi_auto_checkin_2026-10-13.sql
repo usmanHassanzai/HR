@@ -377,19 +377,30 @@ BEGIN
   );
   v_hash := public.attendance_hash_device_token(v_token);
 
+  -- Upsert: unique (user_id, device_id) — update existing row instead of insert-after-revoke.
   UPDATE public.attendance_devices
-  SET revoked_at = timezone('utc', now())
-  WHERE user_id = v_uid AND device_id = btrim(p_device_id) AND revoked_at IS NULL;
-
-  INSERT INTO public.attendance_devices (
-    user_id, company_id, device_id, platform, device_timezone, app_version, token_hash,
-    created_at, last_seen_at
-  ) VALUES (
-    v_uid, v_me.company_id, btrim(p_device_id), p_platform,
-    NULLIF(btrim(p_device_timezone), ''), NULLIF(btrim(p_app_version), ''),
-    v_hash, timezone('utc', now()), timezone('utc', now())
-  )
+  SET
+    platform = p_platform,
+    device_timezone = COALESCE(NULLIF(btrim(p_device_timezone), ''), device_timezone),
+    app_version = COALESCE(NULLIF(btrim(p_app_version), ''), app_version),
+    token_hash = v_hash,
+    revoked_at = NULL,
+    last_seen_at = timezone('utc', now()),
+    company_id = v_me.company_id
+  WHERE user_id = v_uid AND device_id = btrim(p_device_id)
   RETURNING * INTO v_row;
+
+  IF NOT FOUND THEN
+    INSERT INTO public.attendance_devices (
+      user_id, company_id, device_id, platform, device_timezone, app_version, token_hash,
+      created_at, last_seen_at
+    ) VALUES (
+      v_uid, v_me.company_id, btrim(p_device_id), p_platform,
+      NULLIF(btrim(p_device_timezone), ''), NULLIF(btrim(p_app_version), ''),
+      v_hash, timezone('utc', now()), timezone('utc', now())
+    )
+    RETURNING * INTO v_row;
+  END IF;
 
   IF p_platform = 'android' THEN
     UPDATE public.users SET auto_phone_attendance = true WHERE id = v_uid;
