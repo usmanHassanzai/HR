@@ -36,6 +36,16 @@ interface ShiftManagementPanelProps {
 }
 
 const DEFAULT_DAYS = [1, 2, 3, 4, 5];
+/** Extra country/timezone windows per shift (main zone is separate). */
+const MAX_EXTRA_ZONE_TIMES = 8;
+
+/** Prefer browser TZ if unused; otherwise leave blank for TimeZonePicker search. */
+function suggestUnusedTimezone(taken: string[]): string {
+  const used = new Set(taken.filter(Boolean));
+  const browser = suggestBrowserTimeZone();
+  if (browser && !used.has(browser)) return browser;
+  return '';
+}
 
 type ShiftPanelTab = 'list' | 'create' | 'status';
 type ShiftNotifyTarget = { id: string; full_name: string; email: string };
@@ -484,42 +494,47 @@ export default function ShiftManagementPanel({
     setSelectedUserIds([]);
   };
 
-  const usePhoneAndLaptopClocks = () => {
-    const mobile: ShiftOfficeTime = { timezone: 'Asia/Karachi', start: '18:00', end: '03:00' };
-    const ymd = todayYmdInZone('Asia/Karachi');
-    const desktop = convertOfficeTime(mobile, 'America/Chicago', ymd);
-    setMainTimezone('Asia/Karachi');
-    setStartTime('18:00');
-    setEndTime('03:00');
-    setOvernight(true);
-    setExtraTimes([
+  const addExtraZoneTime = () => {
+    if (extraTimes.length >= MAX_EXTRA_ZONE_TIMES) return;
+    const taken = [mainTimezone, ...extraTimes.map((e) => e.timezone)];
+    const tz = suggestUnusedTimezone(taken);
+    const converted =
+      tz && mainTimezone
+        ? convertOfficeTime(mainOffice, tz, refYmd)
+        : { start: startTime, end: endTime };
+    setExtraTimes((prev) => [
+      ...prev,
       {
-        key: `desktop-${Date.now()}`,
-        timezone: 'America/Chicago',
-        start: desktop.start,
-        end: desktop.end,
+        key: `extra-${Date.now()}`,
+        timezone: tz,
+        start: converted.start,
+        end: converted.end,
       },
     ]);
-    setZoneSyncError('');
   };
 
   const saveShift = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || days.length === 0) return;
     if (!mainTimezone) {
-      setMsg('Choose a time zone for mobile time.');
+      setMsg('Choose a primary time zone for this shift.');
       return;
     }
     if (!overnight && endTime <= startTime) {
       setMsg('End time must be after start time, or enable overnight shift.');
       return;
     }
+    if (extraTimes.some((x) => !x.timezone)) {
+      setMsg('Each additional time needs a country / time zone.');
+      return;
+    }
+    const zoneIds = [mainTimezone, ...extraTimes.map((x) => x.timezone)];
+    if (new Set(zoneIds).size !== zoneIds.length) {
+      setMsg('Each time row must use a different time zone.');
+      return;
+    }
     if (extraTimes.length > 0) {
-      const v = validateSameMoment(
-        mainOffice,
-        extraTimes.filter((x) => x.timezone),
-        refYmd,
-      );
+      const v = validateSameMoment(mainOffice, extraTimes, refYmd);
       if (!v.ok) {
         setMsg(v.message);
         return;
@@ -1035,42 +1050,28 @@ export default function ShiftManagementPanel({
 
               <div className="form-group attendance-form-span-full">
                 <p className="attendance-card__subtitle" style={{ margin: 0 }}>
-                  One shift can store both clocks. The phone uses mobile time (Pakistan, 6:00 PM–3:00 AM).
-                  The laptop uses desktop time (United States, about 8:00 AM–5:00 PM). They are the same shift.
-                  A check-in on the phone stays checked in when you press Test now on the laptop.
+                  Set the primary start/end in one country time zone, then add more rows for other countries.
+                  Extra times are converted to the same moment so the shift stays aligned across zones.
                 </p>
-                <button type="button" className="btn btn-secondary btn-sm" onClick={usePhoneAndLaptopClocks}>
-                  Use Pakistan phone + US laptop times
-                </button>
               </div>
 
               <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                <label>Mobile time (phone)</label>
+                <label>Primary time zone</label>
                 <TimeZonePicker value={mainTimezone} onChange={onMainTzChange} />
               </div>
               <div className="form-group">
-                <label>Phone start</label>
+                <label>Start</label>
                 <input type="time" value={startTime} onChange={(e) => onMainStartChange(e.target.value)} required />
               </div>
               <div className="form-group">
-                <label>Phone end</label>
+                <label>End</label>
                 <input type="time" value={endTime} onChange={(e) => onMainEndChange(e.target.value)} required />
               </div>
 
               {extraTimes.map((row, idx) => (
-                <div
-                  key={row.key}
-                  style={{
-                    gridColumn: '1 / -1',
-                    display: 'grid',
-                    gap: '0.65rem',
-                    padding: '0.75rem',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: 8,
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <strong>{idx === 0 ? 'Desktop time (laptop)' : `Extra time ${idx + 2}`}</strong>
+                <div key={row.key} className="shift-zone-row">
+                  <div className="shift-zone-row__head">
+                    <strong>Additional time {idx + 1}</strong>
                     <button
                       type="button"
                       className="btn btn-secondary btn-sm"
@@ -1079,13 +1080,14 @@ export default function ShiftManagementPanel({
                       Remove
                     </button>
                   </div>
+                  <label className="shift-zone-row__label">Country / time zone</label>
                   <TimeZonePicker
                     value={row.timezone}
                     onChange={(tz) => onExtraChange(idx, { timezone: tz })}
                   />
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem' }}>
+                  <div className="shift-zone-row__times">
                     <div className="form-group" style={{ margin: 0 }}>
-                      <label>{idx === 0 ? 'Laptop start' : 'Start'}</label>
+                      <label>Start</label>
                       <input
                         type="time"
                         value={row.start}
@@ -1093,7 +1095,7 @@ export default function ShiftManagementPanel({
                       />
                     </div>
                     <div className="form-group" style={{ margin: 0 }}>
-                      <label>{idx === 0 ? 'Laptop end' : 'End'}</label>
+                      <label>End</label>
                       <input
                         type="time"
                         value={row.end}
@@ -1104,40 +1106,22 @@ export default function ShiftManagementPanel({
                 </div>
               ))}
 
-              {extraTimes.length < 3 && (
-                <div style={{ gridColumn: '1 / -1' }}>
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => {
-                      const desktopTz = mainTimezone.startsWith('America/') ? 'Asia/Karachi' : 'America/Chicago';
-                      const converted = mainTimezone
-                        ? convertOfficeTime(mainOffice, desktopTz, refYmd)
-                        : { start: startTime, end: endTime };
-                      setExtraTimes((prev) => [
-                        ...prev,
-                        {
-                          key: `extra-${Date.now()}`,
-                          timezone: desktopTz,
-                          start: converted.start,
-                          end: converted.end,
-                        },
-                      ]);
-                    }}
-                  >
-                    <Plus size={14} /> {extraTimes.length === 0 ? 'Add desktop time (laptop)' : 'Add another time'}
+              {extraTimes.length < MAX_EXTRA_ZONE_TIMES && (
+                <div className="form-group attendance-form-span-full" style={{ margin: 0 }}>
+                  <button type="button" className="btn btn-secondary" onClick={addExtraZoneTime}>
+                    <Plus size={14} /> Add time for another country
                   </button>
                 </div>
               )}
 
               {extraTimes.length > 0 && (
                 <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                  <label>Primary clock</label>
+                  <label>Attendance follows (primary)</label>
                   <select
                     value={mainTimezone}
                     onChange={(e) => onMainTzChange(e.target.value)}
                   >
-                    <option value={mainTimezone}>{mainTimezone} (main)</option>
+                    <option value={mainTimezone}>{mainTimezone} (primary)</option>
                     {extraTimes
                       .filter((e) => e.timezone)
                       .map((e) => (
@@ -1147,7 +1131,7 @@ export default function ShiftManagementPanel({
                       ))}
                   </select>
                   <p style={{ margin: '0.35rem 0 0', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                    Both clocks are saved on this shift. Check-in stays open while either the phone hours or the laptop hours are in progress.
+                    All listed times are saved on this shift. Attendance windows use the primary zone; other rows are for display and alignment across countries.
                   </p>
                 </div>
               )}
