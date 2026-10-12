@@ -211,7 +211,7 @@ export function useShiftEndSessionLogout(enabled: boolean) {
       try {
         const { data, error } = await supabase.rpc('get_my_location_window');
         if (error || !data || cancelled) return;
-        const win = data as LocationWindow;
+        const win = (Array.isArray(data) ? data[0] : data) as LocationWindow | undefined;
         if (!win?.start_time || !win?.end_time) return;
         const shift = locationWindowToMyShift(win);
 

@@ -11,7 +11,6 @@ import {
   CheckCircle2,
   Users,
   Building2,
-  Info,
 } from 'lucide-react';
 import { OfficeGroup, OfficeLocation } from '../utils/geoAttendance';
 import AssignManagerLocationPanel, { ManagerSiteRow, EmployeeSiteRow } from './AssignManagerLocationPanel';
@@ -408,7 +407,7 @@ export default function OfficeLocationSettings() {
             <Building2 size={18} /> {officeForm.id ? 'Edit office' : 'Create office'}
           </h3>
           <p>
-            An office is the parent (e.g. Karachi HQ). Add multiple location pins under it afterward — each with its own
+            An office is the parent (e.g. Headquarters). Add multiple location pins under it afterward — each with its own
             address, GPS, and radius.
           </p>
 
@@ -419,7 +418,7 @@ export default function OfficeLocationSettings() {
                 id="office-group-name"
                 value={officeForm.name}
                 onChange={(e) => setOfficeForm({ ...officeForm, name: e.target.value })}
-                placeholder="e.g. Karachi HQ"
+                placeholder="e.g. Headquarters"
                 required
               />
             </div>
@@ -760,19 +759,11 @@ export default function OfficeLocationSettings() {
       {activeTab === 'assign' && (
         <section className="admin-office-card glass-panel">
           <h3>
-            <UserCheck size={18} /> Assign locations to people
+            <UserCheck size={18} /> Assign people
           </h3>
           <p>
-            Assign one location or several. Presence uses only those pins (OR across them). Locations you do not assign
-            never apply to that person.
+            Choose who needs office presence, then the location pin(s) that count for them. Unassigned pins never apply.
           </p>
-          <div className="admin-office-info">
-            <Info size={16} />
-            <span>
-              Example: assigned to Location A and B → both work. Location C under the same office does <strong>not</strong>{' '}
-              apply unless you assign it too.
-            </span>
-          </div>
           <AssignManagerLocationPanel
             key={assignKey}
             initialOfficeId={assignLocationId}

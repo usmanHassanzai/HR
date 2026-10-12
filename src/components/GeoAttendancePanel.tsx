@@ -462,6 +462,8 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
         <span className="badge badge-on-track geo-attendance-panel__badge">Entry + exit</span>
       </h3>
       <p className="attendance-card__subtitle" role="status">
+        Presence uses your assigned location pin(s) and radius. Clock window uses your assigned shift times.
+        {' '}
         {ATTENDANCE_RULES_PAUSED_MESSAGE}
       </p>
 

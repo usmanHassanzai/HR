@@ -198,6 +198,7 @@ const MIGRATIONS = [
   'attendance_rules_reset_2026-10-12.sql',
   'office_radius_all_employees_2026-10-12.sql',
   'office_multi_locations_assign_2026-10-12.sql',
+  'assignment_driven_location_shift_2026-10-12.sql',
 ];
 
 async function runMigration(filename) {

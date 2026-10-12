@@ -1,6 +1,6 @@
-/** Shared copy while attendance / office / auto-attendance rules are rebuilt. */
+/** Shared copy while attendance writes / auto Wi‑Fi engine are rebuilt. */
 export const ATTENDANCE_RULES_PAUSED_MESSAGE =
-  'Attendance check-in/out writes are paused while rules are rebuilt. Office radius location checks still run for every assigned employee.';
+  'Check-in/out writes are paused while auto rules are rebuilt. Assigned location radius and assigned shift windows still apply.';
 
 export function isRulesNotConfigured(result: unknown): boolean {
   if (!result || typeof result !== 'object') return false;
@@ -8,11 +8,12 @@ export function isRulesNotConfigured(result: unknown): boolean {
   return (
     r.status === 'rules_not_configured' ||
     r.action === 'rules_not_configured' ||
-    r.reason === 'rules_not_configured'
+    r.reason === 'rules_not_configured' ||
+    r.writes_paused === true
   );
 }
 
-/** True when the server evaluated office radius even though attendance writes are paused. */
+/** True when the server evaluated office radius from assigned locations. */
 export function hasOfficeRadiusPresence(result: unknown): boolean {
   if (!result || typeof result !== 'object') return false;
   const r = result as Record<string, unknown>;
@@ -20,6 +21,7 @@ export function hasOfficeRadiusPresence(result: unknown): boolean {
     typeof r.inside_office === 'boolean' ||
     r.action === 'inside_office' ||
     r.action === 'outside_radius' ||
-    r.action === 'outside_office'
+    r.action === 'outside_office' ||
+    r.reason === 'assignment_presence'
   );
 }

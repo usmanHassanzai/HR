@@ -470,6 +470,8 @@ export interface LocationWindow {
   days_of_week: number[];
   crosses_midnight: boolean;
   in_window: boolean;
+  /** IANA zone from the assigned shift (or matching equal display zone). */
+  timezone?: string | null;
 }
 
 export function locationWindowToMyShift(window: LocationWindow): MyShift {
@@ -482,10 +484,11 @@ export function locationWindowToMyShift(window: LocationWindow): MyShift {
     days_of_week: window.days_of_week?.length ? window.days_of_week : [1, 2, 3, 4, 5, 6, 7],
     effective_from: '',
     crosses_midnight: window.crosses_midnight,
+    timezone: window.timezone || undefined,
   };
 }
 
-/** Location may be used only while the assigned shift or company window is open. */
+/** Location may be used only while the assigned shift window is open. */
 export function shouldCaptureLocationNow(window: LocationWindow | null | undefined, at = new Date()): boolean {
   if (!window) return false;
   if (typeof window.in_window === 'boolean') return window.in_window;

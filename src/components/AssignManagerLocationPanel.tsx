@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Profile } from '../utils/kpiHelpers';
 import { OfficeGroup, OfficeLocation } from '../utils/geoAttendance';
-import { MapPin, Loader2, Trash2, UserCheck, Users, UserPlus } from 'lucide-react';
+import { MapPin, Loader2, Trash2, UserCheck, Users, UserPlus, Search, X } from 'lucide-react';
 import LiveGpsCapture from './LiveGpsCapture';
 import '../styles/attendance.css';
 
@@ -55,6 +55,12 @@ function locationLabel(loc: OfficeLocation, officeName?: string | null): string 
   return loc.name;
 }
 
+function roleLabel(role: string): string {
+  if (role === 'manager') return 'Manager';
+  if (role === 'hr') return 'HR';
+  return 'Employee';
+}
+
 export default function AssignManagerLocationPanel({
   initialOfficeId,
   onAssigned,
@@ -79,6 +85,9 @@ export default function AssignManagerLocationPanel({
   const [msg, setMsg] = useState('');
   const [quickOffice, setQuickOffice] = useState({ name: '', latitude: '', longitude: '', radius_meters: '150' });
   const [quickSaving, setQuickSaving] = useState(false);
+  const [personQuery, setPersonQuery] = useState('');
+  const [rosterQuery, setRosterQuery] = useState('');
+  const [showManagerSection, setShowManagerSection] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -118,7 +127,6 @@ export default function AssignManagerLocationPanel({
   const officeNameById = useMemo(() => {
     const map = new Map<string, string>();
     for (const o of officeGroups) map.set(o.id, o.name);
-    // Fallback: locations that still carry their own name as parent
     for (const loc of locations) {
       if (loc.office_id && !map.has(loc.office_id)) map.set(loc.office_id, loc.name);
     }
@@ -128,6 +136,23 @@ export default function AssignManagerLocationPanel({
   const activeLocations = useMemo(() => locations.filter((o) => o.active), [locations]);
   const selectedOffice = locations.find((o) => o.id === officeId);
   const locationById = useMemo(() => new Map(locations.map((l) => [l.id, l])), [locations]);
+
+  const locationsByOffice = useMemo(() => {
+    const groups: { key: string; label: string; locs: OfficeLocation[] }[] = [];
+    const index = new Map<string, number>();
+    for (const loc of activeLocations) {
+      const oid = loc.office_id || '_none';
+      const label = officeNameById.get(loc.office_id || '') || 'Other locations';
+      let i = index.get(oid);
+      if (i === undefined) {
+        i = groups.length;
+        index.set(oid, i);
+        groups.push({ key: oid, label, locs: [] });
+      }
+      groups[i].locs.push(loc);
+    }
+    return groups;
+  }, [activeLocations, officeNameById]);
 
   const assignmentsByUser = useMemo(() => {
     const map = new Map<string, EmployeeSiteRow[]>();
@@ -141,6 +166,41 @@ export default function AssignManagerLocationPanel({
 
   const unassignedEmployees = employees.filter((e) => !assignmentsByUser.has(e.id));
 
+  const filteredEmployees = useMemo(() => {
+    const q = personQuery.trim().toLowerCase();
+    if (!q) return employees;
+    return employees.filter(
+      (u) =>
+        u.full_name.toLowerCase().includes(q) ||
+        (u.email || '').toLowerCase().includes(q) ||
+        u.role.toLowerCase().includes(q),
+    );
+  }, [employees, personQuery]);
+
+  const rosterEntries = useMemo(() => {
+    const entries = [...assignmentsByUser.entries()].sort((a, b) =>
+      (a[1][0]?.user_name || '').localeCompare(b[1][0]?.user_name || ''),
+    );
+    const q = rosterQuery.trim().toLowerCase();
+    if (!q) return entries;
+    return entries.filter(([, rows]) => {
+      const first = rows[0];
+      return (
+        first.user_name.toLowerCase().includes(q) ||
+        first.user_email.toLowerCase().includes(q) ||
+        rows.some((r) => r.site_name.toLowerCase().includes(q) || (r.office_name || '').toLowerCase().includes(q))
+      );
+    });
+  }, [assignmentsByUser, rosterQuery]);
+
+  const selectedPerson = employees.find((u) => u.id === employeeId);
+  const selectedLocLabels = selectedLocationIds
+    .map((id) => {
+      const loc = locationById.get(id);
+      return loc ? locationLabel(loc, officeNameById.get(loc.office_id || '') || null) : null;
+    })
+    .filter(Boolean) as string[];
+
   // When person selected, prefill multi-select from their current assignments
   useEffect(() => {
     if (!employeeId) return;
@@ -151,6 +211,8 @@ export default function AssignManagerLocationPanel({
       setSelectedLocationIds(existing);
     } else if (initialOfficeId) {
       setSelectedLocationIds([initialOfficeId]);
+    } else {
+      setSelectedLocationIds([]);
     }
   }, [employeeId, assignmentsByUser, initialOfficeId]);
 
@@ -161,11 +223,11 @@ export default function AssignManagerLocationPanel({
   const assignEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!employeeId) {
-      setMsg('Please select an employee.');
+      setMsg('Please select a person.');
       return;
     }
     if (selectedLocationIds.length === 0) {
-      setMsg('Select at least one location (or clear all with Save empty set after confirming).');
+      setMsg('Select at least one location, or use Clear all on their row to remove assignments.');
       return;
     }
     setSavingEmp(true);
@@ -203,35 +265,35 @@ export default function AssignManagerLocationPanel({
       }
     }
     const emp = employees.find((u) => u.id === employeeId);
-    const names = selectedLocationIds
-      .map((id) => {
-        const loc = locationById.get(id);
-        return loc ? locationLabel(loc, officeNameById.get(loc.office_id || '') || null) : null;
-      })
-      .filter(Boolean);
     setMsg(
-      `Assigned ${names.length} location${names.length === 1 ? '' : 's'} to ${emp?.full_name || 'user'}: ${names.join(', ')}. Other locations do not apply.`,
+      `Saved ${selectedLocLabels.length} location${selectedLocLabels.length === 1 ? '' : 's'} for ${emp?.full_name || 'user'}: ${selectedLocLabels.join(', ')}.`,
     );
     setEmployeeId('');
+    setPersonQuery('');
     await load();
     onAssigned?.();
   };
 
   const assignAllEmployees = async () => {
-    if (!selectedOffice) {
-      setMsg('Please select a location in the manager section, or pick one location checkbox first.');
+    const targetId = selectedLocationIds[0] || selectedOffice?.id;
+    if (!targetId) {
+      setMsg('Select at least one location first.');
       return;
     }
-    const targetId = selectedLocationIds[0] || selectedOffice.id;
-    const target = locationById.get(targetId) || selectedOffice;
+    const target = locationById.get(targetId);
+    if (!target) {
+      setMsg('Selected location not found.');
+      return;
+    }
     const staffCount = employees.length;
     if (staffCount === 0) {
       setMsg('No employees, managers, or HR found in your organization.');
       return;
     }
+    const label = locationLabel(target, officeNameById.get(target.office_id || '') || null);
     if (
       !confirm(
-        `Add "${locationLabel(target, officeNameById.get(target.office_id || '') || null)}" to all ${staffCount} staff? Existing other location assignments are kept; this location is added for everyone.`,
+        `Add "${label}" to all ${staffCount} staff? Existing other location assignments are kept; this location is added for everyone.`,
       )
     ) {
       return;
@@ -246,9 +308,7 @@ export default function AssignManagerLocationPanel({
       setMsg(error.message);
       return;
     }
-    setMsg(
-      `Added "${target.name}" to ${data ?? staffCount} staff. Other assigned locations were not removed.`,
-    );
+    setMsg(`Added "${target.name}" to ${data ?? staffCount} staff. Other assigned locations were not removed.`);
     await load();
     onAssigned?.();
   };
@@ -296,7 +356,7 @@ export default function AssignManagerLocationPanel({
       return;
     }
     if (!selectedOffice) {
-      setMsg('Please select an office location first. Add one above if the list is empty.');
+      setMsg('Please select a location.');
       return;
     }
     setSaving(true);
@@ -317,7 +377,7 @@ export default function AssignManagerLocationPanel({
     } else {
       const mgr = managers.find((m) => m.id === managerId);
       setMsg(
-        `Assigned "${selectedOffice.name}" as team zone for ${mgr?.full_name || 'manager'}. Team members without a personal assignment inherit this one location.`,
+        `Assigned "${selectedOffice.name}" as team zone for ${mgr?.full_name || 'manager'}. Team members without a personal assignment inherit this zone.`,
       );
       setManagerId('');
       await load();
@@ -375,38 +435,42 @@ export default function AssignManagerLocationPanel({
       {!embedded && (
         <>
           <h3 className="attendance-card__title">
-            <UserCheck size={18} /> Step 3 — Assign locations
+            <UserCheck size={18} /> Assign people
           </h3>
           <p className="attendance-card__subtitle">
-            Assign one or more location pins to each person. Only those pins count for radius/presence.
+            Choose a person, then the location pins that count for their presence.
           </p>
         </>
       )}
 
       {msg && (
         <div
-          className={`rewards-toast ${isErrorMsg(msg) ? 'rewards-toast--error' : 'rewards-toast--success'}`}
-          style={{ marginBottom: '1rem' }}
+          className={`admin-office-alert ${isErrorMsg(msg) ? 'admin-office-alert--error' : 'admin-office-alert--success'} admin-office-alert--tight`}
+          role="status"
         >
-          {msg}
+          <span>{msg}</span>
+          <button type="button" className="admin-office-alert__dismiss" onClick={() => setMsg('')} aria-label="Dismiss">
+            ×
+          </button>
         </div>
       )}
 
       {loading ? (
-        <div className="dash-loading">
+        <div className="admin-office-loading" style={{ padding: '2rem 1rem' }}>
           <Loader2 size={24} className="spin-icon" />
+          <span>Loading assignments…</span>
         </div>
       ) : activeLocations.length === 0 ? (
-        <div>
-          <p className="attendance-empty" style={{ marginBottom: '1rem' }}>
-            No locations yet. Capture live GPS below, name the location, and save — then assign it.
-          </p>
+        <div className="admin-office-empty">
+          <MapPin size={40} strokeWidth={1.25} />
+          <h4>No locations yet</h4>
+          <p>Capture live GPS below, name the location, and save — then assign people to it.</p>
           <LiveGpsCapture
             latitude={quickOffice.latitude}
             longitude={quickOffice.longitude}
             onCapture={(lat, lng) => setQuickOffice((o) => ({ ...o, latitude: lat, longitude: lng }))}
           />
-          <form onSubmit={saveQuickOffice} className="attendance-form-grid attendance-form-grid--wide" style={{ marginTop: '1rem' }}>
+          <form onSubmit={saveQuickOffice} className="attendance-form-grid attendance-form-grid--wide admin-office-assign-quick">
             <div className="form-group">
               <label>Location name *</label>
               <input
@@ -428,76 +492,133 @@ export default function AssignManagerLocationPanel({
             </div>
             <div>
               <button type="submit" className="btn btn-primary" disabled={quickSaving || !quickOffice.latitude}>
-                {quickSaving ? <Loader2 size={16} className="spin-icon" /> : <><MapPin size={16} /> Save location at live GPS</>}
+                {quickSaving ? <Loader2 size={16} className="spin-icon" /> : <><MapPin size={16} /> Save location</>}
               </button>
             </div>
           </form>
         </div>
       ) : (
         <>
-          <section className="admin-office-assign-block">
-            <h4 className="attendance-card__title" style={{ fontSize: '0.95rem', marginBottom: '0.35rem' }}>
-              <Users size={16} /> Assign locations to a person
-            </h4>
-            <p className="attendance-card__subtitle" style={{ marginBottom: '1rem' }}>
-              Multi-select locations. Saving replaces that person&apos;s location set. Only selected pins apply; others do
-              not.
-            </p>
-
-            <form onSubmit={assignEmployee} className="attendance-form-grid attendance-form-grid--wide">
-              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                <label>Employee, manager, or HR</label>
-                <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
-                  <option value="">— Select person —</option>
-                  {employees.map((u) => {
-                    const count = assignmentsByUser.get(u.id)?.length || 0;
-                    return (
-                      <option key={u.id} value={u.id}>
-                        {u.full_name}
-                        {u.role === 'manager' ? ' (manager)' : u.role === 'hr' ? ' (HR)' : ''}
-                        {count > 0 ? ` · ${count} location${count === 1 ? '' : 's'}` : ''}
-                      </option>
-                    );
-                  })}
-                </select>
+          <section className="admin-office-assign-block" aria-label="Assign locations">
+            {!embedded && (
+              <div className="admin-office-assign-intro">
+                <h4>Assign locations</h4>
+                <p>Pick a person, then toggle the locations that apply. Saving replaces their current set.</p>
               </div>
+            )}
 
-              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                <label>Locations (select one or more)</label>
-                <div className="admin-office-location-checks">
-                  {activeLocations.map((loc) => {
-                    const parent = officeNameById.get(loc.office_id || '') || null;
-                    const checked = selectedLocationIds.includes(loc.id);
-                    return (
-                      <label key={loc.id} className={`admin-office-location-check ${checked ? 'is-checked' : ''}`}>
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => toggleLocation(loc.id)}
-                        />
-                        <span>
-                          <strong>{locationLabel(loc, parent)}</strong>
-                          <span className="admin-office-location-check__meta">
-                            {loc.radius_meters}m · {loc.latitude.toFixed(4)}, {loc.longitude.toFixed(4)}
-                          </span>
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {selectedLocationIds.length > 0 && (
-                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                  <div className="geo-assign-preview">
-                    <MapPin size={16} />
-                    <span>
-                      {selectedLocationIds.length} location{selectedLocationIds.length === 1 ? '' : 's'} selected — only
-                      these apply for presence
-                    </span>
+            <form onSubmit={assignEmployee} className="admin-office-assign-form">
+              <div className="admin-office-assign-step">
+                <span className="admin-office-assign-step__num" aria-hidden>
+                  1
+                </span>
+                <div className="admin-office-assign-step__body">
+                  <label htmlFor="assign-person-search">Person</label>
+                  <div className="admin-office-assign-search">
+                    <Search size={15} aria-hidden />
+                    <input
+                      id="assign-person-search"
+                      type="search"
+                      value={personQuery}
+                      onChange={(e) => setPersonQuery(e.target.value)}
+                      placeholder="Search by name…"
+                      autoComplete="off"
+                    />
                   </div>
+                  <select
+                    id="assign-person-select"
+                    value={employeeId}
+                    onChange={(e) => setEmployeeId(e.target.value)}
+                    aria-label="Select person"
+                  >
+                    <option value="">— Select person —</option>
+                    {filteredEmployees.map((u) => {
+                      const count = assignmentsByUser.get(u.id)?.length || 0;
+                      return (
+                        <option key={u.id} value={u.id}>
+                          {u.full_name}
+                          {u.role === 'manager' ? ' · Manager' : u.role === 'hr' ? ' · HR' : ''}
+                          {count > 0 ? ` · ${count} location${count === 1 ? '' : 's'}` : ' · none yet'}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  {selectedPerson && (
+                    <p className="admin-office-assign-step__hint">
+                      Editing <strong>{selectedPerson.full_name}</strong>
+                      {(assignmentsByUser.get(employeeId)?.length || 0) > 0
+                        ? ` — currently ${assignmentsByUser.get(employeeId)!.length} location${assignmentsByUser.get(employeeId)!.length === 1 ? '' : 's'}`
+                        : ' — no locations yet'}
+                    </p>
+                  )}
+                  {!selectedPerson && unassignedEmployees.length > 0 && (
+                    <p className="admin-office-assign-step__hint">
+                      {unassignedEmployees.length} person{unassignedEmployees.length === 1 ? '' : 's'} with no personal
+                      locations yet
+                      {assignments.length > 0 ? ' (may still inherit a manager zone).' : '.'}
+                    </p>
+                  )}
                 </div>
-              )}
+              </div>
+
+              <div className="admin-office-assign-step">
+                <span className="admin-office-assign-step__num" aria-hidden>
+                  2
+                </span>
+                <div className="admin-office-assign-step__body">
+                  <div className="admin-office-assign-step__label-row">
+                    <label>Locations</label>
+                    {selectedLocationIds.length > 0 && (
+                      <button
+                        type="button"
+                        className="admin-office-inline-link"
+                        onClick={() => setSelectedLocationIds([])}
+                      >
+                        Clear selection
+                      </button>
+                    )}
+                  </div>
+                  <p className="admin-office-assign-step__hint admin-office-assign-step__hint--tight">
+                    Toggle one or more. Only selected pins count for presence.
+                  </p>
+                  <div className="admin-office-loc-picks">
+                    {locationsByOffice.map((group) => (
+                      <div key={group.key} className="admin-office-loc-picks__group">
+                        {locationsByOffice.length > 1 && (
+                          <span className="admin-office-loc-picks__office">{group.label}</span>
+                        )}
+                        <div className="admin-office-loc-picks__chips" role="group" aria-label={`${group.label} locations`}>
+                          {group.locs.map((loc) => {
+                            const checked = selectedLocationIds.includes(loc.id);
+                            return (
+                              <button
+                                key={loc.id}
+                                type="button"
+                                className={`admin-office-loc-chip${checked ? ' is-on' : ''}`}
+                                aria-pressed={checked}
+                                onClick={() => toggleLocation(loc.id)}
+                              >
+                                <MapPin size={13} aria-hidden />
+                                <span className="admin-office-loc-chip__name">{loc.name}</span>
+                                <span className="admin-office-loc-chip__meta">{loc.radius_meters}m</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {selectedLocLabels.length > 0 && (
+                    <div className="admin-office-assign-summary" aria-live="polite">
+                      <span className="admin-office-assign-summary__count">
+                        {selectedLocLabels.length} selected
+                      </span>
+                      <span className="admin-office-assign-summary__names">{selectedLocLabels.join(' · ')}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
 
               <div className="admin-office-assign-actions">
                 <button
@@ -509,7 +630,7 @@ export default function AssignManagerLocationPanel({
                     <Loader2 size={16} className="spin-icon" />
                   ) : (
                     <>
-                      <UserPlus size={16} /> Save location set
+                      <UserPlus size={16} /> Save for {selectedPerson?.full_name?.split(' ')[0] || 'person'}
                     </>
                   )}
                 </button>
@@ -517,6 +638,7 @@ export default function AssignManagerLocationPanel({
                   type="button"
                   className="btn btn-secondary"
                   disabled={assigningAll || selectedLocationIds.length === 0}
+                  title="Adds the first selected location to everyone; keeps their other locations"
                   onClick={() => {
                     if (selectedLocationIds[0]) setOfficeId(selectedLocationIds[0]);
                     void assignAllEmployees();
@@ -526,195 +648,199 @@ export default function AssignManagerLocationPanel({
                     <Loader2 size={16} className="spin-icon" />
                   ) : (
                     <>
-                      <Users size={16} /> Add first selected to all staff
+                      <Users size={16} /> Add to everyone
                     </>
                   )}
                 </button>
               </div>
             </form>
+          </section>
 
-            {unassignedEmployees.length > 0 && (
-              <p className="geo-hint" style={{ marginTop: '0.75rem' }}>
-                {unassignedEmployees.length} person
-                {unassignedEmployees.length === 1 ? '' : 's'} without a personal location assignment
-                {assignments.length > 0 ? ' (may still inherit from their manager).' : '.'}
-              </p>
-            )}
-
-            <div style={{ marginTop: '1.25rem' }}>
-              <h4 className="attendance-card__title" style={{ fontSize: '0.9rem', marginBottom: '0.75rem' }}>
-                Assignments ({employeeAssignments.length} location rows · {assignmentsByUser.size} people)
-              </h4>
-              {employeeAssignments.length === 0 ? (
-                <p className="attendance-empty" style={{ margin: 0 }}>
-                  No one assigned yet. Select a person, check locations, and Save location set.
+          <section className="admin-office-roster" aria-labelledby="assign-roster-heading">
+            <div className="admin-office-roster__head">
+              <div>
+                <h4 id="assign-roster-heading">Current assignments</h4>
+                <p>
+                  {assignmentsByUser.size === 0
+                    ? 'No one assigned yet'
+                    : `${assignmentsByUser.size} person${assignmentsByUser.size === 1 ? '' : 's'} · ${employeeAssignments.length} location link${employeeAssignments.length === 1 ? '' : 's'}`}
                 </p>
-              ) : (
-                <div className="attendance-approval-list">
-                  {[...assignmentsByUser.entries()].map(([userId, rows]) => {
-                    const first = rows[0];
-                    return (
-                      <div
-                        key={userId}
-                        className="attendance-approval-item"
-                        style={{ borderLeftColor: 'var(--color-success)', flexDirection: 'column', alignItems: 'stretch' }}
-                      >
-                        <div className="attendance-approval-item__main" style={{ width: '100%' }}>
-                          <span className="attendance-approval-item__name">
-                            {first.user_name}
-                            <span className="badge badge-on-track" style={{ marginLeft: '0.5rem', fontSize: '0.65rem' }}>
-                              {first.user_role === 'manager' ? 'Manager' : first.user_role === 'hr' ? 'HR' : 'Employee'}
-                            </span>
-                          </span>
-                          <span className="attendance-approval-item__meta">
-                            {rows.length} location{rows.length === 1 ? '' : 's'} · only these apply
-                          </span>
-                        </div>
-                        <ul className="admin-office-assign-loc-list">
-                          {rows.map((a) => (
-                            <li key={a.site_id}>
-                              <span>
-                                {a.office_name && a.office_name !== a.site_name
-                                  ? `${a.office_name} · ${a.site_name}`
-                                  : a.site_name}
-                                {' · '}
-                                {a.radius_meters}m
-                              </span>
-                              <button
-                                type="button"
-                                className="btn btn-secondary btn-sm"
-                                onClick={() => void removeEmployeeAssignment(a.site_id, a.user_name, a.site_name)}
-                                style={{ color: 'var(--color-danger)' }}
-                              >
-                                <Trash2 size={14} /> Remove
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                        {rows.length > 1 && (
-                          <div className="attendance-approval-item__actions" style={{ marginTop: '0.35rem' }}>
-                            <button
-                              type="button"
-                              className="btn btn-secondary btn-sm"
-                              onClick={() => void clearAllForPerson(userId, first.user_name)}
-                              style={{ color: 'var(--color-danger)' }}
-                            >
-                              Clear all
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+              </div>
+              {assignmentsByUser.size > 0 && (
+                <div className="admin-office-assign-search admin-office-assign-search--compact">
+                  <Search size={14} aria-hidden />
+                  <input
+                    type="search"
+                    value={rosterQuery}
+                    onChange={(e) => setRosterQuery(e.target.value)}
+                    placeholder="Filter…"
+                    aria-label="Filter assignments"
+                    autoComplete="off"
+                  />
                 </div>
               )}
             </div>
+
+            {assignmentsByUser.size === 0 ? (
+              <div className="admin-office-empty admin-office-empty--compact">
+                <Users size={32} strokeWidth={1.25} />
+                <h4>No assignments yet</h4>
+                <p>Select a person above, toggle locations, and save.</p>
+              </div>
+            ) : rosterEntries.length === 0 ? (
+              <p className="admin-office-assign-empty-filter">No matches for “{rosterQuery}”.</p>
+            ) : (
+              <ul className="admin-office-roster__list">
+                {rosterEntries.map(([userId, rows]) => {
+                  const first = rows[0];
+                  return (
+                    <li key={userId} className="admin-office-roster__row">
+                      <div className="admin-office-roster__person">
+                        <span className="admin-office-roster__name">{first.user_name}</span>
+                        <span className="admin-office-roster__role">{roleLabel(first.user_role)}</span>
+                      </div>
+                      <div className="admin-office-roster__locs">
+                        {rows.map((a) => {
+                          const label =
+                            a.office_name && a.office_name !== a.site_name
+                              ? `${a.office_name} · ${a.site_name}`
+                              : a.site_name;
+                          return (
+                            <span key={a.site_id} className="admin-office-roster__chip" title={`${label} · ${a.radius_meters}m`}>
+                              <MapPin size={12} aria-hidden />
+                              <span>{a.site_name}</span>
+                              <button
+                                type="button"
+                                className="admin-office-roster__chip-remove"
+                                aria-label={`Remove ${a.site_name} from ${a.user_name}`}
+                                onClick={() => void removeEmployeeAssignment(a.site_id, a.user_name, a.site_name)}
+                              >
+                                <X size={12} />
+                              </button>
+                            </span>
+                          );
+                        })}
+                      </div>
+                      {rows.length > 1 && (
+                        <button
+                          type="button"
+                          className="admin-office-inline-link admin-office-roster__clear"
+                          onClick={() => void clearAllForPerson(userId, first.user_name)}
+                        >
+                          Clear all
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </section>
 
           <section className="admin-office-assign-block admin-office-assign-block--managers">
-            <h4 className="attendance-card__title" style={{ fontSize: '0.95rem', marginBottom: '0.35rem' }}>
-              <UserCheck size={16} /> Assign by manager (whole team)
-            </h4>
-            <p className="attendance-card__subtitle" style={{ marginBottom: '1rem' }}>
-              Optional. Team members without a personal assignment inherit their manager&apos;s single GPS zone.
-            </p>
+            <button
+              type="button"
+              className="admin-office-assign-toggle"
+              aria-expanded={showManagerSection}
+              onClick={() => setShowManagerSection((v) => !v)}
+            >
+              <UserCheck size={16} />
+              <span>
+                <strong>Team zone by manager</strong>
+                <span className="admin-office-assign-toggle__sub">
+                  Optional — unassigned team members inherit their manager&apos;s single location
+                  {assignments.length > 0 ? ` · ${assignments.length} active` : ''}
+                </span>
+              </span>
+              <span className="admin-office-assign-toggle__chev">{showManagerSection ? 'Hide' : 'Show'}</span>
+            </button>
 
-            {managers.length === 0 ? (
-              <p className="attendance-empty" style={{ margin: 0 }}>
-                No managers found. Create a manager account under Users if you need team-level assignment.
-              </p>
-            ) : (
-              <form onSubmit={assign} className="attendance-form-grid attendance-form-grid--wide">
-                <div className="form-group">
-                  <label>Manager</label>
-                  <select value={managerId} onChange={(e) => setManagerId(e.target.value)} required>
-                    <option value="">— Select manager —</option>
-                    {managers.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.full_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Location</label>
-                  <select value={officeId} onChange={(e) => setOfficeId(e.target.value)} required>
-                    <option value="">— Select location —</option>
-                    {activeLocations.map((o) => (
-                      <option key={o.id} value={o.id}>
-                        {locationLabel(o, officeNameById.get(o.office_id || '') || null)} ({o.radius_meters}m)
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                {selectedOffice && (
-                  <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                    <div className="geo-assign-preview">
-                      <MapPin size={16} />
-                      <span>
-                        <strong>{selectedOffice.name}</strong>
-                        {' · '}
-                        {selectedOffice.latitude.toFixed(5)}, {selectedOffice.longitude.toFixed(5)}
-                        {' · '}
-                        {selectedOffice.radius_meters}m radius
-                        {selectedOffice.address && <> · {selectedOffice.address}</>}
-                      </span>
+            {showManagerSection && (
+              <div className="admin-office-assign-manager-body">
+                {managers.length === 0 ? (
+                  <p className="admin-office-assign-step__hint">
+                    No managers found. Create a manager account under Users if you need team-level assignment.
+                  </p>
+                ) : (
+                  <form onSubmit={assign} className="attendance-form-grid attendance-form-grid--wide">
+                    <div className="form-group">
+                      <label htmlFor="assign-manager-select">Manager</label>
+                      <select
+                        id="assign-manager-select"
+                        value={managerId}
+                        onChange={(e) => setManagerId(e.target.value)}
+                        required
+                      >
+                        <option value="">— Select manager —</option>
+                        {managers.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.full_name}
+                          </option>
+                        ))}
+                      </select>
                     </div>
-                  </div>
+                    <div className="form-group">
+                      <label htmlFor="assign-manager-loc">Location</label>
+                      <select
+                        id="assign-manager-loc"
+                        value={officeId}
+                        onChange={(e) => setOfficeId(e.target.value)}
+                        required
+                      >
+                        <option value="">— Select location —</option>
+                        {activeLocations.map((o) => (
+                          <option key={o.id} value={o.id}>
+                            {locationLabel(o, officeNameById.get(o.office_id || '') || null)} ({o.radius_meters}m)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="admin-office-assign-actions">
+                      <button type="submit" className="btn btn-primary" disabled={saving || !managerId || !officeId}>
+                        {saving ? (
+                          <Loader2 size={16} className="spin-icon" />
+                        ) : (
+                          <>
+                            <UserCheck size={16} /> Assign team zone
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
                 )}
-                <div>
-                  <button type="submit" className="btn btn-primary" disabled={saving || !managerId || !officeId}>
-                    {saving ? <Loader2 size={16} className="spin-icon" /> : <><UserCheck size={16} /> Assign to manager</>}
-                  </button>
-                </div>
-              </form>
-            )}
 
-            <div style={{ marginTop: '1.5rem' }}>
-              <h4 className="attendance-card__title" style={{ fontSize: '0.9rem', marginBottom: '0.75rem' }}>
-                Manager assignments ({assignments.length})
-              </h4>
-              {assignments.length === 0 ? (
-                <p className="attendance-empty" style={{ margin: 0 }}>
-                  No managers assigned yet.
-                </p>
-              ) : (
-                <div className="attendance-approval-list">
-                  {assignments.map((a) => (
-                    <div
-                      key={a.site_id}
-                      className="attendance-approval-item"
-                      style={{ borderLeftColor: 'var(--color-success)' }}
-                    >
-                      <div className="attendance-approval-item__main">
-                        <span className="attendance-approval-item__name">
-                          {a.manager_name}
-                          <span className="badge badge-on-track" style={{ marginLeft: '0.5rem', fontSize: '0.65rem' }}>
-                            Team zone
+                {assignments.length > 0 && (
+                  <ul className="admin-office-roster__list admin-office-roster__list--managers">
+                    {assignments.map((a) => (
+                      <li key={a.site_id} className="admin-office-roster__row">
+                        <div className="admin-office-roster__person">
+                          <span className="admin-office-roster__name">{a.manager_name}</span>
+                          <span className="admin-office-roster__role">Team zone</span>
+                        </div>
+                        <div className="admin-office-roster__locs">
+                          <span className="admin-office-roster__chip admin-office-roster__chip--static">
+                            <MapPin size={12} aria-hidden />
+                            <span>
+                              {a.site_name}
+                              {a.team_count > 0
+                                ? ` · ${a.team_count} on team`
+                                : ''}
+                            </span>
                           </span>
-                        </span>
-                        <span className="attendance-approval-item__meta">
-                          Location: {a.site_name} · {a.team_count} employee{a.team_count !== 1 ? 's' : ''} on team
-                        </span>
-                        <span className="attendance-approval-item__reason">
-                          {a.latitude.toFixed(5)}, {a.longitude.toFixed(5)} · {a.radius_meters}m
-                        </span>
-                      </div>
-                      <div className="attendance-approval-item__actions">
+                        </div>
                         <button
                           type="button"
-                          className="btn btn-secondary btn-sm"
+                          className="admin-office-inline-link admin-office-roster__clear"
                           onClick={() => void remove(a.manager_id, a.manager_name)}
-                          style={{ color: 'var(--color-danger)' }}
                         >
-                          <Trash2 size={14} /> Remove
+                          <Trash2 size={13} /> Remove
                         </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
           </section>
         </>
       )}

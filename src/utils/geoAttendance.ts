@@ -132,7 +132,7 @@ export function attendanceActionMessage(action: string | null | undefined): stri
     case 'outside_office':
       return 'You are outside the office radius';
     case 'rules_not_configured':
-      return 'Attendance rules are paused. Office radius location checks still run.';
+      return 'Check-in/out writes are paused. Assigned location radius and shift windows still apply.';
     case 'checkin_blocked_shift_ended':
       return 'The shift has ended. You cannot check in.';
     case 'outside_window':

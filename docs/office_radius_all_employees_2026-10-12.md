@@ -4,7 +4,7 @@
 
 | Layer | Table | Meaning |
 | --- | --- | --- |
-| Office | `offices` | Parent (e.g. Karachi HQ). Company-scoped. |
+| Office | `offices` | Parent (e.g. Headquarters). Company-scoped. |
 | Location | `office_locations` | Pin + radius under an office (`office_id`). Many per office. |
 | Assignment | `employee_work_sites` | **One row per (person, location)**. Unique `(user_id, office_location_id)`. |
 
@@ -23,8 +23,9 @@
 
 1. `office_radius_all_employees_2026-10-12.sql` (if not already)
 2. `office_multi_locations_assign_2026-10-12.sql` ← offices parent + multi-assign + exclusive presence
+3. `assignment_driven_location_shift_2026-10-12.sql` ← shift window from assigned shift + equal zones; no Karachi invent
 
-Listed in `scripts/apply-all-migrations.mjs`. Do **not** auto-deploy; push to GitHub/Vercel yourself and run migrations on Supabase.
+Listed in `scripts/apply-all-migrations.mjs`. Do **not** auto-deploy; push to GitHub/Vercel yourself and run migrations on Supabase. See `docs/assignment_driven_location_shift_2026-10-12.md`.
 
 ## Files
 
@@ -39,4 +40,4 @@ Listed in `scripts/apply-all-migrations.mjs`. Do **not** auto-deploy; push to Gi
 
 ## Remaining stubs
 
-Attendance **writes**, auto Wi‑Fi/shift rules, and related edge stubs stay paused until rebuilt.
+Attendance **writes** and auto Wi‑Fi engines stay paused. Presence (assigned radius) and shift **window reads** are restored by `assignment_driven_location_shift_2026-10-12.sql`.
