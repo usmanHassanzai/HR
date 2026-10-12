@@ -1,7 +1,8 @@
-// Edge: register-attendance-device — STUB while rules are rebuilt.
-// Does not register devices.
+// Edge: register-attendance-device
+// JWT once → random device token (plaintext returned once; hash stored via RPC)
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 
 const ALLOWED_ORIGINS = new Set([
   'https://scorr.walfia.ai',
@@ -32,11 +33,48 @@ function json(req: Request, data: unknown, status = 200) {
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders(req) });
   if (req.method !== 'POST') return json(req, { error: 'POST required' }, 405);
-  return json(req, {
-    ok: false,
-    status: 'rules_not_configured',
-    device_token: null,
-    message:
-      'Attendance, office and automatic attendance rules are being rebuilt. Everything is paused.',
-  });
+
+  try {
+    const url = Deno.env.get('SUPABASE_URL') || '';
+    const anon = Deno.env.get('SUPABASE_ANON_KEY') || '';
+    const jwt = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim();
+    if (!url || !anon || !jwt) return json(req, { error: 'Not authenticated' }, 401);
+
+    const body = await req.json().catch(() => ({}));
+    const deviceId = String(body.device_id || '').trim();
+    const platform = String(body.platform || '').trim();
+    const deviceTimezone = body.device_timezone ? String(body.device_timezone) : null;
+    const appVersion = body.app_version ? String(body.app_version) : null;
+
+    if (!deviceId || !platform) {
+      return json(req, { error: 'device_id and platform required' }, 400);
+    }
+
+    if (platform === 'ios') {
+      return json(req, {
+        ok: false,
+        status: 'platform_disabled',
+        device_token: null,
+        message:
+          'Automatic check-in is not available on iOS yet. Use Android or the desktop app.',
+      });
+    }
+
+    const userClient = createClient(url, anon, {
+      global: { headers: { Authorization: `Bearer ${jwt}` } },
+    });
+
+    const { data, error } = await userClient.rpc('register_attendance_device', {
+      p_device_id: deviceId,
+      p_platform: platform,
+      p_device_timezone: deviceTimezone,
+      p_app_version: appVersion,
+      p_token_plaintext: null,
+    });
+
+    if (error) return json(req, { error: error.message }, 400);
+    return json(req, data);
+  } catch (e) {
+    return json(req, { error: String(e) }, 500);
+  }
 });

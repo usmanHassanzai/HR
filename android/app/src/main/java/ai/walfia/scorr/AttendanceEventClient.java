@@ -77,6 +77,14 @@ final class AttendanceEventClient {
         Context app = ctx.getApplicationContext();
         if (!AttendancePingStore.enabled(app)) return;
 
+        // After one successful check-in, do not spam Wi-Fi/GPS check-in events.
+        // Leave events (exit / wifi_disconnected) still send for early checkout.
+        String ev = event != null ? event.toLowerCase(Locale.US) : "";
+        if (isCheckinEvent(ev) && AttendancePingStore.isAlreadyCheckedInForActiveWindow(app)) {
+            Log.i(TAG, "skip check-in event=" + ev + " (already checked in)");
+            return;
+        }
+
         long now = System.currentTimeMillis();
         long occurred = occurredAtUtcMs != null && occurredAtUtcMs > 0 ? occurredAtUtcMs : now;
         if (now - occurred > MAX_EVENT_AGE_MS) {
@@ -216,6 +224,23 @@ final class AttendanceEventClient {
         }
     }
 
+    private static boolean isCheckinEvent(String ev) {
+        return "enter".equals(ev)
+            || "ping".equals(ev)
+            || "wifi_connected".equals(ev)
+            || "heartbeat".equals(ev)
+            || "power_on".equals(ev);
+    }
+
+    private static void markCheckedInFromResponse(Context app, JSONObject json) {
+        String date = json.optString("attendance_date", "");
+        if (date.isEmpty()) {
+            // Fall back to "today" marker so further pings are suppressed
+            date = new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
+        }
+        AttendancePingStore.setCheckedInAttendanceDate(app, date);
+    }
+
     private static void handleResponse(Context app, String respText, JSONObject requestBody) {
         try {
             JSONObject json = new JSONObject(respText);
@@ -225,10 +250,19 @@ final class AttendanceEventClient {
             }
             String action = json.optString("action", "");
             String reason = json.optString("reason", action);
+            if ("clock_in".equals(action)
+                || "already_in".equals(action)
+                || "already_done".equals(action)
+                || json.optBoolean("suppress_checkin", false)) {
+                markCheckedInFromResponse(app, json);
+            }
             if ("clock_in".equals(action)) {
                 showCheckNotification(app, action, json);
                 updateStatusNotification(app, "Checked in", requestBody);
+            } else if ("already_in".equals(action) || "already_done".equals(action)) {
+                updateStatusNotification(app, "Checked in", requestBody);
             } else if ("clock_out".equals(action)) {
+                AttendancePingStore.setCheckedInAttendanceDate(app, null);
                 showCheckNotification(app, action, json);
                 String localTime = firstString(json, "local_time", "local_check_time");
                 long occurredMs = parseOccurredMs(json);
@@ -236,7 +270,7 @@ final class AttendanceEventClient {
                     localTime = formatInTz(occurredMs, AttendancePingStore.deviceTimezone());
                 }
                 String msg = localTime != null
-                    ? "Checked out - left the office radius at " + localTime
+                    ? "Checked out at " + localTime
                     : "Checked out";
                 updateStatusNotification(app, msg, requestBody);
             } else if (!action.isEmpty() && !"none".equals(action) && !"already_clocked_in".equals(action)) {
@@ -266,9 +300,15 @@ final class AttendanceEventClient {
                 return "The shift has ended. You cannot check in.";
             case "outside_window":
                 return "Outside the attendance window";
+            case "checkout_before_shift_start":
+                return "Check-out opens after shift start";
+            case "checkout_after_shift_end":
+                return "Shift ended — check-out is automatic at end time";
             case "event_too_old":
                 return "Reading was too old — get a fresh location";
             case "already_clocked_in":
+            case "already_in":
+            case "already_done":
                 return "Checked in";
             default:
                 return reason.replace('_', ' ');
@@ -291,7 +331,7 @@ final class AttendanceEventClient {
         if (checkIn) {
             text = "Checked in";
         } else if (localTime != null) {
-            text = "Checked out - left the office radius at " + localTime;
+            text = "Checked out at " + localTime;
         } else {
             text = "Checked out";
         }

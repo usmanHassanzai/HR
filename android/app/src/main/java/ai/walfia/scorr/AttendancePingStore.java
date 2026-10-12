@@ -271,6 +271,69 @@ final class AttendancePingStore {
             .apply();
     }
 
+    /** After a successful auto check-in, skip further check-in spam for that attendance day. */
+    static void setCheckedInAttendanceDate(Context ctx, String attendanceDate) {
+        SharedPreferences.Editor ed = prefs(ctx).edit();
+        if (attendanceDate == null || attendanceDate.isEmpty()) {
+            ed.remove("checked_in_attendance_date");
+        } else {
+            ed.putString("checked_in_attendance_date", attendanceDate);
+        }
+        ed.apply();
+    }
+
+    static String checkedInAttendanceDate(Context ctx) {
+        return prefs(ctx).getString("checked_in_attendance_date", null);
+    }
+
+    static boolean isAlreadyCheckedInForActiveWindow(Context ctx) {
+        String marked = checkedInAttendanceDate(ctx);
+        if (marked == null || marked.isEmpty()) return false;
+        try {
+            String raw = prefs(ctx).getString("schedule_json", null);
+            if (raw == null) return true; // conservative: suppress until schedule clears it
+            JSONObject sched = new JSONObject(raw);
+            JSONArray windows = sched.optJSONArray("windows");
+            if (windows == null) return true;
+            long now = System.currentTimeMillis();
+            for (int i = 0; i < windows.length(); i++) {
+                JSONObject w = windows.optJSONObject(i);
+                if (w == null) continue;
+                String date = w.optString("attendance_date", "");
+                if (!marked.equals(date)) continue;
+                // Parse ISO-ish window end; if still before end, stay suppressed
+                String end = w.optString("window_end_utc", w.optString("shift_end_utc", ""));
+                if (end.isEmpty()) return true;
+                long endMs = parseIsoMs(end);
+                return endMs <= 0 || now < endMs;
+            }
+            return false;
+        } catch (Exception e) {
+            return true;
+        }
+    }
+
+    private static long parseIsoMs(String iso) {
+        try {
+            // Accept "...Z" or "...+00:00"
+            String s = iso.trim();
+            if (s.endsWith("Z")) s = s.substring(0, s.length() - 1) + "+0000";
+            s = s.replaceAll("([+-]\\d\\d):(\\d\\d)$", "$1$2");
+            java.text.SimpleDateFormat fmt =
+                new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ", Locale.US);
+            fmt.setTimeZone(TimeZone.getTimeZone("UTC"));
+            try {
+                return fmt.parse(s).getTime();
+            } catch (Exception ignored) {
+                fmt = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ", Locale.US);
+                fmt.setTimeZone(TimeZone.getTimeZone("UTC"));
+                return fmt.parse(s).getTime();
+            }
+        } catch (Exception e) {
+            return -1;
+        }
+    }
+
     static void setLastOutsideOrEdge(Context ctx, boolean outsideOrEdge) {
         prefs(ctx).edit().putBoolean("last_outside_or_edge", outsideOrEdge).apply();
     }

@@ -74,13 +74,7 @@ public class AttendancePingService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        // Automatic attendance paused while rules are rebuilt.
-        stopSelf();
-        return START_NOT_STICKY;
-    }
-
-    @SuppressWarnings("unused")
-    private int onStartCommandLegacy(Intent intent, int flags, int startId) {
+        // Wi-Fi OR office-radius auto check-in (Android). iOS stays off in JS/native bridge.
         if (!AttendancePingStore.enabled(this)) {
             stopSelf();
             return START_NOT_STICKY;
@@ -95,7 +89,7 @@ public class AttendancePingService extends Service {
 
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Scorr attendance")
-            .setContentText("Tracking office presence during your shift window")
+            .setContentText("Wi-Fi first, then office radius during your shift window")
             .setSmallIcon(R.mipmap.ic_launcher)
             .setOngoing(true)
             .setSilent(true)
@@ -114,7 +108,7 @@ public class AttendancePingService extends Service {
         }
 
         AttendanceEventClient.updateStatusNotification(
-            this, "Tracking office presence during your shift window", null
+            this, "Wi-Fi first, then office radius during your shift window", null
         );
         AttendanceEventClient.flushQueue(this);
         if (freshExit) {
@@ -152,6 +146,15 @@ public class AttendancePingService extends Service {
     private void runBackupPingThenSchedule() {
         if (!AttendancePingStore.isInsideActiveWindow(this)) {
             stopSelf();
+            return;
+        }
+        // Already checked in for this shift day — stop spamming GPS check-ins.
+        // Server cron / schedule closes the session at shift end.
+        if (AttendancePingStore.isAlreadyCheckedInForActiveWindow(this)) {
+            AttendanceEventClient.updateStatusNotification(
+                this, "Checked in — waiting for shift end", null
+            );
+            handler.postDelayed(tick, INTERVAL_INSIDE_MS * 5);
             return;
         }
         requestLocationPing();
@@ -457,13 +460,17 @@ public class AttendancePingService extends Service {
         if (connected && matchesOffice && !was) {
             AttendancePingStore.setLastWifi(this, ssid, bssid, true);
             wifiWasOnOfficeNet = true;
-            // Wi-Fi alone is not enough — attach a fresh GPS reading in one event.
-            requestGpsThenWifiEvent("wifi_connected", ssid, bssid);
+            if (!AttendancePingStore.isAlreadyCheckedInForActiveWindow(this)) {
+                // Prefer attaching GPS so radius OR Wi-Fi can both satisfy server check-in.
+                requestGpsThenWifiEvent("wifi_connected", ssid, bssid);
+            }
         } else if ((!connected || !matchesOffice) && was) {
             AttendancePingStore.setLastWifi(this, ssid, bssid, false);
             wifiWasOnOfficeNet = false;
-            // On office Wi-Fi loss, get a fresh GPS fix and decide immediately.
-            requestGpsThenWifiDisconnect(null, null);
+            // Early check-out during shift: server does not require office Wi-Fi/radius.
+            if (AttendancePingStore.isAlreadyCheckedInForActiveWindow(this)) {
+                AttendanceEventClient.sendWifiEvent(this, "wifi_disconnected", ssid, bssid);
+            }
         } else if (connected) {
             AttendancePingStore.setLastWifi(this, ssid, bssid, matchesOffice);
             wifiWasOnOfficeNet = matchesOffice;
@@ -586,7 +593,7 @@ public class AttendancePingService extends Service {
             NotificationManager.IMPORTANCE_LOW
         );
         channel.setDescription(
-            "Shown only during your shift window while Scorr watches office GPS and Wi-Fi."
+            "Shown only during your shift window while Scorr watches office Wi-Fi and radius."
         );
         NotificationManager nm = getSystemService(NotificationManager.class);
         if (nm != null) nm.createNotificationChannel(channel);

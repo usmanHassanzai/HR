@@ -100,12 +100,12 @@ export default async function handler(req, res) {
     }
 
     if (
-      action === 'revoke'
-      || action === 'revoke_all'
+      action === 'revoke_all'
       || data?.reason === 'invalid'
       || data?.reason === 'expired'
       || data?.reason === 'always_ask'
       || data?.reason === 'missing_token'
+      || (action === 'revoke' && data?.cleared_current)
     ) {
       res.setHeader('Set-Cookie', clearCookie());
     }

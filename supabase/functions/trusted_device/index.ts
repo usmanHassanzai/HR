@@ -360,7 +360,7 @@ serve(async (req) => {
       const tokenHash = await hashToken(rawToken);
       let q = admin
         .from('trusted_devices')
-        .select('id, user_id, device_id, expires_at, revoked_at')
+        .select('id, user_id, device_id, created_at, expires_at, revoked_at')
         .eq('token_hash', tokenHash)
         .eq('user_id', callerId)
         .is('revoked_at', null)
@@ -369,33 +369,58 @@ serve(async (req) => {
       const { data: row } = await q.maybeSingle();
 
       if (!row) {
+        // Likely lost a rotation race with a parallel verify — do not clear cookie.
+        if (await hasSessionGrant(admin, callerId, sid)) {
+          await audit(admin, callerId, 'trust_used', true, ip, 'concurrent_grant');
+          return json(req, { ok: true, reason: 'concurrent' }, 200);
+        }
         await audit(admin, callerId, 'trust_used', false, ip, 'invalid_or_foreign');
         return json(req, { ok: false, reason: 'invalid' }, 200, {
           'Set-Cookie': clearCookieHeader(),
         });
       }
-      if (new Date(row.expires_at).getTime() <= Date.now()) {
+
+      // Honor current policy window from created_at (shortened trust must apply).
+      const policyCapMs = new Date(row.created_at).getTime() + allowedDays * 86400 * 1000;
+      const effectiveExpiryMs = Math.min(new Date(row.expires_at).getTime(), policyCapMs);
+      if (effectiveExpiryMs <= Date.now()) {
         await admin.from('trusted_devices').update({ revoked_at: new Date().toISOString() }).eq('id', row.id);
         await audit(admin, callerId, 'trust_used', false, ip, 'expired');
         return json(req, { ok: false, reason: 'expired' }, 200, {
           'Set-Cookie': clearCookieHeader(),
         });
       }
+      if (effectiveExpiryMs < new Date(row.expires_at).getTime()) {
+        await admin
+          .from('trusted_devices')
+          .update({ expires_at: new Date(effectiveExpiryMs).toISOString() })
+          .eq('id', row.id);
+        row.expires_at = new Date(effectiveExpiryMs).toISOString();
+      }
 
-      // Rotate token; keep original expires_at (no sliding forever)
+      // Rotate token with compare-and-swap so a parallel verify cannot orphan the client.
       const newRaw = generateToken();
       const newHash = await hashToken(newRaw);
-      const { error: rotErr } = await admin
+      const { data: rotated, error: rotErr } = await admin
         .from('trusted_devices')
         .update({
           token_hash: newHash,
           last_used_at: new Date().toISOString(),
           user_agent: String(body.user_agent || req.headers.get('user-agent') || '').slice(0, 512) || null,
         })
-        .eq('id', row.id);
+        .eq('id', row.id)
+        .eq('token_hash', tokenHash)
+        .select('id')
+        .maybeSingle();
       if (rotErr) {
         console.error('[trusted_device] rotate', rotErr.message);
         return json(req, { error: 'Could not refresh trusted device.' }, 500);
+      }
+      if (!rotated) {
+        // Another request already rotated; grant MFA for this session without wiping cookie.
+        await createSessionGrant(admin, callerId, sid, 'trusted_device');
+        await audit(admin, callerId, 'trust_used', true, ip, `concurrent ${row.device_id}`);
+        return json(req, { ok: true, reason: 'concurrent', device_id: row.device_id }, 200);
       }
 
       await createSessionGrant(admin, callerId, sid, 'trusted_device');
@@ -431,6 +456,7 @@ serve(async (req) => {
     if (action === 'revoke') {
       const deviceRowId = String(body.id || '').trim();
       if (!deviceRowId) return json(req, { error: 'Missing device id.' }, 400);
+      const requestDeviceId = String(body.device_id || '').trim();
       const { data: updated } = await admin
         .from('trusted_devices')
         .update({ revoked_at: new Date().toISOString() })
@@ -442,9 +468,21 @@ serve(async (req) => {
       if (updated) {
         await audit(admin, callerId, 'trust_revoked', true, ip, `self ${updated.device_id}`);
       }
-      return json(req, { ok: true, revoked: Boolean(updated) }, 200, {
-        'Set-Cookie': clearCookieHeader(),
-      });
+      const clearedCurrent = Boolean(
+        updated && requestDeviceId && updated.device_id === requestDeviceId,
+      );
+      const headers = clearedCurrent ? { 'Set-Cookie': clearCookieHeader() } : {};
+      return json(
+        req,
+        {
+          ok: true,
+          revoked: Boolean(updated),
+          device_id: updated?.device_id || null,
+          cleared_current: clearedCurrent,
+        },
+        200,
+        headers,
+      );
     }
 
     if (action === 'revoke_all') {

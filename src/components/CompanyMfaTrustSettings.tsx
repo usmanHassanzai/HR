@@ -55,7 +55,8 @@ export default function CompanyMfaTrustSettings() {
       </h3>
       <p style={{ margin: '0 0 0.85rem', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
         How long employees/managers and admins/HR may trust a device after entering an authenticator
-        or backup code. Platform owners always ask. Default is 7 days.
+        or backup code. Platform owners always ask. Default is 7 days. Saving shortens or revokes
+        existing trusts to match (Always ask forgets those devices immediately).
       </p>
       <label className="form-label">Employees &amp; managers</label>
       <select

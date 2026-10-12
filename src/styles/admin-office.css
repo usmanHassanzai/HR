@@ -844,6 +844,49 @@
   line-height: 1.45;
 }
 
+.admin-office-wifi-list.is-loading {
+  opacity: 0.65;
+  pointer-events: none;
+}
+
+.admin-office-wifi-list {  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
+.admin-office-wifi-row {
+  border: 1px solid color-mix(in srgb, var(--border, #d0d5dd) 80%, transparent);
+  border-radius: 10px;
+  padding: 0.75rem 0.85rem;
+  background: color-mix(in srgb, var(--surface, #fff) 92%, transparent);
+}
+
+.admin-office-wifi-row__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.55rem;
+}
+
+.admin-office-wifi-row__label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.01em;
+}
+
+.admin-office-wifi-row__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.65rem 0.75rem;
+}
+
+.admin-office-wifi-row__grid .form-group {
+  margin: 0;
+}
+
 .admin-office-span-full {
   grid-column: 1 / -1;
 }

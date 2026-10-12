@@ -139,20 +139,22 @@ export default function PrivilegedMfaGate({ onSatisfied, onCancel, fullName }: P
             p,
             new Promise<T>((resolve) => { setTimeout(() => resolve(fallback), ms); }),
           ]);
-        const [grant, st, trustPolicy, trustedOk] = await Promise.all([
+        const [grant, st, trustPolicy] = await Promise.all([
           withTimeout(hasMfaSessionGrant().catch(() => false), 4000, false),
           withTimeout(fetchMfaRecoveryStatus().catch(() => null), 4000, null),
           withTimeout(canTrustThisDevice().catch(() => ({ allowed: false, days: 0 })), 4000, { allowed: false, days: 0 }),
-          withTimeout(tryVerifyTrustedDevice().catch(() => false), 5000, false),
         ]);
         if (cancelled) return;
         setTrustAllowed(Boolean(trustPolicy.allowed));
         setTrustDays(trustPolicy.days || 7);
-        if (trustedOk && verifiedIdEarly) {
+        if (grant && verifiedIdEarly) {
           await finishSatisfied({ offerTrust: false });
           return;
         }
-        if (grant && verifiedIdEarly) {
+        // Single-flight with PortalApp — only verify when no grant yet.
+        const trustedOk = await withTimeout(tryVerifyTrustedDevice().catch(() => false), 5000, false);
+        if (cancelled) return;
+        if (trustedOk && verifiedIdEarly) {
           await finishSatisfied({ offerTrust: false });
           return;
         }

@@ -142,6 +142,7 @@ const MIGRATIONS = [
   'mfa_backup_recovery.sql',
   'trusted_devices_mfa.sql',
   'trusted_devices_mfa_reissue_fix_2026-10-07.sql',
+  'mfa_trust_policy_enforce_2026-10-13.sql',
   'admin_org_kpi_overall_vs_month_score.sql',
   'admin_org_kpi_board_weightage.sql',
   'fix_shift_end_admin_still_working.sql',
@@ -201,6 +202,9 @@ const MIGRATIONS = [
   'assignment_driven_location_shift_2026-10-12.sql',
   'office_delete_cascade_assignments_2026-10-12.sql',
   'FIX_get_manager_shifts_roles_2026-10-13.sql',
+  'wifi_auto_checkin_2026-10-13.sql',
+  'auto_checkout_shift_end_2026-10-13.sql',
+  'early_checkout_any_location_2026-10-13.sql',
 ];
 
 async function runMigration(filename) {

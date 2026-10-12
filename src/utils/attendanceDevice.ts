@@ -13,10 +13,10 @@ const TOKEN_KEY = 'scorr_attendance_device_token';
 const DEVICE_ID_KEY = 'scorr_attendance_device_id';
 
 export const PHONE_OPT_IN_TEXT =
-  'After this one-time setup, Scorr checks you in only when both are true: this phone is on the office Wi-Fi, and a GPS reading is inside the office radius. Either one alone is not enough. Check-in runs from 1 hour before your shift until the shift ends.';
+  'After this one-time setup, Scorr checks you in automatically when this Android phone is on your assigned office Wi-Fi, or when location is on and you enter the office radius — from 1 hour before your shift starts until the shift ends. You do not need to open the app each day. If the same account is already checked in on another device, this phone is ignored for check-in.';
 
 export const LAPTOP_OPT_IN_TEXT =
-  'This laptop checks in only when both are true: it is on the office Wi-Fi, and a GPS reading is inside the office radius. If location is missing or weak, Scorr asks for a fresh location and tries again. Shutting the laptop down does not check you out.';
+  'After this one-time setup, Scorr checks you in automatically when this computer is on your assigned office Wi-Fi, or when location is available and you are inside the office radius — from 1 hour before your shift starts until the shift ends. You do not need to open the dashboard each day. If the same account is already checked in on another device, this laptop is ignored for check-in.';
 
 async function secureGet(key: string): Promise<string | null> {
   try {

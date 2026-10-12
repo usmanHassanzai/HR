@@ -1,6 +1,6 @@
-/** Shared copy while attendance writes / auto Wi‑Fi engine are rebuilt. */
+/** Manual check-in/out RPCs remain paused; auto check-in + early/any-location check-out are live on Android + desktop. */
 export const ATTENDANCE_RULES_PAUSED_MESSAGE =
-  'Check-in/out writes are paused while auto rules are rebuilt. Assigned location radius and assigned shift windows still apply.';
+  'Manual Clock in / Clock out is still paused. Automatic check-in runs on Android and desktop on office Wi-Fi or inside the office radius. Check-out can happen from any location during the shift, or automatically at shift end.';
 
 export function isRulesNotConfigured(result: unknown): boolean {
   if (!result || typeof result !== 'object') return false;

@@ -40,6 +40,7 @@ const WORKSPACE_SIZE = { width: 1280, height: 840 };
 const TOKEN_FILE = () => path.join(app.getPath('userData'), 'attendance-token.bin');
 const DEVICE_ID_FILE = () => path.join(app.getPath('userData'), 'attendance-device-id.txt');
 const SCHEDULE_FILE = () => path.join(app.getPath('userData'), 'attendance-schedule.json');
+const CHECKED_IN_FILE = () => path.join(app.getPath('userData'), 'attendance-checked-in.json');
 const LOGIN_CREDS_FILE = () => path.join(app.getPath('userData'), 'login-credentials.bin');
 /** AES-GCM fallback when OS safeStorage (keyring) is unavailable — e.g. some Linux desktops. */
 const LOGIN_CREDS_FALLBACK_FILE = () => path.join(app.getPath('userData'), 'login-credentials.aes');
@@ -54,6 +55,12 @@ let heartbeatTimer = null;
 let scheduleSyncTimer = null;
 /** @type {any} */
 let cachedSchedule = null;
+/** Attendance date string (YYYY-MM-DD) after successful auto check-in — suppress repeats. */
+let checkedInAttendanceDate = null;
+/** @type {{ attendance_date?: string } | null} */
+let checkedInState = null;
+/** Last heartbeat saw an assigned office Wi-Fi (for early leave checkout). */
+let wasOnOfficeWifi = false;
 
 function platformName() {
   return process.platform === 'win32' ? 'windows' : 'linux';
@@ -362,36 +369,110 @@ function logDesktopStaleDrop(event, occurred, ageMs, source) {
   console.info('[scorr-att] dropped stale event', { source, event, age_ms: ageMs, occurred_at_utc_ms: occurred });
 }
 
+/** Best-effort SSID/BSSID for desktop Wi-Fi auto check-in. */
+function readWifiIdentity() {
+  const { execSync } = require('child_process');
+  try {
+    if (process.platform === 'win32') {
+      const out = execSync('netsh wlan show interfaces', { encoding: 'utf8', timeout: 4000 });
+      const ssid = (out.match(/^\s*SSID\s*:\s*(.+)$/im) || [])[1]?.trim() || null;
+      const bssid = (out.match(/^\s*BSSID\s*:\s*(.+)$/im) || [])[1]?.trim()?.toLowerCase() || null;
+      return { ssid: ssid && ssid !== '' ? ssid : null, bssid };
+    }
+    if (process.platform === 'linux') {
+      const out = execSync('nmcli -t -f ACTIVE,SSID,BSSID dev wifi', {
+        encoding: 'utf8',
+        timeout: 4000,
+      });
+      for (const line of out.split('\n')) {
+        const parts = line.split(':');
+        if (parts[0] === 'yes' || parts[0] === 'true') {
+          return {
+            ssid: parts[1] || null,
+            bssid: (parts.slice(2).join(':') || '').toLowerCase() || null,
+          };
+        }
+      }
+    }
+  } catch {
+    /* ignore — Wi-Fi probe is best-effort; GPS radius still works */
+  }
+  return { ssid: null, bssid: null };
+}
+
+function isCheckinEventName(event) {
+  const e = String(event || '').toLowerCase();
+  return e === 'enter' || e === 'ping' || e === 'wifi_connected' || e === 'heartbeat' || e === 'power_on';
+}
+
+function normalizeSsid(s) {
+  return String(s || '')
+    .trim()
+    .replace(/^"+|"+$/g, '');
+}
+
+/** True when current SSID/BSSID matches any assigned zone from schedule. */
+function matchesScheduleOfficeWifi(wifi) {
+  const zones = cachedSchedule?.zones || [];
+  const ssid = normalizeSsid(wifi?.ssid);
+  const bssid = String(wifi?.bssid || '')
+    .trim()
+    .toLowerCase();
+  if (!ssid && !bssid) return false;
+  for (const z of zones) {
+    const bssids = Array.isArray(z.wifi_bssids) ? z.wifi_bssids : [];
+    if (bssid) {
+      for (const want of bssids) {
+        if (String(want || '').trim().toLowerCase() === bssid) return true;
+      }
+    }
+    const ssids = Array.isArray(z.wifi_ssids) ? z.wifi_ssids : [];
+    if (ssid) {
+      for (const want of ssids) {
+        if (normalizeSsid(want).toLowerCase() === ssid.toLowerCase()) return true;
+      }
+    }
+  }
+  return false;
+}
+
+function stillSuppressCheckin() {
+  if (!checkedInAttendanceDate) return false;
+  const win = activeWindow(cachedSchedule, Date.now());
+  if (!win) return false;
+  const date = win.attendance_date || win.attendanceDate;
+  return !date || String(date) === String(checkedInAttendanceDate);
+}
+
 async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = null) {
-  // Automatic attendance paused while rules are rebuilt.
-  return {
-    ok: false,
-    status: 'rules_not_configured',
-    reason: 'rules_not_configured',
-    action: 'rules_not_configured',
-    stop_tracking: true,
-  };
   const token = loadToken();
   if (!token || !SUPABASE_ANON) return null;
+
+  // One check-in only — server also returns already_in; stop local spam after success.
+  if (isCheckinEventName(event) && stillSuppressCheckin()) {
+    return { ok: true, action: 'already_in', reason: 'already_in', ignored: true, client_suppressed: true };
+  }
+
   const now = Date.now();
   const occurred = occurredAtUtcMs && occurredAtUtcMs > 0 ? occurredAtUtcMs : now;
   if (now - occurred > STALE_EVENT_MAX_AGE_MS) {
     logDesktopStaleDrop(event, occurred, now - occurred, 'desktop-pre-send');
     return { ok: false, reason: 'event_too_old', action: 'event_too_old', client_dropped: true };
   }
+
+  // Ordered signals for server: Wi-Fi identity first; GPS only needed if Wi-Fi may miss.
+  const wifi = readWifiIdentity();
   let fix = coords;
-  if (!fix || fix.latitude == null || fix.longitude == null) {
-    fix = await readFreshLocation(50);
+  if (!wifi.ssid && (!fix || fix.latitude == null || fix.longitude == null)) {
+    fix = await readFreshLocation(100);
+  } else if (fix?.latitude == null && !wifi.ssid) {
+    fix = await readFreshLocation(100);
   }
-  if (fix?.error && !fix?.latitude) {
-    const plat = platformName();
-    const msg =
-      plat === 'linux'
-        ? 'Location unavailable on this Linux build. Install/configure a geolocation provider, or use phone auto-attendance for check-out.'
-        : 'Location unavailable, try again';
-    notify('Scorr', msg);
-    return { ok: false, reason: 'need_fresh_location', action: 'need_fresh_location', message: msg };
+  // Still attach GPS when available so radius fallback can succeed in one round-trip.
+  if (wifi.ssid && (!fix || fix.latitude == null)) {
+    fix = (await readFreshLocation(100)) || fix;
   }
+
   let res;
   try {
     res = await httpJson(`${SUPABASE_URL}/functions/v1/auto-attendance-event`, {
@@ -413,6 +494,8 @@ async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = nul
         latitude: fix?.latitude ?? null,
         longitude: fix?.longitude ?? null,
         accuracy_m: fix?.accuracy_m ?? null,
+        ssid: wifi.ssid,
+        bssid: wifi.bssid,
         is_mock: false,
       },
     });
@@ -421,32 +504,58 @@ async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = nul
     return { ok: false, reason: 'no_connection', action: 'no_connection' };
   }
 
-  if (allowRetry && (res?.action === 'need_fresh_location' || res?.action === 'gps_unusable')) {
-    const pos = await readFreshLocation(50);
+  // Retry GPS only when Wi-Fi did not check in and server needs radius
+  if (
+    allowRetry &&
+    !wifi.ssid &&
+    (res?.action === 'need_fresh_location' || res?.action === 'gps_unusable' || res?.action === 'outside_radius')
+  ) {
+    const pos = await readFreshLocation(100);
     if (pos && pos.latitude != null && pos.longitude != null) {
       return sendEvent(event, pos, false);
     }
-    notify('Scorr', 'Location unavailable, try again');
-    return res;
+  }
+
+  if (res?.action === 'clock_out') {
+    checkedInAttendanceDate = null;
+    checkedInState = null;
+    wasOnOfficeWifi = false;
+  } else if (
+    res?.action === 'clock_in' ||
+    res?.action === 'already_in' ||
+    res?.action === 'already_done' ||
+    res?.suppress_checkin
+  ) {
+    checkedInAttendanceDate =
+      res?.attendance_date ||
+      activeWindow(cachedSchedule, Date.now())?.attendance_date ||
+      checkedInAttendanceDate ||
+      new Date().toISOString().slice(0, 10);
   }
 
   if (res?.action === 'clock_in') {
+    wasOnOfficeWifi = matchesScheduleOfficeWifi(wifi) || wasOnOfficeWifi;
     notify('Scorr', 'Checked in');
   } else if (res?.action === 'clock_out') {
-    const t = res?.local_time || null;
-    notify('Scorr', t ? `Checked out - left the office radius at ${t}` : 'Checked out');
+    const t = res?.local_time ? ` at ${res.local_time}` : '';
+    notify('Scorr', `Checked out${t}`);
+  } else if (res?.action === 'already_in' || res?.action === 'already_done') {
+    /* quiet — already checked in / day complete; early leave or shift-end closes */
   } else if (res?.action === 'not_on_office_wifi' || res?.action === 'not_on_office_network') {
-    notify('Scorr', 'Connect to the office Wi-Fi');
+    notify('Scorr', 'Connect to the office Wi-Fi or enter the office radius');
   } else if (res?.action === 'outside_radius') {
-    notify('Scorr', 'You are outside the office radius');
+    notify('Scorr', 'Not on office Wi-Fi and outside the office radius');
   } else if (res?.action === 'need_fresh_location' || res?.action === 'gps_unusable') {
-    notify('Scorr', 'Location unavailable, try again');
-  } else if (res?.action === 'checkin_blocked_shift_ended') {
-    notify('Scorr', 'The shift has ended. You cannot check in.');
+    /* keep trying on next heartbeat */
+  } else if (res?.action === 'checkin_blocked_shift_ended' || res?.action === 'outside_window') {
+    /* quiet outside window */
+  } else if (
+    res?.action === 'checkout_before_shift_start' ||
+    res?.action === 'checkout_after_shift_end'
+  ) {
+    /* quiet — outside checkout window; shift-end closer handles end */
   } else if (res?.action === 'event_too_old') {
-    notify('Scorr', 'Reading was too old — get a fresh location');
-  } else if (res?.action === 'presence_left_pending' || res?.action === 'device_left_others_present') {
-    // Off office network — keep heartbeats so sticky present clears for phone auto priority.
+    /* ignore */
   }
   if (res?.stop_tracking) {
     stopHeartbeat();
@@ -472,7 +581,16 @@ function startHeartbeatIfInWindow() {
   const win = activeWindow(sched, nowMs);
   if (!win) return;
 
-  // Immediate present signal with a fresh GPS reading
+  // Clear suppress when the active attendance day changes
+  if (
+    checkedInAttendanceDate &&
+    win.attendance_date &&
+    String(win.attendance_date) !== String(checkedInAttendanceDate)
+  ) {
+    checkedInAttendanceDate = null;
+  }
+
+  // Immediate present signal (server: Wi-Fi first, else radius)
   void sendEvent('power_on');
   heartbeatTimer = setInterval(() => {
     const w = activeWindow(cachedSchedule, Date.now());
@@ -480,6 +598,16 @@ function startHeartbeatIfInWindow() {
       stopHeartbeat();
       return;
     }
+    const wifi = readWifiIdentity();
+    const onOffice = matchesScheduleOfficeWifi(wifi);
+    // Early leave: drop office Wi-Fi while checked in → checkout (server ignores location).
+    if (stillSuppressCheckin() && wasOnOfficeWifi && !onOffice) {
+      wasOnOfficeWifi = false;
+      void sendEvent('wifi_disconnected');
+      return;
+    }
+    wasOnOfficeWifi = onOffice || wasOnOfficeWifi;
+    if (stillSuppressCheckin()) return; // already in — early leave or shift-end closes
     void sendEvent('heartbeat');
   }, 60 * 1000);
 }

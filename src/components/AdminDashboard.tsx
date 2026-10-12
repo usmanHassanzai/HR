@@ -562,15 +562,6 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
       ) : activeTab === 'settings' ? (
         <div className="app-settings-stack">
           <details className="app-settings-block" open>
-            <summary>Office &amp; Attendance — GPS zones</summary>
-            <p style={{ margin: '0 0 0.75rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-              Same settings as <strong>Office &amp; Attendance</strong> in the menu — identical on web, desktop, and mobile.
-            </p>
-            <Suspense fallback={<Loader2 className="spin-icon" size={24} />}>
-              <OfficeLocationSettings />
-            </Suspense>
-          </details>
-          <details className="app-settings-block" open>
             <summary>Security — MFA trusted devices (company)</summary>
             <Suspense fallback={<Loader2 className="spin-icon" size={24} />}>
               <CompanyMfaTrustSettings />

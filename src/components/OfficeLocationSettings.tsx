@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import {
   MapPin,
@@ -49,6 +49,40 @@ type UpsertLocationArgs = {
   p_office_id?: string | null;
 };
 
+/** Draft row for one office Wi-Fi network (SSID required when BSSID/IP set). */
+type WifiNetworkDraft = {
+  key: string;
+  id?: string | null;
+  ssid: string;
+  bssid: string;
+  public_ip: string;
+};
+
+function newWifiDraft(partial?: Partial<WifiNetworkDraft>): WifiNetworkDraft {
+  return {
+    key: partial?.key || `wifi-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    id: partial?.id ?? null,
+    ssid: partial?.ssid ?? '',
+    bssid: partial?.bssid ?? '',
+    public_ip: partial?.public_ip ?? '',
+  };
+}
+
+function draftsFromLocationAggregates(loc: OfficeLocation): WifiNetworkDraft[] {
+  const ssids = loc.wifi_ssids || [];
+  if (ssids.length === 0) return [newWifiDraft()];
+  const bssids = loc.wifi_bssids || [];
+  const ips = loc.public_ip_cidrs || [];
+  // Legacy flat arrays: one SSID per row; optional BSSID/IP only on first when lengths differ.
+  return ssids.map((ssid, i) =>
+    newWifiDraft({
+      ssid,
+      bssid: bssids[i] || '',
+      public_ip: ips[i] || '',
+    }),
+  );
+}
+
 /** Prefer parent-office overload; fall back to flat upsert when p_office_id is unsupported. */
 async function upsertOfficeLocationRpc(args: UpsertLocationArgs) {
   const withOffice = await supabase.rpc('upsert_office_location', args);
@@ -72,6 +106,9 @@ export default function OfficeLocationSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingOffice, setSavingOffice] = useState(false);
+  /** True while list_office_wifi_networks is loading for the open location edit. */
+  const [wifiListLoading, setWifiListLoading] = useState(false);
+  const wifiLoadGenRef = useRef(0);
   const [msg, setMsg] = useState('');
   /** False when get_offices / upsert_office are not on the live DB — use flat office_locations. */
   const [parentOfficesOk, setParentOfficesOk] = useState(true);
@@ -89,6 +126,7 @@ export default function OfficeLocationSettings() {
     radius_meters: '150',
     active: true,
     default_timezone: '',
+    wifi_networks: [newWifiDraft()] as WifiNetworkDraft[],
   });
 
   const showMsg = useCallback((text: string) => {
@@ -156,6 +194,8 @@ export default function OfficeLocationSettings() {
   );
 
   const resetLocationForm = (officeId = '') => {
+    wifiLoadGenRef.current += 1;
+    setWifiListLoading(false);
     setForm({
       id: null,
       office_id: officeId,
@@ -166,6 +206,27 @@ export default function OfficeLocationSettings() {
       radius_meters: '150',
       active: true,
       default_timezone: '',
+      wifi_networks: [newWifiDraft()],
+    });
+  };
+
+  const updateWifiDraft = (key: string, patch: Partial<WifiNetworkDraft>) => {
+    setForm((f) => ({
+      ...f,
+      wifi_networks: f.wifi_networks.map((row) => (row.key === key ? { ...row, ...patch } : row)),
+    }));
+  };
+
+  const addWifiDraft = () => {
+    setForm((f) => ({ ...f, wifi_networks: [...f.wifi_networks, newWifiDraft()] }));
+  };
+
+  const removeWifiDraft = (key: string) => {
+    setForm((f) => {
+      const next = f.wifi_networks.filter((row) => row.key !== key);
+      // Keep one empty draft so the form stays usable; empty rows are dropped on save
+      // and replace_office_wifi_networks deletes any DB rows not in the payload.
+      return { ...f, wifi_networks: next.length > 0 ? next : [newWifiDraft()] };
     });
   };
 
@@ -200,6 +261,9 @@ export default function OfficeLocationSettings() {
   };
 
   const editLocation = (loc: OfficeLocation) => {
+    const fallbackWifi = draftsFromLocationAggregates(loc);
+    const loadGen = ++wifiLoadGenRef.current;
+    setWifiListLoading(true);
     setForm({
       id: loc.id,
       office_id: loc.office_id || '',
@@ -210,9 +274,53 @@ export default function OfficeLocationSettings() {
       radius_meters: String(loc.radius_meters),
       active: loc.active,
       default_timezone: loc.default_timezone || '',
+      wifi_networks: fallbackWifi,
     });
     setActiveTab('location');
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Prefer multi-network table rows (with ids) so Update/replace can delete removed SSIDs.
+    // Inputs stay disabled until this finishes so the load cannot wipe in-progress edits.
+    void (async () => {
+      try {
+        const { data, error } = await supabase.rpc('list_office_wifi_networks', { p_office_id: loc.id });
+        if (wifiLoadGenRef.current !== loadGen) return;
+        if (error) {
+          if (!isMissingRpc(error.message)) {
+            showMsg(`Could not load saved Wi-Fi networks: ${error.message}`);
+          }
+          return;
+        }
+        const rows = (data || []) as Array<{
+          id?: string;
+          ssids?: string[];
+          wifi_bssids?: string[];
+          public_ip_cidrs?: string[];
+          active?: boolean;
+        }>;
+        const activeRows = rows.filter((r) => r.active !== false);
+        const source = activeRows.length > 0 ? activeRows : rows;
+        setForm((f) => {
+          if (f.id !== loc.id) return f;
+          if (source.length === 0) {
+            // DB has no network rows — keep aggregate drafts (or one empty row).
+            return f;
+          }
+          return {
+            ...f,
+            wifi_networks: source.map((r) =>
+              newWifiDraft({
+                id: r.id || null,
+                ssid: (r.ssids && r.ssids[0]) || '',
+                bssid: (r.wifi_bssids && r.wifi_bssids[0]) || '',
+                public_ip: (r.public_ip_cidrs && r.public_ip_cidrs[0]) || '',
+              }),
+            ),
+          };
+        });
+      } finally {
+        if (wifiLoadGenRef.current === loadGen) setWifiListLoading(false);
+      }
+    })();
   };
 
   const setCoords = (lat: string, lng: string, _accuracy?: number | null) => {
@@ -246,10 +354,10 @@ export default function OfficeLocationSettings() {
       p_radius_meters: existing?.radius_meters || 150,
       // New / no-GPS sites stay inactive so 0,0 is never used for check-in
       p_active: hasGps ? active : false,
-      p_wifi_ssids: [],
-      p_wifi_bssids: [],
-      p_public_ip_cidrs: [],
-      p_detection_mode: 'gps_or_wifi',
+      p_wifi_ssids: existing?.wifi_ssids || [],
+      p_wifi_bssids: existing?.wifi_bssids || [],
+      p_public_ip_cidrs: existing?.public_ip_cidrs || [],
+      p_detection_mode: 'wifi_only',
     });
     if (error) {
       showMsg(
@@ -273,12 +381,13 @@ export default function OfficeLocationSettings() {
         radius_meters: String(existing?.radius_meters || 150),
         active: hasGps ? active : false,
         default_timezone: existing?.default_timezone || '',
+        wifi_networks: existing ? draftsFromLocationAggregates(existing) : [newWifiDraft()],
       });
       setActiveTab('location');
       showMsg(
         hasGps
-          ? `"${name}" updated. Adjust GPS or radius below if needed.`
-          : `"${name}" saved as a location site (inactive until you set GPS). Capture live GPS below, then Update location.`,
+          ? `"${name}" updated. Adjust GPS, Wi-Fi, or radius below if needed.`
+          : `"${name}" saved as a location site (inactive until you set GPS). Capture live GPS and office Wi-Fi below, then Update location.`,
       );
     }
     return id;
@@ -384,6 +493,10 @@ export default function OfficeLocationSettings() {
 
   const saveLocation = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (wifiListLoading && form.id) {
+      showMsg('Still loading saved Wi-Fi networks — wait a moment, then save.');
+      return;
+    }
     if (parentOfficesOk && !form.office_id) {
       showMsg('Select a parent office first (or create one under Offices).');
       return;
@@ -402,10 +515,47 @@ export default function OfficeLocationSettings() {
       showMsg('Latitude and longitude must be valid numbers.');
       return;
     }
+    const wifiRows = form.wifi_networks
+      .map((row) => ({
+        id: row.id || null,
+        ssid: row.ssid.trim(),
+        bssid: row.bssid.trim().toLowerCase(),
+        public_ip: row.public_ip.trim(),
+      }))
+      .filter((row) => row.ssid || row.bssid || row.public_ip);
+
+    for (const row of wifiRows) {
+      if (!row.ssid) {
+        showMsg('Each Wi-Fi row needs a network name (SSID). Remove empty optional BSSID/IP-only rows or add the SSID.');
+        return;
+      }
+    }
+
+    const seenSsids = new Set<string>();
+    for (const row of wifiRows) {
+      const key = row.ssid.toLowerCase();
+      if (seenSsids.has(key)) {
+        showMsg(`Duplicate Wi-Fi name “${row.ssid}”. Each network should appear once.`);
+        return;
+      }
+      seenSsids.add(key);
+    }
+
     setSaving(true);
     setMsg('');
     const savedName = form.name.trim();
     const wasNew = !form.id;
+    const wifiSsids = wifiRows.map((r) => r.ssid);
+    const wifiBssids = wifiRows.map((r) => r.bssid).filter(Boolean);
+    const publicIps = wifiRows.map((r) => r.public_ip).filter(Boolean);
+    const networkPayload = wifiRows.map((row) => ({
+      ...(row.id ? { id: row.id } : {}),
+      label: row.ssid,
+      ssids: [row.ssid],
+      wifi_bssids: row.bssid ? [row.bssid] : [],
+      public_ip_cidrs: row.public_ip ? [row.public_ip] : [],
+      active: true,
+    }));
     const payload: UpsertLocationArgs = {
       p_id: form.id || null,
       p_name: form.name.trim(),
@@ -414,9 +564,9 @@ export default function OfficeLocationSettings() {
       p_longitude: lng,
       p_radius_meters: parseInt(form.radius_meters, 10) || 150,
       p_active: form.active,
-      p_wifi_ssids: [],
-      p_wifi_bssids: [],
-      p_public_ip_cidrs: [],
+      p_wifi_ssids: wifiSsids,
+      p_wifi_bssids: wifiBssids,
+      p_public_ip_cidrs: publicIps,
       p_detection_mode: 'gps_or_wifi',
     };
     if (parentOfficesOk && form.office_id) {
@@ -433,8 +583,35 @@ export default function OfficeLocationSettings() {
       return;
     }
     const resolvedId = (locationId as string) || form.id;
+    if (!resolvedId) {
+      setSaving(false);
+      showMsg('Location save did not return an id — Wi-Fi was not updated. Try again.');
+      await load();
+      return;
+    }
+
+    // Full replace for this location: payload rows are kept/upserted; any DB network
+    // not in the payload (removed in the UI) is deleted so it stops matching check-in.
+    const { data: wifiResult, error: wifiErr } = await supabase.rpc('replace_office_wifi_networks', {
+      p_office_id: resolvedId,
+      p_networks: networkPayload,
+    });
+    if (wifiErr) {
+      setSaving(false);
+      showMsg(
+        isMissingRpc(wifiErr.message)
+          ? `Location pin saved, but Wi-Fi was not updated (${wifiErr.message}). Apply wifi_auto_checkin_2026-10-13.sql so replace_office_wifi_networks exists — until then deleted/added SSIDs may not match correctly.`
+          : `Location pin saved, but Wi-Fi save failed: ${wifiErr.message}. Retry Update location so the Wi-Fi list fully replaces the previous set.`,
+      );
+      await load();
+      return;
+    }
+    const wifiWarnings = Array.isArray((wifiResult as { warnings?: unknown })?.warnings)
+      ? ((wifiResult as { warnings: string[] }).warnings || []).filter(Boolean)
+      : [];
+
     setSaving(false);
-    if (resolvedId && form.default_timezone) {
+    if (form.default_timezone) {
       await supabase.rpc('update_office_default_timezones', {
         p_office_id: resolvedId,
         p_default_timezone: form.default_timezone,
@@ -442,16 +619,22 @@ export default function OfficeLocationSettings() {
       });
     }
     const parentLabel = form.office_id ? officeNameById.get(form.office_id) : null;
+    const radiusM = parseInt(form.radius_meters, 10) || 150;
+    const pathNote =
+      wifiSsids.length > 0
+        ? `any of ${wifiSsids.length} Wi-Fi network${wifiSsids.length !== 1 ? 's' : ''} (${wifiSsids.join(', ')}) or entering ${radiusM}m`
+        : `GPS radius only (${radiusM}m) — no Wi-Fi SSIDs saved (removed networks no longer check in)`;
+    const warnNote = wifiWarnings.length > 0 ? ` Note: ${wifiWarnings.join(' ')}` : '';
     showMsg(
       wasNew
         ? parentLabel
-          ? `"${savedName}" saved under ${parentLabel}. Assign people to this location — other locations do not apply to them.`
-          : `"${savedName}" saved. Assign people to this location — other locations do not apply to them.`
-        : `"${savedName}" updated. Only people assigned here use this pin and radius.`,
+          ? `"${savedName}" saved under ${parentLabel}. Assigned people auto check in via ${pathNote}.${warnNote}`
+          : `"${savedName}" saved. Assigned people auto check in via ${pathNote}.${warnNote}`
+        : `"${savedName}" updated. Assigned people auto check in via ${pathNote} during the shift window.${warnNote}`,
     );
     resetLocationForm(form.office_id);
     await load();
-    if (wasNew && resolvedId) startAssign(resolvedId);
+    if (wasNew) startAssign(resolvedId);
   };
 
   const removeLocation = async (id: string, name: string) => {
@@ -716,6 +899,12 @@ export default function OfficeLocationSettings() {
                         {loc.latitude.toFixed(5)}, {loc.longitude.toFixed(5)} · {loc.radius_meters}m
                       </div>
                       <p className="admin-office-item__meta">
+                        Wi-Fi:{' '}
+                        {loc.wifi_ssids && loc.wifi_ssids.length > 0
+                          ? loc.wifi_ssids.join(', ')
+                          : 'not configured'}
+                      </p>
+                      <p className="admin-office-item__meta">
                         <Users size={12} className="admin-office-item__meta-icon" />
                         {assignedPeople.length > 0
                           ? `${assignedPeople.length} assignment${assignedPeople.length !== 1 ? 's' : ''}`
@@ -825,6 +1014,12 @@ export default function OfficeLocationSettings() {
                                 {loc.latitude.toFixed(5)}, {loc.longitude.toFixed(5)} · {loc.radius_meters}m
                               </div>
                               <p className="admin-office-item__meta">
+                                Wi-Fi:{' '}
+                                {loc.wifi_ssids && loc.wifi_ssids.length > 0
+                                  ? loc.wifi_ssids.join(', ')
+                                  : 'not configured'}
+                              </p>
+                              <p className="admin-office-item__meta">
                                 <Users size={12} className="admin-office-item__meta-icon" />
                                 {assignedPeople.length > 0
                                   ? `${assignedPeople.length} assignment${assignedPeople.length !== 1 ? 's' : ''}`
@@ -881,10 +1076,10 @@ export default function OfficeLocationSettings() {
           </h3>
           <p>
             {form.id
-              ? 'Update this pin’s GPS, radius, or label. Only people assigned to this location use it — other pins do not apply to them.'
+              ? 'Update GPS center, radius, and optional office Wi-Fi. Assigned people auto check in on Wi-Fi or when they enter this radius.'
               : parentOfficesOk
-                ? 'Pick the parent office, stand at the entrance, capture live GPS, set the radius, then save.'
-                : 'Stand at the entrance, capture live GPS, set the radius, then save.'}
+                ? 'Pick the parent office, capture live GPS, set the radius, and optionally add office Wi-Fi. Assigned people auto check in on either path.'
+                : 'Capture live GPS, set the radius, and optionally add office Wi-Fi. Assigned people auto check in on either path.'}
           </p>
 
           {parentOfficesOk && officeGroups.length === 0 ? (
@@ -1018,9 +1213,101 @@ export default function OfficeLocationSettings() {
                       onChange={(e) => setForm({ ...form, radius_meters: e.target.value })}
                     />
                     <p className="admin-office-form-help" style={{ marginTop: '0.35rem' }}>
-                      Applies only to people assigned to this location. Unassigned locations never count for them.
+                      With mobile location on, entering this radius during the check-in window auto checks in
+                      assigned people (Android + desktop). Same window as Wi-Fi: 1 hour before shift start until
+                      shift end.
                     </p>
                   </div>
+
+                  <div className="form-group admin-office-span-full">
+                    <p className="admin-office-form-section__title" style={{ marginBottom: '0.5rem' }}>
+                      This location’s Wi-Fi networks (optional auto check-in path)
+                    </p>
+                    <p className="admin-office-form-help" style={{ marginBottom: '0.75rem' }}>
+                      Networks saved here apply only to this location pin — not sibling locations under the same
+                      office. Connecting to any of these SSIDs (or entering this location’s radius) auto checks in
+                      enrolled Android/desktop devices assigned here. Browser does not auto check in. iOS auto
+                      check-in is off.
+                    </p>
+                    {wifiListLoading && form.id ? (
+                      <p className="admin-office-form-help" style={{ marginBottom: '0.75rem' }}>
+                        Loading saved Wi-Fi networks…
+                      </p>
+                    ) : null}
+                    <div className={`admin-office-wifi-list${wifiListLoading && form.id ? ' is-loading' : ''}`}>
+                      {form.wifi_networks.map((row, index) => (
+                        <div key={row.key} className="admin-office-wifi-row">
+                          <div className="admin-office-wifi-row__head">
+                            <span className="admin-office-wifi-row__label">Network {index + 1}</span>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => removeWifiDraft(row.key)}
+                              aria-label={`Remove Wi-Fi network ${index + 1}`}
+                              disabled={
+                                (wifiListLoading && !!form.id) ||
+                                (form.wifi_networks.length === 1 &&
+                                  !row.ssid.trim() &&
+                                  !row.bssid.trim() &&
+                                  !row.public_ip.trim())
+                              }
+                            >
+                              <Trash2 size={14} /> Remove
+                            </button>
+                          </div>
+                          <div className="admin-office-wifi-row__grid">
+                            <div className="form-group">
+                              <label htmlFor={`location-wifi-ssid-${row.key}`}>Wi-Fi network name (SSID)</label>
+                              <input
+                                id={`location-wifi-ssid-${row.key}`}
+                                value={row.ssid}
+                                onChange={(e) => updateWifiDraft(row.key, { ssid: e.target.value })}
+                                placeholder="e.g. Office-Staff"
+                                autoComplete="off"
+                                disabled={wifiListLoading && !!form.id}
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label htmlFor={`location-wifi-bssid-${row.key}`}>BSSID / MAC (optional)</label>
+                              <input
+                                id={`location-wifi-bssid-${row.key}`}
+                                value={row.bssid}
+                                onChange={(e) => updateWifiDraft(row.key, { bssid: e.target.value })}
+                                placeholder="aa:bb:cc:dd:ee:ff"
+                                autoComplete="off"
+                                disabled={wifiListLoading && !!form.id}
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label htmlFor={`location-wifi-ip-${row.key}`}>Public IP or CIDR (optional)</label>
+                              <input
+                                id={`location-wifi-ip-${row.key}`}
+                                value={row.public_ip}
+                                onChange={(e) => updateWifiDraft(row.key, { public_ip: e.target.value })}
+                                placeholder="e.g. 203.0.113.10 or 203.0.113.0/24"
+                                autoComplete="off"
+                                disabled={wifiListLoading && !!form.id}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={addWifiDraft}
+                      disabled={wifiListLoading && !!form.id}
+                    >
+                      <Plus size={14} /> Add another Wi-Fi
+                    </button>
+                    <p className="admin-office-form-help" style={{ marginTop: '0.5rem' }}>
+                      Add or remove networks anytime, then Save/Update location — the saved list fully replaces the
+                      previous one (removed SSIDs stop auto check-in immediately). Optional BSSID locks the match to
+                      that access point; optional public IP/CIDR adds an extra check when set.
+                    </p>
+                  </div>
+
                   <div className="form-group admin-office-checkbox-end">
                     <label>
                       <input
@@ -1035,7 +1322,11 @@ export default function OfficeLocationSettings() {
                     <button
                       type="submit"
                       className="btn btn-primary"
-                      disabled={saving || (parentOfficesOk && !form.office_id)}
+                      disabled={
+                        saving ||
+                        (wifiListLoading && !!form.id) ||
+                        (parentOfficesOk && !form.office_id)
+                      }
                     >
                       {saving ? (
                         <Loader2 size={16} className="spin-icon" />

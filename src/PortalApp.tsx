@@ -136,9 +136,8 @@ function PortalApp({ initialSession = null, onSignedOut }: PortalAppProps) {
     if (!session?.user?.id || !profile || !roleRequiresMfa(profile)) return;
     let cancelled = false;
     void (async () => {
-      // Trusted-device token → MFA session grant (same path as backup codes).
-      const trusted = await tryVerifyTrustedDevice().catch(() => false);
-      const [grant, verifiedId, level] = await Promise.all([
+      // Prefer existing grant / AAL2 before rotating the trusted-device token.
+      const [grantEarly, verifiedId, level] = await Promise.all([
         hasMfaSessionGrant().catch(() => false),
         getVerifiedTotpFactorId().catch(() => null),
         currentMfaLevel().catch(() => null),
@@ -148,7 +147,13 @@ function PortalApp({ initialSession = null, onSignedOut }: PortalAppProps) {
         setPrivilegedMfaOk(true);
         return;
       }
-      if ((grant || trusted) && verifiedId) {
+      if (grantEarly && verifiedId) {
+        setPrivilegedMfaOk(true);
+        return;
+      }
+      const trusted = await tryVerifyTrustedDevice().catch(() => false);
+      if (cancelled) return;
+      if (trusted && verifiedId) {
         setPrivilegedMfaOk(true);
         return;
       }

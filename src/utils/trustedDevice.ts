@@ -240,8 +240,10 @@ export async function issueTrustedDevice(label?: string): Promise<{ ok: boolean;
   return { ok: Boolean(res.ok), days: res.days };
 }
 
-/** After password login: if a valid trusted token exists, create MFA session grant. */
-export async function tryVerifyTrustedDevice(): Promise<boolean> {
+/** Collapse PortalApp + PrivilegedMfaGate double-calls so token rotation cannot race. */
+let verifyInFlight: Promise<boolean> | null = null;
+
+async function verifyTrustedDeviceOnce(): Promise<boolean> {
   const local = await loadTokenLocal();
   try {
     const res = await invokeTrustedDevice<{
@@ -251,6 +253,7 @@ export async function tryVerifyTrustedDevice(): Promise<boolean> {
     }>('verify', {}, { token: local });
     if (res.token) await storeTokenLocal(res.token);
     if (!res.ok) {
+      // `concurrent` = lost rotation race; keep local/cookie so the winner's token stays.
       if (res.reason === 'invalid' || res.reason === 'expired' || res.reason === 'always_ask') {
         await clearTrustedDeviceLocal();
       }
@@ -260,6 +263,15 @@ export async function tryVerifyTrustedDevice(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/** After password login: if a valid trusted token exists, create MFA session grant. */
+export async function tryVerifyTrustedDevice(): Promise<boolean> {
+  if (verifyInFlight) return verifyInFlight;
+  verifyInFlight = verifyTrustedDeviceOnce().finally(() => {
+    verifyInFlight = null;
+  });
+  return verifyInFlight;
 }
 
 export async function listTrustedDevices(): Promise<TrustedDeviceRow[]> {
@@ -274,9 +286,17 @@ export async function listTrustedDevices(): Promise<TrustedDeviceRow[]> {
 }
 
 export async function revokeTrustedDevice(id: string): Promise<void> {
-  await invokeTrustedDevice('revoke', { id });
-  // If we revoked the current device, clear local token
-  await clearTrustedDeviceLocal();
+  const currentId = await getOrCreateTrustedDeviceId();
+  const res = await invokeTrustedDevice<{
+    ok?: boolean;
+    revoked?: boolean;
+    device_id?: string;
+    cleared_current?: boolean;
+  }>('revoke', { id });
+  // Only wipe this browser/app store when the forgotten row is this device.
+  if (res.cleared_current || res.device_id === currentId) {
+    await clearTrustedDeviceLocal();
+  }
 }
 
 export async function revokeAllTrustedDevices(): Promise<number> {
