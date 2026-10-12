@@ -7,6 +7,7 @@ import AppUpdateBanner from './components/AppUpdateBanner';
 import { isAppShell } from './utils/nativePlatform';
 import { isDeleteAccountRoute, isPlatformRoute } from './utils/companyHelpers';
 import { isGeoHold, clearGeoHold } from './utils/attendanceBackgroundSession';
+import { clearAppHashToRoot, isAppHash, leaveLoginHash } from './utils/appHashRoute';
 
 const PortalApp = lazy(() => import('./PortalApp'));
 const PlatformOwnerPortal = lazy(() => import('./components/PlatformOwnerPortal'));
@@ -26,14 +27,29 @@ function hasCachedSupabaseSession(): boolean {
       if (!raw) continue;
       const parsed = JSON.parse(raw) as {
         access_token?: string;
-        currentSession?: { access_token?: string };
+        refresh_token?: string;
+        expires_at?: number;
+        user?: { id?: string };
+        currentSession?: { access_token?: string; refresh_token?: string };
       };
-      if (parsed?.access_token || parsed?.currentSession?.access_token) return true;
+      if (
+        parsed?.access_token
+        || parsed?.refresh_token
+        || parsed?.user?.id
+        || parsed?.currentSession?.access_token
+        || parsed?.currentSession?.refresh_token
+      ) {
+        return true;
+      }
     }
   } catch {
     /* ignore */
   }
   return false;
+}
+
+function shouldBootIntoPortal(): boolean {
+  return hasCachedSupabaseSession() || isAppHash();
 }
 
 function hasMfaRecoveryParams(): boolean {
@@ -50,19 +66,25 @@ function hasMfaRecoveryParams(): boolean {
  * After first paint we dynamically import the client; logged-in users enter PortalApp.
  * Sign In / Register (Login chunk) also pulls Supabase when the user opens auth.
  */
+type MarketingBoot = 'portal' | 'marketing' | 'restoring';
+
 function WebMarketingRoot() {
   const [portalSession, setPortalSession] = useState<unknown | null>(null);
-  const [showPortal, setShowPortal] = useState(false);
+  const [boot, setBoot] = useState<MarketingBoot>(() =>
+    shouldBootIntoPortal() ? 'restoring' : 'marketing',
+  );
 
   const enterPortal = useCallback((session: unknown) => {
     clearGeoHold();
+    // Drop sticky #login from the Sign In deep-link so refresh does not reopen auth UI.
+    leaveLoginHash();
     setPortalSession(session);
-    setShowPortal(true);
+    setBoot('portal');
     try {
       const st = window.history.state && typeof window.history.state === 'object'
         ? { ...(window.history.state as Record<string, unknown>) }
         : {};
-      window.history.replaceState({ ...st, scorrApp: 'dashboard' }, '');
+      window.history.replaceState({ ...st, scorrApp: 'dashboard' }, '', window.location.href);
     } catch {
       /* ignore */
     }
@@ -70,17 +92,17 @@ function WebMarketingRoot() {
 
   const exitPortal = useCallback(() => {
     setPortalSession(null);
-    setShowPortal(false);
+    setBoot('marketing');
     try {
-      if (window.location.hash === '#login') {
-        window.history.replaceState({}, '', `${window.location.pathname}${window.location.search}`);
+      if (isAppHash() || window.location.hash === '#login') {
+        clearAppHashToRoot();
       }
       const st = window.history.state && typeof window.history.state === 'object'
         ? { ...(window.history.state as Record<string, unknown>) }
         : {};
       if ('scorrApp' in st) {
         delete st.scorrApp;
-        window.history.replaceState(st, '');
+        window.history.replaceState(st, '', window.location.href);
       }
     } catch {
       /* ignore */
@@ -99,15 +121,24 @@ function WebMarketingRoot() {
       });
 
     void (async () => {
-      await afterFirstPaint();
+      // When a session (or #app route) is likely, skip the marketing paint delay so
+      // refresh does not flash LandingPage / #login before PortalApp mounts.
+      const restoring = shouldBootIntoPortal();
+      if (!restoring) await afterFirstPaint();
       if (cancelled) return;
 
-      const needsClient = hasCachedSupabaseSession() || hasMfaRecoveryParams();
+      const needsClient = restoring || hasMfaRecoveryParams();
       // Logged-out visitors: skip Supabase entirely until Sign In / Register mounts Login.
-      if (!needsClient) return;
+      if (!needsClient) {
+        if (restoring) setBoot('marketing');
+        return;
+      }
 
       const { supabase, isSupabaseConfigured } = await import('./lib/supabase');
-      if (!isSupabaseConfigured || cancelled) return;
+      if (!isSupabaseConfigured || cancelled) {
+        if (!cancelled) setBoot('marketing');
+        return;
+      }
 
       if (hasMfaRecoveryParams()) {
         const params = new URLSearchParams(window.location.search);
@@ -140,10 +171,18 @@ function WebMarketingRoot() {
       if (cancelled) return;
       if (session?.user && isPortalSessionExpired()) {
         await lockPortalSession({ force: true, reason: 'session_expired' });
+        if (!cancelled) {
+          clearAppHashToRoot();
+          setBoot('marketing');
+        }
       } else if (session?.user && !isGeoHold()) {
         // Geo-hold logout: keep session for background GPS, stay on landing page.
         markPortalSessionStart(false);
         enterPortal(session);
+      } else if (!cancelled) {
+        // Stale #app hash / empty cache peek — fall through to marketing.
+        if (isAppHash()) clearAppHashToRoot();
+        setBoot('marketing');
       }
 
       const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
@@ -163,9 +202,11 @@ function WebMarketingRoot() {
       cancelled = true;
       unsubscribe?.();
     };
+    // boot only used for one-shot restoring→marketing fallback
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enterPortal, exitPortal]);
 
-  if (showPortal) {
+  if (boot === 'portal') {
     return (
       <Suspense fallback={<RouteFallback />}>
         <PortalApp
@@ -174,6 +215,10 @@ function WebMarketingRoot() {
         />
       </Suspense>
     );
+  }
+
+  if (boot === 'restoring') {
+    return <RouteFallback />;
   }
 
   return (

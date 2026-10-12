@@ -44,6 +44,8 @@ export function useHistorySyncedTab<T extends string>(
     const st = readState();
     if (!seededRef.current) {
       seededRef.current = true;
+      // Seed from React state (hash / sessionStorage init). Do not pull an older
+      // history.state value that would override the restored work page.
       window.history.replaceState({ ...st, [key]: value }, '');
       return;
     }

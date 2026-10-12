@@ -21,6 +21,7 @@ import {
   usePortalSessionGuard,
   useShiftEndSessionLogout,
 } from './utils/usePortalSessionGuard';
+import { leaveLoginHash } from './utils/appHashRoute';
 import {
   clearGeoHold,
   isGeoHold,
@@ -299,6 +300,11 @@ function PortalApp({ initialSession = null, onSignedOut }: PortalAppProps) {
     }
   }, [loading]);
 
+  // Keep work URL as #app/... after auth so refresh does not reopen #login.
+  useEffect(() => {
+    if (session && profile) leaveLoginHash();
+  }, [session, profile]);
+
   // Electron: compact Sign In window → full workspace after auth.
   useEffect(() => {
     if (loading) return;
@@ -338,11 +344,12 @@ function PortalApp({ initialSession = null, onSignedOut }: PortalAppProps) {
     setSession(activeSession);
     setLoading(true);
     setError('');
+    leaveLoginHash();
     try {
       const st = window.history.state && typeof window.history.state === 'object'
         ? { ...(window.history.state as Record<string, unknown>) }
         : {};
-      window.history.replaceState({ ...st, scorrApp: 'dashboard' }, '');
+      window.history.replaceState({ ...st, scorrApp: 'dashboard' }, '', window.location.href);
     } catch {
       /* ignore */
     }

@@ -37,6 +37,7 @@ import '../styles/employee-mobile.css';
 import '../styles/employee-kpis.css';
 import { readSessionString, writeSessionString } from '../utils/persistedUiState';
 import { useHistorySyncedTab } from '../utils/useHistoryNavigation';
+import { parseAppHash, writeAppHash } from '../utils/appHashRoute';
 import { isNativeApp } from '../utils/nativePlatform';
 import { scrollNavTarget } from '../utils/notificationDeepLink';
 
@@ -53,7 +54,9 @@ const EMPLOYEE_TABS: EmployeeTab[] = ['kpis', 'attendance', 'rewards', 'dailyRep
 const EMPLOYEE_REWARDS_HIDDEN = true;
 
 function initialEmployeeTab(): EmployeeTab {
-  const raw = readSessionString(EMPLOYEE_TAB_KEY);
+  const fromHash = parseAppHash()?.tab;
+  const raw = (fromHash && EMPLOYEE_TABS.includes(fromHash as EmployeeTab) ? fromHash : null)
+    ?? readSessionString(EMPLOYEE_TAB_KEY);
   if (raw === 'rewards' && EMPLOYEE_REWARDS_HIDDEN) return 'kpis';
   if (raw && EMPLOYEE_TABS.includes(raw as EmployeeTab)) return raw as EmployeeTab;
   return 'kpis';
@@ -93,7 +96,13 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
   }[]>([]);
 
   useEffect(() => {
-    if (!isReadOnly) writeSessionString(EMPLOYEE_TAB_KEY, activeTab);
+    if (isReadOnly) return;
+    writeSessionString(EMPLOYEE_TAB_KEY, activeTab);
+    if (activeTab !== 'attendance') writeAppHash(activeTab);
+    else {
+      const sub = parseAppHash()?.sub;
+      writeAppHash('attendance', sub);
+    }
   }, [activeTab, isReadOnly]);
 
   useEffect(() => {

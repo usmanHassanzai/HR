@@ -13,6 +13,7 @@ import KpiWorkspace from './KpiWorkspace';
 import { readSessionString, writeSessionString } from '../utils/persistedUiState';
 import { useHistoryOverlay, useHistorySyncedTab } from '../utils/useHistoryNavigation';
 import { isNativeApp } from '../utils/nativePlatform';
+import { parseAppHash, writeAppHash } from '../utils/appHashRoute';
 import '../styles/admin-dashboard.css';
 import '../styles/manager-mobile.css';
 
@@ -32,7 +33,9 @@ const MANAGER_TAB_KEY = 'scorr-manager-active-tab';
 const MANAGER_TABS: ManagerTab[] = ['mine', 'employees', 'kpis', 'attendance', 'rewards', 'dailyReport', 'settings'];
 
 function initialManagerTab(): ManagerTab {
-  const raw = readSessionString(MANAGER_TAB_KEY);
+  const fromHash = parseAppHash()?.tab;
+  const raw = (fromHash && MANAGER_TABS.includes(fromHash as ManagerTab) ? fromHash : null)
+    ?? readSessionString(MANAGER_TAB_KEY);
   if (raw && MANAGER_TABS.includes(raw as ManagerTab)) return raw as ManagerTab;
   return 'mine';
 }
@@ -76,6 +79,11 @@ export default function ManagerDashboard({ profile, organizationName }: ManagerD
 
   useEffect(() => {
     writeSessionString(MANAGER_TAB_KEY, activeTab);
+    if (activeTab !== 'attendance') writeAppHash(activeTab);
+    else {
+      const sub = parseAppHash()?.sub;
+      writeAppHash('attendance', sub);
+    }
   }, [activeTab]);
 
   useHistorySyncedTab(activeTab, setActiveTab, {

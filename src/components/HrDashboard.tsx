@@ -8,6 +8,7 @@ import AdminHamburgerButton from './AdminHamburgerButton';
 import { readSessionString, writeSessionString } from '../utils/persistedUiState';
 import { useHistorySyncedTab } from '../utils/useHistoryNavigation';
 import { isNativeApp } from '../utils/nativePlatform';
+import { parseAppHash, writeAppHash } from '../utils/appHashRoute';
 import '../styles/admin-dashboard.css';
 import '../styles/admin-attendance.css';
 import '../styles/hr-dashboard.css';
@@ -26,7 +27,9 @@ const HR_TAB_KEY = 'scorr-hr-active-tab';
 const HR_TABS: HrTab[] = ['mine', 'attendance', 'rewards', 'settings'];
 
 function initialHrTab(): HrTab {
-  const raw = readSessionString(HR_TAB_KEY);
+  const fromHash = parseAppHash()?.tab;
+  const raw = (fromHash && HR_TABS.includes(fromHash as HrTab) ? fromHash : null)
+    ?? readSessionString(HR_TAB_KEY);
   if (raw && HR_TABS.includes(raw as HrTab)) return raw as HrTab;
   return 'attendance';
 }
@@ -66,6 +69,11 @@ export default function HrDashboard({ profile, organizationName }: HrDashboardPr
 
   useEffect(() => {
     writeSessionString(HR_TAB_KEY, activeTab);
+    if (activeTab !== 'attendance') writeAppHash(activeTab);
+    else {
+      const sub = parseAppHash()?.sub;
+      writeAppHash('attendance', sub);
+    }
   }, [activeTab]);
 
   useHistorySyncedTab(activeTab, setActiveTab, {

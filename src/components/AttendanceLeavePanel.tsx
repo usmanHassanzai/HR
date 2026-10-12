@@ -31,6 +31,8 @@ import {
 import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
 import { scrollNavTarget } from '../utils/notificationDeepLink';
 import { useHistorySyncedTab } from '../utils/useHistoryNavigation';
+import { readSessionString, writeSessionString } from '../utils/persistedUiState';
+import { parseAppHash, writeAppHash } from '../utils/appHashRoute';
 import {
   Loader2, CheckCircle, XCircle, Palmtree, LogOut,
   UserCheck, Users, Inbox, History, ClipboardList, CalendarClock,
@@ -52,6 +54,43 @@ interface AttendanceLeavePanelProps {
 type EmployeeTab = 'today' | 'leave' | 'history';
 type ManagerTab = 'approvals' | 'today' | 'team' | 'shifts' | 'history';
 type AdminTab = 'leave' | 'remote' | 'shifts' | 'history' | 'today';
+
+const ATT_EMP_TAB_KEY = 'scorr-att-emp-active-tab';
+const ATT_MGR_TAB_KEY = 'scorr-att-mgr-active-tab';
+const ATT_ADMIN_TAB_KEY = 'scorr-att-admin-active-tab';
+const EMPLOYEE_ATT_TABS: EmployeeTab[] = ['today', 'leave', 'history'];
+const MANAGER_ATT_TABS: ManagerTab[] = ['approvals', 'today', 'team', 'shifts', 'history'];
+const ADMIN_ATT_TABS: AdminTab[] = ['leave', 'remote', 'shifts', 'history', 'today'];
+
+function hashAttendanceSub<T extends string>(allowed: readonly T[]): T | null {
+  const sub = parseAppHash()?.sub;
+  if (sub && (allowed as readonly string[]).includes(sub)) return sub as T;
+  return null;
+}
+
+function initialEmployeeAttTab(): EmployeeTab {
+  const fromHash = hashAttendanceSub(EMPLOYEE_ATT_TABS);
+  if (fromHash) return fromHash;
+  const raw = readSessionString(ATT_EMP_TAB_KEY);
+  if (raw && EMPLOYEE_ATT_TABS.includes(raw as EmployeeTab)) return raw as EmployeeTab;
+  return 'today';
+}
+
+function initialManagerAttTab(): ManagerTab {
+  const fromHash = hashAttendanceSub(MANAGER_ATT_TABS);
+  if (fromHash) return fromHash;
+  const raw = readSessionString(ATT_MGR_TAB_KEY);
+  if (raw && MANAGER_ATT_TABS.includes(raw as ManagerTab)) return raw as ManagerTab;
+  return 'approvals';
+}
+
+function initialAdminAttTab(fallback: AdminTab): AdminTab {
+  const fromHash = hashAttendanceSub(ADMIN_ATT_TABS);
+  if (fromHash) return fromHash;
+  const raw = readSessionString(ATT_ADMIN_TAB_KEY);
+  if (raw && ADMIN_ATT_TABS.includes(raw as AdminTab)) return raw as AdminTab;
+  return fallback;
+}
 
 function ApprovalActions({
   onApprove,
@@ -94,9 +133,11 @@ export default function AttendanceLeavePanel({
   const [teamMembers, setTeamMembers] = useState<Profile[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
 
-  const [managerTab, setManagerTab] = useState<ManagerTab>('approvals');
-  const [adminTab, setAdminTab] = useState<AdminTab>(initialAdminTab || (mode === 'hr' ? 'today' : 'leave'));
-  const [employeeTab, setEmployeeTab] = useState<EmployeeTab>('today');
+  const [managerTab, setManagerTab] = useState<ManagerTab>(() => initialManagerAttTab());
+  const [adminTab, setAdminTab] = useState<AdminTab>(() =>
+    initialAdminTab || initialAdminAttTab(mode === 'hr' ? 'today' : 'leave'),
+  );
+  const [employeeTab, setEmployeeTab] = useState<EmployeeTab>(() => initialEmployeeAttTab());
 
   useHistorySyncedTab(managerTab, setManagerTab, {
     key: 'scorr-att-mgr-tab',
@@ -113,6 +154,27 @@ export default function AttendanceLeavePanel({
     enabled: mode === 'employee',
     trapAtRoot: false,
   });
+
+  useEffect(() => {
+    if (mode === 'manager') {
+      writeSessionString(ATT_MGR_TAB_KEY, managerTab);
+      writeAppHash('attendance', managerTab);
+    }
+  }, [managerTab, mode]);
+
+  useEffect(() => {
+    if (mode === 'admin' || mode === 'hr') {
+      writeSessionString(ATT_ADMIN_TAB_KEY, adminTab);
+      writeAppHash('attendance', adminTab);
+    }
+  }, [adminTab, mode]);
+
+  useEffect(() => {
+    if (mode === 'employee') {
+      writeSessionString(ATT_EMP_TAB_KEY, employeeTab);
+      writeAppHash('attendance', employeeTab);
+    }
+  }, [employeeTab, mode]);
 
   useEffect(() => {
     if (initialAdminTab) setAdminTab(initialAdminTab);

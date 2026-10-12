@@ -19,6 +19,7 @@ import AdminUsersPage from './AdminUsersPage';
 import { readSessionString, writeSessionString } from '../utils/persistedUiState';
 import { useHistoryOverlay, useHistorySyncedTab } from '../utils/useHistoryNavigation';
 import { isNativeApp } from '../utils/nativePlatform';
+import { parseAppHash, writeAppHash } from '../utils/appHashRoute';
 
 const HrDailyReportsWorkspace = lazy(() => import('./HrDailyReportsWorkspace'));
 const AdminDailyWorkReports = lazy(() => import('./AdminDailyWorkReports'));
@@ -60,7 +61,9 @@ const ADMIN_TABS: AdminTab[] = [
 ];
 
 function initialAdminTab(isHr: boolean, platformOwner: boolean): AdminTab {
-  const raw = readSessionString(ADMIN_TAB_KEY);
+  const fromHash = parseAppHash()?.tab;
+  const raw = (fromHash && ADMIN_TABS.includes(fromHash as AdminTab) ? fromHash : null)
+    ?? readSessionString(ADMIN_TAB_KEY);
   if (raw && ADMIN_TABS.includes(raw as AdminTab)) {
     if (raw === 'companies' && !platformOwner) return isHr ? 'attendance' : 'users';
     if (raw === 'mine' && !isHr) return 'users';
@@ -112,6 +115,11 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
 
   useEffect(() => {
     writeSessionString(ADMIN_TAB_KEY, activeTab);
+    if (activeTab !== 'attendance') writeAppHash(activeTab);
+    else {
+      const sub = parseAppHash()?.sub;
+      writeAppHash('attendance', sub);
+    }
   }, [activeTab]);
 
   useHistorySyncedTab(activeTab, setActiveTab, {
