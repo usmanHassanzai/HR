@@ -26,22 +26,31 @@ final class AttendancePingStore {
     private static final String PREFS_FALLBACK = "scorr_attendance_ping";
     private static final int MAX_QUEUE = 200;
 
+    /** One prefs instance — EncryptedSharedPreferences + apply() races across instances. */
+    private static volatile SharedPreferences cachedPrefs;
+
     private AttendancePingStore() {}
 
     private static SharedPreferences prefs(Context ctx) {
-        try {
-            String masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC);
-            return EncryptedSharedPreferences.create(
-                PREFS_SECURE,
-                masterKeyAlias,
-                ctx.getApplicationContext(),
-                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-            );
-        } catch (Exception e) {
-            Log.w(TAG, "EncryptedSharedPreferences unavailable, using fallback", e);
-            return ctx.getApplicationContext()
-                .getSharedPreferences(PREFS_FALLBACK, Context.MODE_PRIVATE);
+        SharedPreferences cached = cachedPrefs;
+        if (cached != null) return cached;
+        synchronized (AttendancePingStore.class) {
+            if (cachedPrefs != null) return cachedPrefs;
+            Context app = ctx.getApplicationContext();
+            try {
+                String masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC);
+                cachedPrefs = EncryptedSharedPreferences.create(
+                    PREFS_SECURE,
+                    masterKeyAlias,
+                    app,
+                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+                );
+            } catch (Exception e) {
+                Log.w(TAG, "EncryptedSharedPreferences unavailable, using fallback", e);
+                cachedPrefs = app.getSharedPreferences(PREFS_FALLBACK, Context.MODE_PRIVATE);
+            }
+            return cachedPrefs;
         }
     }
 
@@ -53,14 +62,18 @@ final class AttendancePingStore {
         String deviceId,
         String appVersion
     ) {
-        prefs(ctx).edit()
+        // commit() so syncAndArm on a worker thread always sees enabled+token.
+        boolean ok = prefs(ctx).edit()
             .putString("url", url)
             .putString("anon", anon)
             .putString("device_token", deviceToken)
             .putString("device_id", deviceId)
             .putString("app_version", appVersion != null ? appVersion : "")
             .putBoolean("enabled", true)
-            .apply();
+            .commit();
+        if (!ok) {
+            Log.e(TAG, "saveAutoAttendance commit failed");
+        }
     }
 
     /**

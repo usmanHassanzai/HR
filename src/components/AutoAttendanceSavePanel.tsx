@@ -54,12 +54,15 @@ export default function AutoAttendanceSavePanel() {
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (): Promise<AutoAttendanceSaveStatus | null> => {
     setLoading(true);
     try {
-      setStatus(await getAutoAttendanceSaveStatus());
+      const next = await getAutoAttendanceSaveStatus();
+      setStatus(next);
+      return next;
     } catch (e) {
       setError(friendlyAutoAttendanceError(e, 'Could not load automatic check-in status.'));
+      return null;
     } finally {
       setLoading(false);
     }
@@ -75,19 +78,40 @@ export default function AutoAttendanceSavePanel() {
     setNote('');
     try {
       const res = await saveAccountForAutoAttendance();
+      const next = await refresh();
+      const reallyActive = next ? resolveUiState(next) === 'active' : false;
+      const reallyArmed = Boolean(next?.backgroundArmed);
+
       if (!res.ok) {
         setError(
           friendlyAutoAttendanceError(res.error, 'Couldn’t enable automatic check-in. Try again.'),
         );
         return;
       }
+
+      if (!reallyArmed) {
+        setError(
+          res.warnings[0] ||
+            'Setup did not finish on this phone. Allow location All the time, notifications, and Unrestricted battery, then tap Enable.',
+        );
+        return;
+      }
+
       const extra = res.warnings.filter(Boolean);
-      setNote(
-        extra.length
-          ? `Automatic check-in updated. ${extra.join(' ')}`
-          : 'Automatic check-in is on — you can close the app.',
-      );
-      await refresh();
+      if (reallyActive) {
+        setNote(
+          extra.length
+            ? `Automatic check-in is on. ${extra.join(' ')}`
+            : 'Automatic check-in is on — you can close the app.',
+        );
+      } else {
+        // Armed but still needs a permission — show blocker, not green “updated”
+        setError(
+          extra.length
+            ? extra.join(' ')
+            : 'Automatic check-in is armed, but finish the permissions listed above.',
+        );
+      }
     } catch (e) {
       setError(friendlyAutoAttendanceError(e, 'Couldn’t enable automatic check-in. Try again.'));
     } finally {

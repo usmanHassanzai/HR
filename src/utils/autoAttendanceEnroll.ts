@@ -119,7 +119,9 @@ export async function getAutoAttendanceSaveStatus(): Promise<AutoAttendanceSaveS
         permissionLines.push('Set battery use to Unrestricted so automatic check-in is not paused.');
       }
       if (saved && !backgroundArmed) {
-        permissionLines.push('Tap Enable to finish setup on this phone.');
+        permissionLines.push(
+          'Background check-in is not active yet — tap Enable. If it fails, allow location All the time, notifications, and Unrestricted battery.',
+        );
       }
       const anyGap =
         needsLocation ||
@@ -177,6 +179,8 @@ async function enableDesktopAutoLaunch(): Promise<void> {
 
 /**
  * One-tap enroll: permissions → register device → persist token → arm background.
+ * Returns ok only when background is armed (Android) or device token saved (desktop).
+ * Never returns a soft “tap Enable again” success when setup did not finish.
  */
 export async function saveAccountForAutoAttendance(): Promise<{
   ok: boolean;
@@ -202,7 +206,7 @@ export async function saveAccountForAutoAttendance(): Promise<{
         ok: false,
         error: friendlyAutoAttendanceError(
           whileUsing.detail,
-          'Couldn’t enable automatic check-in. Try again.',
+          'Allow location while using the app, then tap Enable again.',
         ),
         warnings,
       };
@@ -214,6 +218,16 @@ export async function saveAccountForAutoAttendance(): Promise<{
     const notif = await requestNativeNotifications();
     if (!notif.ok) {
       warnings.push(notif.detail);
+    }
+    try {
+      const snap = await getNativePermissionSnapshot();
+      if (snap.batteryUnrestricted === false) {
+        warnings.push(
+          'Set battery use to Unrestricted for Scorr so automatic check-in is not paused.',
+        );
+      }
+    } catch {
+      /* optional */
     }
   }
 
@@ -234,15 +248,29 @@ export async function saveAccountForAutoAttendance(): Promise<{
   if (kind === 'android') {
     try {
       await startNativeAttendancePings();
-      const armed = await isNativeAutoAttendanceArmed();
-      if (!armed) {
-        warnings.push('Almost done — tap Enable again to finish setup on this phone.');
-      }
     } catch (e) {
-      warnings.push(
-        friendlyAutoAttendanceError(e, 'Automatic check-in did not start yet. Tap Enable again.'),
-      );
+      return {
+        ok: false,
+        error: friendlyAutoAttendanceError(
+          e,
+          'Background check-in failed to start. Check location (All the time), notifications, and battery, then tap Enable.',
+        ),
+        warnings,
+      };
     }
+    const armed = await isNativeAutoAttendanceArmed();
+    if (!armed) {
+      const blocker =
+        warnings[0] ||
+        'Background check-in did not activate. Open App settings → allow location All the time and notifications, set battery to Unrestricted, then tap Enable.';
+      return {
+        ok: false,
+        error: blocker,
+        warnings,
+      };
+    }
+    // Armed — permission gaps are warnings, not a fake “almost done” success.
+    return { ok: true, warnings };
   }
 
   if (kind === 'desktop') {
