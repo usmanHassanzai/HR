@@ -78,6 +78,31 @@ async function notifyShiftAssignees(
   );
 }
 
+/** End open rows for this shift — same close rule as shift_close_other_assignments (GREATEST(effective_from, today)). */
+async function closeOpenShiftAssignments(shiftId: string, userIds: string[]): Promise<string | null> {
+  if (userIds.length === 0) return null;
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: rows, error: fetchErr } = await supabase
+    .from('employee_shift_assignments')
+    .select('id, effective_from')
+    .eq('shift_id', shiftId)
+    .in('user_id', userIds)
+    .is('effective_to', null);
+  if (fetchErr) return fetchErr.message;
+  if (!rows?.length) return null;
+
+  for (const row of rows as { id: string; effective_from: string }[]) {
+    const from = String(row.effective_from || today).slice(0, 10);
+    const effectiveTo = from > today ? from : today;
+    const { error } = await supabase
+      .from('employee_shift_assignments')
+      .update({ effective_to: effectiveTo })
+      .eq('id', row.id);
+    if (error) return error.message;
+  }
+  return null;
+}
+
 export default function ShiftManagementPanel({
   teamMembers,
   mode = 'manager',
@@ -326,6 +351,8 @@ export default function ShiftManagementPanel({
   };
 
   const toggleUser = (id: string) => {
+    setApplyToAll(false);
+    setApplyAllTouched(true);
     setSelectedUserIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
@@ -337,26 +364,62 @@ export default function ShiftManagementPanel({
     return map;
   }, [assignments]);
 
-  const assignedMembers = useMemo(
-    () => assignablePeople.filter((p) => Boolean(assignmentByUser.get(p.id)?.shift_id)),
-    [assignablePeople, assignmentByUser],
-  );
+  /** People selected for this shift in the create/edit form (apply-to-all ⇒ everyone). */
+  const formAssignedPeople = useMemo(() => {
+    if (applyToAll) return assignablePeople;
+    const selected = new Set(selectedUserIds);
+    return assignablePeople.filter((p) => selected.has(p.id));
+  }, [applyToAll, assignablePeople, selectedUserIds]);
 
-  const unassignedMembers = useMemo(
-    () => assignablePeople.filter((p) => !assignmentByUser.get(p.id)?.shift_id),
-    [assignablePeople, assignmentByUser],
-  );
+  const formUnassignedPeople = useMemo(() => {
+    if (applyToAll) return [];
+    const selected = new Set(selectedUserIds);
+    return assignablePeople.filter((p) => !selected.has(p.id));
+  }, [applyToAll, assignablePeople, selectedUserIds]);
+
+  /** People on the shift focused in the assigner card (edit / assign target). */
+  const focusShiftId = editId || assignShiftId;
+
+  const assignedMembers = useMemo(() => {
+    if (!focusShiftId) {
+      return assignablePeople.filter((p) => Boolean(assignmentByUser.get(p.id)?.shift_id));
+    }
+    return assignablePeople.filter((p) => assignmentByUser.get(p.id)?.shift_id === focusShiftId);
+  }, [assignablePeople, assignmentByUser, focusShiftId]);
+
+  const unassignedMembers = useMemo(() => {
+    if (!focusShiftId) {
+      return assignablePeople.filter((p) => !assignmentByUser.get(p.id)?.shift_id);
+    }
+    return assignablePeople.filter((p) => assignmentByUser.get(p.id)?.shift_id !== focusShiftId);
+  }, [assignablePeople, assignmentByUser, focusShiftId]);
 
   const selectedUnassignedIds = selectedUserIds.filter((id) => unassignedMembers.some((p) => p.id === id));
 
   const toggleAllUnassigned = () => {
     const unassignedIds = unassignedMembers.map((p) => p.id);
     const allChecked = unassignedIds.length > 0 && unassignedIds.every((id) => selectedUserIds.includes(id));
+    setApplyToAll(false);
+    setApplyAllTouched(true);
     setSelectedUserIds((prev) =>
       allChecked
         ? prev.filter((id) => !unassignedIds.includes(id))
         : [...new Set([...prev, ...unassignedIds])],
     );
+  };
+
+  const toggleAllFormUnassigned = () => {
+    const unassignedIds = formUnassignedPeople.map((p) => p.id);
+    if (unassignedIds.length === 0) return;
+    setApplyToAll(false);
+    setApplyAllTouched(true);
+    setSelectedUserIds((prev) => [...new Set([...prev, ...unassignedIds])]);
+  };
+
+  const clearAllFormAssigned = () => {
+    setApplyToAll(false);
+    setApplyAllTouched(true);
+    setSelectedUserIds([]);
   };
 
   const resetForm = () => {
@@ -372,6 +435,7 @@ export default function ShiftManagementPanel({
     setOvernight(false);
     setApplyToAll(true);
     setApplyAllTouched(false);
+    setSelectedUserIds([]);
   };
 
   const usePhoneAndLaptopClocks = () => {
@@ -466,13 +530,30 @@ export default function ShiftManagementPanel({
       notifyKind = wasEdit ? 'updated' : 'assigned';
     }
 
+    // Org-wide: make this shift's assigned set match the form (unless apply-to-all).
     const assignEveryone = isOrgWide && applyToAll && (!wasEdit || applyAllTouched);
-    const assignChecked = isOrgWide && !assignEveryone && selectedUserIds.length > 0;
-    const idsToAssign = assignEveryone
+    const syncOrgMembership = isOrgWide && (assignEveryone || applyAllTouched || wasEdit || selectedUserIds.length > 0);
+    const desiredIds = assignEveryone
       ? assignablePeople.map((p) => p.id)
-      : assignChecked
+      : syncOrgMembership
         ? selectedUserIds
         : [];
+    const currentOnShiftIds = existingOnShift.map((p) => p.id);
+    const desiredSet = new Set(desiredIds);
+    const idsToUnassign = assignEveryone
+      ? []
+      : currentOnShiftIds.filter((id) => !desiredSet.has(id));
+    const idsToAssign = desiredIds;
+
+    if (idsToUnassign.length > 0) {
+      const unassignErr = await closeOpenShiftAssignments(shiftId, idsToUnassign);
+      if (unassignErr) {
+        setMsg(`Shift saved but unassign failed: ${unassignErr}`);
+        await load();
+        onUpdate?.();
+        return;
+      }
+    }
 
     if (idsToAssign.length > 0) {
       const { data: assigned, error: assignErr } = await supabase.rpc('admin_assign_shift', {
@@ -485,13 +566,22 @@ export default function ShiftManagementPanel({
         onUpdate?.();
         return;
       }
+      const newlyAssigned = idsToAssign.filter((id) => !currentOnShiftIds.includes(id));
       notifiedIds = [...idsToAssign];
-      notifyKind = wasEdit && !assignChecked ? 'updated' : 'assigned';
+      notifyKind = wasEdit && newlyAssigned.length === 0 ? 'updated' : 'assigned';
       const count = assigned ?? idsToAssign.length;
+      const removed = idsToUnassign.length;
       setMsg(
         assignEveryone
           ? `Shift saved and assigned to ${count} people. Emails sent.`
-          : `Shift saved. ${count} ${count === 1 ? 'person is' : 'people are'} on this shift. Emails sent.`,
+          : removed > 0
+            ? `Shift saved. ${count} on this shift, ${removed} removed. Emails sent.`
+            : `Shift saved. ${count} ${count === 1 ? 'person is' : 'people are'} on this shift. Emails sent.`,
+      );
+      setAssignShiftId(shiftId);
+    } else if (idsToUnassign.length > 0) {
+      setMsg(
+        `Shift saved. Removed ${idsToUnassign.length} ${idsToUnassign.length === 1 ? 'person' : 'people'} from this shift.`,
       );
       setAssignShiftId(shiftId);
     } else if (wasEdit && existingOnShift.length > 0) {
@@ -1057,6 +1147,13 @@ export default function ShiftManagementPanel({
                       setApplyToAll(on);
                       setApplyAllTouched(true);
                       if (on) setSelectedUserIds(assignablePeople.map((p) => p.id));
+                      else if (editId) {
+                        setSelectedUserIds(
+                          assignments.filter((a) => a.shift_id === editId).map((a) => a.user_id),
+                        );
+                      } else {
+                        setSelectedUserIds([]);
+                      }
                     }}
                   />
                   <span>
@@ -1066,6 +1163,106 @@ export default function ShiftManagementPanel({
                   </span>
                 </label>
               </div>
+              {isOrgWide && (
+                <div className="form-group attendance-form-span-full">
+                  <label>People on this shift</label>
+                  <p className="attendance-card__subtitle" style={{ margin: '0 0 0.65rem' }}>
+                    Saving makes this shift match the Assigned list: newly checked people are added, unchecked people are removed.
+                    {applyToAll ? ' Apply to everyone is on — everyone is listed as assigned.' : ''}
+                  </p>
+                  <div className="shift-member-blocks">
+                    <section className="shift-member-block" aria-label="Assigned people">
+                      <div className="shift-member-block__head">
+                        <h4>Assigned people</h4>
+                        <span>{formAssignedPeople.length}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.45rem' }}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={clearAllFormAssigned}
+                          disabled={formAssignedPeople.length === 0 || applyToAll}
+                        >
+                          Clear all
+                        </button>
+                      </div>
+                      <div className="shift-assign-list">
+                        {formAssignedPeople.length === 0 ? (
+                          <p className="attendance-card__subtitle">No one assigned yet</p>
+                        ) : (
+                          formAssignedPeople.map((p) => {
+                            const row = assignmentByUser.get(p.id);
+                            const otherShift =
+                              row?.shift_id && editId && row.shift_id !== editId ? row.shift_name : null;
+                            return (
+                              <label key={p.id} className="shift-assign-row">
+                                <input
+                                  type="checkbox"
+                                  checked
+                                  disabled={applyToAll}
+                                  onChange={() => toggleUser(p.id)}
+                                />
+                                <span>
+                                  <strong>{p.full_name}</strong>
+                                  <span className="shift-assign-meta"> · {p.role}</span>
+                                  {otherShift ? (
+                                    <span className="shift-assign-shift">Was on {otherShift}</span>
+                                  ) : null}
+                                </span>
+                              </label>
+                            );
+                          })
+                        )}
+                      </div>
+                    </section>
+
+                    <section className="shift-member-block" aria-label="Unassigned people">
+                      <div className="shift-member-block__head">
+                        <h4>Unassigned people</h4>
+                        <span>{formUnassignedPeople.length}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.45rem' }}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={toggleAllFormUnassigned}
+                          disabled={formUnassignedPeople.length === 0 || applyToAll}
+                        >
+                          Select all
+                        </button>
+                      </div>
+                      <div className="shift-assign-list">
+                        {formUnassignedPeople.length === 0 ? (
+                          <p className="attendance-card__subtitle">Everyone is assigned</p>
+                        ) : (
+                          formUnassignedPeople.map((p) => {
+                            const row = assignmentByUser.get(p.id);
+                            const onOther =
+                              row?.shift_id && (!editId || row.shift_id !== editId) ? row.shift_name : null;
+                            return (
+                              <label key={p.id} className="shift-assign-row">
+                                <input
+                                  type="checkbox"
+                                  checked={false}
+                                  disabled={applyToAll}
+                                  onChange={() => toggleUser(p.id)}
+                                />
+                                <span>
+                                  <strong>{p.full_name}</strong>
+                                  <span className="shift-assign-meta"> · {p.role} · {p.email}</span>
+                                  {onOther ? (
+                                    <span className="shift-assign-shift">On {onOther}</span>
+                                  ) : null}
+                                </span>
+                              </label>
+                            );
+                          })
+                        )}
+                      </div>
+                    </section>
+                  </div>
+                </div>
+              )}
               <div className="form-group attendance-form-span-full">
                 <label>Work days</label>
                 <div className="shift-day-picker">
@@ -1108,7 +1305,9 @@ export default function ShiftManagementPanel({
                 <Users size={18} /> Shift members
               </h3>
               <p className="attendance-card__subtitle">
-                People without a shift stay in Not assigned. Choose a shift, select them, and assign. Change one person&apos;s hours without changing the shared shift for everyone.
+                {focusShiftId
+                  ? "Assigned people are on this shift. Unassigned people are everyone else — select them and assign to move them here. Change one person's hours without changing the shared shift."
+                  : "Choose a shift below to see who is assigned versus unassigned. Select unassigned people and assign them. Change one person's hours without changing the shared shift."}
               </p>
               {editHoursUserId && (() => {
                 const editing = assignmentByUser.get(editHoursUserId);
@@ -1177,14 +1376,14 @@ export default function ShiftManagementPanel({
                 );
               })()}
               <div className="shift-member-blocks">
-                <section className="shift-member-block">
+                <section className="shift-member-block" aria-label="Assigned people">
                   <div className="shift-member-block__head">
-                    <h4>Assigned members</h4>
+                    <h4>Assigned people</h4>
                     <span>{assignedMembers.length}</span>
                   </div>
                   <div className="shift-assign-list">
                     {assignedMembers.length === 0 ? (
-                      <p className="attendance-card__subtitle">No one is on a shift yet.</p>
+                      <p className="attendance-card__subtitle">No one assigned yet</p>
                     ) : (
                       assignedMembers.map((p) => {
                         const row = assignmentByUser.get(p.id);
@@ -1221,9 +1420,9 @@ export default function ShiftManagementPanel({
                   </div>
                 </section>
 
-                <section className="shift-member-block">
+                <section className="shift-member-block" aria-label="Unassigned people">
                   <div className="shift-member-block__head">
-                    <h4>Not assigned</h4>
+                    <h4>Unassigned people</h4>
                     <span>{unassignedMembers.length}</span>
                   </div>
                   <div className="form-group">
@@ -1244,21 +1443,29 @@ export default function ShiftManagementPanel({
                   </div>
                   <div className="shift-assign-list">
                     {unassignedMembers.length === 0 ? (
-                      <p className="attendance-card__subtitle">Everyone has a shift.</p>
+                      <p className="attendance-card__subtitle">Everyone is assigned</p>
                     ) : (
-                      unassignedMembers.map((p) => (
-                        <label key={p.id} className="shift-assign-row">
-                          <input
-                            type="checkbox"
-                            checked={selectedUserIds.includes(p.id)}
-                            onChange={() => toggleUser(p.id)}
-                          />
-                          <span>
-                            <strong>{p.full_name}</strong>
-                            <span className="shift-assign-meta"> · {p.role} · {p.email}</span>
-                          </span>
-                        </label>
-                      ))
+                      unassignedMembers.map((p) => {
+                        const row = assignmentByUser.get(p.id);
+                        const onOther =
+                          row?.shift_id && row.shift_id !== focusShiftId ? row.shift_name : null;
+                        return (
+                          <label key={p.id} className="shift-assign-row">
+                            <input
+                              type="checkbox"
+                              checked={selectedUserIds.includes(p.id)}
+                              onChange={() => toggleUser(p.id)}
+                            />
+                            <span>
+                              <strong>{p.full_name}</strong>
+                              <span className="shift-assign-meta"> · {p.role} · {p.email}</span>
+                              {onOther ? (
+                                <span className="shift-assign-shift">On {onOther}</span>
+                              ) : null}
+                            </span>
+                          </label>
+                        );
+                      })
                     )}
                   </div>
                   <button
