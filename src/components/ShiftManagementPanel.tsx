@@ -133,6 +133,7 @@ export default function ShiftManagementPanel({
   const [assignments, setAssignments] = useState<OrgShiftAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState('');
+  const [loadError, setLoadError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [assignerLabel, setAssignerLabel] = useState(
     mode === 'admin' ? 'Admin' : mode === 'hr' ? 'HR' : 'Manager',
@@ -185,15 +186,28 @@ export default function ShiftManagementPanel({
   const load = useCallback(async () => {
     setLoading(true);
     setMsg('');
+    setLoadError(false);
     const assignmentRpc = isOrgWide ? 'get_org_shift_assignments' : 'get_team_shift_assignments';
     const [shRes, asRes] = await Promise.all([
       supabase.rpc('get_manager_shifts'),
       supabase.rpc(assignmentRpc),
     ]);
-    if (shRes.error) setMsg(`Could not load shifts: ${shRes.error.message}`);
-    else setShifts((shRes.data || []) as WorkShift[]);
-    if (asRes.error && !shRes.error) setMsg(asRes.error.message);
-    else setAssignments((asRes.data || []) as OrgShiftAssignment[]);
+    if (shRes.error) {
+      setShifts([]);
+      setLoadError(true);
+      setMsg(`Could not load shifts: ${shRes.error.message}`);
+    } else {
+      setShifts((shRes.data || []) as WorkShift[]);
+    }
+    if (asRes.error) {
+      setAssignments([]);
+      if (!shRes.error) {
+        setLoadError(true);
+        setMsg(`Could not load assignments: ${asRes.error.message}`);
+      }
+    } else {
+      setAssignments((asRes.data || []) as OrgShiftAssignment[]);
+    }
     setLoading(false);
   }, [isOrgWide]);
 
@@ -818,7 +832,7 @@ export default function ShiftManagementPanel({
   return (
     <div className="shift-management">
       {msg && (
-        <div className={`rewards-toast ${/failed|error|must|select/i.test(msg) ? 'rewards-toast--error' : 'rewards-toast--success'}`}>
+        <div className={`rewards-toast ${loadError || /failed|error|must|select|could not|only$/i.test(msg) ? 'rewards-toast--error' : 'rewards-toast--success'}`}>
           {msg}
         </div>
       )}
@@ -864,7 +878,16 @@ export default function ShiftManagementPanel({
             </button>
           </div>
 
-          {shifts.length === 0 ? (
+          {loadError ? (
+            <div className="shift-list-empty">
+              <CalendarClock size={32} strokeWidth={1.25} />
+              <h4>Could not load shifts</h4>
+              <p>{msg || 'Check that your account is Admin, HR, or Manager, then try again.'}</p>
+              <button type="button" className="btn btn-secondary" onClick={() => void load()} disabled={loading}>
+                Retry
+              </button>
+            </div>
+          ) : shifts.length === 0 ? (
             <div className="shift-list-empty">
               <CalendarClock size={32} strokeWidth={1.25} />
               <h4>No shifts yet</h4>

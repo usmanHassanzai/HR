@@ -200,6 +200,7 @@ const MIGRATIONS = [
   'office_multi_locations_assign_2026-10-12.sql',
   'assignment_driven_location_shift_2026-10-12.sql',
   'office_delete_cascade_assignments_2026-10-12.sql',
+  'FIX_get_manager_shifts_roles_2026-10-13.sql',
 ];
 
 async function runMigration(filename) {
