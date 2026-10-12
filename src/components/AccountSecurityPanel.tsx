@@ -14,17 +14,13 @@ import {
 } from '../utils/trustedDevice';
 import BackupCodesRevealModal from './BackupCodesRevealModal';
 import PasswordField from './PasswordField';
-import DeleteAccountSection from './DeleteAccountSection';
 import AboutUpdatesPanel from './AboutUpdatesPanel';
-import { supabase } from '../lib/supabase';
 
 interface AccountSecurityPanelProps {
   fullName?: string;
-  /** When true, parent dashboard shows Delete my account as its own Settings section. */
-  omitDelete?: boolean;
 }
 
-export default function AccountSecurityPanel({ fullName, omitDelete = false }: AccountSecurityPanelProps) {
+export default function AccountSecurityPanel({ fullName }: AccountSecurityPanelProps) {
   const [status, setStatus] = useState<MfaRecoveryStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -34,22 +30,15 @@ export default function AccountSecurityPanel({ fullName, omitDelete = false }: A
   const [totp, setTotp] = useState('');
   const [recoveryEmail, setRecoveryEmailInput] = useState('');
   const [freshCodes, setFreshCodes] = useState<string[] | null>(null);
-  const [audit, setAudit] = useState<{ method: string; success: boolean; created_at: string; detail?: string | null; ip_address?: string | null }[]>([]);
   const [devices, setDevices] = useState<TrustedDeviceRow[]>([]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    const [st, auditRes, deviceList] = await Promise.all([
+    const [st, deviceList] = await Promise.all([
       fetchMfaRecoveryStatus(),
-      supabase
-        .from('recovery_audit_log')
-        .select('method, success, created_at, detail, ip_address')
-        .order('created_at', { ascending: false })
-        .limit(12),
       listTrustedDevices().catch(() => [] as TrustedDeviceRow[]),
     ]);
     setStatus(st);
-    setAudit(auditRes.data || []);
     setDevices(deviceList);
     setLoading(false);
   }, []);
@@ -99,7 +88,6 @@ export default function AccountSecurityPanel({ fullName, omitDelete = false }: A
         <div style={{ display: 'flex', justifyContent: 'center', padding: '1.5rem' }}>
           <Loader2 className="spin-icon" size={24} />
         </div>
-        {!omitDelete && <DeleteAccountSection />}
       </div>
     );
   }
@@ -267,27 +255,6 @@ export default function AccountSecurityPanel({ fullName, omitDelete = false }: A
       {note && <p style={{ color: 'var(--color-success, #0f766e)', fontSize: '0.85rem' }}>{note}</p>}
 
       <AboutUpdatesPanel />
-
-      {!omitDelete && <DeleteAccountSection />}
-
-      {audit.length > 0 && (
-        <div className="app-settings-block">
-          <h3 style={{ margin: '0 0 0.5rem' }}>Recovery audit trail</h3>
-          <ul style={{ margin: 0, padding: 0, listStyle: 'none', fontSize: '0.8rem' }}>
-            {audit.map((row, i) => (
-              <li key={`${row.created_at}-${i}`} style={{ padding: '0.45rem 0', borderBottom: '1px solid var(--border-color)' }}>
-                <strong>{row.method}</strong>
-                {' · '}
-                {row.success ? 'ok' : 'failed'}
-                {' · '}
-                {new Date(row.created_at).toLocaleString()}
-                {row.ip_address ? ` · ${row.ip_address}` : ''}
-                {row.detail ? ` — ${row.detail}` : ''}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </div>
   );
 }

@@ -302,7 +302,7 @@ export default function ManagerDashboard({ profile, organizationName }: ManagerD
             </div>
             <details className="app-settings-block" open>
               <summary>Account security (2FA recovery)</summary>
-              <AccountSecurityPanel fullName={profile.full_name} omitDelete />
+              <AccountSecurityPanel fullName={profile.full_name} />
             </details>
           </div>
         )}

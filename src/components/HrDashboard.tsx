@@ -18,7 +18,6 @@ const MyShiftCard = lazy(() => import('./MyShiftCard'));
 const AdminRewards = lazy(() => import('./AdminRewards'));
 const AccountSecurityPanel = lazy(() => import('./AccountSecurityPanel'));
 const BackupCodesLowBanner = lazy(() => import('./BackupCodesLowBanner'));
-const DeleteAccountSection = lazy(() => import('./DeleteAccountSection'));
 const ManagerPersonalPanel = lazy(() => import('./ManagerPersonalPanel'));
 
 type HrTab = 'mine' | 'attendance' | 'rewards' | 'settings';
@@ -193,11 +192,7 @@ export default function HrDashboard({ profile, organizationName }: HrDashboardPr
                   </div>
                   <details className="app-settings-block" open>
                     <summary>Account security (2FA recovery)</summary>
-                    <AccountSecurityPanel fullName={profile.full_name} omitDelete />
-                  </details>
-                  <details className="app-settings-block" open>
-                    <summary>Delete my account</summary>
-                    <DeleteAccountSection embedded />
+                    <AccountSecurityPanel fullName={profile.full_name} />
                   </details>
                 </div>
               )}

@@ -792,7 +792,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
           )}
           <details className="app-settings-block" open>
             <summary>Account security (2FA recovery)</summary>
-            <AccountSecurityPanel fullName={activeUser.full_name} omitDelete />
+            <AccountSecurityPanel fullName={activeUser.full_name} />
           </details>
         </div>
         </Suspense>
