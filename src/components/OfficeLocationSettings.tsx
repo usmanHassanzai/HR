@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import {
   MapPin,
@@ -9,13 +9,12 @@ import {
   Navigation,
   AlertCircle,
   CheckCircle2,
-  Radio,
   Users,
   Building2,
   Info,
 } from 'lucide-react';
-import { OfficeLocation } from '../utils/geoAttendance';
-import AssignManagerLocationPanel, { ManagerSiteRow } from './AssignManagerLocationPanel';
+import { OfficeGroup, OfficeLocation } from '../utils/geoAttendance';
+import AssignManagerLocationPanel, { ManagerSiteRow, EmployeeSiteRow } from './AssignManagerLocationPanel';
 import LiveGpsCapture from './LiveGpsCapture';
 import TimeZonePicker from './TimeZonePicker';
 import '../styles/attendance.css';
@@ -23,23 +22,28 @@ import '../styles/admin-office.css';
 
 const MapLocationPicker = lazy(() => import('./MapLocationPicker'));
 
-type OfficeTab = 'create' | 'assign' | 'offices';
+type OfficeTab = 'offices' | 'location' | 'assign';
 
 function isAlertError(message: string): boolean {
   return /fail|denied|required|please|error|must|cannot|warn/i.test(message);
 }
 
 export default function OfficeLocationSettings() {
-  const [offices, setOffices] = useState<OfficeLocation[]>([]);
+  const [officeGroups, setOfficeGroups] = useState<OfficeGroup[]>([]);
+  const [locations, setLocations] = useState<OfficeLocation[]>([]);
   const [assignments, setAssignments] = useState<ManagerSiteRow[]>([]);
+  const [employeeAssignments, setEmployeeAssignments] = useState<EmployeeSiteRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingOffice, setSavingOffice] = useState(false);
   const [msg, setMsg] = useState('');
-  const [activeTab, setActiveTab] = useState<OfficeTab>('create');
-  const [assignOfficeId, setAssignOfficeId] = useState('');
+  const [activeTab, setActiveTab] = useState<OfficeTab>('offices');
+  const [assignLocationId, setAssignLocationId] = useState('');
   const [assignKey, setAssignKey] = useState(0);
+  const [officeForm, setOfficeForm] = useState({ id: '' as string | null, name: '', active: true });
   const [form, setForm] = useState({
     id: '' as string | null,
+    office_id: '',
     name: '',
     address: '',
     latitude: '',
@@ -58,13 +62,23 @@ export default function OfficeLocationSettings() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [officesRes, sitesRes] = await Promise.all([
+    const [officesRes, locsRes, sitesRes, empSitesRes] = await Promise.all([
+      supabase.rpc('get_offices'),
       supabase.rpc('get_office_locations'),
       supabase.rpc('get_manager_work_sites'),
+      supabase.rpc('get_employee_work_sites'),
     ]);
-    if (officesRes.error) showMsg(officesRes.error.message);
-    else setOffices((officesRes.data || []) as OfficeLocation[]);
+    if (officesRes.error && !/function|does not exist|schema cache/i.test(officesRes.error.message)) {
+      showMsg(officesRes.error.message);
+    } else {
+      setOfficeGroups((officesRes.data || []) as OfficeGroup[]);
+    }
+    if (locsRes.error) showMsg(locsRes.error.message);
+    else setLocations((locsRes.data || []) as OfficeLocation[]);
     if (!sitesRes.error) setAssignments((sitesRes.data || []) as ManagerSiteRow[]);
+    if (!empSitesRes.error) {
+      setEmployeeAssignments((empSitesRes.data || []) as EmployeeSiteRow[]);
+    }
     setLoading(false);
   }, [showMsg]);
 
@@ -72,9 +86,32 @@ export default function OfficeLocationSettings() {
     void load();
   }, [load]);
 
-  const resetForm = () => {
+  const officeNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const o of officeGroups) map.set(o.id, o.name);
+    return map;
+  }, [officeGroups]);
+
+  const locationsByOffice = useMemo(() => {
+    const map = new Map<string, OfficeLocation[]>();
+    for (const loc of locations) {
+      const key = loc.office_id || '_ungrouped';
+      const list = map.get(key) || [];
+      list.push(loc);
+      map.set(key, list);
+    }
+    return map;
+  }, [locations]);
+
+  const assignedPeopleCount = useMemo(
+    () => new Set(employeeAssignments.map((a) => a.user_id)).size,
+    [employeeAssignments],
+  );
+
+  const resetLocationForm = (officeId = '') => {
     setForm({
       id: null,
+      office_id: officeId,
       name: '',
       address: '',
       latitude: '',
@@ -85,36 +122,59 @@ export default function OfficeLocationSettings() {
     });
   };
 
-  /** Clear the form and open the create tab so admins can add another office site. */
-  const startAddLocation = () => {
-    resetForm();
+  const resetOfficeForm = () => {
+    setOfficeForm({ id: null, name: '', active: true });
+  };
+
+  const startAddOffice = () => {
+    resetOfficeForm();
     setMsg('');
-    setActiveTab('create');
+    setActiveTab('offices');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const editOffice = (o: OfficeLocation) => {
+  const startAddLocation = (officeId?: string) => {
+    const preferred =
+      officeId ||
+      form.office_id ||
+      officeGroups.find((o) => o.active)?.id ||
+      officeGroups[0]?.id ||
+      '';
+    resetLocationForm(preferred);
+    setMsg('');
+    setActiveTab('location');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const editOfficeGroup = (o: OfficeGroup) => {
+    setOfficeForm({ id: o.id, name: o.name, active: o.active });
+    setActiveTab('offices');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const editLocation = (loc: OfficeLocation) => {
     setForm({
-      id: o.id,
-      name: o.name,
-      address: o.address || '',
-      latitude: String(o.latitude),
-      longitude: String(o.longitude),
-      radius_meters: String(o.radius_meters),
-      active: o.active,
-      default_timezone: o.default_timezone || '',
+      id: loc.id,
+      office_id: loc.office_id || '',
+      name: loc.name,
+      address: loc.address || '',
+      latitude: String(loc.latitude),
+      longitude: String(loc.longitude),
+      radius_meters: String(loc.radius_meters),
+      active: loc.active,
+      default_timezone: loc.default_timezone || '',
     });
-    setActiveTab('create');
+    setActiveTab('location');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const setCoords = (lat: string, lng: string, _accuracy?: number | null) => {
     setForm((f) => ({ ...f, latitude: lat, longitude: lng }));
-    showMsg('Current location captured — this exact spot will be the office check-in center when you save.');
+    showMsg('Current location captured — this exact spot will be the check-in center when you save.');
   };
 
-  const startAssign = (officeId: string) => {
-    setAssignOfficeId(officeId);
+  const startAssign = (locationId: string) => {
+    setAssignLocationId(locationId);
     setAssignKey((k) => k + 1);
     setActiveTab('assign');
     setTimeout(() => {
@@ -122,10 +182,57 @@ export default function OfficeLocationSettings() {
     }, 100);
   };
 
-  const save = async (e: React.FormEvent) => {
+  const saveOffice = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim()) {
+    if (!officeForm.name.trim()) {
       showMsg('Office name is required.');
+      return;
+    }
+    setSavingOffice(true);
+    setMsg('');
+    const wasNew = !officeForm.id;
+    const { data, error } = await supabase.rpc('upsert_office', {
+      p_id: officeForm.id || null,
+      p_name: officeForm.name.trim(),
+      p_active: officeForm.active,
+    });
+    setSavingOffice(false);
+    if (error) {
+      showMsg(error.message);
+      return;
+    }
+    const newId = (data as string) || officeForm.id || '';
+    showMsg(wasNew ? `"${officeForm.name.trim()}" office created. Add a location pin next.` : 'Office updated.');
+    resetOfficeForm();
+    await load();
+    if (wasNew && newId) startAddLocation(newId);
+  };
+
+  const removeOffice = async (id: string, name: string) => {
+    const locCount = locationsByOffice.get(id)?.length || 0;
+    if (
+      !confirm(
+        `Delete office "${name}"${locCount ? ` and its ${locCount} location(s)` : ''}? Assignments to those locations will be cleared.`,
+      )
+    ) {
+      return;
+    }
+    const { error } = await supabase.rpc('delete_office', { p_id: id });
+    if (error) showMsg(error.message);
+    else {
+      showMsg(`"${name}" deleted.`);
+      void load();
+    }
+  };
+
+  const saveLocation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.office_id) {
+      showMsg('Select a parent office first (or create one under Offices).');
+      return;
+    }
+    if (!form.name.trim()) {
+      showMsg('Location name is required.');
       return;
     }
     if (!form.latitude || !form.longitude) {
@@ -136,7 +243,7 @@ export default function OfficeLocationSettings() {
     setMsg('');
     const savedName = form.name.trim();
     const wasNew = !form.id;
-    const { data: officeId, error } = await supabase.rpc('upsert_office_location', {
+    const { data: locationId, error } = await supabase.rpc('upsert_office_location', {
       p_id: form.id || null,
       p_name: form.name.trim(),
       p_address: form.address.trim() || null,
@@ -148,38 +255,40 @@ export default function OfficeLocationSettings() {
       p_wifi_bssids: [],
       p_public_ip_cidrs: [],
       p_detection_mode: 'gps_or_wifi',
+      p_office_id: form.office_id,
     });
     if (error) {
       setSaving(false);
       showMsg(error.message);
       return;
     }
-    const resolvedId = (officeId as string) || form.id;
+    const resolvedId = (locationId as string) || form.id;
     setSaving(false);
-    const { data: refreshed } = await supabase.rpc('get_office_locations');
-    const list = (refreshed || []) as OfficeLocation[];
-    const match =
-      list.find((o) => (resolvedId ? o.id === resolvedId : o.name === savedName)) ||
-      list.find((o) => o.name === savedName);
-    if (match && form.default_timezone) {
+    if (resolvedId && form.default_timezone) {
       await supabase.rpc('update_office_default_timezones', {
-        p_office_id: match.id,
+        p_office_id: resolvedId,
         p_default_timezone: form.default_timezone,
         p_default_display_timezones: [],
       });
     }
     showMsg(
       wasNew
-        ? `"${savedName}" saved. You can assign people now, or add another location anytime.`
-        : `"${savedName}" updated.`,
+        ? `"${savedName}" saved under ${officeNameById.get(form.office_id) || 'office'}. Assign people to this location — other locations do not apply to them.`
+        : `"${savedName}" updated. Only people assigned here use this pin and radius.`,
     );
-    resetForm();
+    resetLocationForm(form.office_id);
     await load();
-    if (wasNew && match) startAssign(match.id);
+    if (wasNew && resolvedId) startAssign(resolvedId);
   };
 
-  const remove = async (id: string, name: string) => {
-    if (!confirm(`Delete office zone "${name}"? Managers assigned to it may lose their GPS attendance area.`)) return;
+  const removeLocation = async (id: string, name: string) => {
+    if (
+      !confirm(
+        `Delete location "${name}"? Everyone assigned to it may lose this GPS check-in area. Other locations stay.`,
+      )
+    ) {
+      return;
+    }
     const { error } = await supabase.rpc('delete_office_location', { p_id: id });
     if (error) showMsg(error.message);
     else {
@@ -188,8 +297,7 @@ export default function OfficeLocationSettings() {
     }
   };
 
-  const activeOffices = offices.filter((o) => o.active);
-  const assignedManagerCount = assignments.length;
+  const activeLocations = locations.filter((o) => o.active);
 
   if (loading) {
     return (
@@ -210,12 +318,12 @@ export default function OfficeLocationSettings() {
           <div>
             <h2 className="admin-office-header__title">Office &amp; Attendance</h2>
             <p className="admin-office-header__subtitle">
-              Add as many geofenced office locations as you need (HQ, branch, warehouse). Each site has its own GPS pin
-              and radius. The same settings apply on web, desktop, and mobile.
+              Create an office, add multiple location pins under it, then assign each person to one or more locations.
+              Only their assigned pin(s) and radius count for presence — other locations do not apply.
             </p>
           </div>
-          {offices.length > 0 && (
-            <button type="button" className="btn btn-primary admin-office-header__add" onClick={startAddLocation}>
+          {officeGroups.length > 0 && (
+            <button type="button" className="btn btn-primary admin-office-header__add" onClick={() => startAddLocation()}>
               <Plus size={16} /> Add location
             </button>
           )}
@@ -224,44 +332,51 @@ export default function OfficeLocationSettings() {
         <div className="admin-office-stats">
           <div className="admin-office-stat">
             <Building2 size={16} />
-            <span className="admin-office-stat__label">Active zones</span>
-            <strong>{activeOffices.length}</strong>
+            <span className="admin-office-stat__label">Offices</span>
+            <strong>{officeGroups.length}</strong>
           </div>
           <div className="admin-office-stat">
             <MapPin size={16} />
-            <span className="admin-office-stat__label">Total offices</span>
-            <strong>{offices.length}</strong>
+            <span className="admin-office-stat__label">Active locations</span>
+            <strong>{activeLocations.length}</strong>
+          </div>
+          <div className="admin-office-stat">
+            <Users size={16} />
+            <span className="admin-office-stat__label">People assigned</span>
+            <strong>{assignedPeopleCount}</strong>
           </div>
           <div className="admin-office-stat">
             <UserCheck size={16} />
-            <span className="admin-office-stat__label">Managers assigned</span>
-            <strong>{assignedManagerCount}</strong>
-          </div>
-          <div className="admin-office-stat">
-            <Radio size={16} />
-            <span className="admin-office-stat__label">GPS check-in</span>
-            <strong className="admin-office-stat__value--sm">Enabled</strong>
+            <span className="admin-office-stat__label">Manager team zones</span>
+            <strong>{assignments.length}</strong>
           </div>
         </div>
       </header>
 
       <div className="admin-office-steps">
-        <span className={`admin-office-step ${activeTab === 'create' ? 'admin-office-step--active' : ''}`}>
-          1 · Add location
+        <span className={`admin-office-step ${activeTab === 'offices' ? 'admin-office-step--active' : ''}`}>
+          1 · Office
+        </span>
+        <span className={`admin-office-step ${activeTab === 'location' ? 'admin-office-step--active' : ''}`}>
+          2 · Locations
         </span>
         <span className={`admin-office-step ${activeTab === 'assign' ? 'admin-office-step--active' : ''}`}>
-          2 · Assign people
-        </span>
-        <span className={`admin-office-step ${activeTab === 'offices' ? 'admin-office-step--active' : ''}`}>
-          3 · All locations
+          3 · Assign people
         </span>
       </div>
 
       <div className="admin-office-tabs tab-bar tab-bar--inline-mobile">
         <button
           type="button"
-          className={`tab-btn ${activeTab === 'create' ? 'tab-btn--active' : ''}`}
-          onClick={() => setActiveTab('create')}
+          className={`tab-btn ${activeTab === 'offices' ? 'tab-btn--active' : ''}`}
+          onClick={() => setActiveTab('offices')}
+        >
+          <Building2 size={16} /> Offices ({officeGroups.length})
+        </button>
+        <button
+          type="button"
+          className={`tab-btn ${activeTab === 'location' ? 'tab-btn--active' : ''}`}
+          onClick={() => setActiveTab('location')}
         >
           <Plus size={16} /> {form.id ? 'Edit location' : 'Add location'}
         </button>
@@ -271,13 +386,6 @@ export default function OfficeLocationSettings() {
           onClick={() => setActiveTab('assign')}
         >
           <UserCheck size={16} /> Assign people
-        </button>
-        <button
-          type="button"
-          className={`tab-btn ${activeTab === 'offices' ? 'tab-btn--active' : ''}`}
-          onClick={() => setActiveTab('offices')}
-        >
-          <MapPin size={16} /> Locations ({offices.length})
         </button>
       </div>
 
@@ -294,257 +402,383 @@ export default function OfficeLocationSettings() {
         </div>
       )}
 
-      {activeTab === 'create' && (
+      {activeTab === 'offices' && (
         <section className="admin-office-card glass-panel">
           <h3>
-            <Navigation size={18} /> {form.id ? 'Edit office location' : 'Add office location'}
+            <Building2 size={18} /> {officeForm.id ? 'Edit office' : 'Create office'}
+          </h3>
+          <p>
+            An office is the parent (e.g. Karachi HQ). Add multiple location pins under it afterward — each with its own
+            address, GPS, and radius.
+          </p>
+
+          <form onSubmit={saveOffice} className="attendance-form-grid attendance-form-grid--wide">
+            <div className="form-group">
+              <label htmlFor="office-group-name">Office name *</label>
+              <input
+                id="office-group-name"
+                value={officeForm.name}
+                onChange={(e) => setOfficeForm({ ...officeForm, name: e.target.value })}
+                placeholder="e.g. Karachi HQ"
+                required
+              />
+            </div>
+            <div className="form-group admin-office-checkbox-end">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={officeForm.active}
+                  onChange={(e) => setOfficeForm({ ...officeForm, active: e.target.checked })}
+                />
+                Active office
+              </label>
+            </div>
+            <div className="admin-office-form-actions">
+              <button type="submit" className="btn btn-primary" disabled={savingOffice}>
+                {savingOffice ? (
+                  <Loader2 size={16} className="spin-icon" />
+                ) : officeForm.id ? (
+                  'Update office'
+                ) : (
+                  <>
+                    <Plus size={16} /> Save office
+                  </>
+                )}
+              </button>
+              {officeForm.id && (
+                <button type="button" className="btn btn-secondary" onClick={startAddOffice}>
+                  Cancel
+                </button>
+              )}
+            </div>
+          </form>
+
+          <div className="admin-office-card__toolbar" style={{ marginTop: '1.5rem' }}>
+            <div>
+              <h3>
+                <MapPin size={18} /> Offices &amp; locations
+              </h3>
+              <p>
+                Assign people to specific location pins. Someone on Location A is not covered by Location B unless you
+                also assign B.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => startAddLocation()}
+              disabled={officeGroups.length === 0}
+            >
+              <Plus size={16} /> Add location
+            </button>
+          </div>
+
+          {officeGroups.length === 0 ? (
+            <div className="admin-office-empty">
+              <Building2 size={40} strokeWidth={1.25} />
+              <h4>No offices yet</h4>
+              <p>Create an office above, then add one or more location pins under it.</p>
+            </div>
+          ) : (
+            <div className="admin-office-groups">
+              {officeGroups.map((group) => {
+                const locs = locationsByOffice.get(group.id) || [];
+                return (
+                  <article key={group.id} className="admin-office-group glass-panel">
+                    <div className="admin-office-group__head">
+                      <div>
+                        <h4>{group.name}</h4>
+                        <p className="admin-office-item__meta">
+                          {locs.length} location{locs.length !== 1 ? 's' : ''}
+                          {!group.active ? ' · Inactive' : ''}
+                        </p>
+                      </div>
+                      <div className="admin-office-item__actions">
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => startAddLocation(group.id)}>
+                          <Plus size={14} /> Location
+                        </button>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => editOfficeGroup(group)}>
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-danger btn-sm"
+                          onClick={() => void removeOffice(group.id, group.name)}
+                          aria-label={`Delete ${group.name}`}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {locs.length === 0 ? (
+                      <p className="admin-office-item__meta">No locations yet — add a pin for this office.</p>
+                    ) : (
+                      <div className="admin-office-grid">
+                        {locs.map((loc) => {
+                          const assignedPeople = employeeAssignments.filter((a) => a.office_location_id === loc.id);
+                          const assignedManagers = assignments.filter(
+                            (a) => a.site_name === loc.name || a.latitude === loc.latitude,
+                          );
+                          return (
+                            <article
+                              key={loc.id}
+                              className={`admin-office-item ${loc.active ? '' : 'admin-office-item--inactive'}`}
+                            >
+                              <div className="admin-office-item__head">
+                                <h4>{loc.name}</h4>
+                                <span
+                                  className={`admin-office-item__badge ${loc.active ? '' : 'admin-office-item__badge--inactive'}`}
+                                >
+                                  {loc.active ? 'Active' : 'Inactive'}
+                                </span>
+                              </div>
+                              {loc.address && <p className="admin-office-item__meta">{loc.address}</p>}
+                              <div className="admin-office-item__coords">
+                                {loc.latitude.toFixed(5)}, {loc.longitude.toFixed(5)} · {loc.radius_meters}m
+                              </div>
+                              <p className="admin-office-item__meta">
+                                <Users size={12} className="admin-office-item__meta-icon" />
+                                {assignedPeople.length > 0
+                                  ? `${assignedPeople.length} assignment${assignedPeople.length !== 1 ? 's' : ''}`
+                                  : 'No one assigned'}
+                                {assignedManagers.length > 0
+                                  ? ` · ${assignedManagers.length} manager team zone${assignedManagers.length !== 1 ? 's' : ''}`
+                                  : ''}
+                              </p>
+                              <div className="admin-office-item__actions">
+                                {loc.active && (
+                                  <button
+                                    type="button"
+                                    className="btn btn-primary btn-sm"
+                                    onClick={() => startAssign(loc.id)}
+                                  >
+                                    <UserCheck size={14} /> Assign
+                                  </button>
+                                )}
+                                <button type="button" className="btn btn-secondary btn-sm" onClick={() => editLocation(loc)}>
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-danger btn-sm"
+                                  onClick={() => void removeLocation(loc.id, loc.name)}
+                                  aria-label={`Delete ${loc.name}`}
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </article>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
+
+      {activeTab === 'location' && (
+        <section className="admin-office-card glass-panel">
+          <h3>
+            <Navigation size={18} /> {form.id ? 'Edit location' : 'Add location'}
           </h3>
           <p>
             {form.id
-              ? 'Update this site’s GPS pin, radius, or details. Changes apply to everyone already assigned here.'
-              : 'Stand at the entrance, capture live GPS, fine-tune on the map, then save. Repeat to add another site.'}
+              ? 'Update this pin’s GPS, radius, or label. Only people assigned to this location use it — other pins do not apply to them.'
+              : 'Pick the parent office, stand at the entrance, capture live GPS, set the radius, then save.'}
           </p>
 
-          {!form.id && offices.length > 0 && (
-            <div className="admin-office-info">
-              <Info size={16} />
-              <span>
-                You already have <strong>{offices.length}</strong> location{offices.length !== 1 ? 's' : ''}. Saving
-                below adds a new one — it does not replace existing sites. Manage them under{' '}
-                <button type="button" className="admin-office-inline-link" onClick={() => setActiveTab('offices')}>
-                  Locations
-                </button>
-                .
-              </span>
+          {officeGroups.length === 0 ? (
+            <div className="admin-office-empty">
+              <Building2 size={40} strokeWidth={1.25} />
+              <h4>Create an office first</h4>
+              <p>Locations belong under an office. Create the office, then add pins here.</p>
+              <button type="button" className="btn btn-primary" onClick={startAddOffice}>
+                <Plus size={16} /> Create office
+              </button>
             </div>
-          )}
+          ) : (
+            <>
+              <div className="admin-office-form-section">
+                <p className="admin-office-form-section__title">Step 1 · Parent office</p>
+                <div className="form-group">
+                  <label htmlFor="location-office">Office *</label>
+                  <select
+                    id="location-office"
+                    value={form.office_id}
+                    onChange={(e) => setForm({ ...form, office_id: e.target.value })}
+                    required
+                  >
+                    <option value="">— Select office —</option>
+                    {officeGroups.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
-          <div className="admin-office-form-section">
-            <p className="admin-office-form-section__title">Step 1 · Stand at office &amp; capture live GPS</p>
-            <p className="admin-office-form-help">
-              The spot where you stand becomes the center of this location’s check-in zone.
-              {form.id ? ' Saving updates everyone already assigned to this office.' : ''}
-            </p>
-            <LiveGpsCapture latitude={form.latitude} longitude={form.longitude} onCapture={setCoords} />
-          </div>
+              <div className="admin-office-form-section">
+                <p className="admin-office-form-section__title">Step 2 · Stand at location &amp; capture live GPS</p>
+                <p className="admin-office-form-help">
+                  The spot where you stand becomes the center of this location’s check-in zone.
+                </p>
+                <LiveGpsCapture latitude={form.latitude} longitude={form.longitude} onCapture={setCoords} />
+              </div>
 
-          <div className="admin-office-form-section">
-            <p className="admin-office-form-section__title">Step 2 · Map &amp; radius</p>
-            <div className="admin-office-map-wrap">
-              <Suspense
-                fallback={
-                  <div className="dash-loading admin-office-map-fallback">
-                    <Loader2 size={24} className="spin-icon" /> Loading map…
+              <div className="admin-office-form-section">
+                <p className="admin-office-form-section__title">Step 3 · Map &amp; radius</p>
+                <div className="admin-office-map-wrap">
+                  <Suspense
+                    fallback={
+                      <div className="dash-loading admin-office-map-fallback">
+                        <Loader2 size={24} className="spin-icon" /> Loading map…
+                      </div>
+                    }
+                  >
+                    <MapLocationPicker
+                      latitude={form.latitude}
+                      longitude={form.longitude}
+                      radiusMeters={parseInt(form.radius_meters, 10) || 150}
+                      onLocationChange={setCoords}
+                    />
+                  </Suspense>
+                </div>
+              </div>
+
+              <div className="admin-office-form-section">
+                <p className="admin-office-form-section__title">Step 4 · Location details</p>
+                <form onSubmit={saveLocation} className="attendance-form-grid attendance-form-grid--wide">
+                  <div className="form-group">
+                    <label htmlFor="location-name">Location name *</label>
+                    <input
+                      id="location-name"
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      placeholder="e.g. Main entrance"
+                      required
+                    />
                   </div>
-                }
-              >
-                <MapLocationPicker
-                  latitude={form.latitude}
-                  longitude={form.longitude}
-                  radiusMeters={parseInt(form.radius_meters, 10) || 150}
-                  onLocationChange={setCoords}
-                />
-              </Suspense>
-            </div>
-          </div>
-
-          <div className="admin-office-form-section">
-            <p className="admin-office-form-section__title">Step 3 · Office details</p>
-            <form onSubmit={save} className="attendance-form-grid attendance-form-grid--wide">
-              <div className="form-group">
-                <label htmlFor="office-name">Office name *</label>
-                <input
-                  id="office-name"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="e.g. Karachi HQ"
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="office-address">Address (optional)</label>
-                <input
-                  id="office-address"
-                  value={form.address}
-                  onChange={(e) => setForm({ ...form, address: e.target.value })}
-                  placeholder="Street, city, country"
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="office-lat">Latitude *</label>
-                <input
-                  id="office-lat"
-                  type="number"
-                  step="any"
-                  value={form.latitude}
-                  onChange={(e) => setForm({ ...form, latitude: e.target.value })}
-                  placeholder="From live GPS"
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="office-lng">Longitude *</label>
-                <input
-                  id="office-lng"
-                  type="number"
-                  step="any"
-                  value={form.longitude}
-                  onChange={(e) => setForm({ ...form, longitude: e.target.value })}
-                  placeholder="From live GPS"
-                  required
-                />
-              </div>
-              <div className="form-group admin-office-span-full">
-                <label>Default shift time zone (pre-fill when creating shifts)</label>
-                <TimeZonePicker
-                  value={form.default_timezone}
-                  onChange={(tz) => setForm({ ...form, default_timezone: tz })}
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="office-radius">Check-in radius (meters)</label>
-                <input
-                  id="office-radius"
-                  type="number"
-                  min={30}
-                  max={2000}
-                  value={form.radius_meters}
-                  onChange={(e) => setForm({ ...form, radius_meters: e.target.value })}
-                />
-              </div>
-              <div className="form-group admin-office-checkbox-end">
-                <label>
-                  <input type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} />
-                  Active zone
-                </label>
-              </div>
-              <div className="admin-office-form-actions">
-                <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? (
-                    <Loader2 size={16} className="spin-icon" />
-                  ) : form.id ? (
-                    'Update location'
-                  ) : (
-                    <>
-                      <Plus size={16} /> Save location
-                    </>
-                  )}
-                </button>
-                {form.id ? (
-                  <button type="button" className="btn btn-secondary" onClick={startAddLocation}>
-                    Cancel · add another instead
-                  </button>
-                ) : (
-                  offices.length > 0 && (
-                    <button type="button" className="btn btn-secondary" onClick={() => setActiveTab('offices')}>
-                      View all locations
+                  <div className="form-group">
+                    <label htmlFor="location-address">Address (optional)</label>
+                    <input
+                      id="location-address"
+                      value={form.address}
+                      onChange={(e) => setForm({ ...form, address: e.target.value })}
+                      placeholder="Street, city, country"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="location-lat">Latitude *</label>
+                    <input
+                      id="location-lat"
+                      type="number"
+                      step="any"
+                      value={form.latitude}
+                      onChange={(e) => setForm({ ...form, latitude: e.target.value })}
+                      placeholder="From live GPS"
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="location-lng">Longitude *</label>
+                    <input
+                      id="location-lng"
+                      type="number"
+                      step="any"
+                      value={form.longitude}
+                      onChange={(e) => setForm({ ...form, longitude: e.target.value })}
+                      placeholder="From live GPS"
+                      required
+                    />
+                  </div>
+                  <div className="form-group admin-office-span-full">
+                    <label>Default shift time zone (pre-fill when creating shifts)</label>
+                    <TimeZonePicker
+                      value={form.default_timezone}
+                      onChange={(tz) => setForm({ ...form, default_timezone: tz })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="location-radius">Radius for people assigned here (meters)</label>
+                    <input
+                      id="location-radius"
+                      type="number"
+                      min={30}
+                      max={2000}
+                      value={form.radius_meters}
+                      onChange={(e) => setForm({ ...form, radius_meters: e.target.value })}
+                    />
+                    <p className="admin-office-form-help" style={{ marginTop: '0.35rem' }}>
+                      Applies only to people assigned to this location. Unassigned locations never count for them.
+                    </p>
+                  </div>
+                  <div className="form-group admin-office-checkbox-end">
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={form.active}
+                        onChange={(e) => setForm({ ...form, active: e.target.checked })}
+                      />
+                      Active location
+                    </label>
+                  </div>
+                  <div className="admin-office-form-actions">
+                    <button type="submit" className="btn btn-primary" disabled={saving || !form.office_id}>
+                      {saving ? (
+                        <Loader2 size={16} className="spin-icon" />
+                      ) : form.id ? (
+                        'Update location'
+                      ) : (
+                        <>
+                          <Plus size={16} /> Save location
+                        </>
+                      )}
                     </button>
-                  )
-                )}
+                    {form.id ? (
+                      <button type="button" className="btn btn-secondary" onClick={() => startAddLocation(form.office_id)}>
+                        Cancel · add another
+                      </button>
+                    ) : (
+                      <button type="button" className="btn btn-secondary" onClick={() => setActiveTab('offices')}>
+                        View offices
+                      </button>
+                    )}
+                  </div>
+                </form>
               </div>
-            </form>
-          </div>
+            </>
+          )}
         </section>
       )}
 
       {activeTab === 'assign' && (
         <section className="admin-office-card glass-panel">
           <h3>
-            <UserCheck size={18} /> Assign office location
+            <UserCheck size={18} /> Assign locations to people
           </h3>
           <p>
-            Assign a zone to every employee at once, to any individual, or to a manager so their team inherits it.
+            Assign one location or several. Presence uses only those pins (OR across them). Locations you do not assign
+            never apply to that person.
           </p>
           <div className="admin-office-info">
             <Info size={16} />
             <span>
-              Add at least one active location under <strong>Add location</strong> before assigning people. You can
-              assign different people to different sites.
+              Example: assigned to Location A and B → both work. Location C under the same office does <strong>not</strong>{' '}
+              apply unless you assign it too.
             </span>
           </div>
           <AssignManagerLocationPanel
             key={assignKey}
-            initialOfficeId={assignOfficeId}
+            initialOfficeId={assignLocationId}
             embedded
             onAssigned={() => void load()}
           />
-        </section>
-      )}
-
-      {activeTab === 'offices' && (
-        <section className="admin-office-card glass-panel">
-          <div className="admin-office-card__toolbar">
-            <div>
-              <h3>
-                <MapPin size={18} /> Office locations
-              </h3>
-              <p>
-                Each card is a separate site with its own GPS pin and radius. Add another location anytime — there is no
-                one-office limit.
-              </p>
-            </div>
-            <button type="button" className="btn btn-primary" onClick={startAddLocation}>
-              <Plus size={16} /> Add location
-            </button>
-          </div>
-
-          {offices.length === 0 ? (
-            <div className="admin-office-empty">
-              <MapPin size={40} strokeWidth={1.25} />
-              <h4>No office locations yet</h4>
-              <p>Capture live GPS at your first office and save it. You can add more sites afterward.</p>
-              <button type="button" className="btn btn-primary" onClick={startAddLocation}>
-                <Plus size={16} /> Add first location
-              </button>
-            </div>
-          ) : (
-            <div className="admin-office-grid">
-              {offices.map((o) => {
-                const assigned = assignments.filter((a) => a.site_name === o.name || a.latitude === o.latitude);
-                return (
-                  <article
-                    key={o.id}
-                    className={`admin-office-item glass-panel ${o.active ? '' : 'admin-office-item--inactive'}`}
-                  >
-                    <div className="admin-office-item__head">
-                      <h4>{o.name}</h4>
-                      <span className={`admin-office-item__badge ${o.active ? '' : 'admin-office-item__badge--inactive'}`}>
-                        {o.active ? 'Active' : 'Inactive'}
-                      </span>
-                    </div>
-                    {o.address && <p className="admin-office-item__meta">{o.address}</p>}
-                    <div className="admin-office-item__coords">
-                      {o.latitude.toFixed(5)}, {o.longitude.toFixed(5)} · {o.radius_meters}m radius
-                    </div>
-                    <p className="admin-office-item__meta">
-                      <Users size={12} className="admin-office-item__meta-icon" />
-                      {assigned.length > 0
-                        ? `${assigned.length} manager${assigned.length !== 1 ? 's' : ''} (team zone)`
-                        : 'No manager team zone yet'}
-                    </p>
-                    <div className="admin-office-item__actions">
-                      {o.active && (
-                        <button type="button" className="btn btn-primary btn-sm" onClick={() => startAssign(o.id)}>
-                          <UserCheck size={14} /> Assign
-                        </button>
-                      )}
-                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => editOffice(o)}>
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-danger btn-sm"
-                        onClick={() => void remove(o.id, o.name)}
-                        aria-label={`Delete ${o.name}`}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          )}
         </section>
       )}
     </div>

@@ -7,7 +7,6 @@ import {
   GeoPingEventDetail,
   formatClockTime,
   geoActionLabel,
-  OfficeLocation,
   distanceMeters,
   GeoPingResult,
   AttendanceVisit,
@@ -22,7 +21,11 @@ import {
 import { LocationWindow, formatShiftTimeRange, hasAssignedShiftEnded, isWithinShiftExitWindow, locationWindowToMyShift, shouldCaptureLocationNow } from '../utils/shiftHelpers';
 import { isIosHomeScreen } from '../utils/nativePlatform';
 import { IOS_HOME_BACKGROUND_BANNER } from '../utils/attendanceIosHome';
-import { ATTENDANCE_RULES_PAUSED_MESSAGE, isRulesNotConfigured } from '../utils/attendanceRulesPaused';
+import {
+  ATTENDANCE_RULES_PAUSED_MESSAGE,
+  hasOfficeRadiusPresence,
+  isRulesNotConfigured,
+} from '../utils/attendanceRulesPaused';
 
 interface GeoAttendancePanelProps {
   onClockUpdate?: () => void;
@@ -126,8 +129,8 @@ function timeSlice(t: string | null | undefined): string {
 }
 
 export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanelProps) {
-  const [offices, setOffices] = useState<OfficeLocation[]>([]);
-  const [workSite, setWorkSite] = useState<WorkSite | null>(null);
+  const [workSites, setWorkSites] = useState<WorkSite[]>([]);
+  const workSite = workSites[0] ?? null;
   const [clockIn, setClockIn] = useState<string | null>(null);
   const [clockOut, setClockOut] = useState<string | null>(null);
   const [source, setSource] = useState<string>('manual');
@@ -185,21 +188,37 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
   }, []);
 
   const loadSites = useCallback(async () => {
-    const [{ data: officesData }, { data: siteData, error: siteErr }] = await Promise.all([
-      supabase.rpc('get_office_locations'),
+    const [multiRes, singularRes] = await Promise.all([
+      supabase.rpc('get_my_work_sites'),
       supabase.rpc('get_my_work_site'),
     ]);
-    setOffices((officesData || []) as OfficeLocation[]);
-    if (siteErr) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: legacy } = await supabase.rpc('get_work_site_for_user', { p_user_id: user.id });
-        const row = (legacy as WorkSite[] | null)?.[0];
-        setWorkSite(row?.site_id ? row : null);
-      }
+
+    if (!multiRes.error && Array.isArray(multiRes.data) && multiRes.data.length > 0) {
+      setWorkSites(
+        (multiRes.data as WorkSite[]).filter((r) => r?.site_id && r.latitude != null && r.longitude != null),
+      );
+      return;
+    }
+
+    // Empty multi result (or RPC missing): fall back to singular / legacy
+    if (!multiRes.error && Array.isArray(multiRes.data) && multiRes.data.length === 0) {
+      setWorkSites([]);
+      return;
+    }
+
+    if (!singularRes.error) {
+      const row = (singularRes.data as WorkSite[] | null)?.[0];
+      setWorkSites(row?.site_id ? [row] : []);
+      return;
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: legacy } = await supabase.rpc('get_work_site_for_user', { p_user_id: user.id });
+      const row = (legacy as WorkSite[] | null)?.[0];
+      setWorkSites(row?.site_id ? [row] : []);
     } else {
-      const row = (siteData as WorkSite[] | null)?.[0];
-      setWorkSite(row?.site_id ? row : null);
+      setWorkSites([]);
     }
   }, []);
 
@@ -254,36 +273,38 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
   }, [openShiftPreview]);
 
   const updateNearby = useCallback((lat: number, lng: number, accuracy?: number | null) => {
-    if (workSite) {
-      const dist = distanceMeters(lat, lng, workSite.latitude, workSite.longitude);
-      const radius = effectiveGeofenceRadius(workSite.radius_meters, accuracy);
-      setNearby({
-        name: workSite.site_name,
-        dist: Math.round(dist),
-        inside: dist <= radius,
-        radius: Math.round(radius),
-      });
-      return;
-    }
-    const active = offices.filter((o) => o.active);
-    if (active.length === 0) {
+    // Only assigned locations count — never fall back to every company office pin.
+    if (workSites.length === 0) {
       setNearby(null);
       return;
     }
-    let best = active[0];
+    let best = workSites[0];
     let bestDist = distanceMeters(lat, lng, best.latitude, best.longitude);
-    for (const o of active.slice(1)) {
-      const d = distanceMeters(lat, lng, o.latitude, o.longitude);
-      if (d < bestDist) { best = o; bestDist = d; }
+    let bestRadius = effectiveGeofenceRadius(best.radius_meters, accuracy);
+    let insideAny = bestDist <= bestRadius;
+    for (const site of workSites.slice(1)) {
+      const d = distanceMeters(lat, lng, site.latitude, site.longitude);
+      const r = effectiveGeofenceRadius(site.radius_meters, accuracy);
+      if (d <= r) {
+        best = site;
+        bestDist = d;
+        bestRadius = r;
+        insideAny = true;
+        break;
+      }
+      if (d < bestDist) {
+        best = site;
+        bestDist = d;
+        bestRadius = r;
+      }
     }
-    const radius = effectiveGeofenceRadius(best.radius_meters, accuracy);
     setNearby({
-      name: best.name,
+      name: best.site_name,
       dist: Math.round(bestDist),
-      inside: bestDist <= radius,
-      radius: Math.round(radius),
+      inside: insideAny || bestDist <= bestRadius,
+      radius: Math.round(bestRadius),
     });
-  }, [offices, workSite]);
+  }, [workSites]);
 
   useEffect(() => {
     const onPing = (e: Event) => {
@@ -338,17 +359,39 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
 
   const runClock = async (intent: 'clock_in' | 'clock_out') => {
     setChecking(intent);
-    setError(ATTENDANCE_RULES_PAUSED_MESSAGE);
-    setStatusMessage(ATTENDANCE_RULES_PAUSED_MESSAGE);
+    setError('');
+    setStatusMessage('');
+    const fallbackRadius =
+      workSite?.radius_meters ?? 150;
     try {
       const result = await submitGeoClockEvent(intent);
-      if (isRulesNotConfigured(result)) {
-        setError(ATTENDANCE_RULES_PAUSED_MESSAGE);
-        setStatusMessage(ATTENDANCE_RULES_PAUSED_MESSAGE);
-        return;
-      }
       setLastResult(result);
       setLastSignalAt(Date.now());
+      if (isRulesNotConfigured(result)) {
+        if (hasOfficeRadiusPresence(result)) {
+          const zone = result.effective_radius_meters ?? result.radius_meters ?? fallbackRadius;
+          const presence =
+            result.inside_office === true || result.action === 'inside_office'
+              ? `Inside ${result.office_name || 'office'} · zone ${zone}m`
+              : `Outside ${result.office_name || 'office'} · ${
+                  result.distance_meters != null ? `${Math.round(Number(result.distance_meters))}m away · ` : ''
+                }zone ${zone}m`;
+          setStatusMessage(presence);
+          setError(`${presence}. ${ATTENDANCE_RULES_PAUSED_MESSAGE}`);
+          if (result.distance_meters != null) {
+            setNearby({
+              name: String(result.office_name || workSite?.site_name || 'Office'),
+              dist: Math.round(Number(result.distance_meters)),
+              inside: result.inside_office === true || result.action === 'inside_office',
+              radius: Math.round(Number(zone)),
+            });
+          }
+        } else {
+          setError(ATTENDANCE_RULES_PAUSED_MESSAGE);
+          setStatusMessage(ATTENDANCE_RULES_PAUSED_MESSAGE);
+        }
+        return;
+      }
       if (result.action === 'clock_in' || result.action === 'already_clocked_in') {
         setStatusMessage('Checked in');
         setWifiMatch(true);
@@ -360,7 +403,7 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
         setStatusMessage('No connection - will check when online');
         setError('No connection - will check when online');
       } else if (!isAttendanceSuccessAction(result.action)) {
-        if (result.action === 'outside_office' && !workSite && offices.filter((o) => o.active).length === 0) {
+        if (result.action === 'outside_office' && workSites.length === 0) {
           setError('No work location assigned. Ask admin: Office & Attendance → Assign people.');
         } else if (result.action === 'no_open_visit') {
           setError('Clock in first, then clock out.');
@@ -389,8 +432,8 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
     }
   };
 
-  const hasAnySite = !!workSite || offices.some((o) => o.active);
-  const siteRadius = workSite?.radius_meters ?? offices.find((o) => o.active)?.radius_meters ?? 150;
+  const hasAnySite = workSites.length > 0;
+  const siteRadius = workSite?.radius_meters ?? 150;
   const inWindow = shouldCaptureLocationNow(windowInfo);
   const shiftEnded = windowInfo ? hasAssignedShiftEnded(locationWindowToMyShift(windowInfo)) : false;
   const inExitWindow = windowInfo ? isWithinShiftExitWindow(locationWindowToMyShift(windowInfo)) : false;
@@ -422,10 +465,15 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
         {ATTENDANCE_RULES_PAUSED_MESSAGE}
       </p>
 
-      {workSite && (
+      {workSites.length > 0 && (
         <p className="geo-hint geo-hint--spaced">
-          <Radio size={14} /> Your team site: <strong>{workSite.site_name}</strong>
-          {' '}({workSite.radius_meters}m zone)
+          <Radio size={14} /> Your assigned location{workSites.length === 1 ? '' : 's'}:{' '}
+          <strong>
+            {workSites.map((s) => `${s.site_name} (${s.radius_meters}m)`).join(' · ')}
+          </strong>
+          {workSites.length > 1
+            ? ' — inside any of these counts; other office pins do not apply'
+            : ' — only this pin and radius apply'}
         </p>
       )}
 

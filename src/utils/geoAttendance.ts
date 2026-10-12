@@ -22,6 +22,8 @@ export interface OfficeLocation {
   radius_meters: number;
   active: boolean;
   is_demo?: boolean;
+  /** Parent office grouping many location pins */
+  office_id?: string | null;
   wifi_ssids?: string[];
   wifi_bssids?: string[];
   public_ip_cidrs?: string[];
@@ -29,6 +31,16 @@ export interface OfficeLocation {
   default_timezone?: string | null;
   default_display_timezones?: string[] | null;
   wifi_networks?: OfficeWifiNetwork[];
+}
+
+/** Parent office that owns one or more location pins */
+export interface OfficeGroup {
+  id: string;
+  name: string;
+  active: boolean;
+  is_demo?: boolean;
+  company_id?: string | null;
+  location_count?: number;
 }
 
 /** Foreground auto GPS interval while the dashboard is open (office / hybrid). */
@@ -70,9 +82,11 @@ export type GeoPingAction =
   | 'already_clocked_in'
   | 'already_clocked_out'
   | 'outside_office'
+  | 'inside_office'
   | 'not_on_office_network'
   | 'not_on_office_wifi'
   | 'outside_radius'
+  | 'rules_not_configured'
   | 'gps_unusable'
   | 'need_fresh_location'
   | 'shift_not_started'
@@ -112,9 +126,13 @@ export function attendanceActionMessage(action: string | null | undefined): stri
     case 'gps_unusable':
     case 'need_fresh_location':
       return 'Location unavailable, try again';
+    case 'inside_office':
+      return 'You are inside the office radius';
     case 'outside_radius':
     case 'outside_office':
       return 'You are outside the office radius';
+    case 'rules_not_configured':
+      return 'Attendance rules are paused. Office radius location checks still run.';
     case 'checkin_blocked_shift_ended':
       return 'The shift has ended. You cannot check in.';
     case 'outside_window':

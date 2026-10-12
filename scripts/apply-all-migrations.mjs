@@ -196,6 +196,8 @@ const MIGRATIONS = [
   'FIX_shift_add_member_on_save_2026-10-09.sql',
   'FIX_kpi_approve_hide_weightage_until_month_end_2026-10-09.sql',
   'attendance_rules_reset_2026-10-12.sql',
+  'office_radius_all_employees_2026-10-12.sql',
+  'office_multi_locations_assign_2026-10-12.sql',
 ];
 
 async function runMigration(filename) {
