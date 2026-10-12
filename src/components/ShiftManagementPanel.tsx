@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarClock, Clock3, Loader2, List, Plus, Trash2, Users } from 'lucide-react';
+import { CalendarClock, Clock3, Loader2, List, Plus, Trash2, UserMinus, Users } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Profile } from '../utils/kpiHelpers';
 import { emailShiftAssigned, emailShiftUpdated } from '../utils/kpiEmail';
@@ -420,6 +420,52 @@ export default function ShiftManagementPanel({
     setApplyToAll(false);
     setApplyAllTouched(true);
     setSelectedUserIds([]);
+  };
+
+  /** Drop someone from the create/edit Assigned list (draft selection). */
+  const removeFromFormAssigned = (userId: string) => {
+    setApplyToAll(false);
+    setApplyAllTouched(true);
+    setSelectedUserIds((prev) => {
+      if (applyToAll) {
+        return assignablePeople.map((p) => p.id).filter((id) => id !== userId);
+      }
+      return prev.filter((id) => id !== userId);
+    });
+  };
+
+  /**
+   * Unassign one person. Saved shift membership closes immediately via
+   * closeOpenShiftAssignments; create/edit draft only updates selectedUserIds.
+   */
+  const unassignPerson = async (userId: string, shiftId: string | null | undefined) => {
+    const person =
+      assignablePeople.find((p) => p.id === userId) ||
+      assignments.find((a) => a.user_id === userId);
+    const label = person?.full_name || 'this person';
+    const onThisShift = Boolean(shiftId && assignmentByUser.get(userId)?.shift_id === shiftId);
+
+    removeFromFormAssigned(userId);
+
+    if (!shiftId || !onThisShift) {
+      if (!shiftId) {
+        setMsg(`Removed ${label} from Assigned. They will not be on this shift when you save.`);
+      }
+      return;
+    }
+
+    setSubmitting(true);
+    setMsg('');
+    const err = await closeOpenShiftAssignments(shiftId, [userId]);
+    setSubmitting(false);
+    if (err) {
+      setMsg(`Could not unassign ${label}: ${err}`);
+      await load();
+      return;
+    }
+    setMsg(`Unassigned ${label} from this shift.`);
+    await load();
+    onUpdate?.();
   };
 
   const resetForm = () => {
@@ -1167,7 +1213,8 @@ export default function ShiftManagementPanel({
                 <div className="form-group attendance-form-span-full">
                   <label>People on this shift</label>
                   <p className="attendance-card__subtitle" style={{ margin: '0 0 0.65rem' }}>
-                    Saving makes this shift match the Assigned list: newly checked people are added, unchecked people are removed.
+                    Use Unassign next to a name to remove them. On a saved shift that takes effect right away; on a new draft they drop from the list until you save.
+                    Saving also syncs checkboxes: newly checked people are added.
                     {applyToAll ? ' Apply to everyone is on — everyone is listed as assigned.' : ''}
                   </p>
                   <div className="shift-member-blocks">
@@ -1194,22 +1241,31 @@ export default function ShiftManagementPanel({
                             const row = assignmentByUser.get(p.id);
                             const otherShift =
                               row?.shift_id && editId && row.shift_id !== editId ? row.shift_name : null;
+                            const savedOnThisShift = Boolean(editId && row?.shift_id === editId);
                             return (
-                              <label key={p.id} className="shift-assign-row">
-                                <input
-                                  type="checkbox"
-                                  checked
-                                  disabled={applyToAll}
-                                  onChange={() => toggleUser(p.id)}
-                                />
-                                <span>
+                              <div key={p.id} className="shift-assign-row shift-assign-row--with-actions">
+                                <span className="shift-assign-row__info">
                                   <strong>{p.full_name}</strong>
                                   <span className="shift-assign-meta"> · {p.role}</span>
                                   {otherShift ? (
                                     <span className="shift-assign-shift">Was on {otherShift}</span>
                                   ) : null}
                                 </span>
-                              </label>
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary btn-sm shift-list__action-btn--danger"
+                                  disabled={submitting}
+                                  title={
+                                    savedOnThisShift
+                                      ? 'Remove from this shift now'
+                                      : 'Remove from Assigned list'
+                                  }
+                                  onClick={() => void unassignPerson(p.id, editId)}
+                                >
+                                  <UserMinus size={14} />
+                                  Unassign
+                                </button>
+                              </div>
                             );
                           })
                         )}
@@ -1306,8 +1362,8 @@ export default function ShiftManagementPanel({
               </h3>
               <p className="attendance-card__subtitle">
                 {focusShiftId
-                  ? "Assigned people are on this shift. Unassigned people are everyone else — select them and assign to move them here. Change one person's hours without changing the shared shift."
-                  : "Choose a shift below to see who is assigned versus unassigned. Select unassigned people and assign them. Change one person's hours without changing the shared shift."}
+                  ? "Assigned people are on this shift — use Unassign to remove someone immediately. Unassigned people are everyone else — select them and assign to move them here. Change one person's hours without changing the shared shift."
+                  : "Choose a shift below to see who is assigned versus unassigned. Select unassigned people and assign them, or Unassign someone who is already on a shift. Change one person's hours without changing the shared shift."}
               </p>
               {editHoursUserId && (() => {
                 const editing = assignmentByUser.get(editHoursUserId);
@@ -1387,6 +1443,7 @@ export default function ShiftManagementPanel({
                     ) : (
                       assignedMembers.map((p) => {
                         const row = assignmentByUser.get(p.id);
+                        const memberShiftId = row?.shift_id || focusShiftId || null;
                         const hours =
                           row?.start_time && row?.end_time
                             ? formatShiftTimeRange(
@@ -1396,8 +1453,8 @@ export default function ShiftManagementPanel({
                               )
                             : '';
                         return (
-                          <div key={p.id} className="shift-assign-row" style={{ alignItems: 'center', gap: '0.5rem' }}>
-                            <span style={{ flex: 1 }}>
+                          <div key={p.id} className="shift-assign-row shift-assign-row--with-actions">
+                            <span className="shift-assign-row__info">
                               <strong>{p.full_name}</strong>
                               <span className="shift-assign-meta"> · {p.role}</span>
                               <span className="shift-assign-shift">{row?.shift_name || 'Shift'}</span>
@@ -1406,13 +1463,25 @@ export default function ShiftManagementPanel({
                                 <span className="shift-active-pill" style={{ marginLeft: '0.35rem' }}>Custom hours</span>
                               ) : null}
                             </span>
-                            <button
-                              type="button"
-                              className="btn btn-secondary btn-sm"
-                              onClick={() => row && openEditHours(row)}
-                            >
-                              <Clock3 size={14} /> Change hours
-                            </button>
+                            <div className="shift-assign-row__actions">
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                onClick={() => row && openEditHours(row)}
+                              >
+                                <Clock3 size={14} /> Change hours
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-sm shift-list__action-btn--danger"
+                                disabled={submitting || !memberShiftId}
+                                title="Remove from this shift now"
+                                onClick={() => void unassignPerson(p.id, memberShiftId)}
+                              >
+                                <UserMinus size={14} />
+                                Unassign
+                              </button>
+                            </div>
                           </div>
                         );
                       })

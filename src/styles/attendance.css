@@ -1287,6 +1287,23 @@
   border-bottom: none;
 }
 
+.shift-assign-row--with-actions {
+  align-items: center;
+  cursor: default;
+}
+
+.shift-assign-row__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.shift-assign-row__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
 .shift-assign-row input {
   margin-top: 0.2rem;
   width: auto;
