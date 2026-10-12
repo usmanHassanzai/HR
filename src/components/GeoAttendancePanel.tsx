@@ -23,6 +23,7 @@ import { isIosHomeScreen } from '../utils/nativePlatform';
 import { IOS_HOME_BACKGROUND_BANNER } from '../utils/attendanceIosHome';
 import {
   ATTENDANCE_RULES_PAUSED_MESSAGE,
+  MANUAL_CHECKIN_RULE_MESSAGE,
   hasOfficeRadiusPresence,
   isRulesNotConfigured,
 } from '../utils/attendanceRulesPaused';
@@ -462,9 +463,7 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
         <span className="badge badge-on-track geo-attendance-panel__badge">Entry + exit</span>
       </h3>
       <p className="attendance-card__subtitle" role="status">
-        Presence uses your assigned location pin(s) and radius. Clock window uses your assigned shift times.
-        {' '}
-        {ATTENDANCE_RULES_PAUSED_MESSAGE}
+        {MANUAL_CHECKIN_RULE_MESSAGE}
       </p>
 
       {workSites.length > 0 && (
@@ -581,8 +580,8 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
         <p className={`geo-nearby ${nearby.inside ? '' : 'geo-nearby--out'}`}>
           <Radio size={14} />
           {nearby.inside
-            ? `Inside ${nearby.name} · ${nearby.dist}m from center. Check-in also needs the office Wi-Fi.`
-            : `Outside ${nearby.name} · ${nearby.dist}m away. Not inside the office radius.`}
+            ? `Inside ${nearby.name} · ${nearby.dist}m from center. Radius alone is enough if you are not on office Wi-Fi.`
+            : `Outside ${nearby.name} · ${nearby.dist}m away. Need configured office Wi-Fi or move inside the radius.`}
         </p>
       )}
 

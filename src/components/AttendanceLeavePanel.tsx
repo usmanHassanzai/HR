@@ -52,14 +52,14 @@ interface AttendanceLeavePanelProps {
 }
 
 type EmployeeTab = 'today' | 'leave' | 'history';
-type ManagerTab = 'approvals' | 'today' | 'team' | 'shifts' | 'history';
+type ManagerTab = 'approvals' | 'today' | 'team' | 'history';
 type AdminTab = 'leave' | 'remote' | 'shifts' | 'history' | 'today';
 
 const ATT_EMP_TAB_KEY = 'scorr-att-emp-active-tab';
 const ATT_MGR_TAB_KEY = 'scorr-att-mgr-active-tab';
 const ATT_ADMIN_TAB_KEY = 'scorr-att-admin-active-tab';
 const EMPLOYEE_ATT_TABS: EmployeeTab[] = ['today', 'leave', 'history'];
-const MANAGER_ATT_TABS: ManagerTab[] = ['approvals', 'today', 'team', 'shifts', 'history'];
+const MANAGER_ATT_TABS: ManagerTab[] = ['approvals', 'today', 'team', 'history'];
 const ADMIN_ATT_TABS: AdminTab[] = ['leave', 'remote', 'shifts', 'history', 'today'];
 
 function hashAttendanceSub<T extends string>(allowed: readonly T[]): T | null {
@@ -1242,7 +1242,7 @@ export default function AttendanceLeavePanel({
             <div>
               <h2 className="mgr-attendance-header__title">Attendance &amp; Leave</h2>
               <p className="mgr-attendance-header__subtitle">
-                Approve team leave, mark attendance, manage shifts, and download your own or each employee&apos;s
+                Approve team leave, mark attendance, and download your own or each employee&apos;s
                 history as a monthly or yearly report. Check-ins are approved automatically.
               </p>
             </div>
@@ -1307,13 +1307,6 @@ export default function AttendanceLeavePanel({
           </button>
           <button
             type="button"
-            className={`tab-btn ${managerTab === 'shifts' ? 'tab-btn--active' : ''}`}
-            onClick={() => setManagerTab('shifts')}
-          >
-            <CalendarClock size={16} /> Shifts
-          </button>
-          <button
-            type="button"
             className={`tab-btn ${managerTab === 'history' ? 'tab-btn--active' : ''}`}
             onClick={() => setManagerTab('history')}
           >
@@ -1368,12 +1361,6 @@ export default function AttendanceLeavePanel({
             {renderQuickStats()}
             {renderLeaveForm('Your leave goes to admin for approval.')}
           </>
-        )}
-
-        {managerTab === 'shifts' && (
-          <section className="mgr-attendance-card">
-            <ShiftManagementPanel teamMembers={teamMembers} onUpdate={load} />
-          </section>
         )}
 
         {managerTab === 'team' && (

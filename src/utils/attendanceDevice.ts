@@ -13,10 +13,10 @@ const TOKEN_KEY = 'scorr_attendance_device_token';
 const DEVICE_ID_KEY = 'scorr_attendance_device_id';
 
 export const PHONE_OPT_IN_TEXT =
-  'After this one-time setup, Scorr checks you in automatically when this Android phone is on your assigned office Wi-Fi, or when location is on and you enter the office radius — from 1 hour before your shift starts until the shift ends. You do not need to open the app each day. If the same account is already checked in on another device, this phone is ignored for check-in.';
+  'After this one-time setup, Scorr checks you in automatically when this Android phone is on your configured office Wi-Fi (no radius needed), or — if not on that Wi-Fi — when location is on and you are inside the office radius. Window: 1 hour before shift start until shift end. After checkout, returning on office Wi-Fi or inside the radius checks you in again. Public Wi-Fi does not count. If the same account is already checked in on another device, this phone is ignored for check-in.';
 
 export const LAPTOP_OPT_IN_TEXT =
-  'After this one-time setup, Scorr checks you in automatically when this computer is on your assigned office Wi-Fi, or when location is available and you are inside the office radius — from 1 hour before your shift starts until the shift ends. You do not need to open the dashboard each day. If the same account is already checked in on another device, this laptop is ignored for check-in.';
+  'After this one-time setup, Scorr checks you in automatically when this computer is on your configured office Wi-Fi (no radius needed), or — if not on that Wi-Fi — when location is available and you are inside the office radius. Window: 1 hour before shift start until shift end. After checkout, returning on office Wi-Fi or inside the radius checks you in again. Public Wi-Fi does not count. If the same account is already checked in on another device, this laptop is ignored for check-in.';
 
 async function secureGet(key: string): Promise<string | null> {
   try {
@@ -90,6 +90,16 @@ export async function registerAttendanceDevice(appVersion?: string): Promise<{
 export async function disableAutoAttendanceOnDevice(kind: 'phone' | 'laptop' = 'phone'): Promise<void> {
   await supabase.rpc('disable_my_auto_attendance', { p_kind: kind });
   await secureRemove(TOKEN_KEY);
+  try {
+    const clear = (
+      window as unknown as {
+        scorrDesktop?: { clearAttendanceToken?: () => Promise<boolean> | boolean | void };
+      }
+    ).scorrDesktop?.clearAttendanceToken;
+    if (clear) await Promise.resolve(clear());
+  } catch {
+    /* ignore */
+  }
   if (kind === 'phone') {
     try {
       const { stopNativeAttendancePings } = await import('./attendanceNativePing');

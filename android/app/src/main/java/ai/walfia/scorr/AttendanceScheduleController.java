@@ -144,6 +144,10 @@ final class AttendanceScheduleController {
             if (companyTz != null && !companyTz.isEmpty()) {
                 AttendancePingStore.saveCompanyTz(app, companyTz);
             }
+            // Manual / other-device checkout: allow auto re-entry when no open session.
+            if (json.has("session_open") && !json.optBoolean("session_open", true)) {
+                AttendancePingStore.setCheckedInAttendanceDate(app, null);
+            }
             return null;
         } catch (Exception e) {
             Log.w(TAG, "schedule fetch failed", e);

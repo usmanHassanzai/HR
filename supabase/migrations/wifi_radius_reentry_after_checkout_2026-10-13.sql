@@ -566,6 +566,9 @@ BEGIN
     );
   END IF;
 
+  -- Capture before EXISTS overwrites FOUND (closed day → re-entry path below)
+  v_was_closed := FOUND AND v_rec.clock_in_at IS NOT NULL AND v_rec.clock_out_at IS NOT NULL;
+
   IF EXISTS (
     SELECT 1 FROM public.attendance_visit_segments vs
     WHERE vs.user_id = v_dev.user_id
@@ -584,9 +587,6 @@ BEGIN
       'message', 'Already checked in (open visit).'
     );
   END IF;
-
-  -- Closed earlier today → allow re-entry if Wi-Fi / radius matches below
-  v_was_closed := FOUND AND v_rec.clock_in_at IS NOT NULL AND v_rec.clock_out_at IS NOT NULL;
 
   v_gps_usable := p_latitude IS NOT NULL AND p_longitude IS NOT NULL
     AND (p_accuracy_m IS NULL OR p_accuracy_m <= 100);
@@ -678,8 +678,9 @@ BEGIN
         ELSE 'outside_radius'
       END,
       'decision_order', 'wifi_then_radius',
+      'office_wifi_only', true,
       'session_open', false,
-      'message', 'Not on office Wi-Fi and not inside the office radius.'
+      'message', 'Not on configured office Wi-Fi (assigned location) and not inside the office radius. Public/arbitrary Wi-Fi does not count.'
     );
   END IF;
 
@@ -796,11 +797,12 @@ BEGIN
     'window_start_utc', v_checkin_start,
     'window_end_utc', v_checkin_end,
     'decision_order', 'wifi_then_radius',
+    'office_wifi_only', true,
     'message', CASE
       WHEN v_was_closed AND v_match_via = 'gps' THEN 'Checked in again inside the office radius.'
-      WHEN v_was_closed THEN 'Checked in again on office Wi-Fi.'
-      WHEN v_match_via = 'gps' THEN 'Checked in inside the office radius (not on office Wi-Fi).'
-      ELSE 'Checked in on office Wi-Fi.'
+      WHEN v_was_closed THEN 'Checked in again on configured office Wi-Fi.'
+      WHEN v_match_via = 'gps' THEN 'Checked in inside the office radius (not on configured office Wi-Fi).'
+      ELSE 'Checked in on configured office Wi-Fi (radius not required).'
     END
   );
 END;

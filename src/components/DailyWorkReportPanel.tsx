@@ -116,7 +116,12 @@ export default function DailyWorkReportPanel({ profile, compact = false }: Daily
       });
       await load();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Could not submit report.';
+      const msg =
+        (err instanceof Error && err.message) ||
+        (err && typeof err === 'object' && 'message' in err && typeof (err as { message: unknown }).message === 'string'
+          ? (err as { message: string }).message
+          : null) ||
+        'Could not submit report.';
       setMessage({ type: 'error', text: msg });
     } finally {
       setSaving(false);
@@ -126,7 +131,7 @@ export default function DailyWorkReportPanel({ profile, compact = false }: Daily
   const minDate = (() => {
     const d = new Date();
     d.setDate(d.getDate() - 7);
-    return d.toISOString().slice(0, 10);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   })();
 
   return (

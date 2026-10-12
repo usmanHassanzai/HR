@@ -1,6 +1,10 @@
-/** Manual check-in/out RPCs remain paused; auto check-in + early/any-location check-out are live on Android + desktop. */
+/** Shown only when the server still returns a paused / rules_not_configured write block. */
 export const ATTENDANCE_RULES_PAUSED_MESSAGE =
-  'Manual Clock in / Clock out is still paused. Automatic check-in runs on Android and desktop on office Wi-Fi or inside the office radius. Check-out can happen from any location during the shift, or automatically at shift end.';
+  'Check-in/out writes are paused on the server. Automatic check-in on Android and desktop uses configured office Wi-Fi first, else office radius.';
+
+/** Short product copy for the Clock in panel (writes live). */
+export const MANUAL_CHECKIN_RULE_MESSAGE =
+  'Clock in: configured office Wi-Fi (no radius needed), or GPS inside your assigned office radius. Window: 1 hour before shift start until shift end. Public Wi-Fi does not count.';
 
 export function isRulesNotConfigured(result: unknown): boolean {
   if (!result || typeof result !== 'object') return false;

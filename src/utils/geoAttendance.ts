@@ -122,7 +122,7 @@ export function attendanceActionMessage(action: string | null | undefined): stri
   switch (action) {
     case 'not_on_office_wifi':
     case 'not_on_office_network':
-      return 'Connect to the office Wi-Fi';
+      return 'Connect to the configured office Wi-Fi, or move inside the office radius with location on';
     case 'gps_unusable':
     case 'need_fresh_location':
       return 'Location unavailable, try again';
@@ -130,7 +130,7 @@ export function attendanceActionMessage(action: string | null | undefined): stri
       return 'You are inside the office radius';
     case 'outside_radius':
     case 'outside_office':
-      return 'You are outside the office radius';
+      return 'Not on office Wi-Fi and outside the office radius';
     case 'rules_not_configured':
       return 'Check-in/out writes are paused. Assigned location radius and shift windows still apply.';
     case 'checkin_blocked_shift_ended':
@@ -359,24 +359,59 @@ export async function pingAttendanceBeforeLogout(): Promise<void> {
 
 export type GeoClockIntent = 'clock_in' | 'clock_out';
 
-/** One GPS read, then server clock-in or clock-out. No interval logging. */
+/** Best-effort SSID/BSSID for manual Clock in (Android plugin or desktop IPC). */
+async function probeDeviceWifiIdentity(): Promise<{ ssid: string | null; bssid: string | null }> {
+  try {
+    const desktop = (
+      window as unknown as {
+        scorrDesktop?: { probeWifi?: () => Promise<{ ssid?: string | null; bssid?: string | null }> };
+      }
+    ).scorrDesktop;
+    if (typeof desktop?.probeWifi === 'function') {
+      const n = await desktop.probeWifi();
+      return { ssid: n?.ssid || null, bssid: n?.bssid || null };
+    }
+  } catch {
+    /* ignore */
+  }
+  try {
+    const { registerPlugin } = await import('@capacitor/core');
+    const probe = registerPlugin<{ probeNetwork?: () => Promise<{ ssid?: string; bssid?: string }> }>(
+      'AttendancePing',
+    );
+    if (typeof probe.probeNetwork === 'function') {
+      const n = await probe.probeNetwork();
+      return { ssid: n?.ssid || null, bssid: n?.bssid || null };
+    }
+  } catch {
+    /* web / unavailable */
+  }
+  return { ssid: null, bssid: null };
+}
+
+/** One GPS read (+ optional Wi-Fi probe), then server clock-in or clock-out. */
 export async function submitGeoClockEvent(intent: GeoClockIntent): Promise<GeoPingResult> {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
     const result: GeoPingResult = { action: 'no_connection' as GeoPingAction, reason: 'no_connection' };
     dispatchGeoPing({ result, auto: false, checkedAt: Date.now() });
     return result;
   }
-  const pos = await requestCurrentPosition({
-    maximumAge: 0,
-    timeout: 20_000,
-    enableHighAccuracy: true,
-  });
+  const [pos, wifi] = await Promise.all([
+    requestCurrentPosition({
+      maximumAge: 0,
+      timeout: 20_000,
+      enableHighAccuracy: true,
+    }),
+    intent === 'clock_in' ? probeDeviceWifiIdentity() : Promise.resolve({ ssid: null, bssid: null }),
+  ]);
   const { data, error } = await supabase.rpc('process_geo_attendance_ping', {
     p_latitude: pos.coords.latitude,
     p_longitude: pos.coords.longitude,
     p_accuracy: pos.coords.accuracy ?? null,
     p_intent: intent,
     p_is_mock: positionIsMock(pos),
+    p_ssid: wifi.ssid,
+    p_bssid: wifi.bssid,
   });
   if (error) {
     const msg = String(error.message || '');

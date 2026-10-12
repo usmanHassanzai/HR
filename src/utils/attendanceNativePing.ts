@@ -1,5 +1,6 @@
 import { registerPlugin } from '@capacitor/core';
 import { supabaseUrl, supabaseAnonKey } from '../lib/supabaseConfig';
+import { packageVersion } from './appUpdate';
 import { isAndroidApp } from './nativePlatform';
 import { getAttendanceDeviceToken } from './attendanceDevice';
 
@@ -64,7 +65,7 @@ export async function startNativeAttendancePings(): Promise<void> {
       anonKey: supabaseAnonKey,
       deviceToken,
       deviceId,
-      appVersion: '1.3.21',
+      appVersion: packageVersion(),
     });
   } catch {
     /* plugin unavailable */

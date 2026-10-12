@@ -205,6 +205,9 @@ const MIGRATIONS = [
   'wifi_auto_checkin_2026-10-13.sql',
   'auto_checkout_shift_end_2026-10-13.sql',
   'early_checkout_any_location_2026-10-13.sql',
+  'wifi_radius_reentry_after_checkout_2026-10-13.sql',
+  'manual_wifi_or_radius_checkin_2026-10-13.sql',
+  'FIX_daily_work_report_local_today_2026-10-13.sql',
 ];
 
 async function runMigration(filename) {

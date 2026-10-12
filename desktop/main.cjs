@@ -299,6 +299,11 @@ async function syncSchedule() {
   });
   if (data?.ok) {
     cachedSchedule = data;
+    // Manual / other-device checkout: clear local suppress so re-entry can fire.
+    if (Object.prototype.hasOwnProperty.call(data, 'session_open') && data.session_open === false) {
+      checkedInAttendanceDate = null;
+      checkedInState = null;
+    }
     try {
       fs.writeFileSync(SCHEDULE_FILE(), JSON.stringify(data), 'utf8');
     } catch {
@@ -448,7 +453,7 @@ async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = nul
   const token = loadToken();
   if (!token || !SUPABASE_ANON) return null;
 
-  // One check-in only — server also returns already_in; stop local spam after success.
+  // Suppress while open session marked locally; cleared on clock_out so re-entry can fire.
   if (isCheckinEventName(event) && stillSuppressCheckin()) {
     return { ok: true, action: 'already_in', reason: 'already_in', ignored: true, client_suppressed: true };
   }
@@ -516,15 +521,19 @@ async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = nul
     }
   }
 
-  if (res?.action === 'clock_out') {
+  if (
+    res?.action === 'clock_out' ||
+    res?.session_open === false ||
+    res?.reason === 'already_checked_out'
+  ) {
     checkedInAttendanceDate = null;
     checkedInState = null;
     wasOnOfficeWifi = false;
   } else if (
-    res?.action === 'clock_in' ||
-    res?.action === 'already_in' ||
-    res?.action === 'already_done' ||
-    res?.suppress_checkin
+    res?.action !== 'clock_out' &&
+    (res?.action === 'clock_in' ||
+      res?.action === 'already_in' ||
+      res?.suppress_checkin)
   ) {
     checkedInAttendanceDate =
       res?.attendance_date ||
@@ -535,12 +544,12 @@ async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = nul
 
   if (res?.action === 'clock_in') {
     wasOnOfficeWifi = matchesScheduleOfficeWifi(wifi) || wasOnOfficeWifi;
-    notify('Scorr', 'Checked in');
+    notify('Scorr', res?.reentry ? 'Checked in again' : 'Checked in');
   } else if (res?.action === 'clock_out') {
     const t = res?.local_time ? ` at ${res.local_time}` : '';
     notify('Scorr', `Checked out${t}`);
-  } else if (res?.action === 'already_in' || res?.action === 'already_done') {
-    /* quiet — already checked in / day complete; early leave or shift-end closes */
+  } else if (res?.action === 'already_in') {
+    /* quiet — open session; leave or shift-end closes */
   } else if (res?.action === 'not_on_office_wifi' || res?.action === 'not_on_office_network') {
     notify('Scorr', 'Connect to the office Wi-Fi or enter the office radius');
   } else if (res?.action === 'outside_radius') {
@@ -557,7 +566,9 @@ async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = nul
   } else if (res?.action === 'event_too_old') {
     /* ignore */
   }
-  if (res?.stop_tracking) {
+  // Only stop heartbeat for terminal stops (revoked / platform off / past window end).
+  // Early checkout must keep listening for Wi-Fi/radius re-entry.
+  if (res?.stop_tracking && res?.action !== 'clock_out') {
     stopHeartbeat();
   }
   if (res?.reason === 'schedule_changed') {
@@ -883,6 +894,7 @@ app.whenReady().then(async () => {
       return { ok: false, message: e instanceof Error ? e.message : String(e) };
     }
   });
+  ipcMain.handle('scorr:probeWifi', () => readWifiIdentity());
   ipcMain.handle('scorr:quitAndInstall', () => {
     if (autoUpdater) autoUpdater.quitAndInstall(false, true);
     return { ok: true };

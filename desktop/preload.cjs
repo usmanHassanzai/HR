@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('scorrDesktop', {
   getAutoLaunch: () => ipcRenderer.invoke('scorr:getAutoLaunch'),
   checkForUpdates: () => ipcRenderer.invoke('scorr:checkForUpdates'),
   quitAndInstall: () => ipcRenderer.invoke('scorr:quitAndInstall'),
+  probeWifi: () => ipcRenderer.invoke('scorr:probeWifi'),
   onUpdateReady: (cb) => {
     const handler = (_e, payload) => cb(payload);
     ipcRenderer.on('scorr:update-ready', handler);

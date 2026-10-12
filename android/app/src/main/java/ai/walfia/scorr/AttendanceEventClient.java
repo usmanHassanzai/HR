@@ -244,25 +244,38 @@ final class AttendanceEventClient {
     private static void handleResponse(Context app, String respText, JSONObject requestBody) {
         try {
             JSONObject json = new JSONObject(respText);
-            if (json.optBoolean("stop_tracking", false)) {
-                AttendanceScheduleController.stopAll(app);
-                return;
-            }
             String action = json.optString("action", "");
             String reason = json.optString("reason", action);
-            if ("clock_in".equals(action)
-                || "already_in".equals(action)
-                || "already_done".equals(action)
-                || json.optBoolean("suppress_checkin", false)) {
+
+            // Clear local suppress on checkout / closed session before any stop_tracking exit
+            // so mid-shift leave can still re-enter on Wi-Fi / radius.
+            if ("clock_out".equals(action)
+                || json.optBoolean("resume_checkin", false)
+                || (json.has("session_open") && !json.optBoolean("session_open", true))
+                || "already_checked_out".equals(reason)) {
+                AttendancePingStore.setCheckedInAttendanceDate(app, null);
+            }
+
+            // Mid-shift clock_out must keep probing; only terminal stops halt the FGS.
+            if (json.optBoolean("stop_tracking", false) && !"clock_out".equals(action)) {
+                AttendanceScheduleController.stopAll(app);
+                AttendancePingStore.setLastServerAction(app, action, System.currentTimeMillis());
+                return;
+            }
+
+            // Suppress further check-in spam only while an open session exists.
+            if (!"clock_out".equals(action)
+                && ("clock_in".equals(action)
+                    || "already_in".equals(action)
+                    || json.optBoolean("suppress_checkin", false))) {
                 markCheckedInFromResponse(app, json);
             }
             if ("clock_in".equals(action)) {
                 showCheckNotification(app, action, json);
                 updateStatusNotification(app, "Checked in", requestBody);
-            } else if ("already_in".equals(action) || "already_done".equals(action)) {
+            } else if ("already_in".equals(action)) {
                 updateStatusNotification(app, "Checked in", requestBody);
             } else if ("clock_out".equals(action)) {
-                AttendancePingStore.setCheckedInAttendanceDate(app, null);
                 showCheckNotification(app, action, json);
                 String localTime = firstString(json, "local_time", "local_check_time");
                 long occurredMs = parseOccurredMs(json);

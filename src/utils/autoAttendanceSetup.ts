@@ -97,10 +97,23 @@ export async function fetchSetupStatus(): Promise<SetupStatus> {
     (async () => {
       const { data, error } = await supabase.rpc('get_auto_attendance_setup_status');
       if (error) throw new Error(error.message);
-      const raw = data as SetupStatus;
+      const raw = (data || {}) as Partial<SetupStatus> & { message?: string; ready?: boolean };
+      const issuesRaw = raw.issues;
+      const issues = Array.isArray(issuesRaw)
+        ? issuesRaw.map(String)
+        : typeof raw.message === 'string' && raw.ready === false
+          ? [raw.message]
+          : [];
       return {
-        ...raw,
-        issues: Array.isArray(raw?.issues) ? raw.issues.map(String) : [],
+        ok: Boolean(raw.ok ?? raw.ready ?? issues.length === 0),
+        issues,
+        user: raw.user as SetupStatus['user'],
+        company: raw.company as SetupStatus['company'],
+        office: raw.office ?? null,
+        shift: raw.shift ?? null,
+        has_enrolled_device: Boolean(raw.has_enrolled_device),
+        enrolled_device_count: Number(raw.enrolled_device_count || 0),
+        is_admin: Boolean(raw.is_admin),
       };
     })(),
     15_000,
@@ -108,12 +121,21 @@ export async function fetchSetupStatus(): Promise<SetupStatus> {
   );
 }
 
-export async function registerDeviceViaRpc(appVersion = '1.3.21'): Promise<{
+export async function registerDeviceViaRpc(appVersion?: string): Promise<{
   ok: boolean;
   device_token?: string;
   error?: string;
 }> {
   const platform = clientAttendancePlatform();
+  const version =
+    appVersion ||
+    (() => {
+      try {
+        return String(import.meta.env.VITE_APP_VERSION || '1.3.24');
+      } catch {
+        return '1.3.24';
+      }
+    })();
 
   if (platform === 'ios') {
     return {
@@ -163,7 +185,7 @@ export async function registerDeviceViaRpc(appVersion = '1.3.21'): Promise<{
           p_device_id: deviceId,
           p_platform: platform,
           p_device_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          p_app_version: appVersion,
+          p_app_version: version,
           p_token_plaintext: null,
         }),
       ),
