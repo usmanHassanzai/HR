@@ -29,13 +29,6 @@ function isAlertError(message: string): boolean {
   return /fail|denied|required|please|error|must|cannot|warn/i.test(message);
 }
 
-function splitList(s: string): string[] {
-  return s
-    .split(/[\n,]+/)
-    .map((x) => x.trim())
-    .filter(Boolean);
-}
-
 export default function OfficeLocationSettings() {
   const [offices, setOffices] = useState<OfficeLocation[]>([]);
   const [assignments, setAssignments] = useState<ManagerSiteRow[]>([]);
@@ -54,7 +47,6 @@ export default function OfficeLocationSettings() {
     radius_meters: '150',
     active: true,
     default_timezone: '',
-    default_display_timezones: '',
   });
 
   const showMsg = useCallback((text: string) => {
@@ -90,8 +82,15 @@ export default function OfficeLocationSettings() {
       radius_meters: '150',
       active: true,
       default_timezone: '',
-      default_display_timezones: '',
     });
+  };
+
+  /** Clear the form and open the create tab so admins can add another office site. */
+  const startAddLocation = () => {
+    resetForm();
+    setMsg('');
+    setActiveTab('create');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const editOffice = (o: OfficeLocation) => {
@@ -104,7 +103,6 @@ export default function OfficeLocationSettings() {
       radius_meters: String(o.radius_meters),
       active: o.active,
       default_timezone: o.default_timezone || '',
-      default_display_timezones: (o.default_display_timezones || []).join(', '),
     });
     setActiveTab('create');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -163,14 +161,18 @@ export default function OfficeLocationSettings() {
     const match =
       list.find((o) => (resolvedId ? o.id === resolvedId : o.name === savedName)) ||
       list.find((o) => o.name === savedName);
-    if (match && (form.default_timezone || form.default_display_timezones)) {
+    if (match && form.default_timezone) {
       await supabase.rpc('update_office_default_timezones', {
         p_office_id: match.id,
-        p_default_timezone: form.default_timezone || null,
-        p_default_display_timezones: splitList(form.default_display_timezones),
+        p_default_timezone: form.default_timezone,
+        p_default_display_timezones: [],
       });
     }
-    showMsg(wasNew ? `"${savedName}" saved.` : `"${savedName}" updated.`);
+    showMsg(
+      wasNew
+        ? `"${savedName}" saved. You can assign people now, or add another location anytime.`
+        : `"${savedName}" updated.`,
+    );
     resetForm();
     await load();
     if (wasNew && match) startAssign(match.id);
@@ -208,10 +210,15 @@ export default function OfficeLocationSettings() {
           <div>
             <h2 className="admin-office-header__title">Office &amp; Attendance</h2>
             <p className="admin-office-header__subtitle">
-              Define geofenced office locations for check-in. The same settings appear on web, the desktop app, and the
-              mobile app.
+              Add as many geofenced office locations as you need (HQ, branch, warehouse). Each site has its own GPS pin
+              and radius. The same settings apply on web, desktop, and mobile.
             </p>
           </div>
+          {offices.length > 0 && (
+            <button type="button" className="btn btn-primary admin-office-header__add" onClick={startAddLocation}>
+              <Plus size={16} /> Add location
+            </button>
+          )}
         </div>
 
         <div className="admin-office-stats">
@@ -240,13 +247,13 @@ export default function OfficeLocationSettings() {
 
       <div className="admin-office-steps">
         <span className={`admin-office-step ${activeTab === 'create' ? 'admin-office-step--active' : ''}`}>
-          1 · Capture &amp; save zone
+          1 · Add location
         </span>
         <span className={`admin-office-step ${activeTab === 'assign' ? 'admin-office-step--active' : ''}`}>
           2 · Assign people
         </span>
         <span className={`admin-office-step ${activeTab === 'offices' ? 'admin-office-step--active' : ''}`}>
-          3 · Manage offices
+          3 · All locations
         </span>
       </div>
 
@@ -256,7 +263,7 @@ export default function OfficeLocationSettings() {
           className={`tab-btn ${activeTab === 'create' ? 'tab-btn--active' : ''}`}
           onClick={() => setActiveTab('create')}
         >
-          <Navigation size={16} /> Create zone
+          <Plus size={16} /> {form.id ? 'Edit location' : 'Add location'}
         </button>
         <button
           type="button"
@@ -270,7 +277,7 @@ export default function OfficeLocationSettings() {
           className={`tab-btn ${activeTab === 'offices' ? 'tab-btn--active' : ''}`}
           onClick={() => setActiveTab('offices')}
         >
-          <MapPin size={16} /> All offices ({offices.length})
+          <MapPin size={16} /> Locations ({offices.length})
         </button>
       </div>
 
@@ -290,15 +297,33 @@ export default function OfficeLocationSettings() {
       {activeTab === 'create' && (
         <section className="admin-office-card glass-panel">
           <h3>
-            <Navigation size={18} /> {form.id ? 'Edit office zone' : 'Create office zone'}
+            <Navigation size={18} /> {form.id ? 'Edit office location' : 'Add office location'}
           </h3>
-          <p>Stand at the office entrance, capture live GPS, fine-tune on the map, then save to Supabase.</p>
+          <p>
+            {form.id
+              ? 'Update this site’s GPS pin, radius, or details. Changes apply to everyone already assigned here.'
+              : 'Stand at the entrance, capture live GPS, fine-tune on the map, then save. Repeat to add another site.'}
+          </p>
+
+          {!form.id && offices.length > 0 && (
+            <div className="admin-office-info">
+              <Info size={16} />
+              <span>
+                You already have <strong>{offices.length}</strong> location{offices.length !== 1 ? 's' : ''}. Saving
+                below adds a new one — it does not replace existing sites. Manage them under{' '}
+                <button type="button" className="admin-office-inline-link" onClick={() => setActiveTab('offices')}>
+                  Locations
+                </button>
+                .
+              </span>
+            </div>
+          )}
 
           <div className="admin-office-form-section">
             <p className="admin-office-form-section__title">Step 1 · Stand at office &amp; capture live GPS</p>
             <p className="admin-office-form-help">
-              The location where you stand becomes the center of the check-in zone. Saving updates everyone already
-              assigned to this office.
+              The spot where you stand becomes the center of this location’s check-in zone.
+              {form.id ? ' Saving updates everyone already assigned to this office.' : ''}
             </p>
             <LiveGpsCapture latitude={form.latitude} longitude={form.longitude} onCapture={setCoords} />
           </div>
@@ -376,14 +401,6 @@ export default function OfficeLocationSettings() {
                   onChange={(tz) => setForm({ ...form, default_timezone: tz })}
                 />
               </div>
-              <div className="form-group admin-office-span-full">
-                <label>Default extra display zones (IANA ids, comma-separated)</label>
-                <input
-                  value={form.default_display_timezones}
-                  onChange={(e) => setForm({ ...form, default_display_timezones: e.target.value })}
-                  placeholder="Asia/Karachi, Asia/Dubai"
-                />
-              </div>
               <div className="form-group">
                 <label htmlFor="office-radius">Check-in radius (meters)</label>
                 <input
@@ -406,17 +423,23 @@ export default function OfficeLocationSettings() {
                   {saving ? (
                     <Loader2 size={16} className="spin-icon" />
                   ) : form.id ? (
-                    'Update office zone'
+                    'Update location'
                   ) : (
                     <>
-                      <Plus size={16} /> Save office zone
+                      <Plus size={16} /> Save location
                     </>
                   )}
                 </button>
-                {form.id && (
-                  <button type="button" className="btn btn-secondary" onClick={resetForm}>
-                    Cancel edit
+                {form.id ? (
+                  <button type="button" className="btn btn-secondary" onClick={startAddLocation}>
+                    Cancel · add another instead
                   </button>
+                ) : (
+                  offices.length > 0 && (
+                    <button type="button" className="btn btn-secondary" onClick={() => setActiveTab('offices')}>
+                      View all locations
+                    </button>
+                  )
                 )}
               </div>
             </form>
@@ -435,7 +458,8 @@ export default function OfficeLocationSettings() {
           <div className="admin-office-info">
             <Info size={16} />
             <span>
-              Create at least one active office under <strong>Create zone</strong> before assigning people.
+              Add at least one active location under <strong>Add location</strong> before assigning people. You can
+              assign different people to different sites.
             </span>
           </div>
           <AssignManagerLocationPanel
@@ -449,18 +473,29 @@ export default function OfficeLocationSettings() {
 
       {activeTab === 'offices' && (
         <section className="admin-office-card glass-panel">
-          <h3>
-            <MapPin size={18} /> Saved office zones
-          </h3>
-          <p>All geofenced locations stored in Supabase. Edit coordinates, assign people, or remove unused zones.</p>
+          <div className="admin-office-card__toolbar">
+            <div>
+              <h3>
+                <MapPin size={18} /> Office locations
+              </h3>
+              <p>
+                Each card is a separate site with its own GPS pin and radius. Add another location anytime — there is no
+                one-office limit.
+              </p>
+            </div>
+            <button type="button" className="btn btn-primary" onClick={startAddLocation}>
+              <Plus size={16} /> Add location
+            </button>
+          </div>
 
           {offices.length === 0 ? (
             <div className="admin-office-empty">
               <MapPin size={40} strokeWidth={1.25} />
-              <h4>No office zones yet</h4>
-              <p>
-                Go to <strong>Create zone</strong>, capture live GPS at your office, and save your first location.
-              </p>
+              <h4>No office locations yet</h4>
+              <p>Capture live GPS at your first office and save it. You can add more sites afterward.</p>
+              <button type="button" className="btn btn-primary" onClick={startAddLocation}>
+                <Plus size={16} /> Add first location
+              </button>
             </div>
           ) : (
             <div className="admin-office-grid">
