@@ -15,6 +15,7 @@ import {
   localYmd,
   attendanceActionMessage,
   attendanceCheckoutMessage,
+  canProbeWifiSsid,
   isAttendanceSuccessAction,
   submitGeoClockEvent,
 } from '../utils/geoAttendance';
@@ -144,7 +145,41 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [lastSignalAt, setLastSignalAt] = useState<number | null>(null);
   const [wifiMatch, setWifiMatch] = useState<boolean | null>(null);
+  const [wifiMatchLabel, setWifiMatchLabel] = useState<string | null>(null);
+  const [wifiProbeAvailable, setWifiProbeAvailable] = useState(() => canProbeWifiSsid());
   const [statusMessage, setStatusMessage] = useState('');
+
+  const applyWifiMatchFromResult = (result: GeoPingResult) => {
+    if (result.wifi_ssid_probed != null) {
+      setWifiProbeAvailable(result.wifi_ssid_probed || canProbeWifiSsid());
+    }
+    const reason = result.reason || result.action;
+    if (result.match_via === 'wifi') {
+      setWifiMatch(true);
+      setWifiMatchLabel(
+        result.wifi_network_label || result.probed_ssid || result.office_name || null,
+      );
+      return;
+    }
+    if (result.match_via === 'gps') {
+      setWifiMatch(false);
+      setWifiMatchLabel(null);
+      return;
+    }
+    if (
+      reason === 'not_on_office_wifi' ||
+      reason === 'not_on_office_network' ||
+      reason === 'outside_radius' ||
+      reason === 'assignment_presence' ||
+      result.action === 'outside_radius' ||
+      result.action === 'outside_office' ||
+      result.action === 'not_on_office_wifi' ||
+      result.action === 'not_on_office_network'
+    ) {
+      setWifiMatch(false);
+      setWifiMatchLabel(null);
+    }
+  };
 
   const loadToday = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -313,18 +348,8 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
       if (!detail?.result) return;
       setLastResult(detail.result);
       setLastSignalAt(detail.checkedAt || Date.now());
-      if (detail.result.inside_office != null || detail.latitude != null || detail.result.match_via) {
-        /* wifi match from server match_via / rejection codes — never infer from GPS success */
-        const reason = detail.result.reason || detail.result.action;
-        if (detail.result.match_via === 'wifi') {
-          setWifiMatch(true);
-        } else if (detail.result.match_via === 'gps') {
-          setWifiMatch(false);
-        } else if (reason === 'not_on_office_wifi' || reason === 'not_on_office_network') {
-          setWifiMatch(false);
-        } else if (reason === 'outside_radius') {
-          setWifiMatch(false);
-        }
+      if (detail.result.inside_office != null || detail.latitude != null || detail.result.match_via || detail.result.action) {
+        applyWifiMatchFromResult(detail.result);
       }
       if (detail.result.action === 'clock_in' || detail.result.action === 'already_clocked_in') {
         setStatusMessage('Checked in');
@@ -402,8 +427,7 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
               ? 'Checked in inside office radius'
               : 'Checked in',
         );
-        if (result.match_via === 'wifi') setWifiMatch(true);
-        else if (result.match_via === 'gps') setWifiMatch(false);
+        applyWifiMatchFromResult(result);
         setError('');
       } else if (result.action === 'clock_out' || result.action === 'clock_out_shift_end') {
         setStatusMessage(attendanceCheckoutMessage(result));
@@ -421,13 +445,7 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
           setError(msg);
           setStatusMessage(msg);
         }
-        if (
-          result.action === 'not_on_office_wifi' ||
-          result.action === 'not_on_office_network' ||
-          result.action === 'outside_radius'
-        ) {
-          setWifiMatch(false);
-        }
+        applyWifiMatchFromResult(result);
       } else {
         setError('');
       }
@@ -563,7 +581,17 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
         </div>
         <div className="geo-status-card__row">
           <span>Wi-Fi match</span>
-          <strong>{wifiMatch == null ? '—' : wifiMatch ? 'yes' : 'no'}</strong>
+          <strong>
+            {!wifiProbeAvailable && wifiMatch !== true
+              ? 'SSID unavailable — use Android/desktop app'
+              : wifiMatch == null
+                ? '—'
+                : wifiMatch
+                  ? wifiMatchLabel
+                    ? `yes · ${wifiMatchLabel}`
+                    : 'yes'
+                  : 'no'}
+          </strong>
         </div>
         <div className="geo-status-card__row">
           <span>Inside radius</span>

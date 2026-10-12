@@ -201,6 +201,8 @@ export default function ManagerKpiConfig({
   const draft = useMemo(() => readKpiDraft(assignerId), [assignerId]);
   const dates0 = useMemo(() => defaultKpiDates(), []);
   const skipWeightSyncRef = useRef(Boolean(draft?.assignWeight && draft?.assignKpiId));
+  /** Bumps on every assign/board KPI fetch so slower in-flight responses cannot resurrect removed rows. */
+  const kpiListFetchGen = useRef(0);
 
   const [desk, setDesk] = useState<Desk>(() => {
     if (initialDesk && DESKS.includes(initialDesk)) return initialDesk;
@@ -464,12 +466,28 @@ export default function ManagerKpiConfig({
     }
   };
 
-  const fetchKpis = async (userId: string, onRaw?: (list: Kpi[]) => void): Promise<Kpi[]> => {
+  /** Returns null when a newer fetch superseded this one (ignore the result). */
+  const fetchKpis = async (userId: string, onRaw?: (list: Kpi[]) => void): Promise<Kpi[] | null> => {
     if (!userId) return [];
-    const { data } = await supabase.from('kpis').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+    const gen = ++kpiListFetchGen.current;
+    const { data, error: fetchErr } = await supabase
+      .from('kpis')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    if (fetchErr) throw fetchErr;
+    if (gen !== kpiListFetchGen.current) return null;
     const raw = (data as Kpi[]) || [];
     onRaw?.(raw);
-    return hydrateKpiLastEdits(raw);
+    const hydrated = await hydrateKpiLastEdits(raw);
+    if (gen !== kpiListFetchGen.current) return null;
+    return hydrated;
+  };
+
+  const removeAssignedKpiLocally = (kpiId: string) => {
+    setAssignKpis((prev) => prev.filter((k) => k.id !== kpiId));
+    setBoardKpis((prev) => prev.filter((k) => k.id !== kpiId));
+    kpiListFetchGen.current += 1;
   };
 
   useEffect(() => {
@@ -526,7 +544,7 @@ export default function ManagerKpiConfig({
     let cancelled = false;
     void (async () => {
       const [list] = await Promise.all([fetchKpis(assignUserId), loadPersonTemplates(assignUserId)]);
-      if (!cancelled) {
+      if (!cancelled && list) {
         setAssignKpis(list);
         setAssignKpiId('');
       }
@@ -552,15 +570,19 @@ export default function ManagerKpiConfig({
     }
     setBoardKpisLoading(true);
     void (async () => {
-      const list = await fetchKpis(boardUserId, (raw) => {
-        if (!cancelled) {
-          setBoardKpis(raw);
+      try {
+        const list = await fetchKpis(boardUserId, (raw) => {
+          if (!cancelled) {
+            setBoardKpis(raw);
+            setBoardKpisLoading(false);
+          }
+        });
+        if (!cancelled && list) {
+          setBoardKpis(list);
           setBoardKpisLoading(false);
         }
-      });
-      if (!cancelled) {
-        setBoardKpis(list);
-        setBoardKpisLoading(false);
+      } catch {
+        if (!cancelled) setBoardKpisLoading(false);
       }
     })();
     return () => { cancelled = true; };
@@ -572,14 +594,14 @@ export default function ManagerKpiConfig({
       const people = await loadPeople();
       void loadPeopleWithKpis(people);
       if (assignUserId) {
-        void fetchKpis(assignUserId).then(setAssignKpis);
+        void fetchKpis(assignUserId).then((list) => { if (list) setAssignKpis(list); });
         void loadPersonTemplates(assignUserId);
       }
       if (libUserId) {
         void loadLibPersonTemplates(libUserId);
       }
       if (boardUserId) {
-        void fetchKpis(boardUserId, setBoardKpis).then(setBoardKpis);
+        void fetchKpis(boardUserId).then((list) => { if (list) setBoardKpis(list); });
       }
     })();
   });
@@ -933,7 +955,10 @@ export default function ManagerKpiConfig({
       const dates = defaultKpiDates();
       setAssignStartDate(dates.start);
       setAssignEndDate(dates.end);
-      setAssignKpis(await fetchKpis(assignUserId));
+      {
+        const list = await fetchKpis(assignUserId);
+        if (list) setAssignKpis(list);
+      }
       setPeopleWithKpis((prev) => {
         const next = new Set(prev);
         next.add(assignUserId);
@@ -953,7 +978,10 @@ export default function ManagerKpiConfig({
       setBoardTaskView('progress');
       setDesk('board');
       if (newKpiId) setHighlightKpiId(newKpiId);
-      setBoardKpis(await fetchKpis(assignUserId));
+      {
+        const list = await fetchKpis(assignUserId);
+        if (list) setBoardKpis(list);
+      }
       window.requestAnimationFrame(() => {
         window.scrollTo({ top: 0, behavior: 'auto' });
         if (newKpiId) scrollNavTarget(newKpiId);
@@ -968,8 +996,14 @@ export default function ManagerKpiConfig({
 
   const refreshOpenKpis = async () => {
     await loadPeopleWithKpis(reports);
-    if (assignUserId) setAssignKpis(await fetchKpis(assignUserId));
-    if (boardUserId) setBoardKpis(await fetchKpis(boardUserId));
+    if (assignUserId) {
+      const list = await fetchKpis(assignUserId);
+      if (list) setAssignKpis(list);
+    }
+    if (boardUserId) {
+      const list = await fetchKpis(boardUserId);
+      if (list) setBoardKpis(list);
+    }
   };
 
   const handleDeleteAssigned = async (kpiId: string) => {
@@ -987,10 +1021,12 @@ export default function ManagerKpiConfig({
     )) return;
     setError('');
     setSuccess('');
+    const prevAssign = assignKpis;
+    const prevBoard = boardKpis;
+    removeAssignedKpiLocally(kpiId);
     try {
       const { data, error: rpcErr } = await supabase.rpc('delete_assigned_kpi', { p_kpi_id: kpiId });
       if (rpcErr) throw rpcErr;
-      await refreshOpenKpis();
       const payload = (data && typeof data === 'object' ? data : {}) as {
         deleted?: boolean;
         weight?: number;
@@ -1002,6 +1038,7 @@ export default function ManagerKpiConfig({
       };
       const deleted = payload.deleted !== false;
       const removedWeight = Number(payload.weight ?? target?.weight ?? 0);
+      await refreshOpenKpis();
       if (deleted && payload.employee_email) {
         const roleLabel =
           payload.removed_by_role === 'admin' ? 'Admin'
@@ -1020,7 +1057,13 @@ export default function ManagerKpiConfig({
         ? `Removed. ${formatKpiWeight(removedWeight)} weightage was deducted. The person was notified by email and in-app.`
         : 'That KPI was already removed.');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Could not remove this KPI.');
+      setAssignKpis(prevAssign);
+      setBoardKpis(prevBoard);
+      const msg =
+        err && typeof err === 'object' && 'message' in err && typeof (err as { message: unknown }).message === 'string'
+          ? (err as { message: string }).message
+          : 'Could not remove this KPI.';
+      setError(msg);
     }
   };
 

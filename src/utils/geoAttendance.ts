@@ -117,6 +117,11 @@ export interface GeoPingResult {
   shift_start?: string;
   shift_end?: string;
   work_minutes?: number;
+  wifi_network_label?: string | null;
+  wifi_network_id?: string | null;
+  /** Client-side: whether this device could read SSID/BSSID for the ping. */
+  wifi_ssid_probed?: boolean;
+  probed_ssid?: string | null;
 }
 
 /** Exact user-facing rejection / status copy for attendance presence checks. */
@@ -361,34 +366,80 @@ export async function pingAttendanceBeforeLogout(): Promise<void> {
 
 export type GeoClockIntent = 'clock_in' | 'clock_out';
 
-/** Best-effort SSID/BSSID for manual Clock in (Android plugin or desktop IPC). */
-async function probeDeviceWifiIdentity(): Promise<{ ssid: string | null; bssid: string | null }> {
+/** Strip quotes / unknown placeholders; browsers never see a real SSID. */
+export function normalizeWifiSsid(raw: string | null | undefined): string | null {
+  if (raw == null) return null;
+  const t = String(raw)
+    .trim()
+    .replace(/^"+|"+$/g, '')
+    .trim();
+  if (!t || t.toLowerCase() === '<unknown ssid>') return null;
+  return t;
+}
+
+function normalizeWifiBssid(raw: string | null | undefined): string | null {
+  if (raw == null) return null;
+  const t = String(raw).trim().toLowerCase();
+  if (!t || t === '02:00:00:00:00:00') return null;
+  return t;
+}
+
+/**
+ * True when this runtime can attempt to read Wi-Fi SSID (Android Capacitor or desktop app).
+ * Browsers cannot — the Web API never exposes connected SSID/BSSID.
+ */
+export function canProbeWifiSsid(): boolean {
+  if (typeof window === 'undefined') return false;
   try {
-    const desktop = (
-      window as unknown as {
-        scorrDesktop?: { probeWifi?: () => Promise<{ ssid?: string | null; bssid?: string | null }> };
-      }
-    ).scorrDesktop;
+    if (typeof window.scorrDesktop?.probeWifi === 'function') return true;
+  } catch {
+    /* ignore */
+  }
+  try {
+    return Capacitor.isNativePlatform();
+  } catch {
+    return false;
+  }
+}
+
+/** Best-effort SSID/BSSID for Clock in / presence (Android plugin or desktop IPC). */
+export async function probeDeviceWifiIdentity(): Promise<{
+  ssid: string | null;
+  bssid: string | null;
+  probed: boolean;
+}> {
+  try {
+    const desktop = window.scorrDesktop;
     if (typeof desktop?.probeWifi === 'function') {
       const n = await desktop.probeWifi();
-      return { ssid: n?.ssid || null, bssid: n?.bssid || null };
+      return {
+        ssid: normalizeWifiSsid(n?.ssid),
+        bssid: normalizeWifiBssid(n?.bssid),
+        probed: true,
+      };
     }
   } catch {
     /* ignore */
   }
   try {
-    const { registerPlugin } = await import('@capacitor/core');
-    const probe = registerPlugin<{ probeNetwork?: () => Promise<{ ssid?: string; bssid?: string }> }>(
-      'AttendancePing',
-    );
-    if (typeof probe.probeNetwork === 'function') {
-      const n = await probe.probeNetwork();
-      return { ssid: n?.ssid || null, bssid: n?.bssid || null };
+    if (Capacitor.isNativePlatform()) {
+      const { registerPlugin } = await import('@capacitor/core');
+      const probe = registerPlugin<{ probeNetwork?: () => Promise<{ ssid?: string; bssid?: string }> }>(
+        'AttendancePing',
+      );
+      if (typeof probe.probeNetwork === 'function') {
+        const n = await probe.probeNetwork();
+        return {
+          ssid: normalizeWifiSsid(n?.ssid),
+          bssid: normalizeWifiBssid(n?.bssid),
+          probed: true,
+        };
+      }
     }
   } catch {
     /* web / unavailable */
   }
-  return { ssid: null, bssid: null };
+  return { ssid: null, bssid: null, probed: false };
 }
 
 /**
@@ -403,10 +454,11 @@ export async function submitGeoClockEvent(intent: GeoClockIntent): Promise<GeoPi
     return result;
   }
 
+  // Clock-in needs Wi-Fi identity when available; clock-out does not require it.
   const wifiPromise =
     intent === 'clock_in'
       ? probeDeviceWifiIdentity()
-      : Promise.resolve({ ssid: null as string | null, bssid: null as string | null });
+      : Promise.resolve({ ssid: null as string | null, bssid: null as string | null, probed: false });
 
   let gpsError: unknown;
   const [posSettled, wifi] = await Promise.all([
@@ -454,7 +506,11 @@ export async function submitGeoClockEvent(intent: GeoClockIntent): Promise<GeoPi
     }
     throw error;
   }
-  const result = data as GeoPingResult;
+  const result: GeoPingResult = {
+    ...(data as GeoPingResult),
+    wifi_ssid_probed: wifi.probed,
+    probed_ssid: wifi.ssid,
+  };
   dispatchGeoPing({
     result,
     latitude: pos?.coords.latitude,
@@ -498,13 +554,19 @@ export async function submitGeoAutoPing(): Promise<GeoPingResult> {
     return result;
   }
   // Prefer ≤50 m so a single outside reading can check out (Rule 5).
-  const pos = await requestPositionWithAccuracyRetries(50);
+  // Probe Wi-Fi in parallel when the runtime can (Android / desktop); browsers cannot.
+  const [pos, wifi] = await Promise.all([
+    requestPositionWithAccuracyRetries(50),
+    probeDeviceWifiIdentity(),
+  ]);
   const { data, error } = await supabase.rpc('process_geo_attendance_ping', {
     p_latitude: pos.coords.latitude,
     p_longitude: pos.coords.longitude,
     p_accuracy: pos.coords.accuracy ?? null,
     p_intent: 'auto',
     p_is_mock: positionIsMock(pos),
+    p_ssid: wifi.ssid,
+    p_bssid: wifi.bssid,
   });
   if (error) {
     const msg = String(error.message || '');
@@ -515,7 +577,11 @@ export async function submitGeoAutoPing(): Promise<GeoPingResult> {
     }
     throw error;
   }
-  const result = data as GeoPingResult;
+  const result: GeoPingResult = {
+    ...(data as GeoPingResult),
+    wifi_ssid_probed: wifi.probed,
+    probed_ssid: wifi.ssid,
+  };
   dispatchGeoPing({
     result,
     latitude: pos.coords.latitude,

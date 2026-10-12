@@ -76,7 +76,11 @@ export default function AssignedKpiCard({
       }
       onUpdated();
     } catch (err: unknown) {
-      setPauseErr(err instanceof Error ? err.message : 'Could not change task state.');
+      const msg =
+        err && typeof err === 'object' && 'message' in err && typeof (err as { message: unknown }).message === 'string'
+          ? (err as { message: string }).message
+          : 'Could not change task state.';
+      setPauseErr(msg);
     } finally {
       setBusy(false);
     }
