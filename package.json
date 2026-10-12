@@ -1,8 +1,8 @@
 {
   "name": "scorr",
   "private": true,
-  "version": "1.3.10",
-  "description": "Scorr — KPI performance, GPS attendance, and secure access for teams",
+  "version": "1.3.20",
+  "description": "Scorr \u2014 KPI performance, GPS attendance, and secure access for teams",
   "author": "Walfia <hello@walfia.ai>",
   "homepage": "https://scorr.walfia.ai",
   "type": "module",

@@ -1,8 +1,6 @@
-// Edge: attendance-schedule
-// R34 / R26 — device-token schedule (UTC windows + server_now_utc)
+// Edge: attendance-schedule — STUB while rules are rebuilt.
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 
 const ALLOWED_ORIGINS = new Set([
   'https://scorr.walfia.ai',
@@ -31,47 +29,15 @@ function json(req: Request, data: unknown, status = 200) {
   });
 }
 
-async function sha256Hex(token: string): Promise<string> {
-  const data = new TextEncoder().encode(token);
-  const hash = await crypto.subtle.digest('SHA-256', data);
-  return [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, '0')).join('');
-}
+const PAUSED = {
+  status: 'rules_not_configured',
+  windows: [],
+  zones: [],
+  message:
+    'Attendance, office and automatic attendance rules are being rebuilt. Everything is paused.',
+};
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders(req) });
-
-  try {
-    const url = Deno.env.get('SUPABASE_URL') || '';
-    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-    const anon = Deno.env.get('SUPABASE_ANON_KEY') || '';
-    if (!url || !serviceKey) return json(req, { error: 'Server misconfigured' }, 500);
-
-    const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
-    const token =
-      String((body as { device_token?: string }).device_token || '').trim() ||
-      (req.headers.get('x-device-token') || '').trim();
-
-    // JWT path for dashboard preview
-    const jwt = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim();
-    if (!token && jwt && anon) {
-      const userClient = createClient(url, anon, {
-        global: { headers: { Authorization: `Bearer ${jwt}` } },
-      });
-      const { data, error } = await userClient.rpc('get_my_attendance_schedule');
-      if (error) return json(req, { ok: false, reason: error.message }, 400);
-      return json(req, data);
-    }
-
-    if (!token) return json(req, { ok: false, reason: 'missing_token', stop_tracking: true }, 401);
-
-    const tokenHash = await sha256Hex(token);
-    const admin = createClient(url, serviceKey);
-    const { data, error } = await admin.rpc('attendance_schedule_by_token', {
-      p_token_hash: tokenHash,
-    });
-    if (error) return json(req, { ok: false, reason: error.message }, 400);
-    return json(req, data);
-  } catch (e) {
-    return json(req, { ok: false, reason: String(e) }, 500);
-  }
+  return json(req, PAUSED);
 });

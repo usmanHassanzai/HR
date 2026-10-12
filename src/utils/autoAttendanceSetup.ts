@@ -1,10 +1,10 @@
 /**
  * Automatic attendance setup — shared eligibility, registration, progress.
  */
-import { Capacitor, registerPlugin } from '@capacitor/core';
+import { registerPlugin } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
 import { supabase } from '../lib/supabase';
-import { isDesktopApp, isIosHomeScreen, isNativeApp, clientAttendancePlatform } from './nativePlatform';
+import { isDesktopApp, isIosHomeScreen, isNativeApp } from './nativePlatform';
 import { withTimeout } from './withTimeout';
 import { getAttendanceDeviceToken } from './attendanceDevice';
 
@@ -103,89 +103,16 @@ export async function fetchSetupStatus(): Promise<SetupStatus> {
   );
 }
 
-export async function registerDeviceViaRpc(appVersion = '1.3.7'): Promise<{
+export async function registerDeviceViaRpc(_appVersion = '1.3.7'): Promise<{
   ok: boolean;
   device_token?: string;
   error?: string;
 }> {
-  const platform = clientAttendancePlatform();
-
-  if (platform === 'web') {
-    return {
-      ok: false,
-      error: isIosHomeScreen()
-        ? 'Open Scorr from the Home Screen icon, then set up automatic attendance again.'
-        : 'On iPhone, tap Share → Add to Home Screen, open Scorr from that icon, then set up automatic attendance. Android and the desktop app can set it up from the installed app.',
-    };
-  }
-
-  try {
-    const { Preferences } = await import('@capacitor/preferences');
-    let deviceId: string | null = null;
-    if (Capacitor.isNativePlatform()) {
-      deviceId = (await Preferences.get({ key: 'scorr_attendance_device_id' })).value;
-    }
-    if (!deviceId) {
-      try {
-        deviceId = localStorage.getItem('scorr_attendance_device_id');
-      } catch {
-        deviceId = null;
-      }
-    }
-    if (!deviceId) {
-      deviceId = crypto.randomUUID();
-      if (Capacitor.isNativePlatform()) {
-        await withTimeout(Preferences.set({ key: 'scorr_attendance_device_id', value: deviceId }), 8_000, 'Saving device id');
-      } else {
-        localStorage.setItem('scorr_attendance_device_id', deviceId);
-      }
-    }
-
-    const { data, error } = await withTimeout(
-      Promise.resolve(
-        supabase.rpc('register_attendance_device', {
-          p_device_id: deviceId,
-          p_platform: platform,
-          p_device_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          p_app_version: appVersion,
-          p_token_plaintext: null,
-        }),
-      ),
-      15_000,
-      'Registering this device',
-    );
-
-    if (error) return { ok: false, error: error.message };
-    const token = (data as { device_token?: string } | null)?.device_token;
-    if (!token) return { ok: false, error: 'Registration failed — no device token returned.' };
-
-    if (Capacitor.isNativePlatform()) {
-      await withTimeout(
-        Preferences.set({ key: 'scorr_attendance_device_token', value: token }),
-        8_000,
-        'Saving device token',
-      );
-    } else {
-      localStorage.setItem('scorr_attendance_device_token', token);
-    }
-
-    // Desktop main process must persist the token and start heartbeats immediately
-    // so auto check-in has priority without waiting for a manual clock action.
-    try {
-      const save = (
-        window as unknown as {
-          scorrDesktop?: { saveAttendanceToken?: (t: string) => Promise<boolean> | boolean | void };
-        }
-      ).scorrDesktop?.saveAttendanceToken;
-      if (save) await Promise.resolve(save(token));
-    } catch {
-      /* ignore */
-    }
-
-    return { ok: true, device_token: token };
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : String(e) };
-  }
+  return {
+    ok: false,
+    error:
+      'Attendance, office and automatic attendance rules are being rebuilt. Everything is paused.',
+  };
 }
 
 /** iOS: escalate to Always after When-In-Use (no-op / settings hint on Android). */

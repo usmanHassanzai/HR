@@ -22,6 +22,7 @@ import {
 import { LocationWindow, formatShiftTimeRange, hasAssignedShiftEnded, isWithinShiftExitWindow, locationWindowToMyShift, shouldCaptureLocationNow } from '../utils/shiftHelpers';
 import { isIosHomeScreen } from '../utils/nativePlatform';
 import { IOS_HOME_BACKGROUND_BANNER } from '../utils/attendanceIosHome';
+import { ATTENDANCE_RULES_PAUSED_MESSAGE, isRulesNotConfigured } from '../utils/attendanceRulesPaused';
 
 interface GeoAttendancePanelProps {
   onClockUpdate?: () => void;
@@ -336,24 +337,16 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
   }, [loadToday, onClockUpdate, updateNearby]);
 
   const runClock = async (intent: 'clock_in' | 'clock_out') => {
-    if (intent === 'clock_in' && !shouldCaptureLocationNow(windowInfo)) {
-      setError('You can clock in from 1 hour before your shift starts.');
-      return;
-    }
-    if (
-      intent === 'clock_out'
-      && windowInfo
-      && !openShift
-      && !isWithinShiftExitWindow(locationWindowToMyShift(windowInfo))
-    ) {
-      setError('Checkout is allowed until 1 hour after the shift ends.');
-      return;
-    }
     setChecking(intent);
-    setError('');
-    setStatusMessage('');
+    setError(ATTENDANCE_RULES_PAUSED_MESSAGE);
+    setStatusMessage(ATTENDANCE_RULES_PAUSED_MESSAGE);
     try {
       const result = await submitGeoClockEvent(intent);
+      if (isRulesNotConfigured(result)) {
+        setError(ATTENDANCE_RULES_PAUSED_MESSAGE);
+        setStatusMessage(ATTENDANCE_RULES_PAUSED_MESSAGE);
+        return;
+      }
       setLastResult(result);
       setLastSignalAt(Date.now());
       if (result.action === 'clock_in' || result.action === 'already_clocked_in') {
@@ -425,12 +418,8 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
         <MapPin size={18} /> Shift location
         <span className="badge badge-on-track geo-attendance-panel__badge">Entry + exit</span>
       </h3>
-      <p className="attendance-card__subtitle">
-        Check-in needs both the office Wi-Fi and a GPS reading inside the office radius. Mobile data, home Wi-Fi, or a copied Wi-Fi name does not check you in. GPS inside the office without the office Wi-Fi does not check you in. Work-from-home days marked by Admin or HR are exempt.
-        Manual Clock in / Clock out stay available as an override. Multiple visits in one shift are saved and minutes are added (time away is not counted).
-        {windowInfo
-          ? ` Hours: ${formatShiftTimeRange(windowInfo.start_time, windowInfo.end_time, windowInfo.crosses_midnight)}${windowInfo.source === 'shift' && windowInfo.shift_name ? ` · ${windowInfo.shift_name}` : ' · company window'}.`
-          : ' Hours follow your assigned shift, or the company window.'}
+      <p className="attendance-card__subtitle" role="status">
+        {ATTENDANCE_RULES_PAUSED_MESSAGE}
       </p>
 
       {workSite && (

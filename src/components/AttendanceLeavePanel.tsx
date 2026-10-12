@@ -26,11 +26,7 @@ import { Department } from '../utils/departmentHelpers';
 import { canMarkRemoteAttendance, workModeLabel } from '../utils/workModeHelpers';
 import {
   GEO_CLOCK_EVENT,
-  attendanceActionMessage,
-  isAttendanceSuccessAction,
   localYmd,
-  requestCurrentPosition,
-  submitGeoClockEvent,
 } from '../utils/geoAttendance';
 import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
 import { scrollNavTarget } from '../utils/notificationDeepLink';
@@ -395,71 +391,14 @@ export default function AttendanceLeavePanel({
 
   const checkInToday = async () => {
     setSubmitting(true);
-    setMsg('');
-    try {
-      const result = await submitGeoClockEvent('clock_in');
-      if (isAttendanceSuccessAction(result.action)) {
-        setMsg(attendanceActionMessage(result.action));
-        load();
-        setHistoryRefreshKey((k) => k + 1);
-        window.dispatchEvent(new CustomEvent(GEO_CLOCK_EVENT));
-      } else {
-        setMsg(attendanceActionMessage(result.action || result.reason));
-      }
-    } catch (e: unknown) {
-      setMsg(e instanceof Error ? e.message : 'Could not check in.');
-    } finally {
-      setSubmitting(false);
-    }
+    setMsg('Attendance, office and automatic attendance rules are being rebuilt. Everything is paused.');
+    setSubmitting(false);
   };
 
-  const checkOutToday = async (opts?: { thenRequestLeave?: boolean }) => {
+  const checkOutToday = async (_opts?: { thenRequestLeave?: boolean }) => {
     setSubmitting(true);
-    setMsg('');
-    try {
-      const pos = await requestCurrentPosition({
-        maximumAge: 0,
-        timeout: 20_000,
-        enableHighAccuracy: true,
-      });
-      const coords = pos.coords as GeolocationCoordinates & { mocked?: boolean };
-      const { error } = await supabase.rpc('check_out_attendance', {
-        p_latitude: pos.coords.latitude,
-        p_longitude: pos.coords.longitude,
-        p_accuracy: pos.coords.accuracy ?? null,
-        p_is_mock: Boolean(coords?.mocked),
-      });
-      if (error) {
-        const raw = error.message || '';
-        if (raw.includes('not_on_office_wifi')) setMsg(attendanceActionMessage('not_on_office_wifi'));
-        else if (raw.includes('gps_unusable')) setMsg(attendanceActionMessage('gps_unusable'));
-        else if (raw.includes('outside_radius')) setMsg(attendanceActionMessage('outside_radius'));
-        else if (raw.includes('outside_window')) setMsg(attendanceActionMessage('outside_window'));
-        else setMsg(raw);
-        return;
-      }
-      setMsg(
-        opts?.thenRequestLeave
-          ? 'Checked out for the rest of your shift. Submit your leave request on the next tab.'
-          : 'Checked out. Duration saved to your attendance history.',
-      );
-      load();
-      setHistoryRefreshKey((k) => k + 1);
-      window.dispatchEvent(new CustomEvent(GEO_CLOCK_EVENT));
-      if (opts?.thenRequestLeave) {
-        setLeaveStart(todayStr);
-        setLeaveEnd(todayStr);
-        setLeaveType('other');
-        setLeaveCustomType('Urgent leave');
-        setLeaveReason((prev) => prev || 'Leaving shift early');
-        if (mode === 'hr') setAdminTab('today');
-        else setEmployeeTab('leave');
-      }
-    } catch (e: unknown) {
-      setMsg(e instanceof Error ? e.message : attendanceActionMessage('gps_unusable'));
-    } finally {
-      setSubmitting(false);
-    }
+    setMsg('Attendance, office and automatic attendance rules are being rebuilt. Everything is paused.');
+    setSubmitting(false);
   };
 
   const submitLeave = async (e: React.FormEvent) => {

@@ -74,6 +74,13 @@ public class AttendancePingService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        // Automatic attendance paused while rules are rebuilt.
+        stopSelf();
+        return START_NOT_STICKY;
+    }
+
+    @SuppressWarnings("unused")
+    private int onStartCommandLegacy(Intent intent, int flags, int startId) {
         if (!AttendancePingStore.enabled(this)) {
             stopSelf();
             return START_NOT_STICKY;

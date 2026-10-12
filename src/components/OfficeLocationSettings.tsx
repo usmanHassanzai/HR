@@ -712,8 +712,8 @@ export default function OfficeLocationSettings() {
               <div className="form-group admin-office-span-full">
                 <label htmlFor="office-detect">Detection</label>
                 <p id="office-detect" className="admin-office-item__meta">
-                  Check-in uses both: the public IP must match an active office Wi-Fi, and a GPS reading
-                  (accuracy 100 m or better) must be inside this radius. GPS only and Wi-Fi only are not used.
+                  Attendance, office and automatic attendance rules are being rebuilt. Everything is paused.
+                  You can still save office pin, radius, and Wi-Fi networks for later.
                 </p>
               </div>
 

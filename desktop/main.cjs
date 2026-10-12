@@ -363,6 +363,14 @@ function logDesktopStaleDrop(event, occurred, ageMs, source) {
 }
 
 async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = null) {
+  // Automatic attendance paused while rules are rebuilt.
+  return {
+    ok: false,
+    status: 'rules_not_configured',
+    reason: 'rules_not_configured',
+    action: 'rules_not_configured',
+    stop_tracking: true,
+  };
   const token = loadToken();
   if (!token || !SUPABASE_ANON) return null;
   const now = Date.now();

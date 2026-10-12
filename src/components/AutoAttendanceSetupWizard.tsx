@@ -101,7 +101,7 @@ export default function AutoAttendanceSetupWizard({
       return [
         { id: 'account', title: 'Your account is ready', explanation: 'Checking company settings, office zone, and shift.', icon: Shield },
         { id: 'autolaunch', title: 'Start Scorr when the computer starts', explanation: 'Keeps laptop attendance working after reboot.', icon: Laptop },
-        { id: 'network', title: 'Office network and location', explanation: 'Check-in needs office Wi-Fi and a GPS reading inside the office radius. Either one alone is not enough.', icon: Wifi },
+        { id: 'network', title: 'Office network and location', explanation: 'Attendance, office and automatic attendance rules are being rebuilt. Everything is paused.', icon: Wifi },
         { id: 'register', title: 'Register this laptop', explanation: 'Securely enrolls this device for automatic attendance.', icon: CheckCircle2 },
       ];
     }

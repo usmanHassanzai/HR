@@ -1,0 +1,298 @@
+[
+  {
+    "proname": "attendance_apply_laptop_rules",
+    "args": ""
+  },
+  {
+    "proname": "attendance_apply_leave_day",
+    "args": "p_user_id uuid, p_date date, p_notes text"
+  },
+  {
+    "proname": "attendance_apply_rule_5b",
+    "args": ""
+  },
+  {
+    "proname": "attendance_apply_rule_5c",
+    "args": ""
+  },
+  {
+    "proname": "attendance_backfill_closed_visit",
+    "args": "p_user_id uuid, p_record_id uuid, p_date date, p_in timestamp with time zone, p_out timestamp with time zone, p_minutes integer"
+  },
+  {
+    "proname": "attendance_block_checkin_after_shift_end",
+    "args": ""
+  },
+  {
+    "proname": "attendance_bounds_for_clock",
+    "args": "p_at timestamp with time zone, p_start time without time zone, p_end time without time zone, p_days integer[], p_tz text, p_overnight boolean"
+  },
+  {
+    "proname": "attendance_checkin_allowed",
+    "args": "p_user_id uuid, p_at timestamp with time zone"
+  },
+  {
+    "proname": "attendance_checkin_note",
+    "args": "p_user_id uuid, p_ip text, p_lat double precision, p_lng double precision, p_date date"
+  },
+  {
+    "proname": "attendance_close_ended_windows",
+    "args": ""
+  },
+  {
+    "proname": "attendance_close_visit_with_note",
+    "args": "p_user_id uuid, p_out_at timestamp with time zone, p_note text, p_allow_earlier_on_closed boolean"
+  },
+  {
+    "proname": "attendance_correct_occurred_at",
+    "args": "p_occurred_at_utc_ms bigint, p_device_now_utc_ms bigint, p_server_now timestamp with time zone"
+  },
+  {
+    "proname": "attendance_cron_tick",
+    "args": ""
+  },
+  {
+    "proname": "attendance_day_total_minutes",
+    "args": "p_user_id uuid, p_date date, p_now timestamp with time zone"
+  },
+  {
+    "proname": "attendance_effective_any_signal_at",
+    "args": "p_user_id uuid, p_visit_in timestamp with time zone"
+  },
+  {
+    "proname": "attendance_effective_office_signal_at",
+    "args": "p_user_id uuid, p_visit_in timestamp with time zone"
+  },
+  {
+    "proname": "attendance_ensure_open_visit",
+    "args": "p_user_id uuid, p_record_id uuid, p_date date, p_at timestamp with time zone, p_note text"
+  },
+  {
+    "proname": "attendance_gps_inside_assigned_office",
+    "args": "p_user_id uuid, p_lat double precision, p_lng double precision, p_accuracy double precision"
+  },
+  {
+    "proname": "attendance_guard_clock_times",
+    "args": ""
+  },
+  {
+    "proname": "attendance_handle_connection_lost",
+    "args": "p_user_id uuid, p_company_id uuid, p_device_row_id uuid, p_event text, p_occurred_at timestamp with time zone, p_skew_ms bigint, p_clock_flagged boolean, p_client_ip text, p_platform text, p_app_version text, p_work_mode text"
+  },
+  {
+    "proname": "attendance_handle_device_shutdown",
+    "args": "p_user_id uuid, p_company_id uuid, p_device_row_id uuid, p_event text, p_occurred_at timestamp with time zone, p_skew_ms bigint, p_clock_flagged boolean, p_client_ip text, p_platform text, p_app_version text, p_work_mode text"
+  },
+  {
+    "proname": "attendance_handle_device_sleep",
+    "args": "p_user_id uuid, p_company_id uuid, p_device_row_id uuid, p_event text, p_occurred_at timestamp with time zone, p_skew_ms bigint, p_clock_flagged boolean, p_client_ip text, p_platform text, p_app_version text, p_work_mode text"
+  },
+  {
+    "proname": "attendance_handle_device_wake",
+    "args": "p_user_id uuid, p_company_id uuid, p_device_row_id uuid, p_event text, p_occurred_at timestamp with time zone, p_skew_ms bigint, p_clock_flagged boolean, p_client_ip text, p_platform text, p_app_version text, p_work_mode text, p_on_office_network boolean"
+  },
+  {
+    "proname": "attendance_hash_device_token",
+    "args": "p_token text"
+  },
+  {
+    "proname": "attendance_ios_last_inside_gps_uncontradicted",
+    "args": "p_user_id uuid, p_since timestamp with time zone"
+  },
+  {
+    "proname": "attendance_ip_in_cidrs",
+    "args": "p_ip text, p_cidrs text[]"
+  },
+  {
+    "proname": "attendance_is_wfh_day",
+    "args": "p_user_id uuid, p_date date"
+  },
+  {
+    "proname": "attendance_iso_dow",
+    "args": "p_at timestamp with time zone, p_tz text"
+  },
+  {
+    "proname": "attendance_laptop_set_notify",
+    "args": "p_user_id uuid, p_company_id uuid, p_out_at timestamp with time zone, p_reason text"
+  },
+  {
+    "proname": "attendance_laptop_sleep_grace_active",
+    "args": "p_user_id uuid"
+  },
+  {
+    "proname": "attendance_laptop_track_off_office",
+    "args": "p_user_id uuid, p_company_id uuid, p_occurred_at timestamp with time zone, p_on_office_network boolean"
+  },
+  {
+    "proname": "attendance_list_false_checkout_gaps",
+    "args": "p_days integer"
+  },
+  {
+    "proname": "attendance_list_stuck_no_open_visit",
+    "args": "p_within_minutes integer"
+  },
+  {
+    "proname": "attendance_local_date",
+    "args": "p_at timestamp with time zone, p_tz text"
+  },
+  {
+    "proname": "attendance_match_office_wifi",
+    "args": "p_office_id uuid, p_client_ip text, p_ssid text, p_bssid text"
+  },
+  {
+    "proname": "attendance_now",
+    "args": ""
+  },
+  {
+    "proname": "attendance_on_assigned_office_wifi",
+    "args": "p_user_id uuid, p_ip text"
+  },
+  {
+    "proname": "attendance_present_requires_presence_evidence",
+    "args": ""
+  },
+  {
+    "proname": "attendance_raw_office_signal_at",
+    "args": "p_user_id uuid"
+  },
+  {
+    "proname": "attendance_request_client_ip",
+    "args": ""
+  },
+  {
+    "proname": "attendance_resolve_history_clock_out",
+    "args": "p_clock_in timestamp with time zone, p_clock_out timestamp with time zone, p_visit_last_out timestamp with time zone, p_work_minutes integer, p_any_open boolean, p_visit_count integer"
+  },
+  {
+    "proname": "attendance_retention_cleanup",
+    "args": ""
+  },
+  {
+    "proname": "attendance_schedule_by_token",
+    "args": "p_token_hash text"
+  },
+  {
+    "proname": "attendance_schedule_for_user",
+    "args": "p_user_id uuid, p_from timestamp with time zone, p_days integer"
+  },
+  {
+    "proname": "attendance_set_write_context",
+    "args": "p_mode text"
+  },
+  {
+    "proname": "attendance_try_auto_checkin",
+    "args": "p_user_id uuid, p_occurred_at timestamp with time zone, p_latitude double precision, p_longitude double precision, p_accuracy_m double precision, p_is_mock boolean, p_client_ip text, p_platform text, p_zone_name text, p_wifi_network_id uuid, p_wifi_network_label text, p_distance_m double precision"
+  },
+  {
+    "proname": "attendance_tz_instant",
+    "args": "p_local_date date, p_local_time time without time zone, p_tz text"
+  },
+  {
+    "proname": "attendance_user_has_custom_hours",
+    "args": "p_user_id uuid, p_shift_id uuid, p_date date"
+  },
+  {
+    "proname": "attendance_user_uses_ios_silence_rules",
+    "args": "p_user_id uuid"
+  },
+  {
+    "proname": "attendance_user_uses_laptop_only_rules",
+    "args": "p_user_id uuid"
+  },
+  {
+    "proname": "attendance_window_for_user",
+    "args": "p_user_id uuid, p_at timestamp with time zone"
+  },
+  {
+    "proname": "attendance_write_mode",
+    "args": ""
+  },
+  {
+    "proname": "check_in_attendance",
+    "args": "p_date date"
+  },
+  {
+    "proname": "check_out_attendance",
+    "args": "p_date date"
+  },
+  {
+    "proname": "check_out_attendance",
+    "args": "p_date date, p_latitude double precision, p_longitude double precision, p_accuracy double precision, p_is_mock boolean"
+  },
+  {
+    "proname": "close_my_ended_shift_attendance",
+    "args": ""
+  },
+  {
+    "proname": "close_open_attendance_if_shift_ended",
+    "args": "p_user_id uuid, p_lat double precision, p_lng double precision"
+  },
+  {
+    "proname": "geo_confirm_left_site",
+    "args": "p_distance double precision, p_effective_radius double precision, p_prev_inside boolean"
+  },
+  {
+    "proname": "get_auto_attendance_setup_status",
+    "args": ""
+  },
+  {
+    "proname": "get_my_attendance_schedule",
+    "args": ""
+  },
+  {
+    "proname": "get_my_location_window",
+    "args": ""
+  },
+  {
+    "proname": "is_within_office",
+    "args": "p_lat double precision, p_lng double precision"
+  },
+  {
+    "proname": "is_within_shift_exit_window",
+    "args": "p_start_time time without time zone, p_end_time time without time zone, p_days_of_week integer[], p_at timestamp with time zone"
+  },
+  {
+    "proname": "is_within_shift_window",
+    "args": "p_start_time time without time zone, p_end_time time without time zone, p_grace_minutes integer, p_days_of_week integer[], p_at timestamp with time zone"
+  },
+  {
+    "proname": "process_auto_attendance_event",
+    "args": "p_token_hash text, p_event text, p_zone_id uuid, p_latitude double precision, p_longitude double precision, p_accuracy_m double precision, p_ssid text, p_bssid text, p_occurred_at_utc_ms bigint, p_device_now_utc_ms bigint, p_device_timezone text, p_is_mock boolean, p_device_id text, p_platform text, p_app_version text, p_client_ip text"
+  },
+  {
+    "proname": "process_geo_attendance_ping",
+    "args": "p_latitude double precision, p_longitude double precision, p_accuracy double precision"
+  },
+  {
+    "proname": "process_geo_attendance_ping",
+    "args": "p_latitude double precision, p_longitude double precision, p_accuracy double precision, p_intent text"
+  },
+  {
+    "proname": "process_geo_attendance_ping",
+    "args": "p_latitude double precision, p_longitude double precision, p_accuracy double precision, p_intent text, p_is_mock boolean"
+  },
+  {
+    "proname": "reconcile_ended_shift_attendance",
+    "args": ""
+  },
+  {
+    "proname": "register_attendance_device",
+    "args": "p_device_id text, p_platform text, p_device_timezone text, p_app_version text, p_token_plaintext text"
+  },
+  {
+    "proname": "revoke_attendance_device",
+    "args": "p_device_row_id uuid"
+  },
+  {
+    "proname": "send_auto_attendance_setup_reminder",
+    "args": "p_user_id uuid"
+  },
+  {
+    "proname": "sync_work_sites_to_office",
+    "args": "p_office_id uuid"
+  },
+  {
+    "proname": "test_office_wifi_match",
+    "args": "p_office_id uuid, p_client_ip text, p_ssid text, p_bssid text"
+  }
+]
