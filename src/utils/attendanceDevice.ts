@@ -222,12 +222,12 @@ export async function sendAutoAttendanceEvent(
   }
 }
 
-/** Laptop and Test now: attach a fresh GPS fix, and retry once if the server asks. */
+/** Laptop and Test now: attach GPS when available + Wi-Fi; soft-fail GPS for Wi-Fi-only check-in. */
 export async function sendAutoAttendanceEventWithLocation(
   event: string,
   extra: Record<string, unknown> = {},
 ): Promise<Record<string, unknown> | null> {
-  const { requestCurrentPosition } = await import('./geoAttendance');
+  const { requestCurrentPosition, probeDeviceWifiIdentity } = await import('./geoAttendance');
   const readFix = async () => {
     const pos = await requestCurrentPosition({
       enableHighAccuracy: true,
@@ -241,19 +241,29 @@ export async function sendAutoAttendanceEventWithLocation(
     };
   };
 
-  let fix: Record<string, unknown> = {};
-  try {
-    fix = await readFix();
-  } catch {
-    /* server returns need_fresh_location when the fix is missing */
-  }
-  let res = await sendAutoAttendanceEvent(event, { ...extra, ...fix });
+  const [fixSettled, wifi] = await Promise.all([
+    readFix().then(
+      (f) => f,
+      () => ({} as Record<string, unknown>),
+    ),
+    probeDeviceWifiIdentity().catch(() => ({
+      ssid: null as string | null,
+      bssid: null as string | null,
+      probed: false,
+    })),
+  ]);
+  let fix: Record<string, unknown> = fixSettled;
+  const wifiExtra: Record<string, unknown> = {};
+  if (wifi.ssid) wifiExtra.ssid = wifi.ssid;
+  if (wifi.bssid) wifiExtra.bssid = wifi.bssid;
+
+  let res = await sendAutoAttendanceEvent(event, { ...extra, ...wifiExtra, ...fix });
   if (res?.action === 'need_fresh_location') {
     try {
       fix = await readFix();
-      res = await sendAutoAttendanceEvent(event, { ...extra, ...fix });
+      res = await sendAutoAttendanceEvent(event, { ...extra, ...wifiExtra, ...fix });
     } catch {
-      /* keep the server reason */
+      /* keep the server reason — Wi-Fi/IP may still have matched on the first call */
     }
   }
   return res;

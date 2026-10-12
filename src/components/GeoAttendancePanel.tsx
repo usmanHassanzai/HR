@@ -17,6 +17,9 @@ import {
   attendanceCheckoutMessage,
   canProbeWifiSsid,
   isAttendanceSuccessAction,
+  isLocationSoftFailError,
+  locationSoftFailMessage,
+  probeDeviceWifiIdentity,
   submitGeoClockEvent,
 } from '../utils/geoAttendance';
 import { LocationWindow, formatShiftTimeRange, hasAssignedShiftEnded, isWithinShiftExitWindow, locationWindowToMyShift, shouldCaptureLocationNow } from '../utils/shiftHelpers';
@@ -262,6 +265,19 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
     void loadToday();
     void loadSites();
     void bootstrapAttendanceLocation();
+    // Probe Wi-Fi first so the panel knows the office-Wi-Fi path is available.
+    void (async () => {
+      const wifi = await probeDeviceWifiIdentity();
+      const available = wifi.probed || canProbeWifiSsid();
+      setWifiProbeAvailable(available);
+      if (available) {
+        setStatusMessage((prev) =>
+          !prev || isLocationSoftFailError(prev)
+            ? 'Location not required when on office Wi-Fi'
+            : prev,
+        );
+      }
+    })();
   }, [loadToday, loadSites]);
 
   // Realtime: refresh the moment the server changes attendance_records / visits.
@@ -422,7 +438,7 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
       if (result.action === 'clock_in' || result.action === 'already_clocked_in') {
         setStatusMessage(
           result.match_via === 'wifi'
-            ? 'Checked in on office Wi-Fi (radius not required)'
+            ? 'On office Wi-Fi — location not required'
             : result.match_via === 'gps'
               ? 'Checked in inside office radius'
               : 'Checked in',
@@ -430,7 +446,11 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
         applyWifiMatchFromResult(result);
         setError('');
       } else if (result.action === 'clock_out' || result.action === 'clock_out_shift_end') {
-        setStatusMessage(attendanceCheckoutMessage(result));
+        setStatusMessage(
+          result.match_via === 'wifi'
+            ? 'On office Wi-Fi — location not required'
+            : attendanceCheckoutMessage(result),
+        );
         setError('');
       } else if (result.action === 'no_connection') {
         setStatusMessage('No connection - will check when online');
@@ -456,8 +476,17 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
     } catch (e: unknown) {
       const msg = rpcErrorMessage(e);
       const offline = /fetch|network|Failed to fetch|offline/i.test(msg);
-      setError(offline ? 'No connection - will check when online' : msg);
-      setStatusMessage(offline ? 'No connection - will check when online' : msg);
+      if (offline) {
+        setError('No connection - will check when online');
+        setStatusMessage('No connection - will check when online');
+      } else if (isLocationSoftFailError(e) || isLocationSoftFailError(msg)) {
+        const friendly = locationSoftFailMessage(wifiProbeAvailable || canProbeWifiSsid());
+        setError(friendly);
+        setStatusMessage(friendly);
+      } else {
+        setError(msg);
+        setStatusMessage(msg);
+      }
     } finally {
       setChecking(null);
     }

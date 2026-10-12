@@ -165,7 +165,47 @@ public class AttendancePingService extends Service {
     }
 
     private void requestLocationPing() {
-        requestFreshLocationWithRetries(this::onLocation, null, 100f);
+        // Soft-fail GPS: when location services are off, still try office Wi-Fi / IP.
+        if (!locationServicesEnabled()) {
+            sendWifiOnlyCheckinIfCandidate();
+            return;
+        }
+        requestFreshLocationWithRetries(this::onLocation, () -> sendWifiOnlyCheckinIfCandidate(), 100f);
+    }
+
+    /** True when GPS or network location provider is on. */
+    private boolean locationServicesEnabled() {
+        LocationManager lm = (LocationManager) getSystemService(LOCATION_SERVICE);
+        if (lm == null) return false;
+        try {
+            return lm.isProviderEnabled(LocationManager.GPS_PROVIDER)
+                || lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /** When GPS is unavailable, send a Wi-Fi event so the server can match SSID/BSSID/IP. */
+    private void sendWifiOnlyCheckinIfCandidate() {
+        if (!isWifiConnected()) return;
+        if (AttendancePingStore.isAlreadyCheckedInForActiveWindow(this)) return;
+        String[] info = readWifiIdentity();
+        String ssid = info[0];
+        String bssid = info[1];
+        if (ssid == null && bssid == null) {
+            ssid = AttendancePingStore.lastSsid(this);
+            bssid = AttendancePingStore.lastBssid(this);
+        }
+        if (matchesOfficeWifi(ssid, bssid) || hasWifiConfiguredZones()) {
+            AttendanceEventClient.sendWifiEvent(this, "wifi_connected", ssid, bssid);
+        }
+    }
+
+    private boolean hasWifiConfiguredZones() {
+        for (AttendanceScheduleController.Zone z : AttendanceScheduleController.parseZones(this)) {
+            if (z.usesWifi()) return true;
+        }
+        return false;
     }
 
     /** Instant EXIT: fresh high-accuracy GPS (≤50 m, up to 3 tries) then send. */
@@ -449,22 +489,35 @@ public class AttendancePingService extends Service {
             String[] info = readWifiIdentity();
             ssid = info[0];
             bssid = info[1];
+            // Android often hides SSID when location services are off — reuse last office identity.
+            if (ssid == null && bssid == null) {
+                String lastS = AttendancePingStore.lastSsid(this);
+                String lastB = AttendancePingStore.lastBssid(this);
+                if (matchesOfficeWifi(lastS, lastB)) {
+                    ssid = lastS;
+                    bssid = lastB;
+                }
+            }
         } else {
             ssid = AttendancePingStore.lastSsid(this);
             bssid = AttendancePingStore.lastBssid(this);
         }
 
         boolean matchesOffice = connected && matchesOfficeWifi(ssid, bssid);
+        // SSID unreadable (location off) but Wi-Fi up and office has Wi-Fi zones → let server match IP.
+        boolean wifiCandidate = matchesOffice
+            || (connected && ssid == null && bssid == null && hasWifiConfiguredZones());
         boolean was = wifiWasOnOfficeNet || AttendancePingStore.wifiConnected(this);
 
-        if (connected && matchesOffice && !was) {
+        if (connected && wifiCandidate && !was) {
             AttendancePingStore.setLastWifi(this, ssid, bssid, true);
             wifiWasOnOfficeNet = true;
             if (!AttendancePingStore.isAlreadyCheckedInForActiveWindow(this)) {
                 // Prefer attaching GPS so radius OR Wi-Fi can both satisfy server check-in.
+                // Soft-fail GPS when location services are off — send Wi-Fi immediately.
                 requestGpsThenWifiEvent("wifi_connected", ssid, bssid);
             }
-        } else if ((!connected || !matchesOffice) && was) {
+        } else if ((!connected || !wifiCandidate) && was) {
             AttendancePingStore.setLastWifi(this, ssid, bssid, false);
             wifiWasOnOfficeNet = false;
             // Early check-out during shift: server does not require office Wi-Fi/radius.
@@ -472,17 +525,22 @@ public class AttendancePingService extends Service {
                 AttendanceEventClient.sendWifiEvent(this, "wifi_disconnected", ssid, bssid);
             }
         } else if (connected) {
-            AttendancePingStore.setLastWifi(this, ssid, bssid, matchesOffice);
-            wifiWasOnOfficeNet = matchesOffice;
+            AttendancePingStore.setLastWifi(this, ssid, bssid, wifiCandidate);
+            wifiWasOnOfficeNet = wifiCandidate;
         }
     }
 
     private void requestGpsThenWifiEvent(String eventName, String ssid, String bssid) {
+        // Location off: do not wait on GPS — Wi-Fi / IP check-in must proceed.
+        if (!locationServicesEnabled()) {
+            AttendanceEventClient.sendWifiEvent(this, eventName, ssid, bssid);
+            return;
+        }
         final boolean[] done = { false };
         Runnable fallback = () -> {
             if (done[0]) return;
             done[0] = true;
-            // Server returns need_fresh_location; still try without coords as last resort.
+            // Soft-fail GPS: still send SSID/BSSID so Wi-Fi-only check-in works.
             AttendanceEventClient.sendWifiEvent(this, eventName, ssid, bssid);
         };
         handler.postDelayed(fallback, 12_000L);

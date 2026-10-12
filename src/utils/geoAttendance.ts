@@ -132,7 +132,9 @@ export function attendanceActionMessage(action: string | null | undefined): stri
       return 'Connect to the configured office Wi-Fi, or move inside the office radius with location on';
     case 'gps_unusable':
     case 'need_fresh_location':
-      return 'Location unavailable, try again';
+      return canProbeWifiSsid()
+        ? 'Not on office Wi-Fi. Turn on location for radius check-in, or connect to configured office Wi-Fi.'
+        : 'Location is required for radius check-in in the browser. Use the Android or desktop app to check in on office Wi-Fi without location.';
     case 'inside_office':
       return 'You are inside the office radius';
     case 'outside_radius':
@@ -442,10 +444,28 @@ export async function probeDeviceWifiIdentity(): Promise<{
   return { ssid: null, bssid: null, probed: false };
 }
 
+/** Capacitor / browser errors that mean GPS is off or blocked — soft-fail for Wi-Fi path. */
+export function isLocationSoftFailError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err ?? '');
+  return /Location services are not enabled|Location blocked|Location permission|Could not detect GPS|Location timed out|Location unavailable|POSITION_UNAVAILABLE|PERMISSION_DENIED/i.test(
+    msg,
+  );
+}
+
 /**
- * GPS read (+ Wi-Fi probe on clock_in), then server clock-in or clock-out.
- * Office Wi-Fi / IP can succeed without being inside the radius — GPS failure must not
- * block that path. Radius is only required when Wi-Fi does not match (server Path 2).
+ * User-facing copy when GPS failed. Prefer Wi-Fi path messaging on Android/desktop.
+ */
+export function locationSoftFailMessage(wifiPathAvailable: boolean): string {
+  if (wifiPathAvailable) {
+    return 'On office Wi-Fi — location not required. If check-in fails, connect to configured office Wi-Fi or turn on location for the radius path.';
+  }
+  return 'Location is required for radius check-in in the browser. Use the Android or desktop app to check in on office Wi-Fi without location.';
+}
+
+/**
+ * GPS read + Wi-Fi probe, then server clock-in or clock-out.
+ * Office Wi-Fi / IP can succeed without location services — GPS failure must not
+ * block that path on Android/desktop. Radius is only required when Wi-Fi does not match.
  */
 export async function submitGeoClockEvent(intent: GeoClockIntent): Promise<GeoPingResult> {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
@@ -454,13 +474,8 @@ export async function submitGeoClockEvent(intent: GeoClockIntent): Promise<GeoPi
     return result;
   }
 
-  // Clock-in needs Wi-Fi identity when available; clock-out does not require it.
-  const wifiPromise =
-    intent === 'clock_in'
-      ? probeDeviceWifiIdentity()
-      : Promise.resolve({ ssid: null as string | null, bssid: null as string | null, probed: false });
-
-  let gpsError: unknown;
+  // Probe Wi-Fi for both intents (Android/desktop). Soft-fail GPS in parallel.
+  const wifiPathAvailable = canProbeWifiSsid();
   const [posSettled, wifi] = await Promise.all([
     requestCurrentPosition({
       maximumAge: 0,
@@ -468,24 +483,17 @@ export async function submitGeoClockEvent(intent: GeoClockIntent): Promise<GeoPi
       enableHighAccuracy: true,
     }).then(
       (p): GeolocationPosition | null => p,
-      (err): GeolocationPosition | null => {
-        gpsError = err;
-        return null;
-      },
+      (): GeolocationPosition | null => null,
     ),
-    wifiPromise,
+    probeDeviceWifiIdentity(),
   ]);
   const pos: GeolocationPosition | null = posSettled;
+  const wifiOk = Boolean(wifi.ssid || wifi.bssid || wifi.probed || wifiPathAvailable);
 
-  // No GPS: still call RPC so configured office Wi-Fi / public IP can check in.
-  // Only hard-fail when we have neither a fix nor any Wi-Fi identity to try.
-  if (!pos && intent === 'clock_in' && !wifi.ssid && !wifi.bssid) {
-    throw gpsError instanceof Error
-      ? gpsError
-      : new Error('Location unavailable, try again');
-  }
-  if (!pos && intent === 'clock_out' && gpsError) {
-    // Clock out is any-location; proceed without coords if GPS is unavailable.
+  // No GPS: still call RPC so configured office Wi-Fi / public IP can check in/out.
+  // Hard-fail only when this runtime cannot probe Wi-Fi (browser) and GPS failed.
+  if (!pos && !wifiOk) {
+    throw new Error(locationSoftFailMessage(false));
   }
 
   const { data, error } = await supabase.rpc('process_geo_attendance_ping', {
@@ -508,7 +516,7 @@ export async function submitGeoClockEvent(intent: GeoClockIntent): Promise<GeoPi
   }
   const result: GeoPingResult = {
     ...(data as GeoPingResult),
-    wifi_ssid_probed: wifi.probed,
+    wifi_ssid_probed: wifi.probed || wifiPathAvailable,
     probed_ssid: wifi.ssid,
   };
   dispatchGeoPing({
@@ -554,17 +562,26 @@ export async function submitGeoAutoPing(): Promise<GeoPingResult> {
     return result;
   }
   // Prefer ≤50 m so a single outside reading can check out (Rule 5).
-  // Probe Wi-Fi in parallel when the runtime can (Android / desktop); browsers cannot.
-  const [pos, wifi] = await Promise.all([
-    requestPositionWithAccuracyRetries(50),
+  // Soft-fail GPS: still ping with SSID/BSSID/IP when location services are off.
+  const wifiPathAvailable = canProbeWifiSsid();
+  const [posSettled, wifi] = await Promise.all([
+    requestPositionWithAccuracyRetries(50).then(
+      (p): GeolocationPosition | null => p,
+      (): GeolocationPosition | null => null,
+    ),
     probeDeviceWifiIdentity(),
   ]);
+  const pos = posSettled;
+  const wifiOk = Boolean(wifi.ssid || wifi.bssid || wifi.probed || wifiPathAvailable);
+  if (!pos && !wifiOk) {
+    throw new Error(locationSoftFailMessage(false));
+  }
   const { data, error } = await supabase.rpc('process_geo_attendance_ping', {
-    p_latitude: pos.coords.latitude,
-    p_longitude: pos.coords.longitude,
-    p_accuracy: pos.coords.accuracy ?? null,
+    p_latitude: pos?.coords.latitude ?? null,
+    p_longitude: pos?.coords.longitude ?? null,
+    p_accuracy: pos?.coords.accuracy ?? null,
     p_intent: 'auto',
-    p_is_mock: positionIsMock(pos),
+    p_is_mock: pos ? positionIsMock(pos) : false,
     p_ssid: wifi.ssid,
     p_bssid: wifi.bssid,
   });
@@ -579,14 +596,14 @@ export async function submitGeoAutoPing(): Promise<GeoPingResult> {
   }
   const result: GeoPingResult = {
     ...(data as GeoPingResult),
-    wifi_ssid_probed: wifi.probed,
+    wifi_ssid_probed: wifi.probed || wifiPathAvailable,
     probed_ssid: wifi.ssid,
   };
   dispatchGeoPing({
     result,
-    latitude: pos.coords.latitude,
-    longitude: pos.coords.longitude,
-    accuracy: pos.coords.accuracy ?? null,
+    latitude: pos?.coords.latitude,
+    longitude: pos?.coords.longitude,
+    accuracy: pos?.coords.accuracy ?? null,
     auto: true,
     checkedAt: Date.now(),
   });

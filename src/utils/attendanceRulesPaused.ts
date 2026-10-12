@@ -4,7 +4,7 @@ export const ATTENDANCE_RULES_PAUSED_MESSAGE =
 
 /** Short product copy for the Clock in panel (writes live). */
 export const MANUAL_CHECKIN_RULE_MESSAGE =
-  'Clock in: configured office Wi-Fi (no radius needed), or GPS inside your assigned office radius. Window: 1 hour before shift start until shift end. Public Wi-Fi does not count.';
+  'Clock in: configured office Wi-Fi (location not required), or GPS inside your assigned office radius. Window: 1 hour before shift start until shift end. Public Wi-Fi does not count.';
 
 export function isRulesNotConfigured(result: unknown): boolean {
   if (!result || typeof result !== 'object') return false;
