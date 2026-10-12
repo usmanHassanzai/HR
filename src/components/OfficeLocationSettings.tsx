@@ -13,9 +13,8 @@ import {
   Users,
   Building2,
   Info,
-  Wifi,
 } from 'lucide-react';
-import { OfficeLocation, OfficeWifiNetwork } from '../utils/geoAttendance';
+import { OfficeLocation } from '../utils/geoAttendance';
 import AssignManagerLocationPanel, { ManagerSiteRow } from './AssignManagerLocationPanel';
 import LiveGpsCapture from './LiveGpsCapture';
 import TimeZonePicker from './TimeZonePicker';
@@ -30,86 +29,11 @@ function isAlertError(message: string): boolean {
   return /fail|denied|required|please|error|must|cannot|warn/i.test(message);
 }
 
-function emptyWifiNetwork(label = ''): OfficeWifiNetwork {
-  return { id: null, label, ssid: '', wifi_bssids: '', public_ip_cidrs: '', active: true };
-}
-
 function splitList(s: string): string[] {
   return s
     .split(/[\n,]+/)
     .map((x) => x.trim())
     .filter(Boolean);
-}
-
-function networkDuplicateWarnings(networks: OfficeWifiNetwork[]): string[] {
-  const warnings: string[] = [];
-  const seenSsid = new Set<string>();
-  const seenBssid = new Set<string>();
-  const seenIp = new Set<string>();
-  for (const n of networks) {
-    if (!n.active) continue;
-    for (const s of splitList(n.ssid)) {
-      const key = s.toLowerCase();
-      if (seenSsid.has(key)) warnings.push(`Duplicate SSID "${s}" across networks in this office`);
-      else seenSsid.add(key);
-    }
-    for (const b of splitList(n.wifi_bssids)) {
-      const key = b.toLowerCase();
-      if (seenBssid.has(key)) warnings.push(`Duplicate BSSID "${b}" across networks in this office`);
-      else seenBssid.add(key);
-    }
-    for (const ip of splitList(n.public_ip_cidrs)) {
-      if (seenIp.has(ip)) warnings.push(`Duplicate public IP/CIDR "${ip}" across networks in this office`);
-      else seenIp.add(ip);
-    }
-  }
-  return warnings;
-}
-
-function looksLikeIp(value: string): boolean {
-  return Boolean(value) && value !== 'unknown' && !value.startsWith('unavailable');
-}
-
-async function fetchPublicIp(url: string): Promise<string | null> {
-  try {
-    const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
-    const j = (await r.json()) as { ip?: string };
-    return j.ip || null;
-  } catch {
-    return null;
-  }
-}
-
-/** Prefer IPv4; also capture IPv6 when the browser/network exposes it (api6 / api64). */
-async function probeDeviceWifi(): Promise<{
-  publicIp: string;
-  publicIps: string[];
-  ssid: string;
-  bssid: string;
-}> {
-  const [v4, v6, dual] = await Promise.all([
-    fetchPublicIp('https://api.ipify.org?format=json'),
-    fetchPublicIp('https://api6.ipify.org?format=json'),
-    fetchPublicIp('https://api64.ipify.org?format=json'),
-  ]);
-  const publicIps = [...new Set([v4, v6, dual].filter((ip): ip is string => Boolean(ip)))];
-  const publicIp = v4 || dual || v6 || 'unavailable (network)';
-  let ssid = '';
-  let bssid = '';
-  try {
-    const { registerPlugin } = await import('@capacitor/core');
-    const probe = registerPlugin<{
-      probeNetwork?: () => Promise<{ ssid?: string; bssid?: string }>;
-    }>('AttendancePing');
-    if (typeof probe.probeNetwork === 'function') {
-      const n = await probe.probeNetwork();
-      if (n?.ssid) ssid = n.ssid;
-      if (n?.bssid) bssid = n.bssid;
-    }
-  } catch {
-    /* web / plugin missing */
-  }
-  return { publicIp, publicIps, ssid, bssid };
 }
 
 export default function OfficeLocationSettings() {
@@ -121,11 +45,6 @@ export default function OfficeLocationSettings() {
   const [activeTab, setActiveTab] = useState<OfficeTab>('create');
   const [assignOfficeId, setAssignOfficeId] = useState('');
   const [assignKey, setAssignKey] = useState(0);
-  const [wifiNetworksByOffice, setWifiNetworksByOffice] = useState<Record<string, OfficeWifiNetwork[]>>({});
-  const [wifiProbe, setWifiProbe] = useState('');
-  const [wifiProbing, setWifiProbing] = useState(false);
-  const [wifiNetworks, setWifiNetworks] = useState<OfficeWifiNetwork[]>([]);
-  const [wifiWarnings, setWifiWarnings] = useState<string[]>([]);
   const [form, setForm] = useState({
     id: '' as string | null,
     name: '',
@@ -134,7 +53,6 @@ export default function OfficeLocationSettings() {
     longitude: '',
     radius_meters: '150',
     active: true,
-    detection_mode: 'gps_or_wifi' as 'gps_only' | 'wifi_only' | 'gps_or_wifi',
     default_timezone: '',
     default_display_timezones: '',
   });
@@ -153,33 +71,7 @@ export default function OfficeLocationSettings() {
       supabase.rpc('get_manager_work_sites'),
     ]);
     if (officesRes.error) showMsg(officesRes.error.message);
-    else {
-      const list = (officesRes.data || []) as OfficeLocation[];
-      setOffices(list);
-      const netMap: Record<string, OfficeWifiNetwork[]> = {};
-      await Promise.all(
-        list.map(async (o) => {
-          const { data } = await supabase.rpc('list_office_wifi_networks', { p_office_id: o.id });
-          const rows = (data || []) as Array<{
-            id: string;
-            label: string;
-            ssids: string[] | null;
-            wifi_bssids: string[] | null;
-            public_ip_cidrs: string[] | null;
-            active: boolean;
-          }>;
-          netMap[o.id] = rows.map((r) => ({
-            id: r.id,
-            label: r.label,
-            ssid: (r.ssids || []).join(', '),
-            wifi_bssids: (r.wifi_bssids || []).join(', '),
-            public_ip_cidrs: (r.public_ip_cidrs || []).join(', '),
-            active: r.active,
-          }));
-        }),
-      );
-      setWifiNetworksByOffice(netMap);
-    }
+    else setOffices((officesRes.data || []) as OfficeLocation[]);
     if (!sitesRes.error) setAssignments((sitesRes.data || []) as ManagerSiteRow[]);
     setLoading(false);
   }, [showMsg]);
@@ -197,153 +89,12 @@ export default function OfficeLocationSettings() {
       longitude: '',
       radius_meters: '150',
       active: true,
-      detection_mode: 'gps_or_wifi',
       default_timezone: '',
       default_display_timezones: '',
     });
-    setWifiNetworks([]);
-    setWifiWarnings([]);
-    setWifiProbe('');
   };
 
-  const updateWifiNetwork = (index: number, patch: Partial<OfficeWifiNetwork>) => {
-    setWifiNetworks((rows) => {
-      const next = rows.map((row, i) => (i === index ? { ...row, ...patch } : row));
-      setWifiWarnings(networkDuplicateWarnings(next));
-      return next;
-    });
-  };
-
-  const addWifiNetwork = () => {
-    setWifiNetworks((rows) => {
-      const next = [...rows, emptyWifiNetwork(rows.length === 0 ? 'Main Wi-Fi' : '')];
-      setWifiWarnings(networkDuplicateWarnings(next));
-      return next;
-    });
-  };
-
-  const removeWifiNetwork = (index: number) => {
-    const row = wifiNetworks[index];
-    if (!confirm(`Delete Wi-Fi network "${row?.label || 'Untitled'}"?`)) return;
-    setWifiNetworks((rows) => {
-      const next = rows.filter((_, i) => i !== index);
-      setWifiWarnings(networkDuplicateWarnings(next));
-      return next;
-    });
-  };
-
-  const useCurrentWifiOnRow = async (index: number) => {
-    setWifiProbing(true);
-    try {
-      const probed = await probeDeviceWifi();
-      const ipsToAdd = probed.publicIps.length
-        ? probed.publicIps
-        : looksLikeIp(probed.publicIp)
-          ? [probed.publicIp]
-          : [];
-      setWifiNetworks((rows) => {
-        const next = [...rows];
-        while (next.length <= index) next.push(emptyWifiNetwork());
-        const cur = next[index] || emptyWifiNetwork();
-        next[index] = {
-          ...cur,
-          label: cur.label || (index === 0 ? 'Main Wi-Fi' : `Wi-Fi ${index + 1}`),
-          ssid: probed.ssid || cur.ssid,
-          wifi_bssids: probed.bssid
-            ? [...new Set([...splitList(cur.wifi_bssids), probed.bssid])].join(', ')
-            : cur.wifi_bssids,
-          public_ip_cidrs: ipsToAdd.length
-            ? [...new Set([...splitList(cur.public_ip_cidrs), ...ipsToAdd])].join(', ')
-            : cur.public_ip_cidrs,
-        };
-        setWifiWarnings(networkDuplicateWarnings(next));
-        return next;
-      });
-      const ipLabel = ipsToAdd.length ? ipsToAdd.join(', ') : probed.publicIp;
-      const hasV6 = ipsToAdd.some((ip) => ip.includes(':'));
-      setWifiProbe(
-        `Filled from this device — IP${ipsToAdd.length > 1 ? 's' : ''}: ${ipLabel}${
-          hasV6 ? ' (includes IPv6)' : ''
-        }. BSSID: ${probed.bssid || 'n/a'}. SSID: ${probed.ssid || 'n/a'}.`,
-      );
-    } finally {
-      setWifiProbing(false);
-    }
-  };
-
-  const testOfficeWifi = async () => {
-    setWifiProbing(true);
-    setWifiProbe('');
-    try {
-      const probed = await probeDeviceWifi();
-      if (!form.id) {
-        // Client-side match against draft networks
-        const candidateIps = probed.publicIps.length
-          ? probed.publicIps
-          : looksLikeIp(probed.publicIp)
-            ? [probed.publicIp]
-            : [];
-        let matchedLabel: string | null = null;
-        for (const n of wifiNetworks) {
-          if (!n.active) continue;
-          const ips = splitList(n.public_ip_cidrs);
-          // Draft test: exact IP only; full CIDR matching runs server-side after save
-          if (!candidateIps.some((ip) => ips.includes(ip))) continue;
-          const bssids = splitList(n.wifi_bssids).map((b) => b.toLowerCase());
-          const ssids = splitList(n.ssid);
-          const ssidOk =
-            ssids.length === 0 ||
-            (Boolean(probed.ssid) &&
-              ssids.some((s) => s.toLowerCase() === probed.ssid.toLowerCase()));
-          if (bssids.length) {
-            // Prefer BSSID when the device can read it; otherwise same IP + SSID still matches
-            // (browsers / some OS builds often omit BSSID).
-            if (probed.bssid && bssids.includes(probed.bssid.toLowerCase())) {
-              matchedLabel = n.label || 'Untitled';
-              break;
-            }
-            if (!probed.bssid && ssidOk) {
-              matchedLabel = n.label || 'Untitled';
-              break;
-            }
-          } else if (ssidOk) {
-            matchedLabel = n.label || 'Untitled';
-            break;
-          }
-        }
-        const ipShown = candidateIps.length ? candidateIps.join(', ') : probed.publicIp;
-        setWifiProbe(
-          matchedLabel
-            ? `Matched network: ${matchedLabel} (draft). IP: ${ipShown}. BSSID: ${probed.bssid || 'n/a'}.`
-            : `No network matched (draft). IP: ${ipShown}. BSSID: ${probed.bssid || 'n/a'}. SSID: ${probed.ssid || 'n/a'}.`,
-        );
-        return;
-      }
-      const testIp =
-        probed.publicIps.find((ip) => !ip.includes(':')) ||
-        probed.publicIps[0] ||
-        (looksLikeIp(probed.publicIp) ? probed.publicIp : null);
-      const { data, error } = await supabase.rpc('test_office_wifi_match', {
-        p_office_id: form.id,
-        p_client_ip: testIp,
-        p_ssid: probed.ssid || null,
-        p_bssid: probed.bssid || null,
-      });
-      if (error) {
-        setWifiProbe(error.message);
-        return;
-      }
-      const row = data as { message?: string; client_ip?: string; bssid?: string; ssid?: string };
-      const ipShown = row.client_ip || (probed.publicIps.length ? probed.publicIps.join(', ') : probed.publicIp);
-      setWifiProbe(
-        `${row.message || 'No network matched'}. IP: ${ipShown}. BSSID: ${row.bssid || probed.bssid || 'n/a'}. SSID: ${row.ssid || probed.ssid || 'n/a'}.`,
-      );
-    } finally {
-      setWifiProbing(false);
-    }
-  };
-
-  const editOffice = async (o: OfficeLocation) => {
+  const editOffice = (o: OfficeLocation) => {
     setForm({
       id: o.id,
       name: o.name,
@@ -352,48 +103,9 @@ export default function OfficeLocationSettings() {
       longitude: String(o.longitude),
       radius_meters: String(o.radius_meters),
       active: o.active,
-      detection_mode: o.detection_mode || 'gps_or_wifi',
       default_timezone: o.default_timezone || '',
       default_display_timezones: (o.default_display_timezones || []).join(', '),
     });
-    const { data, error } = await supabase.rpc('list_office_wifi_networks', { p_office_id: o.id });
-    if (error) {
-      // Fallback to legacy flat columns if RPC not deployed yet
-      if ((o.wifi_ssids?.length || o.wifi_bssids?.length || o.public_ip_cidrs?.length)) {
-        setWifiNetworks([
-          {
-            id: null,
-            label: 'Main Wi-Fi',
-            ssid: (o.wifi_ssids || []).join(', '),
-            wifi_bssids: (o.wifi_bssids || []).join(', '),
-            public_ip_cidrs: (o.public_ip_cidrs || []).join(', '),
-            active: true,
-          },
-        ]);
-      } else {
-        setWifiNetworks([]);
-      }
-    } else {
-      const rows = (data || []) as Array<{
-        id: string;
-        label: string;
-        ssids: string[] | null;
-        wifi_bssids: string[] | null;
-        public_ip_cidrs: string[] | null;
-        active: boolean;
-      }>;
-      setWifiNetworks(
-        rows.map((r) => ({
-          id: r.id,
-          label: r.label,
-          ssid: (r.ssids || []).join(', '),
-          wifi_bssids: (r.wifi_bssids || []).join(', '),
-          public_ip_cidrs: (r.public_ip_cidrs || []).join(', '),
-          active: r.active,
-        })),
-      );
-    }
-    setWifiWarnings([]);
     setActiveTab('create');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -458,11 +170,7 @@ export default function OfficeLocationSettings() {
         p_default_display_timezones: splitList(form.default_display_timezones),
       });
     }
-    showMsg(
-      wasNew
-        ? `"${savedName}" saved.`
-        : `"${savedName}" updated.`,
-    );
+    showMsg(wasNew ? `"${savedName}" saved.` : `"${savedName}" updated.`);
     resetForm();
     await load();
     if (wasNew && match) startAssign(match.id);
@@ -500,8 +208,8 @@ export default function OfficeLocationSettings() {
           <div>
             <h2 className="admin-office-header__title">Office &amp; Attendance</h2>
             <p className="admin-office-header__subtitle">
-              Define geofenced office locations, Wi-Fi networks, and automatic check-in. The same settings appear on web,
-              the desktop app, and the mobile app.
+              Define geofenced office locations for check-in. The same settings appear on web, the desktop app, and the
+              mobile app.
             </p>
           </div>
         </div>
@@ -661,7 +369,7 @@ export default function OfficeLocationSettings() {
                   required
                 />
               </div>
-<div className="form-group admin-office-span-full">
+              <div className="form-group admin-office-span-full">
                 <label>Default shift time zone (pre-fill when creating shifts)</label>
                 <TimeZonePicker
                   value={form.default_timezone}
@@ -726,7 +434,9 @@ export default function OfficeLocationSettings() {
           </p>
           <div className="admin-office-info">
             <Info size={16} />
-            <span>Create at least one active office under <strong>Create zone</strong> before assigning people.</span>
+            <span>
+              Create at least one active office under <strong>Create zone</strong> before assigning people.
+            </span>
           </div>
           <AssignManagerLocationPanel
             key={assignKey}
@@ -748,7 +458,9 @@ export default function OfficeLocationSettings() {
             <div className="admin-office-empty">
               <MapPin size={40} strokeWidth={1.25} />
               <h4>No office zones yet</h4>
-              <p>Go to <strong>Create zone</strong>, capture live GPS at your office, and save your first location.</p>
+              <p>
+                Go to <strong>Create zone</strong>, capture live GPS at your office, and save your first location.
+              </p>
             </div>
           ) : (
             <div className="admin-office-grid">
@@ -768,17 +480,7 @@ export default function OfficeLocationSettings() {
                     {o.address && <p className="admin-office-item__meta">{o.address}</p>}
                     <div className="admin-office-item__coords">
                       {o.latitude.toFixed(5)}, {o.longitude.toFixed(5)} · {o.radius_meters}m radius
-                      {' · '}
-                      Wi-Fi and GPS
                     </div>
-                    <p className="admin-office-item__meta">
-                      <Wifi size={12} className="admin-office-item__meta-icon" />
-                      {(() => {
-                        const nets = (wifiNetworksByOffice[o.id] || []).filter((n) => n.active);
-                        if (nets.length === 0) return 'No active Wi-Fi networks';
-                        return `${nets.length} Wi-Fi network${nets.length === 1 ? '' : 's'}: ${nets.map((n) => n.label).join(', ')}`;
-                      })()}
-                    </p>
                     <p className="admin-office-item__meta">
                       <Users size={12} className="admin-office-item__meta-icon" />
                       {assigned.length > 0
@@ -810,7 +512,6 @@ export default function OfficeLocationSettings() {
           )}
         </section>
       )}
-
     </div>
   );
 }

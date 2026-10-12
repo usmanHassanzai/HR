@@ -44,7 +44,6 @@ const EmployeeRewardsPanel = lazy(() => import('./EmployeeRewardsPanel'));
 const AttendanceLeavePanel = lazy(() => import('./AttendanceLeavePanel'));
 const DailyWorkReportPanel = lazy(() => import('./DailyWorkReportPanel'));
 const AccountSecurityPanel = lazy(() => import('./AccountSecurityPanel'));
-const AutoAttendanceSettings = lazy(() => import('./AutoAttendanceSettings'));
 const BackupCodesLowBanner = lazy(() => import('./BackupCodesLowBanner'));
 
 type EmployeeTab = 'kpis' | 'attendance' | 'rewards' | 'dailyReport' | 'settings';
@@ -782,9 +781,6 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
               </button>
             </div>
           )}
-          <div className="app-settings-block">
-            <AutoAttendanceSettings mode="self" />
-          </div>
           <details className="app-settings-block" open>
             <summary>Account security (2FA recovery)</summary>
             <AccountSecurityPanel fullName={activeUser.full_name} omitDelete />

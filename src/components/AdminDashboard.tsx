@@ -336,7 +336,7 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
       { id: 'kpiPoints', label: 'KPI & Rewards', icon: <Coins size={18} />, description: "Each person's score and points" },
       { id: 'analytics', label: 'Analytics', icon: <BarChart3 size={18} />, description: 'Trends & attainment' },
       { id: 'attendance', label: 'Attendance', icon: <CalendarCheck size={18} />, description: isHr ? 'My day, leave & history' : 'Leave & approvals' },
-      { id: 'office', label: 'Office & Attendance', icon: <MapPin size={18} />, description: 'GPS, Wi-Fi networks & auto check-in' },
+      { id: 'office', label: 'Office & Attendance', icon: <MapPin size={18} />, description: 'GPS office zones & assignments' },
       { id: 'tracking', label: 'Live Tracking', icon: <Radio size={18} />, description: 'Field team locations' },
       { id: 'departments', label: 'Departments', icon: <Building2 size={18} />, description: 'Org structure only' },
       { id: 'export', label: 'Export', icon: <Download size={18} />, description: 'Monthly & quarterly exports' },
@@ -554,7 +554,7 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
       ) : activeTab === 'settings' ? (
         <div className="app-settings-stack">
           <details className="app-settings-block" open>
-            <summary>Office &amp; Attendance — GPS, Wi-Fi &amp; automatic</summary>
+            <summary>Office &amp; Attendance — GPS zones</summary>
             <p style={{ margin: '0 0 0.75rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
               Same settings as <strong>Office &amp; Attendance</strong> in the menu — identical on web, desktop, and mobile.
             </p>

@@ -24,7 +24,6 @@ const ManagerRewardsPanel = lazy(() => import('./ManagerRewardsPanel'));
 const AttendanceLeavePanel = lazy(() => import('./AttendanceLeavePanel'));
 const AdminLiveTracking = lazy(() => import('./AdminLiveTracking'));
 const AccountSecurityPanel = lazy(() => import('./AccountSecurityPanel'));
-const AutoAttendanceSettings = lazy(() => import('./AutoAttendanceSettings'));
 const BackupCodesLowBanner = lazy(() => import('./BackupCodesLowBanner'));
 
 type ManagerTab = 'mine' | 'employees' | 'kpis' | 'attendance' | 'rewards' | 'dailyReport' | 'settings';
@@ -292,9 +291,6 @@ export default function ManagerDashboard({ profile, organizationName }: ManagerD
               <button type="button" className="btn btn-secondary" onClick={() => setShowChangePassword(true)}>
                 <KeyRound size={16} /> Change password
               </button>
-            </div>
-            <div className="app-settings-block">
-              <AutoAttendanceSettings mode="self" />
             </div>
             <details className="app-settings-block" open>
               <summary>Account security (2FA recovery)</summary>

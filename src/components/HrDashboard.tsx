@@ -16,7 +16,6 @@ const AttendanceLeavePanel = lazy(() => import('./AttendanceLeavePanel'));
 const MyShiftCard = lazy(() => import('./MyShiftCard'));
 const AdminRewards = lazy(() => import('./AdminRewards'));
 const AccountSecurityPanel = lazy(() => import('./AccountSecurityPanel'));
-const AutoAttendanceSettings = lazy(() => import('./AutoAttendanceSettings'));
 const BackupCodesLowBanner = lazy(() => import('./BackupCodesLowBanner'));
 const DeleteAccountSection = lazy(() => import('./DeleteAccountSection'));
 const ManagerPersonalPanel = lazy(() => import('./ManagerPersonalPanel'));
@@ -183,9 +182,6 @@ export default function HrDashboard({ profile, organizationName }: HrDashboardPr
                     >
                       <KeyRound size={16} /> Change password
                     </button>
-                  </div>
-                  <div className="app-settings-block">
-                    <AutoAttendanceSettings mode="self" />
                   </div>
                   <details className="app-settings-block" open>
                     <summary>Account security (2FA recovery)</summary>
