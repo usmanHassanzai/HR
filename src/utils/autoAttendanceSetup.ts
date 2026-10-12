@@ -228,9 +228,29 @@ export async function registerDeviceViaRpc(appVersion?: string): Promise<{
   }
 }
 
-/** iOS: escalate to Always after When-In-Use (no-op / settings hint on Android). */
+/** Escalate to Always / “All the time” after When-In-Use (iOS + Android). */
 export async function requestAlwaysLocation(): Promise<{ ok: boolean; detail: string; status?: string }> {
   if (!isNativeApp()) return { ok: true, detail: 'Not required' };
+
+  const fromSnapshot = async (): Promise<{ ok: boolean; detail: string; status?: string }> => {
+    const snap = await getNativePermissionSnapshot();
+    const fg = snap.location === 'granted' || snap.coarseLocation === 'granted';
+    const bg = snap.backgroundLocation === 'granted';
+    if (bg) return { ok: true, detail: 'Always location allowed', status: 'granted' };
+    if (fg) {
+      return {
+        ok: false,
+        detail: 'Open Settings → Scorr → Location → Allow all the time, then return here.',
+        status: 'when_in_use',
+      };
+    }
+    return {
+      ok: false,
+      detail: 'Location was not allowed. Open Settings → Scorr → Location → Allow all the time.',
+      status: 'denied',
+    };
+  };
+
   try {
     const res = await withTimeout(
       AttendancePing.requestAlwaysLocation(),
@@ -243,17 +263,30 @@ export async function requestAlwaysLocation(): Promise<{ ok: boolean; detail: st
     if (res.status === 'when_in_use' || res.location === 'granted') {
       return {
         ok: false,
-        detail: 'Open Settings → Scorr → Location → Always, then return here.',
+        detail: 'Open Settings → Scorr → Location → Allow all the time, then return here.',
         status: 'when_in_use',
       };
     }
     return {
       ok: false,
-      detail: 'Location was not allowed. Open Settings → Scorr → Location → Always.',
+      detail: 'Location was not allowed. Open Settings → Scorr → Location → Allow all the time.',
       status: res.status || 'denied',
     };
   } catch (e) {
-    return { ok: false, detail: e instanceof Error ? e.message : String(e) };
+    const msg = e instanceof Error ? e.message : String(e);
+    // Older APKs without the method — fall back to snapshot instead of error spam.
+    if (/not implemented/i.test(msg)) {
+      try {
+        return await fromSnapshot();
+      } catch {
+        return {
+          ok: false,
+          detail: 'Open Settings → Scorr → Location → Allow all the time, then return here.',
+          status: 'when_in_use',
+        };
+      }
+    }
+    return { ok: false, detail: msg };
   }
 }
 
@@ -394,9 +427,27 @@ export async function requestNativeNotifications(): Promise<{ ok: boolean; detai
   }
   if (!isNativeApp()) return { ok: true, detail: 'Not required' };
   try {
+    // Prefer live snapshot so we don't treat a stale "prompt" as denial.
+    try {
+      const before = await getNativePermissionSnapshot();
+      if (before.notifications === 'granted' || before.notifications === 'authorized') {
+        return { ok: true, detail: 'Notifications allowed' };
+      }
+    } catch {
+      /* continue to request */
+    }
     const res = await withTimeout(AttendancePing.requestNotifications(), 15_000, 'Waiting for notification permission');
     if (res.status === 'granted' || res.status === 'authorized') {
       return { ok: true, detail: 'Notifications allowed' };
+    }
+    // Re-check: Android may return promptly while the system toggle is already on.
+    try {
+      const after = await getNativePermissionSnapshot();
+      if (after.notifications === 'granted' || after.notifications === 'authorized') {
+        return { ok: true, detail: 'Notifications allowed' };
+      }
+    } catch {
+      /* ignore */
     }
     return { ok: false, detail: 'Notifications were not allowed. You can enable them in Settings.' };
   } catch (e) {

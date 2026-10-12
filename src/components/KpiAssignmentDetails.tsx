@@ -10,6 +10,9 @@ interface KpiAssignmentDetailsProps {
   showLastEdit?: boolean;
   /** Collapse admin edit history so the card stays scannable. */
   compact?: boolean;
+  /** When the viewer is the assignee, opening “View task” records viewed. */
+  recordAssigneeView?: boolean;
+  onMarkedViewed?: (kpiId: string) => void;
 }
 
 export default function KpiAssignmentDetails({
@@ -18,6 +21,8 @@ export default function KpiAssignmentDetails({
   assignmentNotes,
   showLastEdit = true,
   compact = false,
+  recordAssigneeView = false,
+  onMarkedViewed,
 }: KpiAssignmentDetailsProps) {
   const library = description?.trim() || kpi?.description?.trim() || '';
   const notes = assignmentNotes?.trim() || kpi?.assignment_notes?.trim() || '';
@@ -48,7 +53,13 @@ export default function KpiAssignmentDetails({
         )
       )}
       {library && library !== notes && (
-        <KpiTaskBrief kpi={briefKpi} compact={false} hideName />
+        <KpiTaskBrief
+          kpi={briefKpi}
+          compact={false}
+          hideName
+          recordAssigneeView={recordAssigneeView}
+          onMarkedViewed={onMarkedViewed}
+        />
       )}
       {notes && (
         <div className="kpi-assign-note">

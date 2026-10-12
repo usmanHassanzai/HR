@@ -107,11 +107,11 @@ export default function ManagerPersonalPanel({ profile, focusKpiId }: ManagerPer
 
     const mark = () => {
       void markAssignedKpisViewed(ids).then((result) => {
-        if (cancelled) return;
         if (!result.ok) {
-          retryTimer = window.setTimeout(mark, 2500);
+          if (!cancelled) retryTimer = window.setTimeout(mark, 2500);
           return;
         }
+        if (result.count <= 0) return;
         const nowIso = new Date().toISOString();
         setKpis((prev) => prev.map((k) => (
           ids.includes(k.id)
@@ -128,13 +128,29 @@ export default function ManagerPersonalPanel({ profile, focusKpiId }: ManagerPer
       });
     };
 
-    const kickoff = window.setTimeout(mark, 300);
+    // Immediate mark — delayed kickoff was cancelled on every `kpis` refresh.
+    mark();
     return () => {
       cancelled = true;
-      window.clearTimeout(kickoff);
       if (retryTimer) window.clearTimeout(retryTimer);
     };
   }, [kpis, profile.id]);
+
+  const patchKpiViewed = (kpiId: string) => {
+    const nowIso = new Date().toISOString();
+    setKpis((prev) => prev.map((k) => (
+      k.id === kpiId
+        ? {
+            ...k,
+            viewed_at: k.viewed_at || nowIso,
+            viewed_by: k.viewed_by || profile.id,
+            employee_progress: k.employee_progress === 'completed' || k.completion_status === 'completed'
+              ? k.employee_progress
+              : 'started',
+          }
+        : k
+    )));
+  };
 
   useEffect(() => {
     void load();
@@ -406,7 +422,11 @@ export default function ManagerPersonalPanel({ profile, focusKpiId }: ManagerPer
                           <dd>{fmtFullDate(historyDate)}</dd>
                         </div>
                       </dl>
-                      <KpiAssignmentDetails kpi={kpi} />
+                      <KpiAssignmentDetails
+                        kpi={kpi}
+                        recordAssigneeView
+                        onMarkedViewed={patchKpiViewed}
+                      />
                     </article>
                   );
                 }}
@@ -472,7 +492,11 @@ export default function ManagerPersonalPanel({ profile, focusKpiId }: ManagerPer
                         ? 'Submitted — waiting for review'
                         : `Assigned weightage ${formatKpiWeight(kpi.weight)} — awarded after approval`}
                   </p>
-                  <KpiAssignmentDetails kpi={kpi} />
+                  <KpiAssignmentDetails
+                    kpi={kpi}
+                    recordAssigneeView
+                    onMarkedViewed={patchKpiViewed}
+                  />
                   <KpiEvaluationBlock
                     kpi={kpi}
                     mode="employee"

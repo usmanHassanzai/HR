@@ -4,8 +4,7 @@
 ALTER TABLE public.kpis
     ADD COLUMN IF NOT EXISTS viewed_by UUID REFERENCES public.users(id) ON DELETE SET NULL;
 
-UPDATE public.kpis
-SET viewed_at = NULL, viewed_by = NULL;
+-- Do not wipe viewed_at/viewed_by on re-apply (apply-all-migrations re-runs this file).
 
 CREATE OR REPLACE FUNCTION public.mark_assigned_kpis_viewed(p_kpi_ids UUID[] DEFAULT NULL)
 RETURNS INTEGER

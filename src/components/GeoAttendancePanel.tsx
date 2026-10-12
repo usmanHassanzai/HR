@@ -313,16 +313,17 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
       if (!detail?.result) return;
       setLastResult(detail.result);
       setLastSignalAt(detail.checkedAt || Date.now());
-      if (detail.result.inside_office != null || detail.latitude != null) {
-        /* wifi match inferred from check-in success / reason codes */
+      if (detail.result.inside_office != null || detail.latitude != null || detail.result.match_via) {
+        /* wifi match from server match_via / rejection codes — never infer from GPS success */
         const reason = detail.result.reason || detail.result.action;
-        if (reason === 'not_on_office_wifi' || reason === 'not_on_office_network') {
-          setWifiMatch(false);
-        } else if (
-          detail.result.action === 'clock_in' ||
-          detail.result.action === 'already_clocked_in'
-        ) {
+        if (detail.result.match_via === 'wifi') {
           setWifiMatch(true);
+        } else if (detail.result.match_via === 'gps') {
+          setWifiMatch(false);
+        } else if (reason === 'not_on_office_wifi' || reason === 'not_on_office_network') {
+          setWifiMatch(false);
+        } else if (reason === 'outside_radius') {
+          setWifiMatch(false);
         }
       }
       if (detail.result.action === 'clock_in' || detail.result.action === 'already_clocked_in') {
@@ -394,8 +395,15 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
         return;
       }
       if (result.action === 'clock_in' || result.action === 'already_clocked_in') {
-        setStatusMessage('Checked in');
-        setWifiMatch(true);
+        setStatusMessage(
+          result.match_via === 'wifi'
+            ? 'Checked in on office Wi-Fi (radius not required)'
+            : result.match_via === 'gps'
+              ? 'Checked in inside office radius'
+              : 'Checked in',
+        );
+        if (result.match_via === 'wifi') setWifiMatch(true);
+        else if (result.match_via === 'gps') setWifiMatch(false);
         setError('');
       } else if (result.action === 'clock_out' || result.action === 'clock_out_shift_end') {
         setStatusMessage(attendanceCheckoutMessage(result));
@@ -413,7 +421,11 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
           setError(msg);
           setStatusMessage(msg);
         }
-        if (result.action === 'not_on_office_wifi' || result.action === 'not_on_office_network') {
+        if (
+          result.action === 'not_on_office_wifi' ||
+          result.action === 'not_on_office_network' ||
+          result.action === 'outside_radius'
+        ) {
           setWifiMatch(false);
         }
       } else {

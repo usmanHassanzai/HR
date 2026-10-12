@@ -18,3 +18,22 @@ export async function markAssignedKpisViewed(kpiIds?: string[]): Promise<MarkKpi
   }
   return { ok: true, count: typeof data === 'number' ? data : Number(data) || 0 };
 }
+
+/**
+ * Mark one assignment opened by the assignee (View task / opening the card).
+ * No-ops when the signed-in user is not the assignee.
+ */
+export async function markKpiViewedByAssignee(
+  kpiId: string,
+  assigneeUserId: string,
+): Promise<MarkKpisViewedResult> {
+  if (!kpiId || !assigneeUserId) {
+    return { ok: false, count: 0, error: 'Missing kpi or assignee' };
+  }
+  const { data: sessionData } = await supabase.auth.getSession();
+  const uid = sessionData.session?.user?.id;
+  if (!uid || uid !== assigneeUserId) {
+    return { ok: true, count: 0 };
+  }
+  return markAssignedKpisViewed([kpiId]);
+}

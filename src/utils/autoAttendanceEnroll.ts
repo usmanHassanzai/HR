@@ -11,6 +11,7 @@ import {
   registerAttendanceDevice,
 } from './attendanceDevice';
 import {
+  isNativeAutoAttendanceArmed,
   startNativeAttendancePings,
   stopNativeAttendancePings,
 } from './attendanceNativePing';
@@ -38,7 +39,10 @@ export type AutoAttendanceClientKind = 'android' | 'desktop' | 'unsupported';
 export type AutoAttendanceSaveStatus = {
   kind: AutoAttendanceClientKind;
   platformLabel: string;
+  /** WebView Preferences token present (server device registered). */
   saved: boolean;
+  /** Android: native store enabled so FGS/schedule can run. Desktop: same as saved. */
+  backgroundArmed: boolean;
   optInText: string;
   setupIssues: string[];
   permissionLines: string[];
@@ -71,6 +75,8 @@ export function isAutoAttendanceSaveSupported(): boolean {
 export async function getAutoAttendanceSaveStatus(): Promise<AutoAttendanceSaveStatus> {
   const kind = clientKind();
   const saved = Boolean(await getAttendanceDeviceToken());
+  const backgroundArmed =
+    kind === 'android' ? (saved ? await isNativeAutoAttendanceArmed() : false) : saved;
   const optInText = kind === 'desktop' ? LAPTOP_OPT_IN_TEXT : PHONE_OPT_IN_TEXT;
 
   let setupIssues: string[] = [];
@@ -111,7 +117,18 @@ export async function getAutoAttendanceSaveStatus(): Promise<AutoAttendanceSaveS
       if (needsBattery) {
         permissionLines.push('Set battery to Unrestricted so background check-in is not killed.');
       }
-      if (!permissionLines.length && saved) {
+      if (saved && !backgroundArmed) {
+        permissionLines.push(
+          'Account token is saved, but background check-in is not armed. Tap Re-save / refresh.',
+        );
+      }
+      const anyGap =
+        needsLocation ||
+        needsBackgroundLocation ||
+        needsNotifications ||
+        needsBattery ||
+        (saved && !backgroundArmed);
+      if (!anyGap && saved) {
         permissionLines.push('Permissions look ready on this phone.');
       }
     } catch {
@@ -129,6 +146,7 @@ export async function getAutoAttendanceSaveStatus(): Promise<AutoAttendanceSaveS
     kind,
     platformLabel: platformLabel(),
     saved,
+    backgroundArmed,
     optInText,
     setupIssues,
     permissionLines,
@@ -203,6 +221,12 @@ export async function saveAccountForAutoAttendance(): Promise<{
   if (kind === 'android') {
     try {
       await startNativeAttendancePings();
+      const armed = await isNativeAutoAttendanceArmed();
+      if (!armed) {
+        warnings.push(
+          'Device registered, but native background check-in did not arm. Tap Re-save / refresh.',
+        );
+      }
     } catch (e) {
       warnings.push(e instanceof Error ? e.message : 'Background service did not start yet.');
     }

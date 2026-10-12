@@ -820,7 +820,7 @@ export default function AttendanceLeavePanel({
     <div className="attendance-hero">
       <h3 className="attendance-hero__title">Today — {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</h3>
       <p className="attendance-hero__hint">
-        Automatic check-in only works on office Wi-Fi while you are inside the office radius. Use Check in only as a backup with the same rules.
+        Automatic check-in: configured office Wi-Fi (no radius needed), or GPS inside your assigned office radius. Use Clock in on Shift location as a backup with the same rules.
         Check out when you leave early (for example to request leave). Each visit is saved separately and added to your hours.
       </p>
       <div className="attendance-hero__actions">

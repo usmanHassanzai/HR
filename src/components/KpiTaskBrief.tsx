@@ -4,6 +4,7 @@ import { Eye } from 'lucide-react';
 import type { Kpi } from '../utils/kpiHelpers';
 import { kpiCategoryMeta } from '../utils/kpiCategories';
 import { formatKpiWeight } from '../utils/kpiWeightHelpers';
+import { markKpiViewedByAssignee } from '../utils/kpiViewed';
 import '../styles/kpi-task-brief.css';
 
 function fmtDate(d?: string | null): string {
@@ -16,18 +17,34 @@ function fmtDate(d?: string | null): string {
 }
 
 interface KpiTaskBriefProps {
-  kpi: Pick<Kpi, 'name' | 'description' | 'kpi_category' | 'weight' | 'start_date' | 'end_date'>;
+  kpi: Pick<Kpi, 'name' | 'description' | 'kpi_category' | 'weight' | 'start_date' | 'end_date'> & {
+    id?: string;
+    user_id?: string;
+  };
   /** Compact table cell: name + View button only. */
   compact?: boolean;
   /** When name is already shown outside (e.g. card title). */
   hideName?: boolean;
+  /**
+   * When true and kpi.id + kpi.user_id are set, opening “View task” records viewed
+   * if the signed-in user is the assignee (any role).
+   */
+  recordAssigneeView?: boolean;
+  /** Called after a successful mark-viewed (count > 0). */
+  onMarkedViewed?: (kpiId: string) => void;
 }
 
 /**
  * Shows KPI name cleanly; long descriptions open in a professional modal
  * instead of wrapping awkwardly in narrow table columns.
  */
-export default function KpiTaskBrief({ kpi, compact = true, hideName = false }: KpiTaskBriefProps) {
+export default function KpiTaskBrief({
+  kpi,
+  compact = true,
+  hideName = false,
+  recordAssigneeView = false,
+  onMarkedViewed,
+}: KpiTaskBriefProps) {
   const [open, setOpen] = useState(false);
   const titleId = useId();
   const description = kpi.description?.trim() || '';
@@ -47,6 +64,18 @@ export default function KpiTaskBrief({ kpi, compact = true, hideName = false }: 
       window.removeEventListener('keydown', onKey);
     };
   }, [open]);
+
+  useEffect(() => {
+    if (!open || !recordAssigneeView || !kpi.id || !kpi.user_id) return;
+    let cancelled = false;
+    void markKpiViewedByAssignee(kpi.id, kpi.user_id).then((result) => {
+      if (cancelled || !result.ok || result.count <= 0) return;
+      onMarkedViewed?.(kpi.id!);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, recordAssigneeView, kpi.id, kpi.user_id, onMarkedViewed]);
 
   const dialog = open
     ? createPortal(

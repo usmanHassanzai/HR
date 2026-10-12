@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Pencil, Trash2, Pause, Play, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { Kpi, kpiHealthLabel, kpiProgressBadge, kpiWorkStage, isKpiPaused, kpiPauseLabel, isKpiAwaitingReview } from '../utils/kpiHelpers';
+import { Kpi, kpiHealthLabel, kpiProgressBadge, kpiWorkStage, isKpiPaused, kpiPauseLabel, isKpiAwaitingReview, isKpiViewedByAssignee } from '../utils/kpiHelpers';
 import { kpiCategoryMeta } from '../utils/kpiCategories';
 import { formatKpiWeight } from '../utils/kpiWeightHelpers';
 import { isKpiLatePenaltyApplied, kpiAssignedScore } from '../utils/kpiScoreHelpers';
@@ -48,6 +48,7 @@ export default function AssignedKpiCard({
   const awaitingReview = isKpiAwaitingReview(kpi);
   const latePenalized = isKpiLatePenaltyApplied(kpi);
 
+  const viewed = isKpiViewedByAssignee(kpi);
   const progress = isCompleted
     ? (latePenalized
       ? `Approved after the due date — late penalty applied (${scoring.penaltyValue}% of score)`
@@ -56,9 +57,11 @@ export default function AssignedKpiCard({
       ? 'They marked Complete — set the final weightage below to approve'
       : paused
         ? (pauseInfo || 'Paused — due date will move forward when resumed')
-        : stage === 'in_progress'
-          ? 'They opened this in Scorr — in progress'
-          : 'Not started yet (email does not start it)';
+        : viewed || stage === 'in_progress'
+          ? (viewed
+            ? 'Viewed by assignee — in progress'
+            : 'In progress')
+          : 'Not started yet — email does not count as opened';
 
   const handleTogglePause = async () => {
     setBusy(true);
@@ -183,7 +186,7 @@ export default function AssignedKpiCard({
       {description ? (
         <div className="assigned-kpi-card__block">
           <h4>What this task is</h4>
-          <KpiTaskBrief kpi={kpi} compact hideName />
+          <KpiTaskBrief kpi={kpi} compact hideName recordAssigneeView={false} />
         </div>
       ) : (
         <div className="assigned-kpi-card__block assigned-kpi-card__block--muted">

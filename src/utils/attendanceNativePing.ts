@@ -14,6 +14,11 @@ interface AttendancePingPlugin {
   }): Promise<void>;
   stopAutoAttendance(): Promise<void>;
   syncSchedule(): Promise<{ ok?: boolean }>;
+  isAutoAttendanceEnabled?(): Promise<{
+    enabled?: boolean;
+    hasToken?: boolean;
+    insideWindow?: boolean;
+  }>;
   /** @deprecated JWT path removed */
   stop(): Promise<void>;
 }
@@ -53,22 +58,36 @@ async function resolveDeviceId(): Promise<string> {
 /**
  * Android only: Wi-Fi auto check-in via device token + schedule window.
  * iOS auto path stays off.
+ * Throws when the plugin rejects so enroll UI can surface a real warning.
  */
 export async function startNativeAttendancePings(): Promise<void> {
-  if (!isAndroidApp() || !supabaseUrl || !supabaseAnonKey) return;
+  if (!isAndroidApp()) return;
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Missing Supabase config — cannot start background check-in.');
+  }
   const deviceToken = await getAttendanceDeviceToken();
-  if (!deviceToken) return;
+  if (!deviceToken) {
+    throw new Error('No device token saved — register this device first.');
+  }
+  const deviceId = await resolveDeviceId();
+  await AttendancePing.startAutoAttendance({
+    supabaseUrl,
+    anonKey: supabaseAnonKey,
+    deviceToken,
+    deviceId,
+    appVersion: packageVersion(),
+  });
+}
+
+/** True when native EncryptedSharedPreferences has token + enabled (FGS can arm). */
+export async function isNativeAutoAttendanceArmed(): Promise<boolean> {
+  if (!isAndroidApp()) return false;
   try {
-    const deviceId = await resolveDeviceId();
-    await AttendancePing.startAutoAttendance({
-      supabaseUrl,
-      anonKey: supabaseAnonKey,
-      deviceToken,
-      deviceId,
-      appVersion: packageVersion(),
-    });
+    if (typeof AttendancePing.isAutoAttendanceEnabled !== 'function') return false;
+    const res = await AttendancePing.isAutoAttendanceEnabled();
+    return Boolean(res?.enabled);
   } catch {
-    /* plugin unavailable */
+    return false;
   }
 }
 

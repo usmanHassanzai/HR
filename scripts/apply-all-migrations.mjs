@@ -208,6 +208,7 @@ const MIGRATIONS = [
   'wifi_radius_reentry_after_checkout_2026-10-13.sql',
   'manual_wifi_or_radius_checkin_2026-10-13.sql',
   'FIX_daily_work_report_local_today_2026-10-13.sql',
+  'kpi_assignee_viewed_open_fix_2026-10-13.sql',
 ];
 
 async function runMigration(filename) {

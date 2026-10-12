@@ -116,11 +116,13 @@ export default function AutoAttendanceSavePanel() {
   }
 
   const saved = status.saved;
+  const armed = status.backgroundArmed;
   const needsPerm =
     status.needsLocation ||
     status.needsBackgroundLocation ||
     status.needsNotifications ||
-    status.needsBattery;
+    status.needsBattery ||
+    (saved && !armed);
 
   return (
     <div className="auto-attend-save">
@@ -144,11 +146,20 @@ export default function AutoAttendanceSavePanel() {
             alignItems: 'center',
             gap: '0.35rem',
             fontWeight: 600,
-            color: saved ? 'var(--color-success, #0f766e)' : 'var(--text-primary)',
+            color:
+              saved && armed
+                ? 'var(--color-success, #0f766e)'
+                : saved
+                  ? 'var(--color-warning, #b45309)'
+                  : 'var(--text-primary)',
           }}
         >
-          {saved ? <CheckCircle2 size={16} /> : <ShieldOff size={16} />}
-          {saved ? 'Saved on this device' : 'Not saved on this device'}
+          {saved && armed ? <CheckCircle2 size={16} /> : <ShieldOff size={16} />}
+          {saved && armed
+            ? 'Saved on this device'
+            : saved
+              ? 'Saved — background not armed'
+              : 'Not saved on this device'}
         </span>
         <span style={{ color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
           <Smartphone size={14} /> {status.platformLabel}

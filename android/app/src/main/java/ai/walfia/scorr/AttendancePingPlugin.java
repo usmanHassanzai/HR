@@ -1,6 +1,8 @@
 package ai.walfia.scorr;
 
+import android.Manifest;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
@@ -9,14 +11,38 @@ import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import androidx.core.app.NotificationManagerCompat;
+import androidx.core.content.ContextCompat;
 import com.getcapacitor.JSObject;
+import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 import java.util.concurrent.Executors;
 
-@CapacitorPlugin(name = "AttendancePing")
+@CapacitorPlugin(
+    name = "AttendancePing",
+    permissions = {
+        @Permission(
+            alias = "location",
+            strings = {
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            }
+        ),
+        @Permission(
+            alias = "backgroundLocation",
+            strings = { Manifest.permission.ACCESS_BACKGROUND_LOCATION }
+        ),
+        @Permission(
+            alias = "notifications",
+            strings = { Manifest.permission.POST_NOTIFICATIONS }
+        )
+    }
+)
 public class AttendancePingPlugin extends Plugin {
 
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -68,6 +94,18 @@ public class AttendancePingPlugin extends Plugin {
                 }
             });
         });
+    }
+
+    /** Whether native store has token + enabled (FGS / schedule can arm). */
+    @PluginMethod
+    public void isAutoAttendanceEnabled(PluginCall call) {
+        Context ctx = getContext();
+        JSObject result = new JSObject();
+        boolean enabled = AttendancePingStore.enabled(ctx);
+        result.put("enabled", enabled);
+        result.put("hasToken", AttendancePingStore.deviceToken(ctx) != null);
+        result.put("insideWindow", AttendancePingStore.isInsideActiveWindow(ctx));
+        call.resolve(result);
     }
 
     /** @deprecated JWT forever-ping removed — use startAutoAttendance with device token. */
@@ -260,16 +298,125 @@ public class AttendancePingPlugin extends Plugin {
         }
     }
 
+    /**
+     * Escalate to background (“All the time”) location after While-using is granted.
+     * Pre-Q: fine/coarse is enough. Q+: requests ACCESS_BACKGROUND_LOCATION.
+     */
+    @PluginMethod
+    public void requestAlwaysLocation(PluginCall call) {
+        if (hasForegroundLocation()) {
+            continueAlwaysLocationRequest(call);
+            return;
+        }
+        requestPermissionForAlias("location", call, "onAlwaysLocationForeground");
+    }
+
+    @PermissionCallback
+    private void onAlwaysLocationForeground(PluginCall call) {
+        if (!hasForegroundLocation()) {
+            call.resolve(locationPermissionResult("denied"));
+            return;
+        }
+        continueAlwaysLocationRequest(call);
+    }
+
+    private void continueAlwaysLocationRequest(PluginCall call) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            call.resolve(locationPermissionResult("granted"));
+            return;
+        }
+        if (hasBackgroundLocation()) {
+            call.resolve(locationPermissionResult("granted"));
+            return;
+        }
+        requestPermissionForAlias("backgroundLocation", call, "onAlwaysLocationBackground");
+    }
+
+    @PermissionCallback
+    private void onAlwaysLocationBackground(PluginCall call) {
+        if (hasBackgroundLocation()) {
+            call.resolve(locationPermissionResult("granted"));
+        } else if (hasForegroundLocation()) {
+            call.resolve(locationPermissionResult("when_in_use"));
+        } else {
+            call.resolve(locationPermissionResult("denied"));
+        }
+    }
+
+    private JSObject locationPermissionResult(String overall) {
+        JSObject result = new JSObject();
+        boolean fg = hasForegroundLocation();
+        boolean bg =
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.Q ? fg : hasBackgroundLocation();
+        result.put("status", overall);
+        result.put("location", fg ? "granted" : "denied");
+        result.put("backgroundLocation", bg ? "granted" : "denied");
+        return result;
+    }
+
+    private boolean hasForegroundLocation() {
+        Context ctx = getContext();
+        return ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED
+            || ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_COARSE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private boolean hasBackgroundLocation() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            return hasForegroundLocation();
+        }
+        return ContextCompat.checkSelfPermission(
+                getContext(),
+                Manifest.permission.ACCESS_BACKGROUND_LOCATION
+            )
+            == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private boolean notificationsAllowed() {
+        Context ctx = getContext();
+        if (Build.VERSION.SDK_INT >= 33) {
+            if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+                return false;
+            }
+        }
+        try {
+            return NotificationManagerCompat.from(ctx).areNotificationsEnabled();
+        } catch (Exception e) {
+            return Build.VERSION.SDK_INT < 33;
+        }
+    }
+
     @PluginMethod
     public void requestNotifications(PluginCall call) {
-        if (Build.VERSION.SDK_INT >= 33) {
-            bridge.getActivity().requestPermissions(
-                new String[]{ android.Manifest.permission.POST_NOTIFICATIONS },
-                9911
-            );
+        if (notificationsAllowed()) {
+            JSObject result = new JSObject();
+            result.put("status", "granted");
+            call.resolve(result);
+            return;
         }
+        if (Build.VERSION.SDK_INT < 33) {
+            // Channel/app notifications disabled in system settings — cannot re-prompt.
+            JSObject result = new JSObject();
+            result.put("status", "denied");
+            call.resolve(result);
+            return;
+        }
+        if (getPermissionState("notifications") == PermissionState.GRANTED) {
+            // Runtime granted but user disabled notifications in Settings.
+            JSObject result = new JSObject();
+            result.put("status", "denied");
+            call.resolve(result);
+            return;
+        }
+        requestPermissionForAlias("notifications", call, "onNotificationsResult");
+    }
+
+    @PermissionCallback
+    private void onNotificationsResult(PluginCall call) {
         JSObject result = new JSObject();
-        result.put("status", "prompt");
+        result.put("status", notificationsAllowed() ? "granted" : "denied");
         call.resolve(result);
     }
 
@@ -277,24 +424,19 @@ public class AttendancePingPlugin extends Plugin {
     public void getPermissionSnapshot(PluginCall call) {
         Context ctx = getContext();
         JSObject result = new JSObject();
-        boolean fine = androidx.core.content.ContextCompat.checkSelfPermission(
-            ctx, android.Manifest.permission.ACCESS_FINE_LOCATION
-        ) == android.content.pm.PackageManager.PERMISSION_GRANTED;
-        boolean coarse = androidx.core.content.ContextCompat.checkSelfPermission(
-            ctx, android.Manifest.permission.ACCESS_COARSE_LOCATION
-        ) == android.content.pm.PackageManager.PERMISSION_GRANTED;
+        boolean fine = ContextCompat.checkSelfPermission(
+            ctx, Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED;
+        boolean coarse = ContextCompat.checkSelfPermission(
+            ctx, Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED;
         boolean bg = true;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            bg = androidx.core.content.ContextCompat.checkSelfPermission(
-                ctx, android.Manifest.permission.ACCESS_BACKGROUND_LOCATION
-            ) == android.content.pm.PackageManager.PERMISSION_GRANTED;
+            bg = ContextCompat.checkSelfPermission(
+                ctx, Manifest.permission.ACCESS_BACKGROUND_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED;
         }
-        boolean notif = true;
-        if (Build.VERSION.SDK_INT >= 33) {
-            notif = androidx.core.content.ContextCompat.checkSelfPermission(
-                ctx, android.Manifest.permission.POST_NOTIFICATIONS
-            ) == android.content.pm.PackageManager.PERMISSION_GRANTED;
-        }
+        boolean notif = notificationsAllowed();
         Boolean batteryUnrestricted = null;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             android.os.PowerManager pm = (android.os.PowerManager) ctx.getSystemService(Context.POWER_SERVICE);

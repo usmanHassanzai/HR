@@ -13,6 +13,7 @@ import { formatKpiWeight } from '../utils/kpiWeightHelpers';
 import {
   isKpiPastDeadline,
 } from '../utils/kpiScoreHelpers';
+import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
 import KpiAssignmentDetails from './KpiAssignmentDetails';
 import KpiViewedBadge from './KpiViewedBadge';
 import EditAssignedKpiModal from './EditAssignedKpiModal';
@@ -112,6 +113,15 @@ export default function AdminSimpleWorkspace({
     })();
     return () => { cancelled = true; };
   }, [selected?.id, kpiTick]);
+
+  useSupabaseRealtime(
+    'admin-simple-kpi-viewed',
+    selected?.id
+      ? [{ table: 'kpis', filter: `user_id=eq.${selected.id}` }]
+      : [],
+    () => setKpiTick((t) => t + 1),
+    Boolean(selected?.id),
+  );
 
   const openPerson = (person: Profile) => {
     setDraftFrom('');

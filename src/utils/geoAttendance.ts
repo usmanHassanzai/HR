@@ -111,6 +111,8 @@ export interface GeoPingResult {
   clock_out_at?: string;
   record_id?: string;
   reason?: string;
+  match_via?: 'wifi' | 'gps' | string;
+  decision_order?: string;
   shift_name?: string;
   shift_start?: string;
   shift_end?: string;
@@ -389,27 +391,57 @@ async function probeDeviceWifiIdentity(): Promise<{ ssid: string | null; bssid: 
   return { ssid: null, bssid: null };
 }
 
-/** One GPS read (+ optional Wi-Fi probe), then server clock-in or clock-out. */
+/**
+ * GPS read (+ Wi-Fi probe on clock_in), then server clock-in or clock-out.
+ * Office Wi-Fi / IP can succeed without being inside the radius — GPS failure must not
+ * block that path. Radius is only required when Wi-Fi does not match (server Path 2).
+ */
 export async function submitGeoClockEvent(intent: GeoClockIntent): Promise<GeoPingResult> {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
     const result: GeoPingResult = { action: 'no_connection' as GeoPingAction, reason: 'no_connection' };
     dispatchGeoPing({ result, auto: false, checkedAt: Date.now() });
     return result;
   }
-  const [pos, wifi] = await Promise.all([
+
+  const wifiPromise =
+    intent === 'clock_in'
+      ? probeDeviceWifiIdentity()
+      : Promise.resolve({ ssid: null as string | null, bssid: null as string | null });
+
+  let gpsError: unknown;
+  const [posSettled, wifi] = await Promise.all([
     requestCurrentPosition({
       maximumAge: 0,
       timeout: 20_000,
       enableHighAccuracy: true,
-    }),
-    intent === 'clock_in' ? probeDeviceWifiIdentity() : Promise.resolve({ ssid: null, bssid: null }),
+    }).then(
+      (p): GeolocationPosition | null => p,
+      (err): GeolocationPosition | null => {
+        gpsError = err;
+        return null;
+      },
+    ),
+    wifiPromise,
   ]);
+  const pos: GeolocationPosition | null = posSettled;
+
+  // No GPS: still call RPC so configured office Wi-Fi / public IP can check in.
+  // Only hard-fail when we have neither a fix nor any Wi-Fi identity to try.
+  if (!pos && intent === 'clock_in' && !wifi.ssid && !wifi.bssid) {
+    throw gpsError instanceof Error
+      ? gpsError
+      : new Error('Location unavailable, try again');
+  }
+  if (!pos && intent === 'clock_out' && gpsError) {
+    // Clock out is any-location; proceed without coords if GPS is unavailable.
+  }
+
   const { data, error } = await supabase.rpc('process_geo_attendance_ping', {
-    p_latitude: pos.coords.latitude,
-    p_longitude: pos.coords.longitude,
-    p_accuracy: pos.coords.accuracy ?? null,
+    p_latitude: pos?.coords.latitude ?? null,
+    p_longitude: pos?.coords.longitude ?? null,
+    p_accuracy: pos?.coords.accuracy ?? null,
     p_intent: intent,
-    p_is_mock: positionIsMock(pos),
+    p_is_mock: pos ? positionIsMock(pos) : false,
     p_ssid: wifi.ssid,
     p_bssid: wifi.bssid,
   });
@@ -425,9 +457,9 @@ export async function submitGeoClockEvent(intent: GeoClockIntent): Promise<GeoPi
   const result = data as GeoPingResult;
   dispatchGeoPing({
     result,
-    latitude: pos.coords.latitude,
-    longitude: pos.coords.longitude,
-    accuracy: pos.coords.accuracy ?? null,
+    latitude: pos?.coords.latitude,
+    longitude: pos?.coords.longitude,
+    accuracy: pos?.coords.accuracy ?? null,
     auto: false,
     checkedAt: Date.now(),
   });

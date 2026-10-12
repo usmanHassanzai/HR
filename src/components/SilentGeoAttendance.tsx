@@ -21,16 +21,20 @@ export default function SilentGeoAttendance() {
     let desktopTimer: number | undefined;
 
     const arm = async () => {
-      const token = await getAttendanceDeviceToken();
-      if (cancelled || !token) return;
-      if (isAndroidApp()) {
-        await startNativeAttendancePings();
-        await refreshNativeAttendanceSession();
-      }
-      if (isDesktopApp()) {
-        // Desktop Electron main process owns background heartbeats; this nudges
-        // a check-in with GPS while the window is open (Wi-Fi probed in main).
-        await sendAutoAttendanceEventWithLocation('ping');
+      try {
+        const token = await getAttendanceDeviceToken();
+        if (cancelled || !token) return;
+        if (isAndroidApp()) {
+          await startNativeAttendancePings();
+          await refreshNativeAttendanceSession();
+        }
+        if (isDesktopApp()) {
+          // Desktop Electron main process owns background heartbeats; this nudges
+          // a check-in with GPS while the window is open (Wi-Fi probed in main).
+          await sendAutoAttendanceEventWithLocation('ping');
+        }
+      } catch {
+        /* plugin / network — retry on next visibility/online */
       }
     };
 

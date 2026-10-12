@@ -259,12 +259,14 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
 
     const mark = () => {
       void markAssignedKpisViewed(ids).then((result) => {
-        if (cancelled) return;
         if (!result.ok) {
-          // Do not optimistic-update — that blocked retries and left admin on “Not opened yet”.
-          retryTimer = window.setTimeout(mark, 2500);
+          // Do not optimistic-update — that blocked retries and left admin on “Not viewed yet”.
+          if (!cancelled) retryTimer = window.setTimeout(mark, 2500);
           return;
         }
+        // count === 0: already viewed on server. Still apply local patch when rows were updated
+        // even if this effect was superseded — DB write succeeded.
+        if (result.count <= 0) return;
         const now = new Date().toISOString();
         setKpis((prev) => prev.map((k) => (
           ids.includes(k.id)
@@ -281,13 +283,30 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
       });
     };
 
-    const kickoff = window.setTimeout(mark, 300);
+    // Mark immediately — a delayed kickoff was cleared whenever `kpis` re-rendered,
+    // so assignee open never reached the DB and assigners stayed on “Not viewed yet”.
+    mark();
     return () => {
       cancelled = true;
-      window.clearTimeout(kickoff);
       if (retryTimer) window.clearTimeout(retryTimer);
     };
   }, [isReadOnly, activeTab, kpis, activeUser.id]);
+
+  const patchKpiViewed = (kpiId: string) => {
+    const now = new Date().toISOString();
+    setKpis((prev) => prev.map((k) => (
+      k.id === kpiId
+        ? {
+            ...k,
+            viewed_at: k.viewed_at || now,
+            viewed_by: k.viewed_by || activeUser.id,
+            employee_progress: k.employee_progress === 'completed' || k.completion_status === 'completed'
+              ? k.employee_progress
+              : 'started',
+          }
+        : k
+    )));
+  };
 
   const years = useMemo(() => availableKpiYears(kpis), [kpis]);
 
@@ -571,7 +590,12 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
                         <span>Date</span>
                         <strong>{fmtFullDate(historyDate)}</strong>
                       </div>
-                      <KpiAssignmentDetails kpi={kpi} compact />
+                      <KpiAssignmentDetails
+                        kpi={kpi}
+                        compact
+                        recordAssigneeView={!isReadOnly}
+                        onMarkedViewed={patchKpiViewed}
+                      />
                       <KpiEvaluationBlock
                         kpi={kpi}
                         compact
@@ -661,7 +685,12 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
                     </div>
                   ) : null}
                 </div>
-                <KpiAssignmentDetails kpi={kpi} compact />
+                <KpiAssignmentDetails
+                  kpi={kpi}
+                  compact
+                  recordAssigneeView={!isReadOnly}
+                  onMarkedViewed={patchKpiViewed}
+                />
                 <p className="kpi-score-line">
                   {complete
                     ? (awarded != null
