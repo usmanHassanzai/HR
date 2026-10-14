@@ -77,10 +77,11 @@ final class AttendanceEventClient {
         Context app = ctx.getApplicationContext();
         if (!AttendancePingStore.enabled(app)) return;
 
-        // After one successful check-in, do not spam Wi-Fi/GPS check-in events.
-        // Leave events (exit / wifi_disconnected) still send for early checkout.
+        // After one successful check-in, skip spammy enter/wifi/power_on events.
+        // heartbeat + ping ALWAYS reach the server so a closed session (manual /
+        // other-device checkout) can re-open while still in radius or on Wi-Fi.
         String ev = event != null ? event.toLowerCase(Locale.US) : "";
-        if (isCheckinEvent(ev) && AttendancePingStore.isAlreadyCheckedInForActiveWindow(app)) {
+        if (shouldSkipLocalCheckinSpam(app, ev)) {
             Log.i(TAG, "skip check-in event=" + ev + " (already checked in)");
             return;
         }
@@ -237,6 +238,17 @@ final class AttendanceEventClient {
             || "power_on".equals(ev);
     }
 
+    /**
+     * Local suppress must not block session-verify probes. If we skip heartbeat/ping
+     * after check-in, mid-shift checkout (especially manual) never clears suppress
+     * while the person stays inside the office — re-entry auto check-in never fires.
+     */
+    private static boolean shouldSkipLocalCheckinSpam(Context app, String ev) {
+        if (!isCheckinEvent(ev)) return false;
+        if ("heartbeat".equals(ev) || "ping".equals(ev)) return false;
+        return AttendancePingStore.isAlreadyCheckedInForActiveWindow(app);
+    }
+
     private static void markCheckedInFromResponse(Context app, JSONObject json) {
         String date = json.optString("attendance_date", "");
         if (date.isEmpty()) {
@@ -257,8 +269,11 @@ final class AttendanceEventClient {
             if ("clock_out".equals(action)
                 || json.optBoolean("resume_checkin", false)
                 || (json.has("session_open") && !json.optBoolean("session_open", true))
-                || "already_checked_out".equals(reason)) {
+                || "already_checked_out".equals(reason)
+                || "not_checked_in".equals(reason)) {
                 AttendancePingStore.setCheckedInAttendanceDate(app, null);
+                // Force Wi-Fi edge re-arm so returning to office SSID fires wifi_connected.
+                AttendancePingStore.markOfficeWifiEdgeReset(app);
             }
 
             // Mid-shift clock_out must keep probing. outside_window only pauses this window.

@@ -560,9 +560,14 @@ async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = nul
   const token = loadToken();
   if (!token || !SUPABASE_ANON) return null;
 
-  // Suppress while open session marked locally; cleared on clock_out so re-entry can fire.
+  // Suppress spammy enter/wifi/power_on while locally checked in.
+  // heartbeat + ping ALWAYS hit the server so a closed session (manual /
+  // other-device checkout) can re-open while still in radius or on Wi-Fi.
   if (isCheckinEventName(event) && stillSuppressCheckin()) {
-    return { ok: true, action: 'already_in', reason: 'already_in', ignored: true, client_suppressed: true };
+    const e = String(event || '').toLowerCase();
+    if (e !== 'heartbeat' && e !== 'ping') {
+      return { ok: true, action: 'already_in', reason: 'already_in', ignored: true, client_suppressed: true };
+    }
   }
 
   const now = Date.now();
@@ -631,7 +636,9 @@ async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = nul
   if (
     res?.action === 'clock_out' ||
     res?.session_open === false ||
-    res?.reason === 'already_checked_out'
+    res?.resume_checkin === true ||
+    res?.reason === 'already_checked_out' ||
+    res?.reason === 'not_checked_in'
   ) {
     checkedInAttendanceDate = null;
     checkedInState = null;
@@ -732,8 +739,9 @@ function startHeartbeatIfInWindow() {
     }
     wasOnOfficeWifi = onOffice || wasOnOfficeWifi;
     if (stillSuppressCheckin()) {
-      // Still probe GPS leave (radius) while open — cron closes at shift end.
+      // Leave probe + session-verify heartbeat (discovers closed session → re-entry).
       void probeLeaveWhileCheckedIn();
+      void sendEvent('heartbeat');
       return;
     }
     void sendEvent('heartbeat');
@@ -742,10 +750,11 @@ function startHeartbeatIfInWindow() {
 
 function armScheduleLoop() {
   if (scheduleSyncTimer) clearInterval(scheduleSyncTimer);
+  // 15 min so session_open clears after manual checkout without waiting an hour.
   scheduleSyncTimer = setInterval(async () => {
     await syncSchedule();
     startHeartbeatIfInWindow();
-  }, 60 * 60 * 1000);
+  }, 15 * 60 * 1000);
 }
 
 function createWindow() {

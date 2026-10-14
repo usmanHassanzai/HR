@@ -148,10 +148,13 @@ public class AttendancePingService extends Service {
             stopSelf();
             return;
         }
-        // Already checked in: still probe so leaving the radius (or office Wi-Fi)
-        // can early-checkout. Cron closes remaining open sessions at shift end.
+        maybeResyncSchedule();
+        // Already checked in locally: probe leave AND session-verify (heartbeat/ping).
+        // Verify discovers manual/other-device checkout while still in radius/Wi-Fi
+        // so re-entry auto check-in can fire without waiting for a schedule sync.
         if (AttendancePingStore.isAlreadyCheckedInForActiveWindow(this)) {
             requestLeaveProbe();
+            sendSessionVerifyHeartbeat();
             handler.postDelayed(tick, INTERVAL_INSIDE_MS);
             return;
         }
@@ -160,6 +163,53 @@ public class AttendancePingService extends Service {
             ? INTERVAL_OUTSIDE_MS
             : INTERVAL_INSIDE_MS;
         handler.postDelayed(tick, interval);
+    }
+
+    /** Heartbeat with Wi-Fi (+ GPS when available) always reaches the server. */
+    private void sendSessionVerifyHeartbeat() {
+        String[] info = readWifiIdentity();
+        String ssid = info[0];
+        String bssid = info[1];
+        if (ssid == null && bssid == null) {
+            ssid = AttendancePingStore.lastSsid(this);
+            bssid = AttendancePingStore.lastBssid(this);
+        }
+        if (locationServicesEnabled()) {
+            final String ssidF = ssid;
+            final String bssidF = bssid;
+            requestFreshLocation(loc -> {
+                if (loc != null && !AttendanceEventClient.isMockLocation(loc)) {
+                    String zoneId = nearestZoneId(loc);
+                    Double lat = loc.getLatitude();
+                    Double lng = loc.getLongitude();
+                    Float acc = loc.hasAccuracy() ? loc.getAccuracy() : null;
+                    long readingMs = loc.getTime() > 0 ? loc.getTime() : System.currentTimeMillis();
+                    AttendanceEventClient.send(
+                        this, "heartbeat", zoneId, lat, lng, acc, ssidF, bssidF, readingMs
+                    );
+                } else {
+                    AttendanceEventClient.sendWifiEvent(this, "heartbeat", ssidF, bssidF);
+                }
+            }, () -> AttendanceEventClient.sendWifiEvent(this, "heartbeat", ssidF, bssidF));
+        } else {
+            AttendanceEventClient.sendWifiEvent(this, "heartbeat", ssid, bssid);
+        }
+    }
+
+    private long lastScheduleResyncAt = 0L;
+    private static final long SCHEDULE_RESYNC_MS = 15L * 60L * 1000L;
+
+    private void maybeResyncSchedule() {
+        long now = System.currentTimeMillis();
+        if (now - lastScheduleResyncAt < SCHEDULE_RESYNC_MS) return;
+        lastScheduleResyncAt = now;
+        new Thread(() -> {
+            try {
+                AttendanceScheduleController.syncAndArm(AttendancePingService.this);
+            } catch (Exception e) {
+                Log.w(TAG, "mid-window schedule resync failed", e);
+            }
+        }, "scorr-att-sched").start();
     }
 
     /**
@@ -529,6 +579,9 @@ public class AttendancePingService extends Service {
 
     private void onWifiChanged(boolean connected) {
         // Do not gate on local window — server rejects outside-window events.
+        if (AttendancePingStore.consumeOfficeWifiEdgeReset(this)) {
+            wifiWasOnOfficeNet = false;
+        }
 
         String ssid = null;
         String bssid = null;

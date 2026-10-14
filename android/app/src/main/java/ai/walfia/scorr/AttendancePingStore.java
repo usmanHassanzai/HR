@@ -269,6 +269,22 @@ final class AttendancePingStore {
         return prefs(ctx).getBoolean("wifi_connected", false);
     }
 
+    /** After checkout, FGS must treat next office Wi-Fi sighting as a fresh connect. */
+    static void markOfficeWifiEdgeReset(Context ctx) {
+        prefs(ctx).edit()
+            .putBoolean("wifi_connected", false)
+            .putBoolean("office_wifi_edge_reset", true)
+            .apply();
+    }
+
+    /** Consume one-shot edge reset (returns true once). */
+    static boolean consumeOfficeWifiEdgeReset(Context ctx) {
+        SharedPreferences p = prefs(ctx);
+        if (!p.getBoolean("office_wifi_edge_reset", false)) return false;
+        p.edit().putBoolean("office_wifi_edge_reset", false).apply();
+        return true;
+    }
+
     static void setLastStatusText(Context ctx, String text) {
         if (text != null) prefs(ctx).edit().putString("last_status_text", text).apply();
     }
