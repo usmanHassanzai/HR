@@ -53,6 +53,8 @@ export type AutoAttendanceSaveStatus = {
   needsBackgroundLocation: boolean;
   needsNotifications: boolean;
   needsBattery: boolean;
+  /** Human line: in window now, or when the next [start−1h, end] opens. */
+  windowHint: string | null;
 };
 
 function clientKind(): AutoAttendanceClientKind {
@@ -72,6 +74,62 @@ function platformLabel(): string {
 
 export function isAutoAttendanceSaveSupported(): boolean {
   return clientKind() !== 'unsupported';
+}
+
+function formatLocalWindowInstant(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return null;
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      weekday: 'short',
+      hour: 'numeric',
+      minute: '2-digit',
+    }).format(new Date(ms));
+  } catch {
+    return new Date(ms).toLocaleString();
+  }
+}
+
+/** Explain [shift start − 1h, shift end] from attendance-schedule payload. */
+export function describeAutoAttendanceWindow(sched: Record<string, unknown> | null): string | null {
+  if (!sched || sched.ok === false) return null;
+  const windows = Array.isArray(sched.windows) ? (sched.windows as Record<string, unknown>[]) : [];
+  const nowMs = sched.server_now_utc ? Date.parse(String(sched.server_now_utc)) : Date.now();
+  const now = Number.isNaN(nowMs) ? Date.now() : nowMs;
+
+  let active: Record<string, unknown> | null = null;
+  let next: Record<string, unknown> | null = null;
+  let nextStart = Number.POSITIVE_INFINITY;
+  for (const w of windows) {
+    const start = Date.parse(String(w.window_start_utc || ''));
+    const end = Date.parse(String(w.window_end_utc || ''));
+    if (Number.isNaN(start) || Number.isNaN(end)) continue;
+    if (now >= start && now <= end) {
+      active = w;
+      break;
+    }
+    if (start > now && start < nextStart) {
+      nextStart = start;
+      next = w;
+    }
+  }
+
+  if (active) {
+    const endLabel = formatLocalWindowInstant(String(active.window_end_utc || ''));
+    const name = active.shift_name ? String(active.shift_name) : 'your shift';
+    return endLabel
+      ? `In window for ${name} — auto check-in until ${endLabel}.`
+      : `In window for ${name} — auto check-in is running.`;
+  }
+  if (next) {
+    const startLabel = formatLocalWindowInstant(String(next.window_start_utc || ''));
+    const name = next.shift_name ? String(next.shift_name) : 'your shift';
+    return startLabel
+      ? `Waiting for ${name} — auto starts ${startLabel} (1 hour before shift start).`
+      : `Waiting for ${name} — auto starts 1 hour before shift start.`;
+  }
+  return 'No shift window in the next few days — ask your manager to assign a shift.';
 }
 
 export async function getAutoAttendanceSaveStatus(): Promise<AutoAttendanceSaveStatus> {
@@ -144,6 +202,17 @@ export async function getAutoAttendanceSaveStatus(): Promise<AutoAttendanceSaveS
     permissionLines.push('Use the Android app or desktop app to turn on automatic check-in.');
   }
 
+  let windowHint: string | null = null;
+  if (saved) {
+    try {
+      const { fetchAttendanceSchedule } = await import('./attendanceDevice');
+      const sched = await fetchAttendanceSchedule();
+      windowHint = describeAutoAttendanceWindow(sched);
+    } catch {
+      windowHint = null;
+    }
+  }
+
   return {
     kind,
     platformLabel: platformLabel(),
@@ -157,6 +226,7 @@ export async function getAutoAttendanceSaveStatus(): Promise<AutoAttendanceSaveS
     needsBackgroundLocation,
     needsNotifications,
     needsBattery,
+    windowHint,
   };
 }
 

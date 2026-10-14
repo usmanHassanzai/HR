@@ -493,7 +493,8 @@ export default function ShiftManagementPanel({
       p_end_time: endTime,
       p_days_of_week: days,
       p_grace_minutes: 60,
-      p_crosses_midnight: overnight,
+      // Always derive from times so Day/Night/AC all get correct auto windows.
+      p_crosses_midnight: isOvernightShift(startTime, endTime),
       p_apply_to_all: wasEdit && !applyAllTouched
         ? Boolean(shifts.find((s) => s.id === editingShiftId)?.apply_to_all)
         : applyToAll,
@@ -678,7 +679,7 @@ export default function ShiftManagementPanel({
       p_user_id: editHoursUserId,
       p_start_time: editHoursStart,
       p_end_time: editHoursEnd,
-      p_crosses_midnight: editHoursOvernight,
+      p_crosses_midnight: isOvernightShift(editHoursStart, editHoursEnd),
       p_clear: false,
     });
     setSubmitting(false);

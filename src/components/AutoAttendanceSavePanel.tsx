@@ -59,6 +59,7 @@ function asOffStatus(prev: AutoAttendanceSaveStatus): AutoAttendanceSaveStatus {
     needsNotifications: false,
     needsBattery: false,
     batteryLines: [],
+    windowHint: null,
     permissionLines:
       prev.kind === 'desktop'
         ? ['After you enable, this computer can check in while the app or tray icon is running.']
@@ -275,11 +276,30 @@ export default function AutoAttendanceSavePanel() {
           <Wifi size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
           Office Wi‑Fi checks you in first
         </li>
-        <li>
+        <li style={{ marginBottom: '0.25rem' }}>
           <MapPin size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
           Otherwise, office area (with location on)
         </li>
+        <li>
+          Runs from 1 hour before shift start until shift end
+        </li>
       </ul>
+
+      {status.windowHint && uiState === 'active' && (
+        <p
+          style={{
+            margin: '0 0 0.85rem',
+            padding: '0.65rem 0.75rem',
+            borderRadius: 10,
+            background: 'color-mix(in srgb, var(--color-success, #0f766e) 10%, transparent)',
+            fontSize: '0.82rem',
+            color: 'var(--text-primary)',
+            lineHeight: 1.45,
+          }}
+        >
+          {status.windowHint}
+        </p>
+      )}
 
       {status.setupIssues.length > 0 && (
         <div
