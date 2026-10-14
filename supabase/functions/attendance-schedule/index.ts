@@ -51,6 +51,32 @@ function isCronAuthorized(req: Request, serviceKey: string): boolean {
   return header === cronSecret;
 }
 
+/** supabase-js rpc() returns a thenable builder — not always a Promise with .catch(). */
+async function rpcIgnore(client: ReturnType<typeof createClient>, fn: string, args?: Record<string, unknown>) {
+  try {
+    await client.rpc(fn, args ?? {});
+  } catch {
+    /* opportunistic helpers must never fail the schedule response */
+  }
+}
+
+/** True only for a signed-in user JWT — never anon/service keys (even if env anon differs). */
+function isUserAccessToken(jwt: string, anon: string, serviceKey: string): boolean {
+  if (!jwt) return false;
+  if (jwt === anon || jwt === serviceKey) return false;
+  try {
+    const parts = jwt.split('.');
+    if (parts.length < 2) return false;
+    const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const pad = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
+    const payload = JSON.parse(atob(pad)) as { role?: string; sub?: string };
+    if (payload.role === 'anon' || payload.role === 'service_role') return false;
+    return payload.role === 'authenticated' || Boolean(payload.sub);
+  } catch {
+    return false;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders(req) });
 
@@ -84,12 +110,13 @@ serve(async (req) => {
       (req.headers.get('x-device-token') || '').trim();
 
     const jwt = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim();
-    if (!token && jwt && anon && !isServiceRole(req, serviceKey)) {
-      const userClient = createClient(url, anon, {
+    // Android/desktop send apikey (+ device token). Some clients also send Authorization: Bearer <anon>.
+    // Only treat a real user access token as the JWT schedule path.
+    if (!token && isUserAccessToken(jwt, anon, serviceKey)) {
+      const userClient = createClient(url, anon || serviceKey, {
         global: { headers: { Authorization: `Bearer ${jwt}` } },
       });
-      // Opportunistic self-close for the caller
-      await userClient.rpc('close_my_ended_shift_attendance').catch(() => null);
+      await rpcIgnore(userClient, 'close_my_ended_shift_attendance');
       const { data, error } = await userClient.rpc('get_my_attendance_schedule');
       if (error) return json(req, { ok: false, reason: error.message }, 400);
       return json(req, data);
@@ -107,7 +134,7 @@ serve(async (req) => {
     // Opportunistic: if schedule identifies a user, close their ended shift
     const userId = (data as { user_id?: string } | null)?.user_id;
     if (userId) {
-      await admin.rpc('close_open_attendance_if_shift_ended', { p_user_id: userId }).catch(() => null);
+      await rpcIgnore(admin, 'close_open_attendance_if_shift_ended', { p_user_id: userId });
     }
 
     return json(req, data);

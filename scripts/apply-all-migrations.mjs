@@ -214,6 +214,7 @@ const MIGRATIONS = [
   'fix_office_wifi_match_robust_2026-10-13.sql',
   'FIX_register_attendance_device_upsert_2026-10-13.sql',
   'FIX_auto_attendance_schedule_detection_2026-10-14.sql',
+  'FIX_unstub_manual_check_in_out_2026-10-14.sql',
 ];
 
 async function runMigration(filename) {

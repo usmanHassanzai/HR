@@ -158,20 +158,34 @@ export async function disableAutoAttendanceOnDevice(kind: 'phone' | 'laptop' = '
 
 export async function fetchAttendanceSchedule(): Promise<Record<string, unknown> | null> {
   const token = await getAttendanceDeviceToken();
+  // Prefer device-token edge after enroll. Fall back to JWT RPC when no token yet.
   if (!token || !supabaseUrl || !supabaseAnonKey) {
-    const { data } = await supabase.rpc('get_my_attendance_schedule');
+    const { data, error } = await supabase.rpc('get_my_attendance_schedule');
+    if (error) return { ok: false, reason: error.message };
     return data as Record<string, unknown> | null;
   }
-  const res = await fetch(`${supabaseUrl}/functions/v1/attendance-schedule`, {
-    method: 'POST',
-    headers: {
-      apikey: supabaseAnonKey,
-      'Content-Type': 'application/json',
-      'x-device-token': token,
-    },
-    body: JSON.stringify({ device_token: token }),
-  });
-  return (await res.json().catch(() => null)) as Record<string, unknown> | null;
+  try {
+    const res = await fetch(`${supabaseUrl}/functions/v1/attendance-schedule`, {
+      method: 'POST',
+      headers: {
+        apikey: supabaseAnonKey,
+        'Content-Type': 'application/json',
+        'x-device-token': token,
+      },
+      body: JSON.stringify({ device_token: token }),
+      signal: AbortSignal.timeout(20_000),
+    });
+    const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+    if (!res.ok) {
+      return body ?? { ok: false, reason: `schedule_http_${res.status}` };
+    }
+    return body;
+  } catch (e) {
+    return {
+      ok: false,
+      reason: e instanceof Error ? e.message : 'schedule_fetch_failed',
+    };
+  }
 }
 
 export async function sendAutoAttendanceEvent(

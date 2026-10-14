@@ -201,6 +201,18 @@
   border-color: transparent;
 }
 
+/* While present: Check out is the actionable primary; Checked in stays green but disabled. */
+.att-toggle--out.is-primary-out:not(:disabled) {
+  background: var(--color-success, #16a34a);
+  color: #fff;
+  border-color: transparent;
+}
+
+.att-toggle--in.is-active:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
 .attendance-quick-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));

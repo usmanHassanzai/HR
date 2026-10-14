@@ -26,8 +26,19 @@ import { Department } from '../utils/departmentHelpers';
 import { canMarkRemoteAttendance, workModeLabel } from '../utils/workModeHelpers';
 import {
   GEO_CLOCK_EVENT,
+  attendanceActionMessage,
+  attendanceCheckoutMessage,
+  canProbeWifiSsid,
+  isAttendanceSuccessAction,
+  isLocationSoftFailError,
   localYmd,
+  locationSoftFailMessage,
+  submitGeoClockEvent,
 } from '../utils/geoAttendance';
+import {
+  ATTENDANCE_RULES_PAUSED_MESSAGE,
+  isRulesNotConfigured,
+} from '../utils/attendanceRulesPaused';
 import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
 import { scrollNavTarget } from '../utils/notificationDeepLink';
 import { useHistorySyncedTab } from '../utils/useHistoryNavigation';
@@ -42,6 +53,14 @@ import '../styles/attendance.css';
 import '../styles/admin-attendance.css';
 import '../styles/manager-attendance.css';
 import '../styles/employee-attendance.css';
+
+function attendanceRpcErrorMessage(err: unknown): string {
+  if (err && typeof err === 'object' && 'message' in err) {
+    return String((err as { message: string }).message);
+  }
+  if (err instanceof Error) return err.message;
+  return 'Could not complete attendance.';
+}
 
 interface AttendanceLeavePanelProps {
   profile: Profile;
@@ -453,14 +472,89 @@ export default function AttendanceLeavePanel({
 
   const checkInToday = async () => {
     setSubmitting(true);
-    setMsg('Attendance, office and automatic attendance rules are being rebuilt. Everything is paused.');
-    setSubmitting(false);
+    setMsg('');
+    try {
+      const result = await submitGeoClockEvent('clock_in');
+      if (isRulesNotConfigured(result)) {
+        setMsg(ATTENDANCE_RULES_PAUSED_MESSAGE);
+        return;
+      }
+      if (isAttendanceSuccessAction(result.action)) {
+        setMsg(
+          result.match_via === 'wifi'
+            ? 'Checked in on office Wi-Fi — location not required'
+            : result.match_via === 'gps'
+              ? 'Checked in inside office radius'
+              : attendanceActionMessage(result.action),
+        );
+        await load();
+        setHistoryRefreshKey((k) => k + 1);
+        window.dispatchEvent(new CustomEvent(GEO_CLOCK_EVENT));
+      } else if (result.action === 'no_connection') {
+        setMsg(attendanceActionMessage('no_connection'));
+      } else {
+        setMsg(attendanceActionMessage(result.action || result.reason));
+      }
+    } catch (e: unknown) {
+      const msg = attendanceRpcErrorMessage(e);
+      if (/fetch|network|Failed to fetch|offline/i.test(msg)) {
+        setMsg(attendanceActionMessage('no_connection'));
+      } else if (isLocationSoftFailError(e) || isLocationSoftFailError(msg)) {
+        setMsg(locationSoftFailMessage(canProbeWifiSsid()));
+      } else {
+        setMsg(msg || 'Could not check in.');
+      }
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const checkOutToday = async (_opts?: { thenRequestLeave?: boolean }) => {
+  const checkOutToday = async (opts?: { thenRequestLeave?: boolean }) => {
     setSubmitting(true);
-    setMsg('Attendance, office and automatic attendance rules are being rebuilt. Everything is paused.');
-    setSubmitting(false);
+    setMsg('');
+    try {
+      const result = await submitGeoClockEvent('clock_out');
+      if (isRulesNotConfigured(result)) {
+        setMsg(ATTENDANCE_RULES_PAUSED_MESSAGE);
+        return;
+      }
+      if (isAttendanceSuccessAction(result.action)) {
+        setMsg(
+          opts?.thenRequestLeave
+            ? 'Checked out for the rest of your shift. Submit your leave request on the next tab.'
+            : attendanceCheckoutMessage(result),
+        );
+        await load();
+        setHistoryRefreshKey((k) => k + 1);
+        window.dispatchEvent(new CustomEvent(GEO_CLOCK_EVENT));
+        if (opts?.thenRequestLeave) {
+          setLeaveStart(todayStr);
+          setLeaveEnd(todayStr);
+          setLeaveType('other');
+          setLeaveCustomType('Urgent leave');
+          setLeaveReason((prev) => prev || 'Leaving shift early');
+          if (mode === 'hr') setAdminTab('today');
+          else setEmployeeTab('leave');
+        }
+      } else if (result.action === 'no_open_visit') {
+        setMsg('Check in first, then you can check out.');
+      } else if (result.action === 'no_connection') {
+        setMsg(attendanceActionMessage('no_connection'));
+      } else {
+        setMsg(attendanceActionMessage(result.action || result.reason));
+      }
+    } catch (e: unknown) {
+      const msg = attendanceRpcErrorMessage(e);
+      if (/fetch|network|Failed to fetch|offline/i.test(msg)) {
+        setMsg(attendanceActionMessage('no_connection'));
+      } else if (isLocationSoftFailError(e) || isLocationSoftFailError(msg)) {
+        setMsg(locationSoftFailMessage(canProbeWifiSsid()));
+      } else {
+        setMsg(msg || 'Could not check out.');
+      }
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const submitLeave = async (e: React.FormEvent) => {
@@ -827,15 +921,16 @@ export default function AttendanceLeavePanel({
         <button
           type="button"
           className={`btn attendance-hero__btn att-toggle att-toggle--in${stillOnSiteToday ? ' is-active' : ''}`}
-          disabled={submitting}
+          disabled={submitting || stillOnSiteToday}
+          aria-pressed={stillOnSiteToday}
           onClick={() => { if (!stillOnSiteToday) void checkInToday(); }}
         >
           {submitting && !stillOnSiteToday ? <Loader2 size={18} className="spin-icon" /> : <CheckCircle size={18} />}
-          Check in
+          {stillOnSiteToday ? 'Checked in' : 'Check in'}
         </button>
         <button
           type="button"
-          className={`btn attendance-hero__btn att-toggle att-toggle--out${checkedOutToday ? ' is-active' : ''}`}
+          className={`btn attendance-hero__btn att-toggle att-toggle--out${stillOnSiteToday ? ' is-primary-out' : ''}${checkedOutToday ? ' is-active' : ''}`}
           disabled={submitting || !stillOnSiteToday}
           onClick={() => { if (stillOnSiteToday) void checkOutToday(); }}
         >

@@ -6,6 +6,7 @@ import { packageVersion } from './appUpdate';
 import {
   clearLocalAttendanceEnrollment,
   disableAutoAttendanceOnDevice,
+  fetchAttendanceSchedule,
   friendlyAutoAttendanceError,
   getAttendanceDeviceToken,
   PHONE_OPT_IN_TEXT,
@@ -222,6 +223,7 @@ export async function saveAccountForAutoAttendance(): Promise<{
     }
   }
 
+  // 1) Register device + persist token first (before schedule / FGS / desktop heartbeat).
   const reg = await registerAttendanceDevice(packageVersion());
   if (!reg.ok || !reg.device_token) {
     return {
@@ -236,6 +238,38 @@ export async function saveAccountForAutoAttendance(): Promise<{
 
   clearSetupProgress();
 
+  // 2) Load schedule after token exists (device-token edge path). Clear copy if shift/office missing.
+  try {
+    const schedule = await fetchAttendanceSchedule();
+    const windows = Array.isArray(schedule?.windows) ? schedule!.windows : [];
+    const zones = Array.isArray(schedule?.zones) ? schedule!.zones : [];
+    if (schedule && schedule.ok === false) {
+      const reason = String(schedule.reason || schedule.message || '');
+      if (/invalid|revoked|missing_token|platform_disabled|user_gone|disabled/i.test(reason)) {
+        return {
+          ok: false,
+          error:
+            'Automatic check-in is not allowed for this account or device. Ask your admin, then tap Enable again.',
+          warnings,
+        };
+      }
+    } else if (schedule) {
+      if (windows.length === 0) {
+        warnings.push(
+          'No shift schedule found for the next week. Ask your admin to assign a shift, or check-in will wait until a shift exists.',
+        );
+      }
+      if (zones.length === 0) {
+        warnings.push(
+          'No office location is assigned to you. Ask your admin to assign an office before automatic check-in can fire.',
+        );
+      }
+    }
+  } catch {
+    /* schedule optional for arming — native/desktop will retry */
+  }
+
+  // 3) Arm Android FGS / desktop heartbeat after register (+ schedule when available).
   if (kind === 'android') {
     try {
       await startNativeAttendancePings();

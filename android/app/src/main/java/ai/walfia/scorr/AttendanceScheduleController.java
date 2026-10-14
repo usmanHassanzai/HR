@@ -81,14 +81,28 @@ final class AttendanceScheduleController {
         }
     }
 
-    /** Sync schedule then re-arm. Returns null on success, error message otherwise. */
+    /**
+     * Sync schedule then re-arm. Returns null on success, error message otherwise.
+     * Enrollment (token + enabled) is already saved before this runs.
+     * Transient schedule HTTP / network failures keep enrollment and arm from cache
+     * so Enable is not blocked on every Android device when the edge blips.
+     * Terminal stop_tracking reasons still fail Enable.
+     */
     static String syncAndArm(Context ctx) {
         Context app = ctx.getApplicationContext();
         if (!AttendancePingStore.enabled(app)) {
             return "Auto attendance not enabled";
         }
         String err = fetchAndCacheSchedule(app);
-        if (err != null) return err;
+        if (err != null) {
+            if (isTerminalStopReason(err) || "Missing device credentials".equals(err)) {
+                return err;
+            }
+            Log.w(TAG, "schedule sync soft-fail, keeping enrollment: " + err);
+            armFromCache(app);
+            AttendanceEventClient.flushQueue(app);
+            return null;
+        }
         armFromCache(app);
         AttendanceEventClient.flushQueue(app);
         return null;
