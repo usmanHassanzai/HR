@@ -205,7 +205,8 @@ public class AttendancePingService extends Service {
     }
 
     private long lastScheduleResyncAt = 0L;
-    private static final long SCHEDULE_RESYNC_MS = 15L * 60L * 1000L;
+    /** Pull session_open so manual checkout clears local suppress without waiting 15m. */
+    private static final long SCHEDULE_RESYNC_MS = 60L * 1000L;
 
     private void maybeResyncSchedule() {
         long now = System.currentTimeMillis();

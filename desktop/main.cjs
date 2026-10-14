@@ -776,11 +776,11 @@ function startHeartbeatIfInWindow() {
 
 function armScheduleLoop() {
   if (scheduleSyncTimer) clearInterval(scheduleSyncTimer);
-  // 15 min so session_open clears after manual checkout without waiting an hour.
+  // 60s so session_open clears after manual checkout without waiting 15m.
   scheduleSyncTimer = setInterval(async () => {
     await syncSchedule();
     startHeartbeatIfInWindow();
-  }, 15 * 60 * 1000);
+  }, 60 * 1000);
 }
 
 function createWindow() {
