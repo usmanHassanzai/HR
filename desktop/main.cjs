@@ -1,6 +1,8 @@
 /**
  * Electron laptop automatic attendance (Section H / R45–R53).
- * powerMonitor suspend/resume/shutdown + 5-min heartbeat during W.
+ * powerMonitor suspend/resume/shutdown + windowed heartbeat:
+ *   checked out → ~1s Wi-Fi/radius check-in probes;
+ *   checked in  → slower leave + session-verify only.
  * Uses device token from safeStorage; no dashboard session required after enrollment.
  */
 const {
@@ -63,6 +65,12 @@ let checkedInAttendanceDate = null;
 let checkedInState = null;
 /** Last heartbeat saw an assigned office Wi-Fi (for early leave checkout). */
 let wasOnOfficeWifi = false;
+/** Aggressive check-in while session closed (battery-heavy by design). */
+const INTERVAL_CHECKIN_PROBE_MS = 1000;
+/** Leave + session-verify while open session (no check-in spam). */
+const INTERVAL_CHECKED_IN_MS = 30 * 1000;
+let lastCheckedInWorkAt = 0;
+let heartbeatInflight = false;
 
 function platformName() {
   return process.platform === 'win32' ? 'windows' : 'linux';
@@ -723,6 +731,7 @@ function startHeartbeatIfInWindow() {
 
   // Immediate present signal (server: Wi-Fi first, else radius)
   void sendEvent('power_on');
+  lastCheckedInWorkAt = 0;
   heartbeatTimer = setInterval(() => {
     const w = activeWindow(cachedSchedule, Date.now());
     if (!w) {
@@ -732,6 +741,7 @@ function startHeartbeatIfInWindow() {
     const wifi = readWifiIdentity();
     const onOffice = matchesScheduleOfficeWifi(wifi);
     // Early leave: drop office Wi-Fi while checked in → checkout (server ignores location).
+    // Run on every 1s tick so Wi-Fi leave is not delayed by the checked-in gate.
     if (stillSuppressCheckin() && wasOnOfficeWifi && !onOffice) {
       wasOnOfficeWifi = false;
       void sendEvent('wifi_disconnected');
@@ -739,13 +749,29 @@ function startHeartbeatIfInWindow() {
     }
     wasOnOfficeWifi = onOffice || wasOnOfficeWifi;
     if (stillSuppressCheckin()) {
-      // Leave probe + session-verify heartbeat (discovers closed session → re-entry).
-      void probeLeaveWhileCheckedIn();
-      void sendEvent('heartbeat');
+      const now = Date.now();
+      if (now - lastCheckedInWorkAt < INTERVAL_CHECKED_IN_MS) return;
+      if (heartbeatInflight) return;
+      lastCheckedInWorkAt = now;
+      heartbeatInflight = true;
+      // Leave probe + session-verify (discovers closed session → clear suppress → 1s re-entry).
+      void (async () => {
+        try {
+          await probeLeaveWhileCheckedIn();
+          await sendEvent('heartbeat');
+        } finally {
+          heartbeatInflight = false;
+        }
+      })();
       return;
     }
-    void sendEvent('heartbeat');
-  }, 60 * 1000);
+    lastCheckedInWorkAt = 0;
+    if (heartbeatInflight) return;
+    heartbeatInflight = true;
+    void sendEvent('heartbeat').finally(() => {
+      heartbeatInflight = false;
+    });
+  }, INTERVAL_CHECKIN_PROBE_MS);
 }
 
 function armScheduleLoop() {

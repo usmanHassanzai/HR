@@ -29,22 +29,27 @@ import java.util.Locale;
 
 /**
  * Foreground service active ONLY during the shift window.
- * Geofence EXIT is instant. Heartbeat: 30s while outside/near edge, else 60s.
+ * Checked out: Wi-Fi / radius check-in probe ~every 1s.
+ * Checked in: leave + session-verify only (slower; no check-in spam).
+ * Geofence EXIT remains instant via wifi/network callbacks.
  */
 public class AttendancePingService extends Service {
     private static final String TAG = "ScorrAttFgs";
     private static final String CHANNEL_ID = "scorr_attendance_gps";
     private static final int NOTIF_ID = 41;
-    private static final long INTERVAL_OUTSIDE_MS = 30 * 1000L;
-    private static final long INTERVAL_INSIDE_MS = 60 * 1000L;
+    /** Aggressive re-entry / first check-in while session is closed. */
+    private static final long INTERVAL_CHECKIN_PROBE_MS = 1000L;
+    /** Leave + session-verify while an open session exists (battery). */
+    private static final long INTERVAL_CHECKED_IN_MS = 30 * 1000L;
     /** Treat within this many meters of the radius edge as "near edge". */
-    /** Near-edge / outside → 30s heartbeat (Rule: 150 m of the edge). */
     private static final float EDGE_MARGIN_M = 150f;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable tick = this::runBackupPingThenSchedule;
     private ConnectivityManager.NetworkCallback wifiCallback;
     private boolean wifiWasOnOfficeNet = false;
+    private boolean locationPingInflight = false;
+    private long lastCheckedInProbeAt = 0L;
 
     static void start(Context ctx) {
         Context app = ctx.getApplicationContext();
@@ -149,20 +154,23 @@ public class AttendancePingService extends Service {
             return;
         }
         maybeResyncSchedule();
-        // Already checked in locally: probe leave AND session-verify (heartbeat/ping).
-        // Verify discovers manual/other-device checkout while still in radius/Wi-Fi
-        // so re-entry auto check-in can fire without waiting for a schedule sync.
+        // Always wake ~1s so checkout → re-entry resumes immediately.
+        // While open: leave + session-verify only (gated); no check-in spam.
         if (AttendancePingStore.isAlreadyCheckedInForActiveWindow(this)) {
-            requestLeaveProbe();
-            sendSessionVerifyHeartbeat();
-            handler.postDelayed(tick, INTERVAL_INSIDE_MS);
+            long now = System.currentTimeMillis();
+            if (now - lastCheckedInProbeAt >= INTERVAL_CHECKED_IN_MS) {
+                lastCheckedInProbeAt = now;
+                requestLeaveProbe();
+                // Session-verify discovers manual/other-device checkout while still
+                // in radius/Wi-Fi so local suppress clears and 1s re-entry resumes.
+                sendSessionVerifyHeartbeat();
+            }
+            handler.postDelayed(tick, INTERVAL_CHECKIN_PROBE_MS);
             return;
         }
+        lastCheckedInProbeAt = 0L;
         requestLocationPing();
-        long interval = AttendancePingStore.lastOutsideOrEdge(this)
-            ? INTERVAL_OUTSIDE_MS
-            : INTERVAL_INSIDE_MS;
-        handler.postDelayed(tick, interval);
+        handler.postDelayed(tick, INTERVAL_CHECKIN_PROBE_MS);
     }
 
     /** Heartbeat with Wi-Fi (+ GPS when available) always reaches the server. */
@@ -219,7 +227,7 @@ public class AttendancePingService extends Service {
     private void requestLeaveProbe() {
         if (!locationServicesEnabled()) {
             AttendanceEventClient.updateStatusNotification(
-                this, "Checked in — waiting for leave or shift end", null
+                this, "Checked in — leave check every 30s", null
             );
             return;
         }
@@ -227,7 +235,7 @@ public class AttendancePingService extends Service {
             if (loc == null || AttendanceEventClient.isMockLocation(loc)) return;
             if (!isClearlyOutsideAllGpsZones(loc)) {
                 AttendanceEventClient.updateStatusNotification(
-                    this, "Checked in — still near office", null
+                    this, "Checked in — leave check every 30s", null
                 );
                 return;
             }
@@ -242,7 +250,7 @@ public class AttendancePingService extends Service {
                 this, "Left office radius — checking out", null
             );
         }, () -> AttendanceEventClient.updateStatusNotification(
-            this, "Checked in — waiting for leave or shift end", null
+            this, "Checked in — leave check every 30s", null
         ));
     }
 
@@ -262,12 +270,32 @@ public class AttendancePingService extends Service {
     }
 
     private void requestLocationPing() {
+        // Skip while checked in — leave path owns probes; avoid ping spam.
+        if (AttendancePingStore.isAlreadyCheckedInForActiveWindow(this)) return;
         // Soft-fail GPS: when location services are off, still try office Wi-Fi / IP.
         if (!locationServicesEnabled()) {
             sendWifiOnlyCheckinIfCandidate();
             return;
         }
-        requestFreshLocationWithRetries(this::onLocation, () -> sendWifiOnlyCheckinIfCandidate(), 100f);
+        // ~1s loop: single fresh read (no multi-retry stacking); OS may coalesce GPS.
+        if (locationPingInflight) return;
+        locationPingInflight = true;
+        // Unstick if the provider never answers (battery / Doze).
+        handler.postDelayed(() -> {
+            if (locationPingInflight) locationPingInflight = false;
+        }, 10_000L);
+        requestFreshLocation(loc -> {
+            locationPingInflight = false;
+            if (AttendancePingStore.isAlreadyCheckedInForActiveWindow(this)) return;
+            if (loc != null && !AttendanceEventClient.isMockLocation(loc)) {
+                dispatchPing(loc);
+            } else {
+                sendWifiOnlyCheckinIfCandidate();
+            }
+        }, () -> {
+            locationPingInflight = false;
+            sendWifiOnlyCheckinIfCandidate();
+        });
     }
 
     /** True when GPS or network location provider is on. */
@@ -456,32 +484,17 @@ public class AttendancePingService extends Service {
         step[0].run();
     }
 
-    private void onLocation(Location loc) {
-        if (loc == null) return;
-        // Server decides the window — keep sending while the FGS is alive.
-        if (AttendanceEventClient.isMockLocation(loc)) {
-            Log.w(TAG, "Rejected mock location backup ping");
-            return;
-        }
-        // Outside checkout needs ≤50 m; retry once more if we only have a coarse fix.
-        if (isOutsideOrNearEdge(loc) && loc.hasAccuracy() && loc.getAccuracy() > 50f) {
-            requestFreshLocationWithRetries(better -> {
-                Location use = better != null ? better : loc;
-                dispatchPing(use);
-            }, () -> dispatchPing(loc), 50f);
-            return;
-        }
-        dispatchPing(loc);
-    }
-
     private void dispatchPing(Location loc) {
+        if (AttendancePingStore.isAlreadyCheckedInForActiveWindow(this)) return;
         String zoneId = nearestZoneId(loc);
         boolean outsideOrEdge = isOutsideOrNearEdge(loc);
         AttendancePingStore.setLastOutsideOrEdge(this, outsideOrEdge);
         AttendanceEventClient.sendLocationEvent(this, "ping", loc, zoneId);
         AttendanceEventClient.updateStatusNotification(
             this,
-            outsideOrEdge ? "Outside / near edge — checking every 30s" : "Inside office — checking every 60s",
+            outsideOrEdge
+                ? "Outside / near edge — seeking check-in every 1s"
+                : "Inside office — seeking check-in every 1s",
             null
         );
     }
@@ -531,7 +544,9 @@ public class AttendancePingService extends Service {
             public void onAvailable(Network network) {
                 handler.post(() -> {
                     AttendanceEventClient.flushQueue(AttendancePingService.this);
-                    requestLocationPing();
+                    if (!AttendancePingStore.isAlreadyCheckedInForActiveWindow(AttendancePingService.this)) {
+                        requestLocationPing();
+                    }
                     onWifiChanged(true);
                 });
             }
