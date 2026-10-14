@@ -209,7 +209,12 @@ final class AttendanceEventClient {
                 try {
                     JSONObject err = new JSONObject(respText);
                     if (err.optBoolean("stop_tracking", false)) {
-                        AttendanceScheduleController.stopAll(app);
+                        String reason = err.optString("reason", err.optString("action", ""));
+                        if (AttendanceScheduleController.isTerminalStopReason(reason)) {
+                            AttendanceScheduleController.stopAll(app);
+                        } else {
+                            AttendanceScheduleController.pauseUntilNextWindow(app);
+                        }
                     }
                 } catch (Exception ignored) {
                 }
@@ -256,9 +261,15 @@ final class AttendanceEventClient {
                 AttendancePingStore.setCheckedInAttendanceDate(app, null);
             }
 
-            // Mid-shift clock_out must keep probing; only terminal stops halt the FGS.
+            // Mid-shift clock_out must keep probing. outside_window only pauses this window.
+            // Terminal reasons (revoked / platform off) fully unenroll.
             if (json.optBoolean("stop_tracking", false) && !"clock_out".equals(action)) {
-                AttendanceScheduleController.stopAll(app);
+                String stopReason = reason != null && !reason.isEmpty() ? reason : action;
+                if (AttendanceScheduleController.isTerminalStopReason(stopReason)) {
+                    AttendanceScheduleController.stopAll(app);
+                } else {
+                    AttendanceScheduleController.pauseUntilNextWindow(app);
+                }
                 AttendancePingStore.setLastServerAction(app, action, System.currentTimeMillis());
                 return;
             }

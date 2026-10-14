@@ -43,8 +43,29 @@ function statusLabel(state: UiState): string {
 
 function statusDetail(state: UiState): string {
   if (state === 'active') return 'Automatic check-in is on';
-  if (state === 'needs_setup') return 'Tap Enable to finish setup';
+  if (state === 'needs_setup') return 'Tap Enable automatic check-in to finish setup';
   return 'Automatic check-in is off on this device';
+}
+
+/** Force Off in the UI after Turn off so Enable is never stuck hidden. */
+function asOffStatus(prev: AutoAttendanceSaveStatus): AutoAttendanceSaveStatus {
+  return {
+    ...prev,
+    saved: false,
+    backgroundArmed: false,
+    setupIssues: [],
+    needsLocation: false,
+    needsBackgroundLocation: false,
+    needsNotifications: false,
+    needsBattery: false,
+    batteryLines: [],
+    permissionLines:
+      prev.kind === 'desktop'
+        ? ['After you enable, this computer can check in while the app or tray icon is running.']
+        : prev.kind === 'android'
+          ? ['Tap Enable automatic check-in to register this phone again.']
+          : prev.permissionLines,
+  };
 }
 
 export default function AutoAttendanceSavePanel() {
@@ -53,6 +74,7 @@ export default function AutoAttendanceSavePanel() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
+  const [noteTone, setNoteTone] = useState<'success' | 'neutral'>('success');
 
   const refresh = useCallback(async (): Promise<AutoAttendanceSaveStatus | null> => {
     setLoading(true);
@@ -76,6 +98,7 @@ export default function AutoAttendanceSavePanel() {
     setBusy(true);
     setError('');
     setNote('');
+    setNoteTone('success');
     try {
       const res = await saveAccountForAutoAttendance();
       const next = await refresh();
@@ -92,13 +115,14 @@ export default function AutoAttendanceSavePanel() {
       if (!reallyArmed) {
         setError(
           res.warnings[0] ||
-            'Setup did not finish on this phone. Allow location All the time, notifications, and Unrestricted battery, then tap Enable.',
+            'Setup did not finish on this phone. Allow location All the time, notifications, and Unrestricted battery, then tap Enable automatic check-in.',
         );
         return;
       }
 
       const extra = res.warnings.filter(Boolean);
       if (reallyActive) {
+        setNoteTone('success');
         setNote(
           extra.length
             ? `Automatic check-in is on. ${extra.join(' ')}`
@@ -132,14 +156,26 @@ export default function AutoAttendanceSavePanel() {
     setNote('');
     try {
       const res = await removeAccountFromAutoAttendance();
+      // Always surface Off + Enable after local teardown (even if server RPC failed).
+      if (res.locallyCleared) {
+        setStatus((prev) => (prev ? asOffStatus(prev) : prev));
+        setNoteTone('neutral');
+        setNote(
+          res.ok
+            ? 'Automatic check-in is off on this device. Tap Enable automatic check-in to add it again.'
+            : 'This device was cleared locally. Tap Enable automatic check-in to add it again.',
+        );
+      }
       if (!res.ok) {
         setError(friendlyAutoAttendanceError(res.error, 'Could not turn off on this device.'));
-      } else {
-        setNote('Automatic check-in is off on this device.');
       }
       await refresh();
     } catch (e) {
+      setStatus((prev) => (prev ? asOffStatus(prev) : prev));
+      setNoteTone('neutral');
+      setNote('This device was cleared locally. Tap Enable automatic check-in to add it again.');
       setError(friendlyAutoAttendanceError(e, 'Could not turn off on this device.'));
+      await refresh();
     } finally {
       setBusy(false);
     }
@@ -174,6 +210,7 @@ export default function AutoAttendanceSavePanel() {
 
   const uiState = resolveUiState(status);
   const saved = status.saved;
+  const showEnable = !saved || uiState === 'needs_setup';
   const needsPerm =
     status.needsLocation ||
     status.needsBackgroundLocation ||
@@ -286,10 +323,10 @@ export default function AutoAttendanceSavePanel() {
       )}
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.55rem', alignItems: 'center' }}>
-        {!saved || uiState === 'needs_setup' ? (
+        {showEnable ? (
           <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void onSave()}>
             {busy ? <Loader2 size={16} className="spin-icon" /> : <Radio size={16} />}
-            Enable
+            Enable automatic check-in
           </button>
         ) : (
           <button type="button" className="btn btn-secondary" disabled={busy} onClick={() => void onSave()}>
@@ -299,7 +336,7 @@ export default function AutoAttendanceSavePanel() {
         )}
         {saved && (
           <button type="button" className="btn btn-secondary" disabled={busy} onClick={() => void onRemove()}>
-            Turn off on this device
+            Turn off
           </button>
         )}
         {status.kind === 'android' && (
@@ -330,7 +367,16 @@ export default function AutoAttendanceSavePanel() {
         <p style={{ color: 'var(--color-danger)', fontSize: '0.85rem', margin: '0.75rem 0 0' }}>{error}</p>
       )}
       {note && (
-        <p style={{ color: 'var(--color-success, #0f766e)', fontSize: '0.85rem', margin: '0.75rem 0 0' }}>
+        <p
+          style={{
+            color:
+              noteTone === 'success'
+                ? 'var(--color-success, #0f766e)'
+                : 'var(--text-secondary)',
+            fontSize: '0.85rem',
+            margin: '0.75rem 0 0',
+          }}
+        >
           {note}
         </p>
       )}

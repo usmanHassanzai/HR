@@ -148,13 +148,11 @@ public class AttendancePingService extends Service {
             stopSelf();
             return;
         }
-        // Already checked in for this shift day — stop spamming GPS check-ins.
-        // Server cron / schedule closes the session at shift end.
+        // Already checked in: still probe so leaving the radius (or office Wi-Fi)
+        // can early-checkout. Cron closes remaining open sessions at shift end.
         if (AttendancePingStore.isAlreadyCheckedInForActiveWindow(this)) {
-            AttendanceEventClient.updateStatusNotification(
-                this, "Checked in — waiting for shift end", null
-            );
-            handler.postDelayed(tick, INTERVAL_INSIDE_MS * 5);
+            requestLeaveProbe();
+            handler.postDelayed(tick, INTERVAL_INSIDE_MS);
             return;
         }
         requestLocationPing();
@@ -162,6 +160,55 @@ public class AttendancePingService extends Service {
             ? INTERVAL_OUTSIDE_MS
             : INTERVAL_INSIDE_MS;
         handler.postDelayed(tick, interval);
+    }
+
+    /**
+     * While open: GPS outside all office radii → exit; else soft Wi-Fi disconnect
+     * is handled by the network callback.
+     */
+    private void requestLeaveProbe() {
+        if (!locationServicesEnabled()) {
+            AttendanceEventClient.updateStatusNotification(
+                this, "Checked in — waiting for leave or shift end", null
+            );
+            return;
+        }
+        requestFreshLocation(loc -> {
+            if (loc == null || AttendanceEventClient.isMockLocation(loc)) return;
+            if (!isClearlyOutsideAllGpsZones(loc)) {
+                AttendanceEventClient.updateStatusNotification(
+                    this, "Checked in — still near office", null
+                );
+                return;
+            }
+            AttendancePingStore.setLastOutsideOrEdge(this, true);
+            String zoneId = nearestZoneId(loc);
+            Double lat = loc.getLatitude();
+            Double lng = loc.getLongitude();
+            Float acc = loc.hasAccuracy() ? loc.getAccuracy() : null;
+            long readingMs = loc.getTime() > 0 ? loc.getTime() : System.currentTimeMillis();
+            AttendanceEventClient.send(this, "exit", zoneId, lat, lng, acc, null, null, readingMs);
+            AttendanceEventClient.updateStatusNotification(
+                this, "Left office radius — checking out", null
+            );
+        }, () -> AttendanceEventClient.updateStatusNotification(
+            this, "Checked in — waiting for leave or shift end", null
+        ));
+    }
+
+    /** True when a usable GPS fix is beyond every GPS zone radius (past edge margin). */
+    private boolean isClearlyOutsideAllGpsZones(Location loc) {
+        boolean sawGpsZone = false;
+        for (AttendanceScheduleController.Zone z : AttendanceScheduleController.parseZones(this)) {
+            if (!z.usesGps()) continue;
+            sawGpsZone = true;
+            float[] results = new float[1];
+            Location.distanceBetween(loc.getLatitude(), loc.getLongitude(), z.lat, z.lng, results);
+            float radius = z.radiusM > 0 ? z.radiusM : 100f;
+            if (results[0] <= radius) return false;
+        }
+        // No GPS zones configured → cannot decide leave by radius.
+        return sawGpsZone;
     }
 
     private void requestLocationPing() {

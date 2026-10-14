@@ -120,8 +120,8 @@ export async function registerAttendanceDevice(appVersion?: string): Promise<{
   return registerDeviceViaRpc(appVersion || '1.3.7');
 }
 
-export async function disableAutoAttendanceOnDevice(kind: 'phone' | 'laptop' = 'phone'): Promise<void> {
-  await supabase.rpc('disable_my_auto_attendance', { p_kind: kind });
+/** Clear local token + stop desktop heartbeat / Android FGS. Safe to call repeatedly. */
+export async function clearLocalAttendanceEnrollment(): Promise<void> {
   await secureRemove(TOKEN_KEY);
   try {
     const clear = (
@@ -133,19 +133,26 @@ export async function disableAutoAttendanceOnDevice(kind: 'phone' | 'laptop' = '
   } catch {
     /* ignore */
   }
-  if (kind === 'phone') {
-    try {
-      const { stopNativeAttendancePings } = await import('./attendanceNativePing');
-      await stopNativeAttendancePings();
-    } catch {
-      /* ignore */
-    }
-    try {
-      const { stopIosHomeAttendance } = await import('./attendanceIosHome');
-      stopIosHomeAttendance();
-    } catch {
-      /* ignore */
-    }
+  try {
+    const { stopNativeAttendancePings } = await import('./attendanceNativePing');
+    await stopNativeAttendancePings();
+  } catch {
+    /* ignore */
+  }
+  try {
+    const { stopIosHomeAttendance } = await import('./attendanceIosHome');
+    stopIosHomeAttendance();
+  } catch {
+    /* ignore */
+  }
+}
+
+export async function disableAutoAttendanceOnDevice(kind: 'phone' | 'laptop' = 'phone'): Promise<void> {
+  try {
+    await supabase.rpc('disable_my_auto_attendance', { p_kind: kind });
+  } finally {
+    // Always drop local enrollment so UI can show Enable again even if RPC fails.
+    await clearLocalAttendanceEnrollment();
   }
 }
 

@@ -53,6 +53,8 @@ let tray = null;
 let workspaceExpanded = false;
 let heartbeatTimer = null;
 let scheduleSyncTimer = null;
+let windowStartTimer = null;
+let windowEndTimer = null;
 /** @type {any} */
 let cachedSchedule = null;
 /** Attendance date string (YYYY-MM-DD) after successful auto check-in — suppress repeats. */
@@ -309,8 +311,70 @@ async function syncSchedule() {
     } catch {
       /* ignore */
     }
+    armWindowWakeFromSchedule();
+  } else if (data?.stop_tracking) {
+    const reason = String(data?.reason || data?.action || '');
+    if (isTerminalStopReason(reason)) {
+      stopHeartbeat();
+      clearToken();
+    }
   }
   return data;
+}
+
+/** True when stop_tracking means permanently disable (not just past this window). */
+function isTerminalStopReason(actionOrReason) {
+  const r = String(actionOrReason || '').toLowerCase();
+  return (
+    r === 'invalid_token' ||
+    r === 'revoked_token' ||
+    r === 'missing_token' ||
+    r === 'invalid_or_revoked_token' ||
+    r === 'platform_disabled' ||
+    r === 'work_mode_remote' ||
+    r === 'user_gone' ||
+    r === 'disabled'
+  );
+}
+
+/**
+ * Exact-ish wake for next window start/end so heartbeat resumes without waiting
+ * for the hourly schedule sync (and without wiping enrollment on outside_window).
+ */
+function armWindowWakeFromSchedule() {
+  if (windowStartTimer) {
+    clearTimeout(windowStartTimer);
+    windowStartTimer = null;
+  }
+  if (windowEndTimer) {
+    clearTimeout(windowEndTimer);
+    windowEndTimer = null;
+  }
+  const windows = cachedSchedule?.windows || [];
+  if (!windows.length) return;
+  const now = Date.now();
+  let nextStart = null;
+  let nextEnd = null;
+  for (const w of windows) {
+    const start = Date.parse(w.window_start_utc);
+    const end = Date.parse(w.window_end_utc);
+    if (Number.isNaN(start) || Number.isNaN(end)) continue;
+    if (start > now && (nextStart == null || start < nextStart)) nextStart = start;
+    if (end > now && (nextEnd == null || end < nextEnd)) nextEnd = end;
+  }
+  const maxDelay = 2147483647; // setTimeout 32-bit cap
+  if (nextStart != null) {
+    windowStartTimer = setTimeout(() => {
+      void syncSchedule().then(() => startHeartbeatIfInWindow());
+    }, Math.min(Math.max(nextStart - now + 750, 0), maxDelay));
+  }
+  if (nextEnd != null) {
+    windowEndTimer = setTimeout(() => {
+      stopHeartbeat();
+      checkedInAttendanceDate = null;
+      armWindowWakeFromSchedule();
+    }, Math.min(Math.max(nextEnd - now + 750, 0), maxDelay));
+  }
 }
 
 function serverCorrectedNowMs(schedule) {
@@ -443,10 +507,53 @@ function matchesScheduleOfficeWifi(wifi) {
 
 function stillSuppressCheckin() {
   if (!checkedInAttendanceDate) return false;
+  if (cachedSchedule && Object.prototype.hasOwnProperty.call(cachedSchedule, 'session_open')
+      && cachedSchedule.session_open === false) {
+    checkedInAttendanceDate = null;
+    return false;
+  }
   const win = activeWindow(cachedSchedule, Date.now());
   if (!win) return false;
+  if (Object.prototype.hasOwnProperty.call(win, 'session_open') && win.session_open === false) {
+    checkedInAttendanceDate = null;
+    return false;
+  }
   const date = win.attendance_date || win.attendanceDate;
   return !date || String(date) === String(checkedInAttendanceDate);
+}
+
+/** While open session: if GPS is clearly outside every GPS zone, fire exit. */
+async function probeLeaveWhileCheckedIn() {
+  if (!stillSuppressCheckin()) return;
+  const zones = (cachedSchedule?.zones || []).filter((z) => {
+    const mode = String(z?.detection_mode || 'gps_or_wifi').toLowerCase();
+    return mode !== 'wifi_only';
+  });
+  if (!zones.length) return;
+  const fix = await readFreshLocation(100);
+  if (!fix || fix.latitude == null || fix.longitude == null) return;
+  const outsideAll = zones.every((z) => {
+    const lat = Number(z.latitude ?? z.lat);
+    const lng = Number(z.longitude ?? z.lng);
+    const radius = Math.max(Number(z.radius_meters ?? z.radius ?? 150), 1);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return true;
+    const dist = haversineMeters(fix.latitude, fix.longitude, lat, lng);
+    return dist == null || dist > radius;
+  });
+  if (outsideAll) {
+    await sendEvent('exit', fix, true);
+  }
+}
+
+function haversineMeters(lat1, lon1, lat2, lon2) {
+  const toRad = (d) => (d * Math.PI) / 180;
+  const R = 6371000;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
 }
 
 async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = null) {
@@ -566,10 +673,16 @@ async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = nul
   } else if (res?.action === 'event_too_old') {
     /* ignore */
   }
-  // Only stop heartbeat for terminal stops (revoked / platform off / past window end).
-  // Early checkout must keep listening for Wi-Fi/radius re-entry.
+  // Mid-shift clock_out keeps probing. outside_window pauses until next window wake.
+  // Terminal reasons (revoked / platform off) clear enrollment.
   if (res?.stop_tracking && res?.action !== 'clock_out') {
+    const stopReason = String(res?.reason || res?.action || '');
     stopHeartbeat();
+    if (isTerminalStopReason(stopReason)) {
+      clearToken();
+    } else {
+      armWindowWakeFromSchedule();
+    }
   }
   if (res?.reason === 'schedule_changed') {
     await syncSchedule();
@@ -618,7 +731,11 @@ function startHeartbeatIfInWindow() {
       return;
     }
     wasOnOfficeWifi = onOffice || wasOnOfficeWifi;
-    if (stillSuppressCheckin()) return; // already in — early leave or shift-end closes
+    if (stillSuppressCheckin()) {
+      // Still probe GPS leave (radius) while open — cron closes at shift end.
+      void probeLeaveWhileCheckedIn();
+      return;
+    }
     void sendEvent('heartbeat');
   }, 60 * 1000);
 }
@@ -720,7 +837,8 @@ function setupTray() {
         {
           label: 'Quit',
           click: () => {
-            clearToken();
+            // Keep enrollment token — auto-launch / next open still checks in.
+            // Turn off only via Settings → Automatic check-in → Turn off.
             app.exit(0);
           },
         },

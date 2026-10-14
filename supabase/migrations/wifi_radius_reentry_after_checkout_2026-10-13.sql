@@ -258,7 +258,7 @@ BEGIN
       'latitude', o.latitude,
       'longitude', o.longitude,
       'radius_meters', o.radius_meters,
-      'detection_mode', 'wifi_only',
+      'detection_mode', COALESCE(o.detection_mode::text, 'gps_or_wifi'),
       'wifi_ssids', o.wifi_ssids,
       'wifi_bssids', o.wifi_bssids
     ) AS z

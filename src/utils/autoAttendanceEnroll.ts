@@ -4,6 +4,7 @@
  */
 import { packageVersion } from './appUpdate';
 import {
+  clearLocalAttendanceEnrollment,
   disableAutoAttendanceOnDevice,
   friendlyAutoAttendanceError,
   getAttendanceDeviceToken,
@@ -14,7 +15,6 @@ import {
 import {
   isNativeAutoAttendanceArmed,
   startNativeAttendancePings,
-  stopNativeAttendancePings,
 } from './attendanceNativePing';
 import {
   batteryTips,
@@ -159,15 +159,6 @@ export async function getAutoAttendanceSaveStatus(): Promise<AutoAttendanceSaveS
   };
 }
 
-async function clearDesktopAttendanceToken(): Promise<void> {
-  try {
-    const clear = window.scorrDesktop?.clearAttendanceToken;
-    if (clear) await Promise.resolve(clear());
-  } catch {
-    /* ignore */
-  }
-}
-
 async function enableDesktopAutoLaunch(): Promise<void> {
   try {
     const set = window.scorrDesktop?.setAutoLaunch;
@@ -284,41 +275,29 @@ export async function saveAccountForAutoAttendance(): Promise<{
 export async function removeAccountFromAutoAttendance(): Promise<{
   ok: boolean;
   error?: string;
+  /** Local token / heartbeat / FGS cleared — UI should show Off + Enable. */
+  locallyCleared: boolean;
 }> {
   const kind = clientKind();
   const disableKind = kind === 'desktop' ? 'laptop' : 'phone';
 
   try {
     await disableAutoAttendanceOnDevice(disableKind);
+    clearSetupProgress();
+    return { ok: true, locallyCleared: true };
   } catch (e) {
-    // Still clear local store / stop FGS even if RPC fails
-    try {
-      const { Preferences } = await import('@capacitor/preferences');
-      if (isAndroidApp()) {
-        await Preferences.remove({ key: 'scorr_attendance_device_token' });
-      }
-    } catch {
-      /* ignore */
-    }
-    try {
-      localStorage.removeItem('scorr_attendance_device_token');
-    } catch {
-      /* ignore */
-    }
-    await stopNativeAttendancePings();
-    await clearDesktopAttendanceToken();
+    // disableAutoAttendanceOnDevice already clears in finally; belt-and-suspenders.
+    await clearLocalAttendanceEnrollment();
+    clearSetupProgress();
     return {
       ok: false,
+      locallyCleared: true,
       error: friendlyAutoAttendanceError(
         e,
-        'Could not turn off on the server; this device was cleared locally.',
+        'Could not turn off on the server; this device was cleared locally. Tap Enable to add it again.',
       ),
     };
   }
-
-  await clearDesktopAttendanceToken();
-  clearSetupProgress();
-  return { ok: true };
 }
 
 export { openNativeAppSettings, openNativeBatterySettings };

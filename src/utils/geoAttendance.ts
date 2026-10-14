@@ -44,7 +44,7 @@ export interface OfficeGroup {
 }
 
 /** Foreground auto GPS interval while the dashboard is open (office / hybrid). */
-/** While the portal is open, check location often so leaving the radius checks out quickly. */
+/** While the portal is open, soft GPS + Wi-Fi probes keep presence current. */
 export const AUTO_LOCATION_CHECK_MS = 20_000;
 
 export const GEO_PING_EVENT = 'scorr-geo-ping';
@@ -80,6 +80,7 @@ export type GeoPingAction =
   | 'clock_out'
   | 'clock_out_shift_end'
   | 'already_clocked_in'
+  | 'already_in'
   | 'already_clocked_out'
   | 'outside_office'
   | 'inside_office'
@@ -181,7 +182,7 @@ export function attendanceCheckoutMessage(result: {
           minute: '2-digit',
         })
       : null);
-  if (t) return `Checked out - left the office radius at ${t}`;
+  if (t) return `Checked out at ${t}`;
   return 'Checked out';
 }
 
@@ -297,8 +298,11 @@ export async function bootstrapAttendanceLocation(): Promise<void> {
   setGeoAttendanceEnabled(true);
 
   if (Capacitor.isNativePlatform()) {
-    await ensureBackgroundLocationReady();
-    return;
+    try {
+      await ensureBackgroundLocationReady();
+    } catch {
+      // Location off is OK — office Wi-Fi path still works on Android/desktop.
+    }
   }
 }
 
@@ -454,10 +458,11 @@ export function isLocationSoftFailError(err: unknown): boolean {
 
 /**
  * User-facing copy when GPS failed. Prefer Wi-Fi path messaging on Android/desktop.
+ * Do not claim the device is already on office Wi-Fi — only that the Wi-Fi path is available.
  */
 export function locationSoftFailMessage(wifiPathAvailable: boolean): string {
   if (wifiPathAvailable) {
-    return 'On office Wi-Fi — location not required. If check-in fails, connect to configured office Wi-Fi or turn on location for the radius path.';
+    return 'Location is off — office Wi-Fi can still check you in. Connect to configured office Wi-Fi, or turn on location for the radius path.';
   }
   return 'Location is required for radius check-in in the browser. Use the Android or desktop app to check in on office Wi-Fi without location.';
 }
@@ -740,7 +745,12 @@ export async function watchAttendancePosition(
   onPosition: (lat: number, lng: number, accuracy: number | null) => void,
 ): Promise<AttendanceWatchId> {
   if (Capacitor.isNativePlatform()) {
-    await ensureBackgroundLocationReady();
+    try {
+      await ensureBackgroundLocationReady();
+    } catch {
+      // Radius watch needs location; Wi-Fi auto path does not use this watcher.
+      throw new Error(locationSoftFailMessage(canProbeWifiSsid()));
+    }
     return Geolocation.watchPosition(
       {
         enableHighAccuracy: false,
@@ -794,13 +804,13 @@ export async function clearAttendanceWatch(id: AttendanceWatchId | null): Promis
   if (typeof id === 'number') navigator.geolocation.clearWatch(id);
 }
 
-/** When-in-use location only — no background / always-on GPS. */
+/** When-in-use location only — no background / always-on GPS. Soft-fail for Wi-Fi path. */
 export async function ensureBackgroundLocationReady(): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
 
   const perm = await Geolocation.checkPermissions();
   if (perm.location === 'denied' && perm.coarseLocation === 'denied') {
-    throw new Error('Location blocked. Open Settings → Scorr → Location → While using the app.');
+    throw new Error(locationSoftFailMessage(canProbeWifiSsid()));
   }
 
   if (perm.location !== 'granted') {
@@ -808,7 +818,7 @@ export async function ensureBackgroundLocationReady(): Promise<void> {
       permissions: ['location', 'coarseLocation'],
     });
     if (req.location !== 'granted' && req.coarseLocation !== 'granted') {
-      throw new Error('Location permission is required to clock in or out.');
+      throw new Error(locationSoftFailMessage(canProbeWifiSsid()));
     }
   }
 }

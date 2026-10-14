@@ -157,7 +157,7 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
       setWifiProbeAvailable(result.wifi_ssid_probed || canProbeWifiSsid());
     }
     const reason = result.reason || result.action;
-    if (result.match_via === 'wifi') {
+    if (result.match_via === 'wifi' || result.reason === 'office_wifi') {
       setWifiMatch(true);
       setWifiMatchLabel(
         result.wifi_network_label || result.probed_ssid || result.office_name || null,
@@ -167,6 +167,10 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
     if (result.match_via === 'gps') {
       setWifiMatch(false);
       setWifiMatchLabel(null);
+      return;
+    }
+    if (result.action === 'already_in' || result.reason === 'already_in') {
+      // Keep prior Wi-Fi match UI while open; do not force "no".
       return;
     }
     if (
@@ -273,7 +277,7 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
       if (available) {
         setStatusMessage((prev) =>
           !prev || isLocationSoftFailError(prev)
-            ? 'Location not required when on office Wi-Fi'
+            ? 'Office Wi-Fi path ready — location not required for check-in'
             : prev,
         );
       }
@@ -438,7 +442,7 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
       if (result.action === 'clock_in' || result.action === 'already_clocked_in') {
         setStatusMessage(
           result.match_via === 'wifi'
-            ? 'On office Wi-Fi — location not required'
+            ? 'Checked in on office Wi-Fi — location not required'
             : result.match_via === 'gps'
               ? 'Checked in inside office radius'
               : 'Checked in',
@@ -446,11 +450,8 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
         applyWifiMatchFromResult(result);
         setError('');
       } else if (result.action === 'clock_out' || result.action === 'clock_out_shift_end') {
-        setStatusMessage(
-          result.match_via === 'wifi'
-            ? 'On office Wi-Fi — location not required'
-            : attendanceCheckoutMessage(result),
-        );
+        setStatusMessage(attendanceCheckoutMessage(result));
+        applyWifiMatchFromResult(result);
         setError('');
       } else if (result.action === 'no_connection') {
         setStatusMessage('No connection - will check when online');
@@ -545,12 +546,12 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
       )}
       {openShift && (
         <p className="attendance-present-banner attendance-present-banner--spaced" role="status">
-          You are still present in the office and working. Auto check-out runs when a GPS reading is outside the office radius; use Clock out only if you need to leave early.
+          You are checked in. Use Clock out to leave early from anywhere during the shift. Open sessions close automatically at shift end.
         </p>
       )}
       {!openShift && clockIn && clockOut && inWindow && !shiftEnded && (
         <p className="attendance-present-banner attendance-present-banner--out attendance-present-banner--spaced" role="status">
-          Checked out. Auto check-in runs if you return during the shift; Clock in is only needed as a backup.
+          Checked out. Auto check-in runs again if you return on office Wi-Fi or inside the radius; Clock in is only needed as a backup.
         </p>
       )}
       {!openShift && clockIn && clockOut && shiftEnded && (

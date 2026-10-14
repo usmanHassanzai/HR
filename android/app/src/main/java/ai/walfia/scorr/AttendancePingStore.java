@@ -304,25 +304,37 @@ final class AttendancePingStore {
         if (marked == null || marked.isEmpty()) return false;
         try {
             String raw = prefs(ctx).getString("schedule_json", null);
-            if (raw == null) return true; // conservative: suppress until schedule clears it
+            // No schedule yet — do not suppress forever (blocks all heartbeats).
+            if (raw == null) return false;
             JSONObject sched = new JSONObject(raw);
+            // Server says session closed (manual checkout / shift-end) → clear local suppress.
+            if (sched.has("session_open") && !sched.optBoolean("session_open", true)) {
+                setCheckedInAttendanceDate(ctx, null);
+                return false;
+            }
             JSONArray windows = sched.optJSONArray("windows");
-            if (windows == null) return true;
+            if (windows == null) return false;
             long now = System.currentTimeMillis();
             for (int i = 0; i < windows.length(); i++) {
                 JSONObject w = windows.optJSONObject(i);
                 if (w == null) continue;
                 String date = w.optString("attendance_date", "");
                 if (!marked.equals(date)) continue;
-                // Parse ISO-ish window end; if still before end, stay suppressed
+                // Per-window open flag from schedule
+                if (w.has("session_open") && !w.optBoolean("session_open", true)) {
+                    setCheckedInAttendanceDate(ctx, null);
+                    return false;
+                }
                 String end = w.optString("window_end_utc", w.optString("shift_end_utc", ""));
                 if (end.isEmpty()) return true;
                 long endMs = parseIsoMs(end);
                 return endMs <= 0 || now < endMs;
             }
+            // Marked date not in upcoming windows — stale suppress
+            setCheckedInAttendanceDate(ctx, null);
             return false;
         } catch (Exception e) {
-            return true;
+            return false;
         }
     }
 

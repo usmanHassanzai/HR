@@ -357,7 +357,8 @@ export default function OfficeLocationSettings() {
       p_wifi_ssids: existing?.wifi_ssids || [],
       p_wifi_bssids: existing?.wifi_bssids || [],
       p_public_ip_cidrs: existing?.public_ip_cidrs || [],
-      p_detection_mode: 'wifi_only',
+      // GPS present → Wi-Fi then radius; no GPS yet → Wi-Fi only until location is set.
+      p_detection_mode: hasGps ? 'gps_or_wifi' : 'wifi_only',
     });
     if (error) {
       showMsg(

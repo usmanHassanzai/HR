@@ -128,7 +128,9 @@ final class AttendanceScheduleController {
                 try {
                     JSONObject err = new JSONObject(resp);
                     if (err.optBoolean("stop_tracking", false)) {
-                        stopAll(app);
+                        String reason = err.optString("reason", err.optString("action", ""));
+                        if (isTerminalStopReason(reason)) stopAll(app);
+                        else pauseUntilNextWindow(app);
                     }
                 } catch (Exception ignored) {
                 }
@@ -136,8 +138,10 @@ final class AttendanceScheduleController {
             }
             JSONObject json = new JSONObject(resp);
             if (!json.optBoolean("ok", true) && json.optBoolean("stop_tracking", false)) {
-                stopAll(app);
-                return json.optString("reason", "stop_tracking");
+                String reason = json.optString("reason", json.optString("action", "stop_tracking"));
+                if (isTerminalStopReason(reason)) stopAll(app);
+                else pauseUntilNextWindow(app);
+                return reason;
             }
             AttendancePingStore.saveScheduleJson(app, json.toString());
             String companyTz = json.optString("company_tz", null);
@@ -201,6 +205,10 @@ final class AttendanceScheduleController {
         AttendancePingStore.clearActiveWindow(app);
     }
 
+    /**
+     * Terminal unenroll: revoked / invalid token / platform off.
+     * Clears native credentials so the user must Enable again.
+     */
     static void stopAll(Context app) {
         cancelAllAlarms(app);
         exitWindow(app);
@@ -209,6 +217,31 @@ final class AttendanceScheduleController {
             WorkManager.getInstance(app).cancelAllWorkByTag("scorr_attendance");
         } catch (Exception ignored) {
         }
+    }
+
+    /**
+     * End of current window only — keep enrollment + future day alarms.
+     * Used for outside_window / shift-end pause (do NOT wipe device token).
+     */
+    static void pauseUntilNextWindow(Context app) {
+        exitWindow(app);
+        AttendancePingStore.setCheckedInAttendanceDate(app, null);
+        // Keep alarms for later windows already scheduled from cache.
+        armFromCache(app);
+    }
+
+    /** True when stop_tracking means permanently disable (not just past this window). */
+    static boolean isTerminalStopReason(String actionOrReason) {
+        if (actionOrReason == null) return false;
+        String r = actionOrReason.toLowerCase(Locale.US);
+        return "invalid_token".equals(r)
+            || "revoked_token".equals(r)
+            || "missing_token".equals(r)
+            || "invalid_or_revoked_token".equals(r)
+            || "platform_disabled".equals(r)
+            || "work_mode_remote".equals(r)
+            || "user_gone".equals(r)
+            || "disabled".equals(r);
     }
 
     static void scheduleExact(Context app, String action, long triggerAtMs, long endMs, int reqCode) {
