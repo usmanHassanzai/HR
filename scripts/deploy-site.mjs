@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** Build + Vercel prod deploy. Loads VERCEL_TOKEN from .env or Vercel CLI auth.json. */
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -152,6 +152,20 @@ if (!token) {
 }
 
 run('npm', ['run', 'build']);
+
+// `vercel deploy dist` uploads only dist/. Write a static-only vercel.json (no
+// buildCommand) so redirects/headers apply without re-running npm build on Vercel.
+try {
+  const full = JSON.parse(readFileSync(join(root, 'vercel.json'), 'utf8'));
+  const staticCfg = {
+    redirects: full.redirects || [],
+    rewrites: full.rewrites || [],
+    headers: full.headers || [],
+  };
+  writeFileSync(join(root, 'dist', 'vercel.json'), `${JSON.stringify(staticCfg, null, 2)}\n`);
+} catch (e) {
+  console.warn('Could not write dist/vercel.json', e?.message || e);
+}
 
 // Always target production project hr → scorr.walfia.ai (avoid mis-linking to "dist").
 const deployArgs = [
