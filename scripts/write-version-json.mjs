@@ -2,7 +2,6 @@
 /**
  * Writes public/downloads/version.json (+ optional desktop latest.yml stubs).
  */
-import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
@@ -35,7 +34,6 @@ function androidVersionCode() {
 // The website feed follows WINDOWS_RELEASE only. 1.3.45 is the current public feed.
 const WINDOWS_RELEASE = '1.3.45';
 const LINUX_RELEASE = '1.3.45';
-const CRASHING_WINDOWS_RELEASES = new Set(['1.3.46']);
 const WINDOWS_INSTALLERS = {
   '1.3.45': {
     sha512: '6xOC8K5GcOgSmr4RXEQ2P+VgRyTARv6NCVlQ8/glrm294xhrdedgepTw9uTrLLbAj7C77Xr3FK7/goujBkY30Q==',
@@ -75,26 +73,9 @@ function versionFromDesktopUrl(url) {
 }
 
 function lastPublishedWindowsRelease() {
-  try {
-    const r = spawnSync(
-      'gh',
-      ['release', 'list', '--repo', 'usmanHassanzai/HR', '--limit', '40'],
-      { encoding: 'utf8' },
-    );
-    const found = [];
-    if (r.status === 0) {
-      for (const line of String(r.stdout || '').split('\n')) {
-        const cols = line.split('\t');
-        if (cols[1] === 'Pre-release') continue;
-        const m = line.match(/desktop-v(\d+(?:\.\d+){1,2})/);
-        if (m && !CRASHING_WINDOWS_RELEASES.has(m[1])) found.push(m[1]);
-      }
-    }
-    found.sort(compareVersions);
-    return found.length ? found[found.length - 1] : WINDOWS_RELEASE;
-  } catch {
-    return WINDOWS_RELEASE;
-  }
+  // GitHub Latest. Do not call gh: Vercel builds have no GitHub CLI, and a
+  // pre-release (1.3.46, 1.3.47, 1.3.48) must not make the 1.3.45 feed fail.
+  return '1.3.45';
 }
 
 function failWindowsFeed(message) {
@@ -258,16 +239,22 @@ try {
 
 function syncWindowsPointers() {
   const vercelPath = join(root, 'vercel.json');
-  const vercelText = readFileSync(vercelPath, 'utf8');
-  const redirectPattern = /("source": "\/downloads\/Scorr-Setup\.exe",\n\s*"destination": ")[^"]+(")/;
-  if (!redirectPattern.test(vercelText)) {
-    failWindowsFeed('vercel.json is missing the Windows Setup redirect');
+  let vercel;
+  try {
+    vercel = JSON.parse(readFileSync(vercelPath, 'utf8'));
+  } catch (e) {
+    failWindowsFeed(`vercel.json could not be read: ${e?.message || e}`);
   }
-  const vercelNext = vercelText.replace(redirectPattern, `$1${winUrl}$2`);
-  if (!vercelNext.includes(winUrl)) {
-    failWindowsFeed('vercel.json Windows redirect did not take the release-file URL');
+  if (!Array.isArray(vercel.redirects)) vercel.redirects = [];
+  let winRedirect = vercel.redirects.find((entry) => entry?.source === '/downloads/Scorr-Setup.exe');
+  if (!winRedirect) {
+    winRedirect = { source: '/downloads/Scorr-Setup.exe', destination: winUrl, permanent: false };
+    vercel.redirects.unshift(winRedirect);
   }
-  if (vercelNext !== vercelText) writeFileSync(vercelPath, vercelNext);
+  const destinationChanged = winRedirect.destination !== winUrl;
+  winRedirect.destination = winUrl;
+  const vercelNext = `${JSON.stringify(vercel, null, 2)}\n`;
+  if (destinationChanged) writeFileSync(vercelPath, vercelNext);
 
   const info = readBuildInfo(root);
   info.desktop = info.desktop || {};
