@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { isKpiPaused, isKpiViewedByAssignee, kpiProgressBadge, Profile, Kpi } from '../utils/kpiHelpers';
 import { hydrateKpiLastEdits } from '../utils/kpiAssignmentEdits';
 import { markAssignedKpisViewed } from '../utils/kpiViewed';
-import { RefreshCw, BarChart2, Trophy, KeyRound, CalendarCheck, Settings, Target, Search, FileText, PauseCircle } from 'lucide-react';
+import { RefreshCw, BarChart2, Trophy, KeyRound, CalendarCheck, Settings, Target, Search, FileText, PauseCircle, Scale } from 'lucide-react';
 import ExportButton from './ExportButton';
 import ChangePasswordModal from './ChangePasswordModal';
 import { emailKpiOverdue } from '../utils/kpiEmail';
@@ -47,10 +47,11 @@ const DailyWorkReportPanel = lazy(() => import('./DailyWorkReportPanel'));
 const AccountSecurityPanel = lazy(() => import('./AccountSecurityPanel'));
 const AutoAttendanceSavePanel = lazy(() => import('./AutoAttendanceSavePanel'));
 const BackupCodesLowBanner = lazy(() => import('./BackupCodesLowBanner'));
+const ScoreWeightagePanel = lazy(() => import('./ScoreWeightagePanel'));
 
-type EmployeeTab = 'kpis' | 'attendance' | 'rewards' | 'dailyReport' | 'settings';
+type EmployeeTab = 'kpis' | 'attendance' | 'rewards' | 'dailyReport' | 'settings' | 'scoreWeightage';
 const EMPLOYEE_TAB_KEY = 'scorr-employee-active-tab';
-const EMPLOYEE_TABS: EmployeeTab[] = ['kpis', 'attendance', 'rewards', 'dailyReport', 'settings'];
+const EMPLOYEE_TABS: EmployeeTab[] = ['kpis', 'attendance', 'rewards', 'dailyReport', 'scoreWeightage', 'settings'];
 /** Rewards catalog/tab hidden for employees on web + native (all breakpoints). */
 const EMPLOYEE_REWARDS_HIDDEN = true;
 
@@ -406,9 +407,12 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
         ? [{ id: 'rewards', label: 'Rewards', icon: <Trophy size={16} /> }]
         : []),
       { id: 'dailyReport', label: 'Daily report', icon: <FileText size={16} /> },
+      ...(!isReadOnly
+        ? [{ id: 'scoreWeightage', label: 'Score weightage', icon: <Scale size={16} /> }]
+        : []),
       { id: 'settings', label: 'Settings', icon: <Settings size={16} /> },
     ],
-  }], []);
+  }], [isReadOnly]);
 
   const pageIcon = findAdminNavIcon(navGroups, activeTab);
   const pageTitle = {
@@ -416,6 +420,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
     attendance: 'Attendance',
     rewards: 'Rewards',
     dailyReport: 'Daily report',
+    scoreWeightage: 'Score weightage',
     settings: 'Settings',
   }[activeTab];
 
@@ -894,6 +899,10 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
       ) : activeTab === 'dailyReport' ? (
         <Suspense fallback={<TabFallback />}>
           <DailyWorkReportPanel profile={profile} />
+        </Suspense>
+      ) : activeTab === 'scoreWeightage' ? (
+        <Suspense fallback={<TabFallback />}>
+          <ScoreWeightagePanel profile={activeUser} />
         </Suspense>
       ) : activeTab === 'settings' ? (
         <Suspense fallback={<TabFallback />}>

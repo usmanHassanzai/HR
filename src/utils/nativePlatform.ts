@@ -7,6 +7,10 @@ import { registerAuthDeepLinkHandlers } from './authDeepLink';
 type ScorrDesktopApi = {
   isDesktop: boolean;
   platform?: string;
+  /** Set only in the Windows 11 desktop shell (OS build 22000+). */
+  platformVariant?: 'windows11';
+  windowsBuild?: number;
+  getAppVersion?: () => Promise<string> | string;
   expandWorkspace?: () => void;
   shrinkToLogin?: () => void;
   saveAttendanceToken?: (token: string) => Promise<boolean> | void;
@@ -17,10 +21,57 @@ type ScorrDesktopApi = {
   clearLoginCredentials?: () => Promise<boolean> | boolean;
   setAutoLaunch?: (enabled: boolean) => Promise<{ ok?: boolean; enabled?: boolean }> | { ok?: boolean; enabled?: boolean };
   getAutoLaunch?: () => Promise<{ enabled?: boolean }> | { enabled?: boolean };
-  checkForUpdates?: () => Promise<{ ok?: boolean; message?: string }>;
+  checkForUpdates?: () => Promise<{
+    ok?: boolean;
+    message?: string;
+    updateAvailable?: boolean;
+    autoInstall?: boolean;
+    version?: string;
+    packageKind?: string;
+    downloadUrl?: string;
+  }>;
   quitAndInstall?: () => Promise<{ ok?: boolean }> | { ok?: boolean };
   probeWifi?: () => Promise<{ ssid?: string | null; bssid?: string | null }>;
+  wifiDiagnostics?: () => Promise<{
+    platform?: string;
+    windowsVersion?: string;
+    locationAllowed?: boolean | null;
+    locationMessage?: string | null;
+    ssid?: string | null;
+    bssid?: string | null;
+    publicIp?: string | null;
+    matchesSaved?: boolean;
+    statusLine?: string;
+    logPath?: string;
+    autoLaunch?: boolean;
+    trayRunning?: boolean;
+    appRunning?: boolean;
+    windowsBuild?: number | null;
+    platformVariant?: string | null;
+    lastResult?: { action?: string | null; reason?: string | null; message?: string | null; local_time?: string | null } | null;
+  }>;
+  openLocationSettings?: () => Promise<{ ok?: boolean }> | { ok?: boolean };
+  prepareAutoAttendance?: () => Promise<{
+    ok?: boolean;
+    autoLaunch?: boolean;
+    notifications?: string;
+    location?: string;
+    wifiOk?: boolean;
+    wifi?: { ssid?: string | null; bssid?: string | null };
+  }>;
+  /** Desktop only — tell main process a manual Clock Out happened so auto re-entry resumes. */
+  notifyManualCheckout?: () => Promise<{ ok?: boolean }> | { ok?: boolean };
   onUpdateReady?: (cb: (payload: { version?: string; message?: string; autoInstall?: boolean }) => void) => () => void;
+  onUpdateStatus?: (
+    cb: (payload: {
+      phase?: string;
+      message?: string;
+      version?: string;
+      percent?: number;
+      autoInstall?: boolean;
+      packageKind?: string;
+    }) => void,
+  ) => () => void;
 };
 
 declare global {
@@ -29,15 +80,95 @@ declare global {
   }
 }
 
-/** True inside the Electron desktop installer (ScorrDesktop UA / preload bridge). */
-export function isDesktopApp(): boolean {
+/** UA-only hint — Electron sets this even when preload fails. Do NOT use alone for auto check-in. */
+export function hasScorrDesktopUa(): boolean {
   if (typeof window === 'undefined') return false;
-  if (window.scorrDesktop?.isDesktop) return true;
   try {
     return /\bScorrDesktop\//i.test(window.navigator.userAgent);
   } catch {
     return false;
   }
+}
+
+/** Chromium Electron runtime UA (always present in real scorr-desktop, even ancient builds). */
+export function hasElectronRuntimeUa(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return /\bElectron\//i.test(window.navigator.userAgent);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Main process injects these when the real Electron window loads the site.
+ * Distinguishes Chrome tabs from Scorr Desktop even if preload/bridge failed.
+ */
+export function hasScorrElectronShellMarker(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const w = window as Window & {
+      __SCORR_ELECTRON_SHELL__?: boolean;
+      __SCORR_ELECTRON_VERSION__?: string;
+    };
+    if (w.__SCORR_ELECTRON_SHELL__ === true) return true;
+    if (typeof w.__SCORR_ELECTRON_VERSION__ === 'string' && w.__SCORR_ELECTRON_VERSION__) return true;
+    if (typeof document !== 'undefined' && document.documentElement?.dataset?.scorrDesktop) {
+      return true;
+    }
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
+
+/** Any Electron preload API (even old shells that only expose expandWorkspace). */
+export function hasScorrDesktopApi(): boolean {
+  if (typeof window === 'undefined') return false;
+  return Boolean(window.scorrDesktop?.isDesktop);
+}
+
+/**
+ * True when main can save the attendance token (1.3.29+ shells).
+ * Ancient 1.3.4 preload exposes isDesktop but NOT saveAttendanceToken — that is NOT armed.
+ */
+export function hasScorrDesktopBridge(): boolean {
+  if (typeof window === 'undefined') return false;
+  return Boolean(window.scorrDesktop?.isDesktop && window.scorrDesktop?.saveAttendanceToken);
+}
+
+/** Running inside scorr-desktop / Electron (may still need a binary update to arm check-in). */
+export function isElectronShell(): boolean {
+  return (
+    hasScorrDesktopBridge() ||
+    hasScorrDesktopApi() ||
+    hasScorrElectronShellMarker() ||
+    hasScorrDesktopUa() ||
+    hasElectronRuntimeUa()
+  );
+}
+
+/**
+ * Chrome/Edge “Install app” / PWA window — looks like an app but is still a browser
+ * (no Electron tray / auto check-in). Common on Linux when users skip the .deb.
+ */
+export function isBrowserInstalledShell(): boolean {
+  if (typeof window === 'undefined') return false;
+  if (hasScorrDesktopBridge() || isNativeApp()) return false;
+  try {
+    if (window.matchMedia('(display-mode: standalone)').matches) return true;
+  } catch {
+    /* ignore */
+  }
+  return Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone);
+}
+
+/**
+ * True inside the Electron / scorr-desktop window.
+ * Arming auto check-in still requires hasScorrDesktopBridge() (saveAttendanceToken).
+ */
+export function isDesktopApp(): boolean {
+  return isElectronShell();
 }
 
 export function isNativeApp(): boolean {
@@ -121,6 +252,9 @@ export function clientAttendancePlatform(): 'android' | 'ios' | 'windows' | 'lin
   if (Capacitor.getPlatform() === 'android') return 'android';
   if (Capacitor.getPlatform() === 'ios' || isIosHomeScreen()) return 'ios';
   if (isDesktopApp()) {
+    const plat = window.scorrDesktop?.platform;
+    if (plat === 'win32') return 'windows';
+    if (plat === 'linux') return 'linux';
     const ua = navigator.userAgent.toLowerCase();
     return ua.includes('windows') ? 'windows' : 'linux';
   }

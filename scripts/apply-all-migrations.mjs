@@ -217,6 +217,8 @@ const MIGRATIONS = [
   'FIX_unstub_manual_check_in_out_2026-10-14.sql',
   'FIX_auto_reentry_session_probe_2026-10-14.sql',
   'wifi_windows11_variant_2026-10-21.sql',
+  'FIX_mfa_trust_30_days_all_roles_2026-10-14.sql',
+  'score_weightage_2026-10-19.sql',
 ];
 
 async function runMigration(filename) {

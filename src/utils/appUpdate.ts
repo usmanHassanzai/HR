@@ -133,6 +133,40 @@ async function fetchRemoteWebBuildId(fallback = ''): Promise<string> {
   return fallback;
 }
 
+export type DesktopLocalVersion = {
+  version: string;
+  /** bridge = getAppVersion IPC; marker = shell inject; web = Vite package only (unreliable for binary). */
+  source: 'bridge' | 'marker' | 'web';
+};
+
+/** Electron binary version — never use website packageVersion alone to claim “latest binary”. */
+export async function getDesktopLocalVersion(): Promise<DesktopLocalVersion> {
+  if (typeof window === 'undefined') return { version: packageVersion(), source: 'web' };
+  try {
+    const v = await Promise.resolve(window.scorrDesktop?.getAppVersion?.());
+    if (v) return { version: String(v), source: 'bridge' };
+  } catch {
+    /* bridge missing */
+  }
+  try {
+    const w = window as Window & { __SCORR_ELECTRON_VERSION__?: string };
+    if (w.__SCORR_ELECTRON_VERSION__) {
+      return { version: String(w.__SCORR_ELECTRON_VERSION__), source: 'marker' };
+    }
+    const ds = document.documentElement?.dataset?.scorrDesktop;
+    if (ds) return { version: String(ds), source: 'marker' };
+  } catch {
+    /* ignore */
+  }
+  return { version: packageVersion(), source: 'web' };
+}
+
+function desktopInstallFallback(plat: 'windows' | 'linux'): string {
+  return plat === 'windows'
+    ? 'https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.45/Scorr-Setup.exe'
+    : 'https://scorr.walfia.ai/downloads/Scorr.deb';
+}
+
 export async function evaluateUpdate(manifest?: VersionManifest | null): Promise<UpdateAction> {
   const remote = manifest ?? (await fetchVersionManifest());
   if (!remote) return { kind: 'none' };
@@ -152,7 +186,10 @@ export async function evaluateUpdate(manifest?: VersionManifest | null): Promise
       (remoteCode > 0 && local.versionCode > 0 && remoteCode > local.versionCode) ||
       (remoteName && isNewerVersion(remoteName, local.versionName));
     const belowMin =
-      a.minSupportedCode != null && local.versionCode > 0 && local.versionCode < a.minSupportedCode;
+      a.minSupportedCode != null &&
+      local.versionCode > 0 &&
+      Number(a.minSupportedCode) > 0 &&
+      local.versionCode < Number(a.minSupportedCode);
     if (newer || belowMin) {
       return {
         kind: 'native',
@@ -167,7 +204,7 @@ export async function evaluateUpdate(manifest?: VersionManifest | null): Promise
     }
   }
 
-  // Web / PWA / Capacitor WebView content refresh when deploy id advances
+  // Web / PWA / Capacitor WebView / Electron shell content refresh when deploy id advances
   if (remoteBuild && localBuild && remoteBuild !== localBuild) {
     return {
       kind: 'refresh',
@@ -181,36 +218,50 @@ export async function evaluateUpdate(manifest?: VersionManifest | null): Promise
     const plat = navigator.userAgent.toLowerCase().includes('windows') ? 'windows' : 'linux';
     const info = (plat === 'windows' ? remote.windows : remote.linux) || {};
     const remoteVer = info.version || '';
-    if (remoteVer && isNewerVersion(remoteVer, packageVersion())) {
+    const localDesktop = await getDesktopLocalVersion();
+    // Compare against the Electron binary (bridge/marker). Website packageVersion tracks
+    // the remote UI and falsely reports “latest” while an old installer is still running.
+    if (remoteVer && isNewerVersion(remoteVer, localDesktop.version)) {
       const installUrl =
         plat === 'windows'
-          ? info.setupUrl ||
-            'https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.46/Scorr-Setup.exe'
-          : info.appImageUrl ||
-            info.debUrl ||
-            'https://scorr.walfia.ai/downloads/Scorr.deb';
+          ? info.setupUrl || desktopInstallFallback('windows')
+          : info.appImageUrl || info.debUrl || desktopInstallFallback('linux');
       return {
         kind: 'native',
         platform: plat,
-        // Not install-ready yet — electron-updater is still downloading.
         message: 'Downloading update…',
         notes: info.notes || remote.notes || '',
         mandatory: true,
         version: remoteVer,
         installUrl,
-        canAutoInstall: plat === 'windows' || Boolean(info.appImageUrl),
+        canAutoInstall:
+          Boolean(window.scorrDesktop?.checkForUpdates) ||
+          plat === 'windows' ||
+          Boolean(info.appImageUrl),
       };
     }
   }
 
-  if (isIosApp() || (Capacitor.getPlatform() === 'ios')) {
+  if (isIosApp() || Capacitor.getPlatform() === 'ios') {
     const info = remote.ios || {};
     const remoteVer = info.version || '';
-    if (remoteVer && isNewerVersion(remoteVer, packageVersion())) {
+    // Capacitor IPA: compare native package when available; Home Screen uses web package.
+    let localIos = packageVersion();
+    try {
+      if (isIosApp()) {
+        const v = await AppUpdate.getNativeVersion();
+        if (v.versionName) localIos = v.versionName;
+      }
+    } catch {
+      /* web / PWA */
+    }
+    if (remoteVer && isNewerVersion(remoteVer, localIos)) {
       return {
         kind: 'native',
         platform: 'ios',
-        message: 'Update available',
+        message: info.storeUrl
+          ? 'Update available on the App Store'
+          : 'Update available — refresh or reinstall from TestFlight / Home Screen',
         notes: info.notes || remote.notes || '',
         mandatory,
         version: remoteVer,
@@ -295,27 +346,36 @@ export function isUpdateDismissed(key: string): boolean {
 export async function applyNativeUpdate(action: Extract<UpdateAction, { kind: 'native' }>): Promise<string> {
   if (action.platform === 'android' && action.canAutoInstall && isNativeApp()) {
     try {
+      // Downloads in background; Android OS may still show its own Install sheet (required for APK).
       await AppUpdate.downloadAndInstall({ url: action.installUrl });
-      return 'Downloading update… Android will prompt you to install. Login and attendance stay intact.';
+      return '';
     } catch (e) {
       window.open(action.installUrl, '_blank');
-      return e instanceof Error ? e.message : 'Opened APK download.';
+      return e instanceof Error ? e.message : '';
     }
   }
 
   if (action.platform === 'windows' || action.platform === 'linux') {
-    const api = (window as unknown as { scorrDesktop?: { checkForUpdates?: () => Promise<{ ok?: boolean; message?: string }> } })
-      .scorrDesktop;
+    const api = window.scorrDesktop;
     if (api?.checkForUpdates) {
       const res = await api.checkForUpdates();
-      return res.message || 'Checking for desktop update…';
+      if (res.updateAvailable && res.autoInstall !== false) {
+        return '';
+      }
+      if (res.updateAvailable && res.autoInstall === false) {
+        return (
+          res.message ||
+          'Update opened in your browser. Prefer the AppImage for silent background updates.'
+        );
+      }
+      return res.message || '';
     }
     window.open(action.installUrl, '_blank');
-    return 'Download started in your browser.';
+    return '';
   }
 
   window.open(action.installUrl, '_blank');
-  return 'Open the App Store / TestFlight or refresh the Home Screen app.';
+  return '';
 }
 
 export function hardRefreshWeb() {

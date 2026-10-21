@@ -2,6 +2,7 @@
 /**
  * Writes public/downloads/version.json (+ optional desktop latest.yml stubs).
  */
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
@@ -28,23 +29,76 @@ function androidVersionCode() {
   }
 }
 
-function loadDesktopUrls() {
-  const out = {};
-  // Later files win — prefer publish output (.env.desktop-urls) over stale .env.
-  for (const name of ['.env', '.env.local', '.env.desktop-urls']) {
-    const p = join(root, name);
-    if (!existsSync(p)) continue;
-    for (const line of readFileSync(p, 'utf8').split('\n')) {
-      const m = line.match(/^(VITE_DESKTOP_[A-Z0-9_]+)=(.*)$/);
-      if (m) out[m[1]] = m[2].trim();
-    }
+// Desktop feed URLs are pinned here. Never read them from .env / .env.local /
+// .env.desktop-urls — those files still point Windows at desktop-v1.3.8.
+// desktop-v1.3.46 is published but crashes on start (missing windowsVariant.cjs),
+// so it is not a release the website may advertise. The floor is the newest
+// other published desktop release, which is 1.3.45.
+const WINDOWS_RELEASE = '1.3.45';
+const LINUX_RELEASE = '1.3.45';
+const CRASHING_WINDOWS_RELEASES = new Set(['1.3.46']);
+const GH_RELEASE = 'https://github.com/usmanHassanzai/HR/releases/download';
+const winUrl = `${GH_RELEASE}/desktop-v${WINDOWS_RELEASE}/Scorr-Setup.exe`;
+const debUrl = `${GH_RELEASE}/desktop-v${LINUX_RELEASE}/Scorr.deb`;
+const appImageUrl = `${GH_RELEASE}/desktop-v${LINUX_RELEASE}/Scorr.AppImage`;
+
+function compareVersions(a, b) {
+  const pa = String(a).split('.').map((n) => Number(n) || 0);
+  const pb = String(b).split('.').map((n) => Number(n) || 0);
+  const len = Math.max(pa.length, pb.length);
+  for (let i = 0; i < len; i += 1) {
+    const d = (pa[i] || 0) - (pb[i] || 0);
+    if (d !== 0) return d;
   }
-  return out;
+  return 0;
+}
+
+function versionFromDesktopUrl(url) {
+  const m = String(url || '').match(/desktop-v(\d+(?:\.\d+){1,2})/);
+  return m ? m[1] : '';
+}
+
+function lastPublishedWindowsRelease() {
+  try {
+    const r = spawnSync(
+      'gh',
+      ['release', 'list', '--repo', 'usmanHassanzai/HR', '--limit', '40'],
+      { encoding: 'utf8' },
+    );
+    const found = [];
+    if (r.status === 0) {
+      for (const line of String(r.stdout || '').split('\n')) {
+        const m = line.match(/desktop-v(\d+(?:\.\d+){1,2})/);
+        if (m && !CRASHING_WINDOWS_RELEASES.has(m[1])) found.push(m[1]);
+      }
+    }
+    found.sort(compareVersions);
+    return found.length ? found[found.length - 1] : WINDOWS_RELEASE;
+  } catch {
+    return WINDOWS_RELEASE;
+  }
+}
+
+function failWindowsFeed(message) {
+  console.error(`Windows feed check failed: ${message}`);
+  process.exit(1);
+}
+
+function assertWindowsFeed(url, feedVersion) {
+  const fromUrl = versionFromDesktopUrl(url);
+  const floor = lastPublishedWindowsRelease();
+  if (!fromUrl) {
+    failWindowsFeed(`Windows URL has no desktop-v version: ${url}`);
+  }
+  if (compareVersions(fromUrl, floor) < 0 || compareVersions(feedVersion, floor) < 0) {
+    failWindowsFeed(
+      `Windows feed ${feedVersion} (${url}) is older than the last published release ${floor}`,
+    );
+  }
 }
 
 const version = packageVersion(root);
 const buildInfo = readBuildInfo(root);
-const desktopUrls = loadDesktopUrls();
 
 function readViteWebBuildId() {
   // dist/.web-build-id is written in Vite writeBundle with the exact define id.
@@ -69,51 +123,46 @@ const notes =
   'Automatic attendance, Office Wi-Fi, 1-hour sessions, auto-updates. If install fails with a signature error, uninstall the old debug APK once, then install this release — after that, updates install over the old app.';
 
 const apkPath = join(downloads, 'scorr.apk');
-const winPath = join(downloads, 'Scorr-Setup.exe');
-const debPath = join(downloads, 'Scorr.deb');
 const appImagePath = join(downloads, 'Scorr.AppImage');
 
-// Prefer .env.desktop-urls (written by publish-desktop-release) over stale .env.
-const winUrl =
-  desktopUrls.VITE_DESKTOP_WIN_URL ||
-  process.env.VITE_DESKTOP_WIN_URL ||
-  `${base}/downloads/Scorr-Setup.exe`;
-const debUrl =
-  desktopUrls.VITE_DESKTOP_LINUX_DEB_URL ||
-  process.env.VITE_DESKTOP_LINUX_DEB_URL ||
-  `${base}/downloads/Scorr.deb`;
-const appImageUrl =
-  desktopUrls.VITE_DESKTOP_LINUX_APPIMAGE_URL ||
-  process.env.VITE_DESKTOP_LINUX_APPIMAGE_URL ||
-  (existsSync(appImagePath) ? `${base}/downloads/Scorr.AppImage` : null);
+let previousManifest = null;
+try {
+  previousManifest = JSON.parse(readFileSync(join(downloads, 'version.json'), 'utf8'));
+} catch {
+  previousManifest = null;
+}
 
 const manifest = {
   generatedAt: new Date().toISOString(),
   webBuildId,
   mandatory: process.env.SCORR_UPDATE_MANDATORY === '1',
   notes,
-  android: {
-    versionName: version,
-    versionCode: androidVersionCode(),
-    apkUrl: `${base}/downloads/scorr.apk`,
-    notes,
-    minSupportedCode: Number(process.env.SCORR_ANDROID_MIN_CODE || 1),
-    sizeBytes: existsSync(apkPath) ? statSync(apkPath).size : buildInfo.android?.sizeBytes || null,
-  },
+  android: previousManifest?.android?.versionName
+    ? previousManifest.android
+    : {
+        versionName: version,
+        versionCode: androidVersionCode(),
+        apkUrl: `${base}/downloads/scorr.apk`,
+        notes,
+        minSupportedCode: Number(process.env.SCORR_ANDROID_MIN_CODE || 1),
+        sizeBytes: existsSync(apkPath) ? statSync(apkPath).size : buildInfo.android?.sizeBytes || null,
+      },
   windows: {
-    version,
+    version: WINDOWS_RELEASE,
     setupUrl: winUrl,
     latestYmlUrl: `${base}/downloads/desktop/latest.yml`,
     notes,
   },
   linux: {
-    version,
+    version: LINUX_RELEASE,
     debUrl,
     appImageUrl,
     latestYmlUrl: `${base}/downloads/desktop/latest-linux.yml`,
     notes,
   },
-  ios: {
+  ios: previousManifest?.ios?.version
+    ? previousManifest.ios
+    : {
     version,
     pwaUrl: `${base}/?app=1`,
     storeUrl: process.env.SCORR_IOS_STORE_URL || null,
@@ -131,29 +180,26 @@ mkdirSync(desktopDir, { recursive: true });
 let latestYml = '';
 let latestLinuxYml = '';
 
-if (existsSync(winPath)) {
-  const size = statSync(winPath).size;
-  const sha = sha512File(winPath);
-  // Absolute URL so Vercel can host only the yml while binaries live on GitHub Releases.
-  latestYml = [
-    `version: ${version}`,
-    `files:`,
-    `  - url: ${winUrl}`,
-    `    sha512: ${sha}`,
-    `    size: ${size}`,
-    `path: ${winUrl}`,
-    `sha512: ${sha}`,
-    `releaseDate: ${new Date().toISOString()}`,
-    '',
-  ].join('\n');
-  writeFileSync(join(desktopDir, 'latest.yml'), latestYml);
-}
+// Published desktop-v1.3.45 asset. Do not hash a local Scorr-Setup.exe: that
+// file is not this release, and .env must not choose the URL.
+latestYml = [
+  `version: ${WINDOWS_RELEASE}`,
+  'files:',
+  `  - url: ${winUrl}`,
+  '    sha512: 6xOC8K5GcOgSmr4RXEQ2P+VgRyTARv6NCVlQ8/glrm294xhrdedgepTw9uTrLLbAj7C77Xr3FK7/goujBkY30Q==',
+  '    size: 92397531',
+  `path: ${winUrl}`,
+  'sha512: 6xOC8K5GcOgSmr4RXEQ2P+VgRyTARv6NCVlQ8/glrm294xhrdedgepTw9uTrLLbAj7C77Xr3FK7/goujBkY30Q==',
+  'releaseDate: 2026-10-19T20:02:31.650Z',
+  '',
+].join('\n');
+writeFileSync(join(desktopDir, 'latest.yml'), latestYml);
 
 if (existsSync(appImagePath) && appImageUrl) {
   const size = statSync(appImagePath).size;
   const sha = sha512File(appImagePath);
   latestLinuxYml = [
-    `version: ${version}`,
+    `version: ${LINUX_RELEASE}`,
     `files:`,
     `  - url: ${appImageUrl}`,
     `    sha512: ${sha}`,
@@ -165,6 +211,9 @@ if (existsSync(appImagePath) && appImageUrl) {
   ].join('\n');
   writeFileSync(join(desktopDir, 'latest-linux.yml'), latestLinuxYml);
 }
+
+assertWindowsFeed(manifest.windows.setupUrl, manifest.windows.version);
+assertWindowsFeed(winUrl, versionFromDesktopUrl(latestYml) || WINDOWS_RELEASE);
 
 const meta = {
   webBuildId,
@@ -189,4 +238,10 @@ try {
   console.warn('Could not mirror manifests into dist/', e?.message || e);
 }
 
-console.log('Wrote downloads/version.json + build-meta.json', { version, webBuildId, winUrl, appImageUrl });
+console.log('Wrote downloads/version.json + build-meta.json', {
+  version,
+  webBuildId,
+  winUrl,
+  windowsVersion: manifest.windows.version,
+  appImageUrl,
+});

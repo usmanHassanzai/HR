@@ -189,7 +189,9 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
   };
 
   const loadToday = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    // getSession is local — avoid an extra auth network round-trip on every refresh.
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
     if (!user) return;
 
     const { data: shiftDateRaw } = await supabase.rpc('get_my_shift_attendance_date');
@@ -437,9 +439,13 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
           setError(ATTENDANCE_RULES_PAUSED_MESSAGE);
           setStatusMessage(ATTENDANCE_RULES_PAUSED_MESSAGE);
         }
+        setChecking(null);
         return;
       }
       if (result.action === 'clock_in' || result.action === 'already_clocked_in') {
+        // Optimistic: reflect checked-in immediately; loadToday reconciles in background.
+        setClockIn((prev) => prev || new Date().toISOString());
+        setClockOut(null);
         setStatusMessage(
           result.match_via === 'wifi'
             ? 'Checked in on office Wi-Fi — location not required'
@@ -450,6 +456,7 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
         applyWifiMatchFromResult(result);
         setError('');
       } else if (result.action === 'clock_out' || result.action === 'clock_out_shift_end') {
+        setClockOut(new Date().toISOString());
         setStatusMessage(attendanceCheckoutMessage(result));
         applyWifiMatchFromResult(result);
         setError('');
@@ -462,7 +469,9 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
         } else if (result.action === 'no_open_visit') {
           setError('Clock in first, then clock out.');
         } else {
-          const msg = attendanceActionMessage(result.action || result.reason);
+          const msg =
+            (typeof result.message === 'string' && result.message.trim()) ||
+            attendanceActionMessage(result.action || result.reason);
           setError(msg);
           setStatusMessage(msg);
         }
@@ -470,10 +479,11 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
       } else {
         setError('');
       }
-      await loadToday();
-      if (isAttendanceSuccessAction(result.action)) {
-        onClockUpdate?.();
-      }
+      // Clear spinner before the refresh round-trip so the tap feels done.
+      setChecking(null);
+      void loadToday().then(() => {
+        if (isAttendanceSuccessAction(result.action)) onClockUpdate?.();
+      });
     } catch (e: unknown) {
       const msg = rpcErrorMessage(e);
       const offline = /fetch|network|Failed to fetch|offline/i.test(msg);
@@ -488,7 +498,6 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
         setError(msg);
         setStatusMessage(msg);
       }
-    } finally {
       setChecking(null);
     }
   };
@@ -613,7 +622,9 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
           <span>Wi-Fi match</span>
           <strong>
             {!wifiProbeAvailable && wifiMatch !== true
-              ? 'SSID unavailable — use Android/desktop app'
+              ? wifiMatch === false
+                ? 'no · browser uses office network IP'
+                : 'SSID via app · browser uses office network IP'
               : wifiMatch == null
                 ? '—'
                 : wifiMatch
@@ -733,17 +744,19 @@ export default function GeoAttendancePanel({ onClockUpdate }: GeoAttendancePanel
       <div className="geo-attendance-panel__actions">
         <button
           type="button"
-          className="btn btn-primary btn-sm"
+          className={`btn btn-sm att-toggle att-toggle--in${openShift ? ' is-active' : ''}`}
           disabled={Boolean(checking) || !inWindow || openShift}
+          aria-pressed={openShift}
           onClick={() => void runClock('clock_in')}
         >
           {checking === 'clock_in' ? <Loader2 size={14} className="spin-icon" /> : <LogIn size={14} />}
-          Clock in
+          {openShift ? 'Checked in' : 'Clock in'}
         </button>
         <button
           type="button"
-          className="btn btn-secondary btn-sm"
+          className={`btn btn-sm att-toggle att-toggle--out${!openShift ? ' is-active' : ''}`}
           disabled={Boolean(checking) || !openShift}
+          aria-pressed={!openShift}
           onClick={() => void runClock('clock_out')}
         >
           {checking === 'clock_out' ? <Loader2 size={14} className="spin-icon" /> : <LogOut size={14} />}

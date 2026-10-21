@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Generates Scorr-Security-Overview.pdf — organization-facing security brief.
+ * Generates Scorr-Security-Overview.pdf — organization-facing security brief (Oct 2026 / 1.3.44+).
  *
  * Run: npm run docs:security-guide
  */
@@ -233,12 +233,13 @@ doc.setFontSize(10);
 doc.setTextColor(148, 163, 184);
 doc.text('Platform:     https://scorr.walfia.ai', M + 4, 132);
 doc.text(`Document:    ${generated}`, M + 4, 140);
-doc.text('Contact:      info@walfia.ai', M + 4, 148);
-doc.text('Audience:    Company admins · IT · Security reviewers', M + 4, 156);
+doc.text('Product:      Desktop / apps 1.3.44+', M + 4, 148);
+doc.text('Contact:      info@walfia.ai', M + 4, 156);
+doc.text('Audience:    Company admins · IT · Security reviewers', M + 4, 164);
 
 doc.setFontSize(9);
 doc.setTextColor(100, 116, 139);
-doc.text('Multi-tenant · MFA · RLS · Desktop & mobile apps · Encrypted transport', M + 4, H - 22);
+doc.text('Multi-tenant · MFA · RLS · 1-hour sessions · Encrypted transport', M + 4, H - 22);
 
 newPage();
 
@@ -253,24 +254,25 @@ title('Table of Contents');
   ['7.', 'Role-based access control'],
   ['8.', 'Database & API protection (RLS)'],
   ['9.', 'Company onboarding controls'],
-  ['10.', 'Attendance & location data'],
+  ['10.', 'Attendance, location & device tokens'],
   ['11.', 'Demo sandbox isolation'],
   ['12.', 'Account recovery & deletion'],
-  ['13.', 'Desktop & mobile apps (Windows, Linux, Android, iOS)'],
-  ['14.', 'What we do not claim'],
-  ['15.', 'Security checklist for your organization'],
-  ['16.', 'Contact & further documents'],
+  ['13.', 'Desktop & mobile apps'],
+  ['14.', 'Auto updates & distribution'],
+  ['15.', 'What we do not claim'],
+  ['16.', 'Security checklist for your organization'],
+  ['17.', 'Contact & further documents'],
 ].forEach(([n, l]) => tocItem(n, l));
 footer();
 newPage();
 
 // 1
 title('1. Executive summary');
-para('Scorr is a multi-company performance and attendance platform available on the web, Windows, Linux, Android, and iPhone. Every organization runs as a private tenant: your people, KPIs, attendance, rewards, daily reports, and GPS records are separated from every other company on the same platform.');
-para('Security is built into the product — not bolted on later. Access requires a verified login, mandatory authenticator MFA for real accounts, and database policies that enforce who can read or write each record.');
+para('Scorr is a multi-company performance and attendance platform available on the web, Windows, Linux, Android, and iPhone. Every organization runs as a private tenant: your people, KPIs, attendance, rewards, daily reports, and location/Wi-Fi attendance signals are separated from every other company on the same platform.');
+para('Security is built into the product — not bolted on later. Access requires a verified login, mandatory authenticator MFA for production accounts, absolute 1-hour sessions, configurable trusted devices, and database policies that enforce who can read or write each record.');
 
 h2('In one sentence');
-note('Scorr is designed so that only authenticated users in your company, with the correct role, can see your data — over encrypted HTTPS — with MFA, trusted devices, rate limits, 1-hour sessions, and company-scoped storage.');
+note('Scorr is designed so that only authenticated users in your company, with the correct role, can see your data — over encrypted HTTPS — with MFA, trusted devices (default 7 days, Admin up to 30), rate limits, 1-hour sessions, and company-scoped storage.');
 
 h2('Who this document is for');
 bullet('Company leadership evaluating Scorr for rollout.');
@@ -285,7 +287,8 @@ bullet('Least privilege — each role sees only what the role needs (Admin, HR, 
 bullet('Tenant isolation — company_id scopes data; Company A cannot query Company B.');
 bullet('Defense in depth — browser/app → HTTPS → Auth → role checks → Row Level Security → security-definer RPCs.');
 bullet('Verify identity — password + MFA (TOTP) for production accounts; backup codes and email recovery when devices are lost.');
-bullet('Minimize sensitive data — location and Wi-Fi signals are used only inside the attendance window (shift −60 / +60 minutes) for automatic or manual office attendance; not sold or shared across tenants.');
+bullet('Minimize sensitive data — location and Wi-Fi signals are used only inside the attendance window (1 hour before shift start until shift end) for automatic or manual office attendance; not sold or shared across tenants.');
+bullet('Secure device secrets — auto-attendance device tokens live in Android Keystore, iOS Keychain, or Electron safeStorage — not in plain localStorage.');
 bullet('Audit & recovery — login attempt recording, admin authenticator reset, account deletion with owner safeguards.');
 footer();
 newPage();
@@ -347,7 +350,8 @@ bullet('Backup codes are burned after use — store them offline.');
 h1('5.2 Daily login');
 bullet('Password (first factor) + authenticator code (second factor), or');
 bullet('Password + one unused backup code if the phone is unavailable.');
-bullet('Optional: “Trust this device” after a successful code — skip MFA on that device for a limited time (default 7 days; company policy).');
+bullet('Optional: “Trust this device” after a successful code — skip MFA on that device for a limited time.');
+bullet('Default trust length: 7 days. Company Admin (Settings → Security) can set staff vs admin/HR separately to Always ask, 1, 7, 14, or up to 30 days.');
 bullet('Trusted-device tokens are hashed server-side, rotated on each use, and never slide past the original expiry.');
 bullet('Web: HttpOnly Secure SameSite=Strict cookie. Apps: Keystore / Keychain / desktop safeStorage.');
 bullet('Auto-revoked on password change/reset, admin authenticator reset, MFA re-enrollment, or user deletion.');
@@ -387,7 +391,7 @@ title('7. Role-based access control');
 para('Scorr enforces four company roles. The UI and server both respect the role.');
 
 tableHeader('Role', 'Security-relevant access');
-tableRow('Admin', 'Full company configuration: people, departments, offices, tasks, rewards, attendance oversight, exports, branding. Approves manager/HR leave; receives HR/manager daily-report alerts.');
+tableRow('Admin', 'Full company configuration: people, departments, offices, tasks, rewards, attendance oversight, exports, branding, MFA trust policy. Approves manager/HR leave; receives HR/manager daily-report alerts.');
 tableRow('HR', 'Company operations console; must report to a company admin. Own attendance + daily report go to admin. Cannot bypass tenant isolation.');
 tableRow('Manager', 'Department/team scope: assign KPIs, approve employee leave/gifts, own attendance and daily report.');
 tableRow('Employee', 'Own KPIs, attendance, leave requests, daily report, gift redeem — no company-wide admin tools.');
@@ -411,11 +415,11 @@ bullet('Admin/HR (company privileged roles) to manage within the company.');
 
 h1('8.2 Security-definer functions');
 bullet('Sensitive operations run through controlled SQL functions (SECURITY DEFINER) that still check auth.uid(), role, and company.');
-bullet('Examples: attendance geo processing, leave submit/review, daily report submit, user updates, office assignment.');
+bullet('Examples: attendance geo/Wi-Fi processing, leave submit/review, daily report submit, user updates, office assignment.');
 bullet('Clients cannot freely rewrite another company’s tables through the public API.');
 
 h1('8.3 Edge functions for privileged actions');
-bullet('Password change, forgot password, MFA recovery, authenticator reset, account deletion, and similar flows run as server-side edge functions.');
+bullet('Password change, forgot password, MFA recovery, authenticator reset, trusted-device policy, account deletion, and similar flows run as server-side edge functions.');
 bullet('These keep privileged Auth Admin operations off the browser.');
 
 note('Even if someone tampers with the UI, the database policies and RPCs are the source of truth for authorization.');
@@ -439,29 +443,31 @@ footer();
 newPage();
 
 // 10
-title('10. Attendance & location data');
+title('10. Attendance, location & device tokens');
 
 h1('10.1 What is collected');
-bullet('Automatic attendance (one-time device enrollment, non-expiring device token): phone GPS and/or office Wi-Fi networks (SSID/BSSID, IPv4/IPv6), or laptop on/off on the office network. Check-in/out only inside W = [shift start − 60 min, shift end + 60 min] in the shift’s IANA time zone. Outside W nothing is recorded.');
-bullet('Immediate check-out when GPS confirms exit (geofence EXIT or two accurate outside readings) AND the device is not on any active office Wi-Fi. Fifteen-minute grace only when leaving cannot be confirmed (e.g. Wi-Fi gone but GPS unavailable).');
-bullet('Multi-device: check-out only when all enrolled devices for that person confirm leave (e.g. phone left but laptop still on office network → stay present).');
-bullet('Server clock (UTC) is authoritative; device clock skew is corrected. Raw location pings outside W are rejected and pings older than 90 days are deleted.');
-bullet('Optional manual clock-in/out uses the same window rules. Leave days and supervisor remote/hybrid day status do not write clock times.');
+bullet('Automatic attendance (one-time device enrollment, non-expiring device token in secure storage): office Wi-Fi match (SSID and/or BSSID for any saved network on an assigned location) and/or GPS inside assigned office radius.');
+bullet('Policy wifi_then_radius: saved office Wi-Fi alone is enough to check in (no GPS required). Otherwise GPS inside radius is required. Public/unsaved Wi-Fi never counts.');
+bullet('Window W = [shift start − 60 minutes, shift end] in the shift’s IANA time zone. Outside W nothing is recorded for auto attendance. This does not extend one hour after shift end.');
+bullet('Manual Clock in/out uses the same window. Early clock-out can be from any place before shift end; open sessions close at shift end.');
+bullet('After manual Clock Out, clients wait about 30 seconds before auto re-check-in (Android parity on desktop).');
+bullet('Platforms: Android, iOS, Windows, and Linux installed apps support Enable automatic check-in. Normal browsers show setup/download only.');
+bullet('Desktop requires the real Scorr Desktop binary (window title Scorr Desktop x.y.z) — not Chrome “Install app” / PWA.');
 bullet('Remote staff may be marked by supervisors without GPS.');
 
 h1('10.2 How it is protected');
 bullet('Location APIs require a secure context (HTTPS) — e.g. https://scorr.walfia.ai.');
 bullet('Attendance records are company-scoped; other tenants cannot read them.');
-bullet('Managers see team-relevant attendance; employees see their own history.');
+bullet('Device tokens are stored in Keystore / Keychain / Electron safeStorage.');
 bullet('Scorr does not sell location data and does not expose it to other organizations.');
-bullet('Background GPS/Wi-Fi on mobile runs only during W (geofence + short foreground service), not 24/7 — not sold, not shared across companies, and not marketing tracking.');
-bullet('Prominent disclosure + Always location on phones; setup wizard explains permissions before enrollment.');
+bullet('Background GPS/Wi-Fi on enrolled devices runs only during W — not 24/7 marketing tracking.');
+bullet('Prominent disclosure + Always location on phones; setup wizard explains permissions before enrollment. Desktop uses tray / start at login.');
 
 h1('10.3 Organizational recommendations');
-bullet('Publish an internal policy: MFA required on first sign-in per device; trusted devices skip the code for up to 7 days (configurable); auto attendance uses background location after setup.');
-bullet('Ask staff to complete the automatic attendance wizard on phone or laptop and grant Always / background location.');
-bullet('Assign office zones and Wi-Fi networks only to people who need them.');
-bullet('Use Remote/Hybrid work modes when GPS is not appropriate.');
+bullet('Publish an internal policy: MFA required; trusted devices default 7 days (configurable up to 30 or Always ask); auto attendance uses background location after setup.');
+bullet('Ask staff to complete Enable automatic check-in on the installed app and grant Always / background location (phones) or tray permissions (desktop).');
+bullet('Assign office zones and save only legitimate office Wi-Fi networks.');
+bullet('Use Remote/Hybrid work modes when GPS/Wi-Fi attendance is not appropriate.');
 footer();
 newPage();
 
@@ -494,41 +500,56 @@ footer();
 newPage();
 
 // 13
-title('13. Desktop & mobile apps (Windows, Linux, Android, iOS)');
-para('Scorr offers the same authenticated experience on Windows and Linux desktop installers, Android APK, iPhone Home Screen / native shell, and the website. All clients talk to the same backend over HTTPS with the same MFA and company isolation.');
+title('13. Desktop & mobile apps');
+para('Scorr offers the same authenticated experience on Windows and Linux desktop installers, Android APK, iPhone Home Screen / native shell, and the website. All clients talk to the same backend over HTTPS with the same MFA and company isolation. Current product line: 1.3.44+.');
 
 h1('13.1 Shared security properties');
 bullet('Same Sign In, MFA (TOTP), trusted devices, backup codes, roles, and tenant isolation as the website.');
 bullet('Store/download CTAs are hidden inside an already-installed app shell.');
-bullet('Location permission is requested for Office GPS attendance — on phones, prefer Always / background so auto check-in/out works without opening the dashboard.');
-bullet('Manual Clock in / Clock out remain available; background GPS/Wi-Fi is attendance-only inside W.');
+bullet('Location permission is requested for office attendance — on phones, prefer Always / background so auto check-in works without opening the dashboard.');
 bullet('Absolute 1-hour session timeout and privileged MFA gates apply on every client.');
 bullet('Apps load https://scorr.walfia.ai/?app=1 so most product updates ship with the website; native changes use in-app / auto-updaters.');
 
 h1('13.2 Windows desktop (Scorr-Setup.exe)');
-bullet('Official installer from https://scorr.walfia.ai/#download-windows (GitHub Release / downloads, version 1.3.7+).');
-bullet('Installs permanently with Start Menu and Desktop shortcuts — not a portable unzip-only build.');
-bullet('Loads the live app shell (https://scorr.walfia.ai/?app=1) inside a locked-down Electron window (no marketing chrome).');
-bullet('electron-updater checks for updates on start and periodically; install on restart. Login and attendance enrollment survive updates.');
+bullet('Official installer from GitHub Releases (e.g. desktop-v1.3.44) linked from https://scorr.walfia.ai/#download-windows.');
+bullet('Installs permanently with Start Menu and Desktop shortcuts — window title Scorr Desktop x.y.z.');
+bullet('electron-updater checks on launch and around 5 AM; Check for updates downloads/installs in the background.');
+bullet('Content-Type fix: Electron forces correct MIME types for CSS/JS assets. Some Windows proxies/AV return text/plain, which Chromium refuses — that caused blank screens after login on older builds. Current Desktop 1.3.44+ overrides those headers.');
 bullet('If Windows SmartScreen warns, verify the download came from scorr.walfia.ai / the official GitHub Release before continuing.');
 
 h1('13.3 Linux desktop (.deb + AppImage)');
-bullet('Official packages from https://scorr.walfia.ai/#download-linux (Scorr.deb and AppImage, version 1.3.7+).');
-bullet('Install .deb with: sudo apt install ./Scorr.deb — AppImage supports automatic updates; .deb shows an in-app download banner when newer.');
-bullet('Same Electron shell and backend auth as Windows.');
+bullet('Official packages from the same GitHub Release: Scorr.deb and Scorr.AppImage.');
+bullet('Prefer AppImage for silent electron-updater auto-update. .deb shows an in-app download banner when newer.');
+bullet('Same Electron shell, safeStorage device tokens, and backend auth as Windows.');
 
 h1('13.4 Android & iOS');
-bullet('Android APK and iPhone Home Screen / native shell use the same Scorr backend and auth.');
-bullet('Android 1.3.7+ is release-signed with in-app update from version.json (install over previous release without uninstall). One last uninstall only if migrating from an old debug-signed APK.');
-bullet('iOS: Home Screen / PWA updates with the website; native builds check version.json and open TestFlight / App Store when available.');
-bullet('Install APKs only from https://scorr.walfia.ai/#download-app (official source). Manifest: /downloads/version.json.');
+bullet('Android APK from https://scorr.walfia.ai/downloads/scorr.apk — release-signed with in-app update when versionCode advances (background download, then OS Install sheet — cannot be fully silent).');
+bullet('iOS: Safari Add to Home Screen (?app=1); App Store when available. Native Capacitor builds support Enable automatic check-in like Android.');
+bullet('Install APKs and desktop packages only from scorr.walfia.ai and the linked GitHub Release. Manifest: /downloads/version.json.');
 
-warn('Do not install Scorr Setup.exe, .deb, AppImage, or APKs from unknown websites. Official source: scorr.walfia.ai (and the linked GitHub Release).');
+warn('Do not install Scorr Setup.exe, .deb, AppImage, or APKs from unknown websites. Official source: scorr.walfia.ai (and the linked GitHub Release). Large packages are hosted on GitHub Releases, not as Vercel binary hosting.');
 footer();
 newPage();
 
 // 14
-title('14. What we do not claim');
+title('14. Auto updates & distribution');
+
+h1('14.1 Web / Electron UI');
+bullet('Clients poll /build-meta.json and hard-refresh when webBuildId advances — silent, no “Updating…” banner.');
+
+h1('14.2 Desktop binaries');
+bullet('NSIS (Windows) and AppImage (Linux): electron-updater on launch + ~5 AM; Check for updates downloads/installs in background.');
+bullet('.deb: download banner / prefer AppImage for silent updates.');
+bullet('Updater metadata under /downloads/desktop/; binary assets on GitHub Releases.');
+
+h1('14.3 Mobile');
+bullet('Android: background download then system Install prompt.');
+bullet('iOS Home Screen: same as web hard refresh; native IPA via TestFlight / App Store when published.');
+footer();
+newPage();
+
+// 15
+title('15. What we do not claim');
 para('Transparency builds trust. This brief describes product and platform controls as implemented in Scorr. It is not a substitute for your own legal, privacy, or compliance review.');
 bullet('This document does not assert a specific third-party certification (for example SOC 2 or ISO 27001) unless Walfia has separately provided that certificate to you.');
 bullet('Security is shared: strong MFA and access hygiene on your side remain essential.');
@@ -537,38 +558,40 @@ bullet('For contracts, DPAs, or region-specific residency requirements, contact 
 footer();
 newPage();
 
-// 15
-title('15. Security checklist for your organization');
+// 16
+title('16. Security checklist for your organization');
 h2('Before go-live');
 bullet('Approve only real company admins; complete MFA enrollment for every production user.');
+bullet('Set MFA trust policy (default 7 days; optionally up to 30 days or Always ask for staff vs admin/HR).');
 bullet('Create departments; assign Managers and Employees with correct Reports to lines.');
 bullet('Set Work location (Office / Remote / Hybrid) per person.');
-bullet('Configure Office GPS only where needed; tell staff that auto attendance uses background location after first sign-in.');
-bullet('Train staff: never share passwords; store backup codes offline.');
+bullet('Configure office locations and save legitimate office Wi-Fi networks; tell staff auto attendance uses background location after Enable automatic check-in.');
+bullet('Train staff: never share passwords; store backup codes offline; use real Scorr Desktop for desktop auto attendance.');
 
 h2('Ongoing');
 bullet('Offboard leavers the same day in People (or reset password / remove access).');
 bullet('Review Admin/HR privileges quarterly.');
 bullet('Monitor Daily Reports and leave approvals for unusual patterns.');
-bullet('Keep Windows, Linux, Android, and iOS builds current from the official download page.');
+bullet('Keep Windows, Linux, Android, and iOS builds current from the official download page / GitHub Releases (1.3.44+).');
 bullet('Escalate suspected account takeover to info@walfia.ai immediately.');
 footer();
 newPage();
 
-// 16
-title('16. Contact & further documents');
+// 17
+title('17. Contact & further documents');
 tableHeader('Resource', 'Where');
 tableRow('Live product', 'https://scorr.walfia.ai');
 tableRow('This security PDF', 'https://scorr.walfia.ai/downloads/Scorr-Security-Overview.pdf');
 tableRow('Full user guide PDF', 'https://scorr.walfia.ai/downloads/Scorr-Client-Feature-Guide.pdf');
 tableRow('App download (all platforms)', 'https://scorr.walfia.ai/#download-app');
-tableRow('Windows installer', 'https://scorr.walfia.ai/#download-windows');
-tableRow('Linux .deb', 'https://scorr.walfia.ai/#download-linux');
+tableRow('Desktop release 1.3.44', 'https://github.com/usmanHassanzai/HR/releases/tag/desktop-v1.3.44');
+tableRow('Windows installer', 'Scorr-Setup.exe on GitHub Releases');
+tableRow('Linux packages', 'Scorr.deb + Scorr.AppImage on GitHub Releases');
 tableRow('Delete-account help', 'https://scorr.walfia.ai/delete-account');
 tableRow('Support', 'info@walfia.ai');
 spacer();
 
-para('Scorr is built so organizations can run KPIs, attendance, and rewards with clear boundaries: one company, authenticated people, verified MFA, and database-enforced access — on web, Windows, Linux, Android, and iPhone. Share this brief with your IT and leadership teams when evaluating or rolling out Scorr.');
+para('Scorr is built so organizations can run KPIs, attendance, and rewards with clear boundaries: one company, authenticated people, verified MFA, absolute 1-hour sessions, and database-enforced access — on web, Windows, Linux, Android, and iPhone. Share this brief with your IT and leadership teams when evaluating or rolling out Scorr.');
 para('© Walfia · https://scorr.walfia.ai · info@walfia.ai');
 para(`Document generated: ${generated}`);
 
