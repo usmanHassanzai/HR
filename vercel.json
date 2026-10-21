@@ -5,17 +5,17 @@
   "redirects": [
     {
       "source": "/downloads/Scorr-Setup.exe",
-      "destination": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.7/Scorr-Setup.exe",
+      "destination": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.46/Scorr-Setup.exe",
       "permanent": false
     },
     {
       "source": "/downloads/Scorr.deb",
-      "destination": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.7/Scorr.deb",
+      "destination": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.45/Scorr.deb",
       "permanent": false
     },
     {
       "source": "/downloads/Scorr.AppImage",
-      "destination": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.7/Scorr.AppImage",
+      "destination": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.45/Scorr.AppImage",
       "permanent": false
     }
   ],

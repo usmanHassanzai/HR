@@ -184,7 +184,8 @@ export async function evaluateUpdate(manifest?: VersionManifest | null): Promise
     if (remoteVer && isNewerVersion(remoteVer, packageVersion())) {
       const installUrl =
         plat === 'windows'
-          ? info.setupUrl || 'https://scorr.walfia.ai/downloads/Scorr-Setup.exe'
+          ? info.setupUrl ||
+            'https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.46/Scorr-Setup.exe'
           : info.appImageUrl ||
             info.debUrl ||
             'https://scorr.walfia.ai/downloads/Scorr.deb';

@@ -48,7 +48,8 @@ export const APK_PATH = '/downloads/scorr.apk';
  * Prefer env overrides when set; otherwise /downloads/… fallbacks.
  */
 export const DESKTOP_WIN_PATH =
-  envUrl('VITE_DESKTOP_WIN_URL') || '/downloads/Scorr-Setup.exe';
+  envUrl('VITE_DESKTOP_WIN_URL') ||
+  'https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.46/Scorr-Setup.exe';
 
 /** Linux .deb package (Electron). */
 export const DESKTOP_LINUX_DEB_PATH =
