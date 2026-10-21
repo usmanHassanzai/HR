@@ -31,7 +31,7 @@ if (!pat) {
 }
 
 const migration = readFileSync(
-  resolve(root, 'supabase/migrations/wifi_match_any_saved_network_2026-10-21.sql'),
+  resolve(root, 'supabase/migrations/wifi_windows11_variant_2026-10-21.sql'),
   'utf8',
 );
 
@@ -142,21 +142,36 @@ BEGIN
     (v_emp_shift, v_office, 'Wifi Office', 24.86, 67.01, 100, true, false),
     (v_emp_manual, v_office, 'Wifi Office', 24.86, 67.01, 100, true, false);
 
+  -- Staging's current trigger still requires a public IP on every row.
+  -- Each row gets a distinct documentation address that the tests do not send,
+  -- so a match is still from the SSID or BSSID alone.
   INSERT INTO public.office_wifi_networks (office_location_id, company_id, label, ssids, wifi_bssids, public_ip_cidrs, active)
   VALUES
-    (v_office, v_company, 'Quoted', ARRAY['"Office   WiFi"'], '{}', '{}', true),
-    (v_office, v_company, 'Router', '{}', ARRAY['AA-BB-CC-DD-EE-FF'], '{}', true),
-    (v_office, v_company, 'Guest', ARRAY['Guest'], '{}', '{}', true),
-    (v_office_b, v_company_b, 'Other', ARRAY['Office WiFi'], ARRAY['aa:bb:cc:dd:ee:ff'], '{}', true),
-    (v_office_unassigned, v_company, 'Unassigned', ARRAY['Office WiFi'], '{}', '{}', true);
+    (v_office, v_company, 'Quoted', ARRAY['"Office   WiFi"'], '{}', ARRAY['203.0.113.10/32'], true),
+    (v_office, v_company, 'Router', '{}', ARRAY['AA-BB-CC-DD-EE-FF'], ARRAY['203.0.113.11/32'], true),
+    (v_office, v_company, 'Guest', ARRAY['Guest'], '{}', ARRAY['203.0.113.12/32'], true),
+    (v_office_b, v_company_b, 'Other', ARRAY['Office WiFi'], ARRAY['aa:bb:cc:dd:ee:ff'], ARRAY['203.0.113.13/32'], true),
+    (v_office_unassigned, v_company, 'Unassigned', ARRAY['Office WiFi'], '{}', ARRAY['203.0.113.14/32'], true);
 
   PERFORM set_config('request.jwt.claim.sub', '', true);
 
   SELECT * INTO v_m FROM public.attendance_match_office_wifi(v_office, NULL, 'office wifi', NULL);
-  PERFORM pg_temp.tassert('saved ssid matches with spaces and case', COALESCE(v_m.matched, false), COALESCE(v_m.network_label, ''));
+  PERFORM pg_temp.tassert('original matcher does not collapse spaces', NOT COALESCE(v_m.matched, false), COALESCE(v_m.network_label, ''));
+
+  SELECT * INTO v_m FROM public.attendance_match_office_wifi_windows11(v_office, NULL, 'office wifi', NULL);
+  PERFORM pg_temp.tassert('windows11 matcher collapses spaces and case', COALESCE(v_m.matched, false), COALESCE(v_m.network_label, ''));
+
+  SELECT * INTO v_m FROM public.attendance_match_office_wifi(v_office, NULL, NULL, 'AA-BB-CC-DD-EE-FF');
+  PERFORM pg_temp.tassert('original matcher matches the stored dash BSSID after lowercasing', COALESCE(v_m.matched, false));
 
   SELECT * INTO v_m FROM public.attendance_match_office_wifi(v_office, NULL, NULL, 'aa:bb:cc:dd:ee:ff');
-  PERFORM pg_temp.tassert('saved bssid matches colon form', COALESCE(v_m.matched, false), COALESCE(v_m.network_label, ''));
+  PERFORM pg_temp.tassert('original matcher does not treat colon BSSID as the stored dash form', NOT COALESCE(v_m.matched, false));
+
+  SELECT * INTO v_m FROM public.attendance_match_office_wifi_windows11(v_office, NULL, NULL, 'AA-BB-CC-DD-EE-FF');
+  PERFORM pg_temp.tassert('windows11 matcher accepts dash BSSID', COALESCE(v_m.matched, false), COALESCE(v_m.network_label, ''));
+
+  SELECT * INTO v_m FROM public.attendance_match_office_wifi_windows11(v_office, NULL, NULL, 'aa:bb:cc:dd:ee:ff');
+  PERFORM pg_temp.tassert('windows11 matcher accepts colon BSSID', COALESCE(v_m.matched, false), COALESCE(v_m.network_label, ''));
 
   SELECT * INTO v_m FROM public.attendance_match_office_wifi(v_office, NULL, 'Guest', NULL);
   PERFORM pg_temp.tassert('one network among several is enough', COALESCE(v_m.matched, false) AND v_m.network_label = 'Guest', COALESCE(v_m.network_label, ''));
@@ -165,12 +180,12 @@ BEGIN
   PERFORM pg_temp.tassert('unknown network does not match', NOT COALESCE(v_m.matched, false));
 
   PERFORM set_config('request.jwt.claim.sub', v_emp::text, true);
-  SELECT * INTO v_m FROM public.attendance_match_office_wifi(v_office, NULL, 'Office WiFi', NULL);
-  PERFORM pg_temp.tassert('assigned office matches for the employee', COALESCE(v_m.matched, false));
-  SELECT * INTO v_m FROM public.attendance_match_office_wifi(v_office_b, NULL, 'Office WiFi', 'aa:bb:cc:dd:ee:ff');
-  PERFORM pg_temp.tassert('other company office does not match', NOT COALESCE(v_m.matched, false));
-  SELECT * INTO v_m FROM public.attendance_match_office_wifi(v_office_unassigned, NULL, 'Office WiFi', NULL);
-  PERFORM pg_temp.tassert('unassigned office does not match', NOT COALESCE(v_m.matched, false));
+  SELECT * INTO v_m FROM public.attendance_match_office_wifi_windows11(v_office, NULL, 'Office WiFi', NULL);
+  PERFORM pg_temp.tassert('windows11 assigned office matches for the employee', COALESCE(v_m.matched, false));
+  SELECT * INTO v_m FROM public.attendance_match_office_wifi_windows11(v_office_b, NULL, 'Office WiFi', 'aa:bb:cc:dd:ee:ff');
+  PERFORM pg_temp.tassert('windows11 other company office does not match', NOT COALESCE(v_m.matched, false));
+  SELECT * INTO v_m FROM public.attendance_match_office_wifi_windows11(v_office_unassigned, NULL, 'Office WiFi', NULL);
+  PERFORM pg_temp.tassert('windows11 unassigned office does not match', NOT COALESCE(v_m.matched, false));
   PERFORM set_config('request.jwt.claim.sub', '', true);
 
   INSERT INTO public.attendance_records (user_id, attendance_date, status, attendance_source, clock_in_at, shift_id)
@@ -181,7 +196,27 @@ BEGIN
     v_emp, NULL, v_company, 'windows', 'wifi_disconnected', now(), now(), v_office, NULL, NULL, NULL, NULL, NULL, NULL
   );
   PERFORM pg_temp.tassert(
-    'windows wifi drop does not close',
+    'windows without variant still checks out',
+    v_out->>'action' = 'clock_out'
+      AND EXISTS (SELECT 1 FROM public.attendance_records WHERE user_id = v_emp AND clock_out_at IS NOT NULL),
+    v_out::text
+  );
+
+  UPDATE public.attendance_records SET clock_out_at = NULL WHERE user_id = v_emp;
+  v_out := public.attendance_device_early_checkout(
+    v_emp, NULL, v_company, 'windows', 'wifi_disconnected', now(), now(), v_office, NULL, NULL, NULL, NULL, NULL, NULL, 'windows11'
+  );
+  PERFORM pg_temp.tassert(
+    'windows11 wifi drop does not close',
+    v_out->>'reason' = 'desktop_checkout_only_at_shift_end'
+      AND EXISTS (SELECT 1 FROM public.attendance_records WHERE user_id = v_emp AND clock_out_at IS NULL),
+    v_out::text
+  );
+  v_out := public.attendance_device_early_checkout(
+    v_emp, NULL, v_company, 'windows', 'exit', now(), now(), v_office, 1, 2, 10, NULL, NULL, NULL, 'windows11'
+  );
+  PERFORM pg_temp.tassert(
+    'windows11 gps exit does not close',
     v_out->>'reason' = 'desktop_checkout_only_at_shift_end'
       AND EXISTS (SELECT 1 FROM public.attendance_records WHERE user_id = v_emp AND clock_out_at IS NULL),
     v_out::text
@@ -190,11 +225,12 @@ BEGIN
     v_emp, NULL, v_company, 'linux', 'exit', now(), now(), v_office, 1, 2, 10, NULL, NULL, NULL
   );
   PERFORM pg_temp.tassert(
-    'linux gps exit does not close',
-    v_out->>'reason' = 'desktop_checkout_only_at_shift_end'
-      AND EXISTS (SELECT 1 FROM public.attendance_records WHERE user_id = v_emp AND clock_out_at IS NULL),
+    'linux gps exit still checks out',
+    v_out->>'action' = 'clock_out'
+      AND EXISTS (SELECT 1 FROM public.attendance_records WHERE user_id = v_emp AND clock_out_at IS NOT NULL),
     v_out::text
   );
+  UPDATE public.attendance_records SET clock_out_at = NULL WHERE user_id = v_emp AND clock_out_at IS NOT NULL;
   v_out := public.attendance_device_early_checkout(
     v_emp, NULL, v_company, 'android', 'wifi_disconnected', now(), now(), v_office, NULL, NULL, NULL, NULL, NULL, NULL
   );
@@ -230,8 +266,148 @@ BEGIN
       AND EXISTS (SELECT 1 FROM public.attendance_records WHERE user_id = v_emp_manual AND clock_out_at IS NOT NULL),
     v_out::text
   );
+
+  PERFORM pg_temp.tassert(
+    'match and checkout stay security definer',
+    (
+      SELECT bool_and(p.prosecdef AND COALESCE(p.proconfig::text, '') ILIKE '%search_path=public%')
+      FROM pg_proc p
+      JOIN pg_namespace n ON n.oid = p.pronamespace
+      WHERE n.nspname = 'public'
+        AND p.proname IN (
+          'attendance_match_office_wifi',
+          'attendance_match_office_wifi_windows11',
+          'attendance_device_early_checkout',
+          'process_auto_attendance_event'
+        )
+    )
+  );
+  PERFORM pg_temp.tassert(
+    'office wifi and internal attendance tables keep rls',
+    (
+      SELECT bool_and(c.relrowsecurity)
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public'
+        AND c.relkind = 'r'
+        AND (
+          c.relname = 'office_wifi_networks'
+          OR c.relname LIKE 'attendance_auto_close_suppress%'
+          OR c.relname = 'attendance_events_log_archive'
+          OR c.relname LIKE 'employee_location_pings_archive%'
+        )
+    )
+    AND EXISTS (
+      SELECT 1 FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public' AND c.relname = 'office_wifi_networks' AND c.relrowsecurity
+    )
+  );
+  PERFORM pg_temp.tassert(
+    'office wifi policies still exist',
+    (
+      SELECT count(*) = 4
+      FROM pg_policies
+      WHERE schemaname = 'public'
+        AND tablename = 'office_wifi_networks'
+        AND policyname IN (
+          'office_wifi_networks_select_company',
+          'office_wifi_networks_insert_admin_hr',
+          'office_wifi_networks_update_admin_hr',
+          'office_wifi_networks_delete_admin_hr'
+        )
+    )
+  );
+  PERFORM pg_temp.tassert(
+    'internal attendance tables still have no policies',
+    NOT EXISTS (
+      SELECT 1
+      FROM pg_policies p
+      JOIN pg_class c ON c.relname = p.tablename
+      JOIN pg_namespace n ON n.oid = c.relnamespace AND n.nspname = p.schemaname
+      WHERE p.schemaname = 'public'
+        AND (
+          c.relname LIKE 'attendance_auto_close_suppress%'
+          OR c.relname = 'attendance_events_log_archive'
+          OR c.relname LIKE 'employee_location_pings_archive%'
+        )
+    )
+  );
 END;
 $test$;
+
+CREATE TEMP TABLE internal_rls_tables (relname text);
+INSERT INTO internal_rls_tables
+SELECT c.relname
+FROM pg_class c
+JOIN pg_namespace ns ON ns.oid = c.relnamespace
+WHERE ns.nspname = 'public'
+  AND c.relkind = 'r'
+  AND (
+    c.relname LIKE 'attendance_auto_close_suppress%'
+    OR c.relname = 'attendance_events_log_archive'
+    OR c.relname LIKE 'employee_location_pings_archive%'
+  );
+
+INSERT INTO wifi_test_results
+SELECT 'internal archive tables on staging',
+  'PASS',
+  COALESCE(NULLIF(string_agg(relname, ', '), ''), 'none on staging')
+FROM internal_rls_tables;
+
+DO $anon$
+DECLARE
+  n int := -1;
+  seen int := 0;
+  writes int := 0;
+  blocked int := 0;
+  v_role text := current_user;
+  names text[] := '{}';
+  rel text;
+BEGIN
+  SELECT COALESCE(array_agg(relname), '{}') INTO names FROM internal_rls_tables;
+  PERFORM set_config('role', 'anon', true);
+  SELECT count(*)::int INTO n FROM public.office_wifi_networks;
+  FOREACH rel IN ARRAY names LOOP
+    seen := seen + 1;
+    BEGIN
+      EXECUTE format('SELECT count(*)::int FROM public.%I', rel) INTO writes;
+      IF writes <> 0 THEN
+        blocked := blocked - 100;
+      END IF;
+    EXCEPTION WHEN insufficient_privilege THEN
+      NULL;
+    END;
+    BEGIN
+      EXECUTE format('INSERT INTO public.%I DEFAULT VALUES', rel);
+      blocked := blocked - 100;
+    EXCEPTION WHEN OTHERS THEN
+      blocked := blocked + 1;
+    END;
+  END LOOP;
+  PERFORM set_config('role', v_role, true);
+  INSERT INTO wifi_test_results VALUES (
+    'anon cannot read office wifi',
+    CASE WHEN n = 0 THEN 'PASS' ELSE 'FAIL' END,
+    COALESCE(n::text, 'null')
+  );
+  IF seen > 0 THEN
+    INSERT INTO wifi_test_results VALUES (
+      'anon cannot read or write internal attendance tables',
+      CASE WHEN blocked = seen THEN 'PASS' ELSE 'FAIL' END,
+      'tables=' || seen || ' blocked=' || blocked
+    );
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  BEGIN
+    PERFORM set_config('role', v_role, true);
+  EXCEPTION WHEN OTHERS THEN
+    NULL;
+  END;
+  INSERT INTO wifi_test_results VALUES ('anon rls check', 'FAIL', SQLERRM);
+END;
+$anon$;
+
 
 SELECT name, status, detail FROM wifi_test_results ORDER BY name;
 `;

@@ -2,7 +2,8 @@
  * Electron laptop automatic attendance — same check-in policy as Android:
  *   window [shift start − 1h, shift end]; Wi-Fi first then office radius;
  *   checked out → ~1s probes (wifi_connected / ping with GPS+Wi-Fi);
- *   checked in  → stay until shift end or a manual Clock Out (no Wi-Fi/GPS auto checkout);
+ *   checked in  → Windows 11 stays until shift end or Clock Out;
+ *                 Windows 10 and Linux still check out on Wi-Fi drop or leaving the office;
  *   re-entry after mid-shift checkout (30s cooldown after manual Clock Out,
  *   matching Android AttendancePingService.INTERVAL_CHECKED_IN_MS).
  * Uses device token from safeStorage; no dashboard session required after enrollment.
@@ -36,6 +37,7 @@ const {
   ipMatchesSavedCidrs,
 } = require('./wifiProbe.cjs');
 const { deliverAttendanceNotice } = require('./desktopNotify.cjs');
+const { isWindows11Build, readWindowsBuildNumber } = require('./windowsVariant.cjs');
 
 const APP_URL = process.env.SCORR_DESKTOP_URL || 'https://scorr.walfia.ai/?app=1';
 
@@ -178,11 +180,19 @@ function writeLinuxAutostart(enabled) {
 function configureAutoLaunch(enabled) {
   const on = Boolean(enabled);
   try {
-    if (process.platform === 'win32') {
+    if (process.platform === 'win32' && isWindows11()) {
+      // Same login-item API as Windows 10, plus --hidden and StartupApproved.
+      // openAsHidden is a no-op on Windows, and Windows 11 Task Manager
+      // otherwise disables the startup entry.
       app.setLoginItemSettings({
         openAtLogin: on,
         enabled: on,
         args: on ? HIDDEN_LAUNCH_ARGS : [],
+      });
+    } else if (process.platform === 'win32') {
+      app.setLoginItemSettings({
+        openAtLogin: on,
+        openAsHidden: true,
       });
     } else if (process.platform === 'darwin') {
       app.setLoginItemSettings({
@@ -212,9 +222,13 @@ function configureAutoLaunch(enabled) {
 
 function readAutoLaunchEnabled() {
   try {
-    if (process.platform === 'win32') {
+    if (process.platform === 'win32' && isWindows11()) {
       const s = app.getLoginItemSettings({ args: HIDDEN_LAUNCH_ARGS });
       return Boolean(s.openAtLogin || s.executableWillLaunchAtLogin);
+    }
+    if (process.platform === 'win32') {
+      const s = app.getLoginItemSettings();
+      return Boolean(s.openAtLogin);
     }
     if (process.platform === 'linux') {
       try {
@@ -330,6 +344,18 @@ let memoryAttendanceToken = null;
 
 function platformName() {
   return process.platform === 'win32' ? 'windows' : 'linux';
+}
+
+let cachedWindowsBuild = null;
+
+function windowsBuildNumber() {
+  if (cachedWindowsBuild != null) return cachedWindowsBuild;
+  cachedWindowsBuild = readWindowsBuildNumber();
+  return cachedWindowsBuild;
+}
+
+function isWindows11() {
+  return process.platform === 'win32' && isWindows11Build(windowsBuildNumber());
 }
 
 function clearHeartbeatInflightIfStuck() {
@@ -653,9 +679,11 @@ function showSystemToast(title, body) {
 }
 
 function notify(title, body, kind = 'reminder') {
-  // Windows check-in, check-out, Wi-Fi, and reminder paths do not call Notification.
-  deliverAttendanceNotice(process.platform, kind, () => showSystemToast(title, body));
-  if (process.platform === 'win32') {
+  // Windows 11 does not toast. Windows 10 and Linux still do.
+  deliverAttendanceNotice(process.platform, kind, () => showSystemToast(title, body), {
+    windows11: isWindows11(),
+  });
+  if (isWindows11()) {
     recordAttendanceStatus({ title, body, kind, at: new Date().toISOString() });
   }
 }
@@ -1086,9 +1114,29 @@ function readWindowsVersionLabel() {
   return cachedWindowsVersion;
 }
 
+/** Windows 10 path: English netsh labels, same as desktop 1.3.45. */
+function readWindows10Netsh() {
+  const { execFileSync } = require('child_process');
+  try {
+    const out = execFileSync('netsh', ['wlan', 'show', 'interfaces'], {
+      encoding: 'utf8',
+      timeout: 4000,
+      windowsHide: true,
+    });
+    const ssid = (String(out).match(/^\s*SSID\s*:\s*(.+)$/im) || [])[1]?.trim() || null;
+    const bssid = (String(out).match(/^\s*BSSID\s*:\s*(.+)$/im) || [])[1]?.trim()?.toLowerCase() || null;
+    return { ssid: ssid && ssid !== '' ? ssid : null, bssid: bssid || null };
+  } catch {
+    return { ssid: null, bssid: null };
+  }
+}
+
 /** Probe OS Wi-Fi once (short timeouts). Prefer readWifiIdentity() which uses a cache. */
 function probeWifiIdentityNow() {
   try {
+    if (process.platform === 'win32' && !isWindows11()) {
+      return readWindows10Netsh();
+    }
     if (process.platform === 'win32') {
       const sys32 = windowsSys32();
       let parsed = null;
@@ -1195,8 +1243,14 @@ function readWifiIdentity() {
   }
   const w = probeWifiIdentityNow();
   lastWifiProbe = w;
-  // A failed or blank read is not "left the office". Keep the last good name.
-  if (!w.ssid && !w.bssid && (wifiCache.ssid || wifiCache.bssid) && now - wifiCache.at < 120_000) {
+  // Windows 11: a failed or blank read is not "left the office".
+  if (
+    isWindows11() &&
+    !w.ssid &&
+    !w.bssid &&
+    (wifiCache.ssid || wifiCache.bssid) &&
+    now - wifiCache.at < 120_000
+  ) {
     return { ssid: wifiCache.ssid, bssid: wifiCache.bssid };
   }
   if (!w.ssid && !w.bssid) {
@@ -1212,8 +1266,33 @@ function isCheckinEventName(event) {
   return e === 'enter' || e === 'ping' || e === 'wifi_connected' || e === 'heartbeat' || e === 'power_on';
 }
 
+/** Windows 10 / Linux: parent comparison (trim and quotes, no cross-format BSSID). */
+function matchesScheduleOfficeWifiLegacy(wifi) {
+  const zones = cachedSchedule?.zones || [];
+  const ssid = String(wifi?.ssid || '').trim().replace(/^"+|"+$/g, '');
+  const bssid = String(wifi?.bssid || '').trim().toLowerCase();
+  if (!ssid && !bssid) return false;
+  for (const z of zones) {
+    const bssids = Array.isArray(z.wifi_bssids) ? z.wifi_bssids : [];
+    if (bssid) {
+      for (const want of bssids) {
+        if (String(want || '').trim().toLowerCase() === bssid) return true;
+      }
+    }
+    const ssids = Array.isArray(z.wifi_ssids) ? z.wifi_ssids : [];
+    if (ssid) {
+      for (const want of ssids) {
+        const saved = String(want || '').trim().replace(/^"+|"+$/g, '');
+        if (saved.toLowerCase() === ssid.toLowerCase()) return true;
+      }
+    }
+  }
+  return false;
+}
+
 /** True when current SSID or BSSID matches any saved network on an assigned zone. */
 function matchesScheduleOfficeWifi(wifi) {
+  if (!isWindows11()) return matchesScheduleOfficeWifiLegacy(wifi);
   const zones = cachedSchedule?.zones || [];
   const ssid = normalizeSsid(wifi?.ssid);
   const bssid = normalizeBssid(wifi?.bssid);
@@ -1308,6 +1387,41 @@ async function forceReentryCheckin(reason = 'reentry') {
   }
 }
 
+function haversineMeters(lat1, lon1, lat2, lon2) {
+  const toRad = (d) => (d * Math.PI) / 180;
+  const R = 6371000;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+/** Windows 10 and Linux: GPS clearly outside every zone checks out. Windows 11 does not. */
+async function probeLeaveWhileCheckedIn() {
+  if (isWindows11()) return;
+  if (!stillSuppressCheckin()) return;
+  const zones = (cachedSchedule?.zones || []).filter((z) => {
+    const mode = String(z?.detection_mode || 'gps_or_wifi').toLowerCase();
+    return mode !== 'wifi_only';
+  });
+  if (!zones.length) return;
+  const fix = await readFreshLocation(100);
+  if (!fix || fix.latitude == null || fix.longitude == null) return;
+  const outsideAll = zones.every((z) => {
+    const lat = Number(z.latitude ?? z.lat);
+    const lng = Number(z.longitude ?? z.lng);
+    const radius = Math.max(Number(z.radius_meters ?? z.radius ?? 150), 1);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return true;
+    const dist = haversineMeters(fix.latitude, fix.longitude, lat, lng);
+    return dist == null || dist > radius;
+  });
+  if (outsideAll) {
+    await sendEvent('exit', fix, true);
+  }
+}
+
 /** Soft GPS read with timeout — mirrors Android soft-fail (Wi-Fi still sent). */
 async function readGpsSoft(maxAccuracyM = 50, timeoutMs = 2500) {
   try {
@@ -1363,10 +1477,9 @@ async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = nul
   const evLower = String(event || '').toLowerCase();
   const checkinLike = isCheckinEventName(event);
   if (!fix && checkinLike) {
-    // Windows: skip GPS on the first pass. Chromium geolocation can hang the
-    // permission UI / executeJavaScript and starve heartbeats; Wi-Fi/IP still check in.
-    // Linux/Android path unchanged (soft GPS budget).
-    if (process.platform === 'win32') {
+    // Windows 11: skip GPS on the first pass. Chromium geolocation can hang the
+    // permission UI and starve heartbeats; Wi-Fi still checks in, then radius retries.
+    if (isWindows11()) {
       fix = null;
     } else {
       // Tiny GPS budget only — IP/SSID must win quickly (matches Android soft-fail).
@@ -1374,8 +1487,9 @@ async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = nul
       if (fix && (fix.error || fix.latitude == null)) fix = null;
     }
   } else if (!fix && (evLower === 'exit' || evLower === 'wifi_disconnected')) {
-    if (process.platform === 'win32') {
-      // Leave probe: short budget only; never block the heartbeat loop.
+    if (isWindows11()) {
+      fix = null;
+    } else if (process.platform === 'win32') {
       fix = await readGpsSoft(50, 800);
     } else {
       fix = await readGpsSoft(50, 2500);
@@ -1405,6 +1519,7 @@ async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = nul
         device_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         device_id: deviceId(),
         platform: platformName(),
+        ...(isWindows11() ? { platform_variant: 'windows11' } : {}),
         app_version: app.getVersion(),
         latitude: fix?.latitude ?? null,
         longitude: fix?.longitude ?? null,
@@ -1429,7 +1544,7 @@ async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = nul
       res?.action === 'not_on_office_wifi' ||
       res?.action === 'not_on_office_network')
   ) {
-    const pos = await readGpsSoft(50, process.platform === 'win32' ? 900 : 2000);
+    const pos = await readGpsSoft(50, isWindows11() ? 900 : 2000);
     if (pos && pos.latitude != null && pos.longitude != null) {
       return sendEvent(event, pos, false);
     }
@@ -1605,9 +1720,8 @@ function startHeartbeatIfInWindow() {
     const wifi = readWifiIdentity();
     const onOffice = matchesScheduleOfficeWifi(wifi);
 
-    // Stay checked in until shift end or a manual Clock Out.
-    // A blank or failed Wi-Fi read is not "left the office" and is not wifi_lost as a checkout.
-    if (stillSuppressCheckin() && !wifi.ssid && !wifi.bssid) {
+    // Windows 11 only: a blank or failed Wi-Fi read is not "left the office".
+    if (isWindows11() && stillSuppressCheckin() && !wifi.ssid && !wifi.bssid) {
       const recent = lastAttendanceStatus && lastAttendanceStatus.kind === 'wifi_lost'
         ? Date.now() - Date.parse(lastAttendanceStatus.at || 0)
         : Infinity;
@@ -1619,6 +1733,17 @@ function startHeartbeatIfInWindow() {
           at: new Date().toISOString(),
         });
       }
+    }
+
+    // Windows 10 and Linux: dropping office Wi-Fi while checked in checks out.
+    if (!isWindows11() && stillSuppressCheckin() && wasOnOfficeWifi && !onOffice) {
+      wasOnOfficeWifi = false;
+      if (heartbeatInflight) return;
+      markHeartbeatInflight(true);
+      void sendEvent('wifi_disconnected').finally(() => {
+        markHeartbeatInflight(false);
+      });
+      return;
     }
 
     // Rising edge onto office Wi-Fi while checked out → wifi_connected (+ GPS in sendEvent).
@@ -1657,6 +1782,7 @@ function startHeartbeatIfInWindow() {
       markHeartbeatInflight(true);
       void (async () => {
         try {
+          if (!isWindows11()) await probeLeaveWhileCheckedIn();
           const res = await sendEvent('heartbeat');
           // Suppress cleared (manual checkout / resume_checkin) → check in after cooldown.
           if (!stillSuppressCheckin()) {
@@ -2106,10 +2232,10 @@ function createWindow(opts = {}) {
   })();
 
   mainWindow.on('close', (e) => {
-    // Enrolled: always hide (keep main-process heartbeat). Do not require tray —
-    // Linux without AppIndicator used to destroy the window and stall check-in
-    // until the user opened Sign In again.
-    if (loadToken()) {
+    if (!loadToken()) return;
+    if (isWindows11() || process.platform === 'linux') {
+      // Windows 11 reuses the tray process. Linux keeps the current hide-to-tray
+      // path so a missing AppIndicator does not quit the heartbeat.
       e.preventDefault();
       mainWindow?.hide();
       if (!tray) {
@@ -2119,6 +2245,12 @@ function createWindow(opts = {}) {
           /* ignore */
         }
       }
+      return;
+    }
+    // Windows 10 and macOS: hide only when the tray icon exists.
+    if (tray) {
+      e.preventDefault();
+      mainWindow?.hide();
     }
   });
 
@@ -2601,18 +2733,32 @@ app.whenReady().then(async () => {
     } else if (lastServerResult?.message) {
       statusLine = String(lastServerResult.message);
     }
+    const win11 = isWindows11();
+    const trayRunning = Boolean(tray);
+    if (!loadToken()) {
+      statusLine = 'If Scorr is not running, nothing can check in.';
+    } else if (win11 && !trayRunning) {
+      statusLine = 'Scorr is open, but the tray process is not running. Closing the window quits check-in.';
+    }
     const snap = {
       platform: process.platform,
-      windowsVersion: process.platform === 'win32' ? readWindowsVersionLabel() : '',
+      platformVariant: win11 ? 'windows11' : null,
+      windowsVersion: process.platform === 'win32'
+        ? `${readWindowsVersionLabel()} (build ${windowsBuildNumber() || 'unknown'})`
+        : '',
+      windowsBuild: process.platform === 'win32' ? windowsBuildNumber() : null,
       locationAllowed,
-      locationMessage: ssidHidden ? LOCATION_MESSAGE : null,
+      locationMessage: win11 && ssidHidden ? LOCATION_MESSAGE : null,
       ssid: wifi.ssid,
       bssid: wifi.bssid,
       publicIp: cachedPublicIp || null,
       matchesSaved,
       lastResult: lastServerResult,
+      autoLaunch: readAutoLaunchEnabled(),
+      trayRunning,
+      appRunning: true,
       statusLine,
-      logPath: wifiLogPath(),
+      logPath: win11 ? wifiLogPath() : null,
     };
     appendWifiLog({ type: 'diagnostics', ...snap });
     return snap;
@@ -2634,16 +2780,15 @@ app.whenReady().then(async () => {
       if (loadToken()) armScheduleLoop();
       let notifications = 'unknown';
       try {
-        // Windows automatic check-in does not ask for notification permission.
-        if (process.platform === 'win32') notifications = 'not_requested';
+        // Windows 11 does not ask for notification permission. Windows 10 still can.
+        if (isWindows11()) notifications = 'not_requested';
         else if (Notification.isSupported()) notifications = 'granted';
       } catch {
         notifications = 'unknown';
       }
       let location = 'unknown';
       try {
-        // Windows: never wait on geolocation during Enable — permission UI can hang IPC.
-        if (process.platform === 'win32') {
+        if (isWindows11()) {
           location = 'unknown';
         } else {
           const fix = await Promise.race([
@@ -2768,7 +2913,7 @@ app.whenReady().then(async () => {
 
   // Arm main-process heartbeat BEFORE (or without) a visible window — this is what
   // Android FGS / Win10 tray already do. Hidden autostart must not wait on Sign In.
-  const startHidden = argvWantsHiddenStart();
+  const startHidden = isWindows11() ? argvWantsHiddenStart() : process.platform === 'linux' && argvWantsHiddenStart();
   console.info('[scorr-att] boot', {
     startHidden,
     hasToken: Boolean(loadToken()),

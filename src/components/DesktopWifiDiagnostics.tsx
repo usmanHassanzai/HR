@@ -11,6 +11,11 @@ type WifiSnap = {
   matchesSaved?: boolean;
   statusLine?: string;
   logPath?: string;
+  autoLaunch?: boolean;
+  trayRunning?: boolean;
+  appRunning?: boolean;
+  windowsBuild?: number | null;
+  platformVariant?: string | null;
   lastResult?: { action?: string | null; reason?: string | null; message?: string | null } | null;
 };
 
@@ -24,26 +29,26 @@ function locationLabel(value: boolean | null | undefined): string {
 export default function DesktopWifiDiagnostics({ compact = false }: { compact?: boolean }) {
   const [snap, setSnap] = useState<WifiSnap | null>(null);
   const desk = typeof window !== 'undefined' ? window.scorrDesktop : undefined;
-  const isWindows = desk?.platform === 'win32';
+  const isWin11 = desk?.platformVariant === 'windows11';
 
   const refresh = useCallback(async () => {
-    if (typeof desk?.wifiDiagnostics !== 'function') return;
+    if (!isWin11 || typeof desk?.wifiDiagnostics !== 'function') return;
     try {
       const next = await desk.wifiDiagnostics();
       setSnap(next || null);
     } catch {
       /* shell not ready */
     }
-  }, [desk]);
+  }, [desk, isWin11]);
 
   useEffect(() => {
-    if (!desk?.isDesktop) return;
+    if (!isWin11) return;
     void refresh();
     const id = window.setInterval(() => { void refresh(); }, 15000);
     return () => window.clearInterval(id);
-  }, [desk?.isDesktop, refresh]);
+  }, [isWin11, refresh]);
 
-  if (!desk?.isDesktop || !snap) return null;
+  if (!isWin11 || !snap) return null;
 
   return (
     <section data-scorr-wifi-diagnostics="1" className="attendance-card" style={{ marginTop: compact ? 0 : '0.75rem' }}>
@@ -56,13 +61,16 @@ export default function DesktopWifiDiagnostics({ compact = false }: { compact?: 
           <h3 className="attendance-card__title">Wi-Fi diagnostics</h3>
           <p className="attendance-present-banner" role="status">{snap.statusLine}</p>
           <ul style={{ margin: '0.5rem 0 0', paddingLeft: '1.1rem', fontSize: '0.82rem', lineHeight: 1.45 }}>
-            {isWindows && <li>Windows: {snap.windowsVersion || 'unknown'}</li>}
-            {isWindows && <li>Location: {locationLabel(snap.locationAllowed)}</li>}
+            <li>Windows: {snap.windowsVersion || 'unknown'}</li>
+            <li>Location: {locationLabel(snap.locationAllowed)}</li>
             <li>SSID: {snap.ssid || '—'}</li>
             <li>BSSID: {snap.bssid || '—'}</li>
             <li>Public IP: {snap.publicIp || '—'}</li>
             <li>Matches a saved network: {snap.matchesSaved ? 'yes' : 'no'}</li>
             <li>Last result: {snap.lastResult?.reason || snap.lastResult?.action || '—'}</li>
+            <li>Start at login: {snap.autoLaunch ? 'on' : 'off'}</li>
+            <li>Tray process: {snap.trayRunning ? 'running' : 'not running'}</li>
+            {!snap.appRunning && <li>If Scorr is not running, nothing can check in.</li>}
             {snap.logPath && <li>Log file: {snap.logPath}</li>}
           </ul>
         </>

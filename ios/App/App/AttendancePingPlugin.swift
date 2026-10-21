@@ -35,7 +35,6 @@ public class AttendancePingPlugin: CAPPlugin, CAPBridgedPlugin {
         .init(name: "requestNotifications", returnType: CAPPluginReturnPromise),
         .init(name: "requestAlwaysLocation", returnType: CAPPluginReturnPromise),
         .init(name: "probeNetwork", returnType: CAPPluginReturnPromise),
-        .init(name: "isAutoAttendanceEnabled", returnType: CAPPluginReturnPromise),
         // Legacy aliases — map to the auto-attendance API
         .init(name: "start", returnType: CAPPluginReturnPromise),
         .init(name: "stop", returnType: CAPPluginReturnPromise),
@@ -74,14 +73,6 @@ public class AttendancePingPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func stopAutoAttendance(_ call: CAPPluginCall) {
         engine.stop(clearToken: true)
         call.resolve(["ok": true])
-    }
-
-    @objc func isAutoAttendanceEnabled(_ call: CAPPluginCall) {
-        call.resolve([
-            "enabled": engine.isEnrolled,
-            "hasToken": AttendanceKeychain.loadToken() != nil,
-            "insideWindow": engine.isInsideActiveWindowNow(),
-        ])
     }
 
     @objc func saveLoginCredentials(_ call: CAPPluginCall) {
@@ -545,10 +536,6 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
     /// True when a device token is enrolled for auto attendance.
     var isEnrolled: Bool {
         AttendanceKeychain.loadToken() != nil && AttendanceStore.enabled
-    }
-
-    func isInsideActiveWindowNow() -> Bool {
-        isInsideWindow()
     }
 
     /// Foreground / time-change hook (R34).

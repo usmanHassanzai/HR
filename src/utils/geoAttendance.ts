@@ -112,7 +112,6 @@ export interface GeoPingResult {
   clock_out_at?: string;
   record_id?: string;
   reason?: string;
-  message?: string;
   match_via?: 'wifi' | 'gps' | string;
   decision_order?: string;
   shift_name?: string;
@@ -136,7 +135,7 @@ export function attendanceActionMessage(action: string | null | undefined): stri
     case 'need_fresh_location':
       return canProbeWifiSsid()
         ? 'Not on office Wi-Fi. Turn on location for radius check-in, or connect to configured office Wi-Fi.'
-        : 'Not on the office network IP and no GPS. Stay on office Wi-Fi (saved public IP), allow location for radius, or use Android/desktop for SSID check-in.';
+        : 'Location is required for radius check-in in the browser. Use the Android or desktop app to check in on office Wi-Fi without location.';
     case 'inside_office':
       return 'You are inside the office radius';
     case 'outside_radius':
@@ -386,10 +385,7 @@ export function normalizeWifiSsid(raw: string | null | undefined): string | null
 
 function normalizeWifiBssid(raw: string | null | undefined): string | null {
   if (raw == null) return null;
-  const t = String(raw)
-    .trim()
-    .toLowerCase()
-    .replace(/-/g, ':');
+  const t = String(raw).trim().toLowerCase();
   if (!t || t === '02:00:00:00:00:00') return null;
   return t;
 }
@@ -433,9 +429,12 @@ export async function probeDeviceWifiIdentity(): Promise<{
   }
   try {
     if (Capacitor.isNativePlatform()) {
-      const { AttendancePing } = await import('./attendancePingPlugin');
-      if (typeof AttendancePing.probeNetwork === 'function') {
-        const n = await AttendancePing.probeNetwork();
+      const { registerPlugin } = await import('@capacitor/core');
+      const probe = registerPlugin<{ probeNetwork?: () => Promise<{ ssid?: string; bssid?: string }> }>(
+        'AttendancePing',
+      );
+      if (typeof probe.probeNetwork === 'function') {
+        const n = await probe.probeNetwork();
         return {
           ssid: normalizeWifiSsid(n?.ssid),
           bssid: normalizeWifiBssid(n?.bssid),
@@ -465,38 +464,13 @@ export function locationSoftFailMessage(wifiPathAvailable: boolean): string {
   if (wifiPathAvailable) {
     return 'Location is off — office Wi-Fi can still check you in. Connect to configured office Wi-Fi, or turn on location for the radius path.';
   }
-  return 'Could not read GPS. On office Wi-Fi the server still checks your office network IP — tap Clock in again, or allow location for radius check-in.';
-}
-
-/**
- * Fast GPS for manual Clock in / Check in.
- * Prefer a recent watch/auto-ping fix; otherwise one short low-accuracy read
- * (no 3-attempt cascade — that made taps feel 10–50s slow).
- */
-async function requestPositionForManualClock(): Promise<GeolocationPosition | null> {
-  const recent = getLastGpsFix(90_000);
-  if (recent) return recent;
-
-  try {
-    const attempt = {
-      enableHighAccuracy: false,
-      timeout: 5_000,
-      maximumAge: 60_000,
-    };
-    const pos = Capacitor.isNativePlatform()
-      ? await requestNativePosition(attempt)
-      : await requestBrowserPosition(attempt);
-    return rememberGpsFix(pos);
-  } catch {
-    return getLastGpsFix(LAST_GPS_MAX_AGE_MS);
-  }
+  return 'Location is required for radius check-in in the browser. Use the Android or desktop app to check in on office Wi-Fi without location.';
 }
 
 /**
  * GPS read + Wi-Fi probe, then server clock-in or clock-out.
  * Office Wi-Fi / IP can succeed without location services — GPS failure must not
  * block that path on Android/desktop. Radius is only required when Wi-Fi does not match.
- * Clock out works from anywhere: never wait on a fresh GPS fix.
  */
 export async function submitGeoClockEvent(intent: GeoClockIntent): Promise<GeoPingResult> {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
@@ -505,18 +479,28 @@ export async function submitGeoClockEvent(intent: GeoClockIntent): Promise<GeoPi
     return result;
   }
 
-  // Probe Wi-Fi in parallel with GPS. Clock-out skips GPS wait (optional cache only).
+  // Probe Wi-Fi for both intents (Android/desktop). Soft-fail GPS in parallel.
   const wifiPathAvailable = canProbeWifiSsid();
   const [posSettled, wifi] = await Promise.all([
-    intent === 'clock_out'
-      ? Promise.resolve(getLastGpsFix(120_000))
-      : requestPositionForManualClock(),
+    requestCurrentPosition({
+      maximumAge: 0,
+      timeout: 20_000,
+      enableHighAccuracy: true,
+    }).then(
+      (p): GeolocationPosition | null => p,
+      (): GeolocationPosition | null => null,
+    ),
     probeDeviceWifiIdentity(),
   ]);
   const pos: GeolocationPosition | null = posSettled;
-  // Always call the server. Browser cannot read SSID, but process_geo matches
-  // configured office public IP (and SSID/BSSID on Android/desktop). GPS is optional
-  // when Wi-Fi/IP matches; radius needs coordinates.
+  const wifiOk = Boolean(wifi.ssid || wifi.bssid || wifi.probed || wifiPathAvailable);
+
+  // No GPS: still call RPC so configured office Wi-Fi / public IP can check in/out.
+  // Hard-fail only when this runtime cannot probe Wi-Fi (browser) and GPS failed.
+  if (!pos && !wifiOk) {
+    throw new Error(locationSoftFailMessage(false));
+  }
+
   const { data, error } = await supabase.rpc('process_geo_attendance_ping', {
     p_latitude: pos?.coords.latitude ?? null,
     p_longitude: pos?.coords.longitude ?? null,
@@ -540,17 +524,6 @@ export async function submitGeoClockEvent(intent: GeoClockIntent): Promise<GeoPi
     wifi_ssid_probed: wifi.probed || wifiPathAvailable,
     probed_ssid: wifi.ssid,
   };
-  // Surface a clear client hint only when the server could not match anything.
-  if (
-    !pos &&
-    !wifi.ssid &&
-    !wifi.bssid &&
-    (result.action === 'need_fresh_location' || result.action === 'not_on_office_wifi')
-  ) {
-    result.message =
-      result.message ||
-      locationSoftFailMessage(wifiPathAvailable);
-  }
   dispatchGeoPing({
     result,
     latitude: pos?.coords.latitude,
@@ -559,22 +532,6 @@ export async function submitGeoClockEvent(intent: GeoClockIntent): Promise<GeoPi
     auto: false,
     checkedAt: Date.now(),
   });
-  // Desktop only: tell main process about manual Clock Out so it clears local
-  // suppress and arms Android’s 30s re-entry cooldown (INTERVAL_CHECKED_IN_MS)
-  // before wifi_connected/ping can check in again. Mobile paths unchanged.
-  if (
-    intent === 'clock_out' &&
-    (result.action === 'clock_out' || result.action === 'clock_out_shift_end' || result.action === 'already_clocked_out')
-  ) {
-    try {
-      const { isDesktopApp } = await import('./nativePlatform');
-      if (isDesktopApp()) {
-        await Promise.resolve(window.scorrDesktop?.notifyManualCheckout?.());
-      }
-    } catch {
-      /* ignore — Android / web unchanged */
-    }
-  }
   return result;
 }
 
@@ -620,7 +577,10 @@ export async function submitGeoAutoPing(): Promise<GeoPingResult> {
     probeDeviceWifiIdentity(),
   ]);
   const pos = posSettled;
-  // Browser / soft-fail GPS: still ping — office public IP can match without SSID.
+  const wifiOk = Boolean(wifi.ssid || wifi.bssid || wifi.probed || wifiPathAvailable);
+  if (!pos && !wifiOk) {
+    throw new Error(locationSoftFailMessage(false));
+  }
   const { data, error } = await supabase.rpc('process_geo_attendance_ping', {
     p_latitude: pos?.coords.latitude ?? null,
     p_longitude: pos?.coords.longitude ?? null,

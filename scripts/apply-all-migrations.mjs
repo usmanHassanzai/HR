@@ -217,6 +217,7 @@ const MIGRATIONS = [
   'FIX_unstub_manual_check_in_out_2026-10-14.sql',
   'FIX_auto_reentry_session_probe_2026-10-14.sql',
   'wifi_match_any_saved_network_2026-10-21.sql',
+  'wifi_windows11_variant_2026-10-21.sql',
 ];
 
 async function runMigration(filename) {

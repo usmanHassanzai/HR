@@ -1,8 +1,8 @@
 /**
- * Windows automatic check-in is silent. Android, iOS, and Linux are unchanged.
- * These kinds must never call the Windows notification API.
+ * Windows 11 automatic check-in is silent.
+ * Windows 10, Linux, Android, and iOS keep system notifications.
  */
-const SILENT_ON_WINDOWS = new Set([
+const SILENT_ON_WINDOWS11 = new Set([
   'check_in',
   'check_out',
   'wifi_detected',
@@ -13,8 +13,9 @@ const SILENT_ON_WINDOWS = new Set([
   'not_configured',
 ]);
 
-function attendanceNoticeUsesSystemNotification(platform, kind) {
-  if (platform === 'win32' && SILENT_ON_WINDOWS.has(String(kind || ''))) return false;
+function attendanceNoticeUsesSystemNotification(platform, kind, options) {
+  const windows11 = Boolean(options && options.windows11);
+  if (platform === 'win32' && windows11 && SILENT_ON_WINDOWS11.has(String(kind || ''))) return false;
   return true;
 }
 
@@ -22,9 +23,10 @@ function attendanceNoticeUsesSystemNotification(platform, kind) {
  * @param {string} platform process.platform
  * @param {string} kind
  * @param {() => void} showSystemNotification invoked only when a toast is allowed
+ * @param {{ windows11?: boolean }} [options]
  */
-function deliverAttendanceNotice(platform, kind, showSystemNotification) {
-  if (!attendanceNoticeUsesSystemNotification(platform, kind)) {
+function deliverAttendanceNotice(platform, kind, showSystemNotification, options) {
+  if (!attendanceNoticeUsesSystemNotification(platform, kind, options)) {
     return { shown: false, kind };
   }
   if (typeof showSystemNotification === 'function') showSystemNotification();
@@ -32,7 +34,7 @@ function deliverAttendanceNotice(platform, kind, showSystemNotification) {
 }
 
 module.exports = {
-  SILENT_ON_WINDOWS,
+  SILENT_ON_WINDOWS11,
   attendanceNoticeUsesSystemNotification,
   deliverAttendanceNotice,
 };

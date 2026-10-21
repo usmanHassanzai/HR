@@ -6,10 +6,16 @@
  * contextBridge is kept as a fallback when isolation is enabled.
  */
 const { ipcRenderer, contextBridge } = require('electron');
+const { isWindows11Build, readWindowsBuildNumber } = require('./windowsVariant.cjs');
+
+const windowsBuild = readWindowsBuildNumber();
+const platformVariant = isWindows11Build(windowsBuild) ? 'windows11' : undefined;
 
 const api = {
   isDesktop: true,
   platform: process.platform,
+  platformVariant,
+  windowsBuild,
   /** Electron binary version (not the web bundle). */
   getAppVersion: () => ipcRenderer.invoke('scorr:getAppVersion'),
   expandWorkspace: () => ipcRenderer.send('scorr:workspace'),
@@ -51,7 +57,6 @@ let exposed = false;
 // even though isDesktop looks true). Linux already relies on this assign path.
 try {
   // contextIsolation:false → this IS the page window.
-  // eslint-disable-next-line no-undef
   window.scorrDesktop = api;
   exposed = true;
 } catch (e) {
@@ -73,7 +78,7 @@ if (!exposed) {
 
 /** In-window Windows status. No system toast. Hidden when the web screen is present. */
 function installWindowsWifiPanel() {
-  if (process.platform !== 'win32') return;
+  if (platformVariant !== 'windows11') return;
   const draw = async () => {
     if (document.querySelector('[data-scorr-wifi-diagnostics]')) {
       const old = document.getElementById('scorr-wifi-panel');
@@ -117,6 +122,8 @@ function installWindowsWifiPanel() {
       line('Public IP', snap.publicIp),
       line('Saved network', snap.matchesSaved ? 'yes' : 'no'),
       line('Last result', (snap.lastResult && (snap.lastResult.reason || snap.lastResult.action)) || ''),
+      line('Start at login', snap.autoLaunch ? 'on' : 'off'),
+      line('Tray process', snap.trayRunning ? 'running' : 'not running'),
     );
     if (snap.locationMessage) {
       const msg = document.createElement('p');

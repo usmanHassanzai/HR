@@ -7,6 +7,9 @@ import { registerAuthDeepLinkHandlers } from './authDeepLink';
 type ScorrDesktopApi = {
   isDesktop: boolean;
   platform?: string;
+  /** Set only in the Windows 11 desktop shell (OS build 22000+). */
+  platformVariant?: 'windows11';
+  windowsBuild?: number;
   getAppVersion?: () => Promise<string> | string;
   expandWorkspace?: () => void;
   shrinkToLogin?: () => void;
@@ -40,6 +43,11 @@ type ScorrDesktopApi = {
     matchesSaved?: boolean;
     statusLine?: string;
     logPath?: string;
+    autoLaunch?: boolean;
+    trayRunning?: boolean;
+    appRunning?: boolean;
+    windowsBuild?: number | null;
+    platformVariant?: string | null;
     lastResult?: { action?: string | null; reason?: string | null; message?: string | null; local_time?: string | null } | null;
   }>;
   openLocationSettings?: () => Promise<{ ok?: boolean }> | { ok?: boolean };
