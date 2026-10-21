@@ -4,56 +4,56 @@
     "filename": "scorr.apk",
     "appName": "Scorr",
     "appId": "ai.walfia.scorr",
-    "version": "1.3.25",
+    "version": "1.3.27",
     "buildType": "release",
-    "sizeBytes": 5785055,
+    "sizeBytes": 5787079,
     "sizeLabel": "5.5 MB",
-    "updatedAt": "2026-10-14T07:14:04.533Z",
+    "updatedAt": "2026-10-14T14:03:47.400Z",
     "updatedLabel": "October 14, 2026"
   },
   "ios": {
     "available": true,
-    "installMethod": "pwa",
+    "installMethod": "native_project",
     "appName": "Scorr",
     "appId": "ai.walfia.scorr",
-    "version": "1.3.7",
-    "updatedAt": "2026-10-07T13:57:43.235Z",
-    "updatedLabel": "October 7, 2026",
+    "version": "1.3.28",
+    "updatedAt": "2026-10-14T18:38:06.662Z",
+    "updatedLabel": "October 14, 2026",
     "pwaUrl": "https://scorr.walfia.ai/?app=1",
     "ipaAvailable": false,
     "ipaFilename": "scorr.ipa",
-    "notes": "Install via Safari → Add to Home Screen (?app=1). Native IPA: build on Mac with MARKETING_VERSION 1.3.7 / build 11. Source includes Always location + region EXIT Wi-Fi (R69)."
+    "notes": "Native Capacitor iOS project synced. Sign + archive on a Mac to publish scorr.ipa."
   },
   "desktop": {
     "available": true,
     "appName": "Scorr",
     "appId": "ai.walfia.scorr.desktop",
-    "version": "1.3.25",
-    "updatedAt": "2026-10-14T07:23:31.519Z",
-    "updatedLabel": "October 14, 2026",
-    "releaseTag": "desktop-v1.3.25",
+    "version": "1.3.46",
+    "updatedAt": "2026-10-21T14:38:39.131Z",
+    "updatedLabel": "October 21, 2026",
+    "releaseTag": "desktop-v1.3.46",
     "releaseRepo": "usmanHassanzai/HR",
     "platforms": {
       "windows": {
         "available": true,
         "filename": "Scorr-Setup.exe",
-        "sizeBytes": 92384487,
+        "sizeBytes": 92386516,
         "sizeLabel": "88.1 MB",
-        "url": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.25/Scorr-Setup.exe"
+        "url": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.46/Scorr-Setup.exe"
       },
       "linuxDeb": {
         "available": true,
         "filename": "Scorr.deb",
-        "sizeBytes": 90961052,
-        "sizeLabel": "86.7 MB",
-        "url": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.25/Scorr.deb"
+        "sizeBytes": 90974424,
+        "sizeLabel": "86.8 MB",
+        "url": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.45/Scorr.deb"
       },
       "linuxAppImage": {
         "available": true,
         "filename": "Scorr.AppImage",
-        "sizeBytes": 116260023,
+        "sizeBytes": 116276340,
         "sizeLabel": "110.9 MB",
-        "url": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.25/Scorr.AppImage"
+        "url": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.45/Scorr.AppImage"
       }
     }
   }

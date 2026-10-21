@@ -1,8 +1,8 @@
-version: 1.3.25
+version: 1.3.45
 files:
-  - url: https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.25/Scorr.AppImage
-    sha512: 2rlqVuDLgyX2WEi8bM4R5fvljfPLy4DLjybMmXZGaBXIJlfaGzrF7Kj9r1IR2aNOsa2sJD3Fgn0ajM/hta6osQ==
-    size: 116260023
-path: https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.25/Scorr.AppImage
-sha512: 2rlqVuDLgyX2WEi8bM4R5fvljfPLy4DLjybMmXZGaBXIJlfaGzrF7Kj9r1IR2aNOsa2sJD3Fgn0ajM/hta6osQ==
-releaseDate: 2026-10-14T09:27:30.556Z
+  - url: https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.45/Scorr.AppImage
+    sha512: j1sj2S+us7XjbpaCLx0EUSbLEVnuAjOT2gZf0owQgg9q/zoVNVCx53jJ2CJauvGpdux3H9pC7Owv0qqu0LkJNw==
+    size: 116276340
+path: https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.45/Scorr.AppImage
+sha512: j1sj2S+us7XjbpaCLx0EUSbLEVnuAjOT2gZf0owQgg9q/zoVNVCx53jJ2CJauvGpdux3H9pC7Owv0qqu0LkJNw==
+releaseDate: '2026-10-19T20:05:36.082Z'
