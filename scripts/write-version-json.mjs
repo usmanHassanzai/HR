@@ -32,7 +32,7 @@ function androidVersionCode() {
 // .env.desktop-urls — those files still point Windows at desktop-v1.3.8.
 // desktop-v1.3.46 crashes on start. 1.3.47 and 1.3.48 stay pre-releases until STEP B.
 // The website feed follows WINDOWS_RELEASE only. 1.3.45 is the current public feed.
-const WINDOWS_RELEASE = '1.3.45';
+const WINDOWS_RELEASE = '1.3.48';
 const LINUX_RELEASE = '1.3.45';
 const WINDOWS_INSTALLERS = {
   '1.3.45': {
