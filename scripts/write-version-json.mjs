@@ -4,7 +4,7 @@
  */
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { formatUpdatedLabel, packageVersion, readBuildInfo } from './build-info-utils.mjs';
@@ -32,8 +32,8 @@ function androidVersionCode() {
 // Desktop feed URLs are pinned here. Never read them from .env / .env.local /
 // .env.desktop-urls — those files still point Windows at desktop-v1.3.8.
 // desktop-v1.3.46 is published but crashes on start (missing windowsVariant.cjs),
-// so it is not a release the website may advertise. 1.3.47 is the Windows feed.
-const WINDOWS_RELEASE = '1.3.47';
+// so it is not a release the website may advertise. 1.3.48 is the Windows feed.
+const WINDOWS_RELEASE = '1.3.48';
 const LINUX_RELEASE = '1.3.45';
 const CRASHING_WINDOWS_RELEASES = new Set(['1.3.46']);
 const GH_RELEASE = 'https://github.com/usmanHassanzai/HR/releases/download';
@@ -179,17 +179,16 @@ mkdirSync(desktopDir, { recursive: true });
 let latestYml = '';
 let latestLinuxYml = '';
 
-// Installer built from main for desktop-v1.3.47. Do not hash a different local exe,
-// and do not read the URL from .env.
+// Local Scorr-Setup-1.3.48.exe. Do not hash a different installer, and do not read the URL from .env.
 latestYml = [
   `version: ${WINDOWS_RELEASE}`,
   'files:',
   `  - url: ${winUrl}`,
-  '    sha512: czTXbWggX7cbz7rTshm38+csBCJMVV+DHuqvP3HS4Jdk+4GFAIyD++c9fWfZsuqzeUKyASgT3cMY20nIZFPxLg==',
-  '    size: 92391753',
+  '    sha512: 8NwKpqnj5JefgwFKvkLSlRTPwHbuHTuEXOXGRJzAEiGVdyRk3jlO1VOa/KIXat1/jVHYhnWXjugZOMb3g3RU4A==',
+  '    size: 92385285',
   `path: ${winUrl}`,
-  'sha512: czTXbWggX7cbz7rTshm38+csBCJMVV+DHuqvP3HS4Jdk+4GFAIyD++c9fWfZsuqzeUKyASgT3cMY20nIZFPxLg==',
-  "releaseDate: '2026-10-21T16:10:48.018Z'",
+  'sha512: 8NwKpqnj5JefgwFKvkLSlRTPwHbuHTuEXOXGRJzAEiGVdyRk3jlO1VOa/KIXat1/jVHYhnWXjugZOMb3g3RU4A==',
+  "releaseDate: '2026-10-21T16:49:33.787Z'",
   '',
 ].join('\n');
 writeFileSync(join(desktopDir, 'latest.yml'), latestYml);
@@ -236,6 +235,72 @@ try {
 } catch (e) {
   console.warn('Could not mirror manifests into dist/', e?.message || e);
 }
+
+function syncWindowsPointers() {
+  const vercelPath = join(root, 'vercel.json');
+  const vercelText = readFileSync(vercelPath, 'utf8');
+  const redirectPattern = /("source": "\/downloads\/Scorr-Setup\.exe",\n\s*"destination": ")[^"]+(")/;
+  if (!redirectPattern.test(vercelText)) {
+    failWindowsFeed('vercel.json is missing the Windows Setup redirect');
+  }
+  const vercelNext = vercelText.replace(redirectPattern, `$1${winUrl}$2`);
+  if (!vercelNext.includes(winUrl)) {
+    failWindowsFeed('vercel.json Windows redirect did not take the release-file URL');
+  }
+  if (vercelNext !== vercelText) writeFileSync(vercelPath, vercelNext);
+
+  const info = readBuildInfo(root);
+  info.desktop = info.desktop || {};
+  info.desktop.version = WINDOWS_RELEASE;
+  info.desktop.releaseTag = `desktop-v${WINDOWS_RELEASE}`;
+  info.desktop.platforms = info.desktop.platforms || {};
+  const winBytes = 92385285;
+  info.desktop.platforms.windows = {
+    ...(info.desktop.platforms.windows || {}),
+    available: true,
+    filename: 'Scorr-Setup.exe',
+    sizeBytes: winBytes,
+    sizeLabel: `${(winBytes / (1024 * 1024)).toFixed(1)} MB`,
+    url: winUrl,
+  };
+  const infoJson = `${JSON.stringify(info, null, 2)}\n`;
+  writeFileSync(join(downloads, 'build-info.json'), infoJson);
+
+  const distDir = join(root, 'dist');
+  if (!existsSync(distDir)) return;
+  mkdirSync(join(distDir, 'downloads'), { recursive: true });
+  writeFileSync(join(distDir, 'vercel.json'), vercelNext.endsWith('\n') ? vercelNext : `${vercelNext}\n`);
+  writeFileSync(join(distDir, 'downloads', 'build-info.json'), infoJson);
+}
+
+function assertBuiltFilesOmitOldWindows() {
+  const banned = ['desktop-v1.3.46', 'desktop-v1.3.47'];
+  const distDir = join(root, 'dist');
+  if (!existsSync(distDir)) {
+    failWindowsFeed('dist/ is missing, so the Windows URL check cannot run');
+  }
+  const hits = [];
+  const walk = (dir) => {
+    for (const name of readdirSync(dir)) {
+      const path = join(dir, name);
+      if (statSync(path).isDirectory()) {
+        walk(path);
+        continue;
+      }
+      const text = readFileSync(path).toString('utf8');
+      for (const token of banned) {
+        if (text.includes(token)) hits.push(`${path} contains ${token}`);
+      }
+    }
+  };
+  walk(distDir);
+  if (hits.length) {
+    failWindowsFeed(`built files still point at an old Windows release:\n${hits.join('\n')}`);
+  }
+}
+
+syncWindowsPointers();
+assertBuiltFilesOmitOldWindows();
 
 console.log('Wrote downloads/version.json + build-meta.json', {
   version,

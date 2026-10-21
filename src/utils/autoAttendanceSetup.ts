@@ -521,26 +521,6 @@ export async function requestAllDesktopAutoAttendanceAccess(): Promise<{
   warnings: string[];
 }> {
   const warnings: string[] = [];
-  try {
-    const prep = window.scorrDesktop?.prepareAutoAttendance;
-    if (typeof prep === 'function') {
-      const res = await Promise.resolve(prep());
-      if (res?.wifi?.ssid) {
-        /* probed ok */
-      } else if (res?.wifiOk === false) {
-        warnings.push('Could not read Wi‑Fi yet — connect to office Wi‑Fi during your shift.');
-      }
-      if (res?.location === 'denied') {
-        warnings.push('Allow location if radius check-in is needed when Wi‑Fi does not match.');
-      }
-      if (res?.notifications === 'denied' && window.scorrDesktop?.platform !== 'win32') {
-        warnings.push('Allow notifications for check-in alerts.');
-      }
-      return { ok: true, warnings };
-    }
-  } catch {
-    /* fall through */
-  }
   const skipNotificationPermission = window.scorrDesktop?.platform === 'win32';
   try {
     if (

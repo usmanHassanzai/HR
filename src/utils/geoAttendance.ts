@@ -559,22 +559,6 @@ export async function submitGeoClockEvent(intent: GeoClockIntent): Promise<GeoPi
     auto: false,
     checkedAt: Date.now(),
   });
-  // Desktop only: tell main process about manual Clock Out so it clears local
-  // suppress and arms Android’s 30s re-entry cooldown (INTERVAL_CHECKED_IN_MS)
-  // before wifi_connected/ping can check in again. Mobile paths unchanged.
-  if (
-    intent === 'clock_out' &&
-    (result.action === 'clock_out' || result.action === 'clock_out_shift_end' || result.action === 'already_clocked_out')
-  ) {
-    try {
-      const { isDesktopApp } = await import('./nativePlatform');
-      if (isDesktopApp()) {
-        await Promise.resolve(window.scorrDesktop?.notifyManualCheckout?.());
-      }
-    } catch {
-      /* ignore — Android / web unchanged */
-    }
-  }
   return result;
 }
 

@@ -35,12 +35,10 @@ export default function SilentGeoAttendance() {
               window as Window & {
                 scorrDesktop?: {
                   saveAttendanceToken?: (t: string) => Promise<boolean> | boolean | void;
-                  prepareAutoAttendance?: () => Promise<unknown>;
                 };
               }
             ).scorrDesktop;
             if (desk?.saveAttendanceToken) await Promise.resolve(desk.saveAttendanceToken(token));
-            if (desk?.prepareAutoAttendance) await Promise.resolve(desk.prepareAutoAttendance());
           } catch {
             /* main bridge optional */
           }

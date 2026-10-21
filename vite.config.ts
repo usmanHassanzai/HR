@@ -1,7 +1,7 @@
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { gzipSync } from 'node:zlib'
-import { writeFileSync, mkdirSync } from 'node:fs'
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 type SizeReport = {
@@ -85,6 +85,15 @@ function moduleSizeReport(): Plugin {
   }
 }
 
+/** Same pin as scripts/write-version-json.mjs. Do not hardcode a Windows release here. */
+function windowsDesktopRelease(): string {
+  const src = readFileSync(resolve('scripts/write-version-json.mjs'), 'utf8')
+  const match = src.match(/const WINDOWS_RELEASE = '(\d+(?:\.\d+){1,2})'/)
+  if (!match) throw new Error('WINDOWS_RELEASE is missing from scripts/write-version-json.mjs')
+  return match[1]
+}
+
+const windowsRelease = windowsDesktopRelease()
 const appVersion = process.env.npm_package_version || '1.3.7'
 const webBuildId =
   process.env.VITE_WEB_BUILD_ID ||
@@ -118,6 +127,7 @@ export default defineConfig({
   define: {
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion),
     'import.meta.env.VITE_WEB_BUILD_ID': JSON.stringify(webBuildId),
+    __SCORR_WINDOWS_DESKTOP_RELEASE__: JSON.stringify(windowsRelease),
   },
   optimizeDeps: {
     include: ['react', 'react-dom', '@supabase/supabase-js'],

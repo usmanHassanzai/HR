@@ -2,6 +2,7 @@
  * Cross-platform app update checks against /downloads/version.json
  */
 import { Capacitor, registerPlugin } from '@capacitor/core';
+import { DESKTOP_WIN_PATH } from './appStoreLinks';
 import { isAndroidApp, isDesktopApp, isIosApp, isNativeApp } from './nativePlatform';
 
 export const VERSION_JSON_URL = 'https://scorr.walfia.ai/downloads/version.json';
@@ -161,9 +162,10 @@ export async function getDesktopLocalVersion(): Promise<DesktopLocalVersion> {
   return { version: packageVersion(), source: 'web' };
 }
 
-function desktopInstallFallback(plat: 'windows' | 'linux'): string {
+/** Windows URL comes from the same release pin as the feed. Linux stays on the site deb. */
+export function desktopInstallFallback(plat: 'windows' | 'linux'): string {
   return plat === 'windows'
-    ? 'https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.47/Scorr-Setup.exe'
+    ? DESKTOP_WIN_PATH
     : 'https://scorr.walfia.ai/downloads/Scorr.deb';
 }
 
@@ -215,31 +217,10 @@ export async function evaluateUpdate(manifest?: VersionManifest | null): Promise
   }
 
   if (isDesktopApp()) {
-    const plat = navigator.userAgent.toLowerCase().includes('windows') ? 'windows' : 'linux';
-    const info = (plat === 'windows' ? remote.windows : remote.linux) || {};
-    const remoteVer = info.version || '';
-    const localDesktop = await getDesktopLocalVersion();
-    // Compare against the Electron binary (bridge/marker). Website packageVersion tracks
-    // the remote UI and falsely reports “latest” while an old installer is still running.
-    if (remoteVer && isNewerVersion(remoteVer, localDesktop.version)) {
-      const installUrl =
-        plat === 'windows'
-          ? info.setupUrl || desktopInstallFallback('windows')
-          : info.appImageUrl || info.debUrl || desktopInstallFallback('linux');
-      return {
-        kind: 'native',
-        platform: plat,
-        message: 'Downloading update…',
-        notes: info.notes || remote.notes || '',
-        mandatory: true,
-        version: remoteVer,
-        installUrl,
-        canAutoInstall:
-          Boolean(window.scorrDesktop?.checkForUpdates) ||
-          plat === 'windows' ||
-          Boolean(info.appImageUrl),
-      };
-    }
+    // The desktop shell emits onUpdateReady after its own updater finds a newer
+    // installer. Do not compare the website package version with the feed:
+    // 1.3.45/1.3.48 have no getAppVersion, so that comparison is the website
+    // version and would restart a laptop that is already on the feed.
   }
 
   if (isIosApp() || Capacitor.getPlatform() === 'ios') {

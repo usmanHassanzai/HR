@@ -81,8 +81,9 @@ async function desktopBinaryVersion(): Promise<string | null> {
 }
 
 function desktopBinaryTooOld(ver: string | null): boolean {
+  // 1.3.45 preload has no getAppVersion. A missing version is not “too old”.
+  if (!ver) return false;
   const min = minDesktopBinary();
-  if (!ver) return true;
   if (ver === min) return false;
   return isNewerVersion(min, ver);
 }
@@ -222,20 +223,6 @@ async function ensureDesktopMainArmed(token: string | null): Promise<boolean> {
     }
     if (!mainHas && desk.hasAttendanceToken) {
       mainHas = Boolean(await Promise.resolve(desk.hasAttendanceToken()));
-    }
-    // Tray / login-item — best effort; token in main is enough to be “armed”.
-    // Cap wait: Windows geolocation inside prepare must never block Enable.
-    if (mainHas && desk.prepareAutoAttendance) {
-      try {
-        await Promise.race([
-          Promise.resolve(desk.prepareAutoAttendance()),
-          new Promise<void>((resolve) => {
-            window.setTimeout(resolve, 2500);
-          }),
-        ]);
-      } catch {
-        /* ignore */
-      }
     }
     return mainHas;
   } catch (e) {

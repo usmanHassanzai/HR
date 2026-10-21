@@ -37,7 +37,7 @@ function markAutoApplied(key: string) {
 /**
  * Headless updater — downloads/installs in the background with no on-screen banner.
  * Android may still show the system Install sheet (OS requirement for sideloaded APKs).
- * Desktop electron-updater downloads then quitAndInstall; web hard-refreshes silently.
+ * Desktop restarts only when the shell emits onUpdateReady. Web hard-refreshes silently.
  */
 export default function AppUpdateBanner({ forceCheck = false }: { forceCheck?: boolean }) {
   const applyingRef = useRef(false);
@@ -50,7 +50,7 @@ export default function AppUpdateBanner({ forceCheck = false }: { forceCheck?: b
     const desktopInstallReady =
       next.kind === 'native' &&
       (next.platform === 'windows' || next.platform === 'linux') &&
-      (next.message === 'Updating…' || next.message === 'Restart to update');
+      next.message === 'Updating…';
 
     if (desktopInstallReady) {
       if (desktopInstallStartedRef.current) return;

@@ -2,10 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Info, Loader2, RefreshCw } from 'lucide-react';
 import {
   applyNativeUpdate,
-  fetchVersionManifest,
-  getDesktopLocalVersion,
   hardRefreshWeb,
-  isNewerVersion,
   localWebBuildId,
   packageVersion,
   type UpdateAction,
@@ -62,7 +59,6 @@ export default function AboutUpdatesPanel() {
   const [msg, setMsg] = useState('');
   const [electronVersion, setElectronVersion] = useState<string | null>(null);
   const [, setTick] = useState(0);
-  const statusUnsubRef = useRef<(() => void) | null>(null);
   const readyUnsubRef = useRef<(() => void) | null>(null);
   /** When true, desktop download/install owns busy — do not clear in finally. */
   const desktopInstallInFlightRef = useRef(false);
@@ -88,42 +84,14 @@ export default function AboutUpdatesPanel() {
       window.clearTimeout(t1);
       window.clearTimeout(t2);
       window.clearTimeout(t3);
-      statusUnsubRef.current?.();
       readyUnsubRef.current?.();
     };
   }, []);
 
   const attachDesktopStatusListeners = () => {
-    statusUnsubRef.current?.();
     readyUnsubRef.current?.();
-    statusUnsubRef.current = null;
     readyUnsubRef.current = null;
 
-    if (window.scorrDesktop?.onUpdateStatus) {
-      statusUnsubRef.current = window.scorrDesktop.onUpdateStatus((payload) => {
-        // Keep About quiet while download/install runs in the background.
-        if (payload?.phase === 'none') {
-          desktopInstallInFlightRef.current = false;
-          setBusy(false);
-          setMsg(payload.message || 'You are on the latest version.');
-        }
-        if (payload?.phase === 'error' || payload?.phase === 'manual') {
-          desktopInstallInFlightRef.current = false;
-          setBusy(false);
-          if (payload.message) setMsg(payload.message);
-        }
-        if (
-          payload?.phase === 'downloading' ||
-          payload?.phase === 'installing' ||
-          payload?.phase === 'restarting' ||
-          payload?.phase === 'available'
-        ) {
-          desktopInstallInFlightRef.current = true;
-          setBusy(true);
-          setMsg('');
-        }
-      });
-    }
     if (window.scorrDesktop?.onUpdateReady) {
       readyUnsubRef.current = window.scorrDesktop.onUpdateReady(() => {
         desktopInstallInFlightRef.current = true;
@@ -161,19 +129,14 @@ export default function AboutUpdatesPanel() {
 
         const next = await checkForUpdatesNow();
         setResult(next);
-        if (next.kind === 'none') {
-          setMsg(res.message || 'You are on the latest version.');
-          return;
-        }
         if (next.kind === 'refresh') {
           setMsg('');
           hardRefreshWeb();
           return;
         }
-        if (next.kind === 'native') {
-          setMsg('');
-          await applyNativeUpdate(next);
-        }
+        // Do not install from a website-vs-feed comparison. The shell emits
+        // onUpdateReady, and the update banner restarts only for that event.
+        setMsg(res.message || 'You are on the latest version.');
         return;
       }
 
@@ -187,34 +150,8 @@ export default function AboutUpdatesPanel() {
           return;
         }
         if (isDesktopApp()) {
-          const [localDesktop, manifest] = await Promise.all([
-            getDesktopLocalVersion(),
-            fetchVersionManifest(),
-          ]);
-          const plat = navigator.userAgent.toLowerCase().includes('windows') ? 'windows' : 'linux';
-          const remoteVer =
-            (plat === 'windows' ? manifest?.windows?.version : manifest?.linux?.version) || '';
-          if (remoteVer && isNewerVersion(remoteVer, localDesktop.version)) {
-            const api = window.scorrDesktop?.checkForUpdates;
-            if (api) {
-              const res = await api();
-              if (res.updateAvailable && res.autoInstall !== false) {
-                desktopInstallInFlightRef.current = true;
-                setMsg('');
-                return;
-              }
-              setMsg(res.message || '');
-            } else {
-              setMsg(`Please reinstall Scorr ${remoteVer} from the downloads page.`);
-            }
-            return;
-          }
-          if (localDesktop.source === 'web' && isElectronShell()) {
-            setMsg(
-              'Could not read the desktop binary version. Quit Scorr (tray too) and reopen, or reinstall if Enable auto check-in is missing.',
-            );
-            return;
-          }
+          setMsg('You are on the latest version.');
+          return;
         }
         setMsg('You are on the latest version.');
         return;
