@@ -27,6 +27,7 @@ const repoArg = process.argv.find((a) => a.startsWith('--repo='))?.slice('--repo
 
 const version = packageVersion(root);
 const tag = `desktop-v${version}`;
+const winOnly = process.argv.includes('--win-only');
 
 const assets = [
   {
@@ -38,6 +39,8 @@ const assets = [
     file: 'Scorr.deb',
     key: 'linuxDeb',
     env: 'VITE_DESKTOP_LINUX_DEB_URL',
+    // Windows-only publishes must not require rebuilding Linux (already working).
+    optional: winOnly,
   },
   {
     file: 'Scorr.AppImage',
@@ -103,10 +106,25 @@ for (const asset of assets) {
     console.log(`Skipping missing optional ${asset.file}`);
     continue;
   }
+  // --win-only: never upload Linux packages (may be stale copies from an older build).
+  if (winOnly && asset.key !== 'windows') {
+    console.log(`Skipping ${asset.file} (--win-only)`);
+    continue;
+  }
   console.log(`Uploading ${asset.file}…`);
   // clobber replaces existing asset with same name
   run('gh', ['release', 'upload', tag, path, '-R', repoArg, '--clobber']);
   urls[asset.env] = `https://github.com/${repoArg}/releases/download/${tag}/${asset.file}`;
+}
+
+// Persist URLs first so write-version-json picks up this release (not a stale .env).
+try {
+  const envPath = join(root, '.env.desktop-urls');
+  const body = `${Object.entries(urls).map(([k, v]) => `${k}=${v}`).join('\n')}\n`;
+  writeFileSync(envPath, body);
+  console.log(`Wrote ${envPath}`);
+} catch {
+  /* ignore */
 }
 
 // Rewrite updater feeds with absolute GitHub URLs (Vercel hosts only the yml).
@@ -114,6 +132,18 @@ try {
   run('node', ['scripts/write-version-json.mjs']);
 } catch (e) {
   console.warn('write-version-json after publish:', e?.message || e);
+}
+
+// Also attach latest.yml feeds to the GitHub Release (redundant with scorr.walfia.ai feed).
+for (const yml of ['latest.yml', 'latest-linux.yml']) {
+  const ymlPath = join(downloads, 'desktop', yml);
+  if (!existsSync(ymlPath)) continue;
+  try {
+    console.log(`Uploading ${yml} to release…`);
+    run('gh', ['release', 'upload', tag, ymlPath, '-R', repoArg, '--clobber']);
+  } catch (e) {
+    console.warn(`Could not upload ${yml}:`, e?.message || e);
+  }
 }
 
 const exportedAt = new Date();
@@ -154,13 +184,3 @@ ${Object.entries(urls).map(([k, v]) => `${k}=${v}`).join('\n')}
 
 Download page will use these absolute URLs.
 `);
-
-// Persist for local convenience
-try {
-  const envPath = join(root, '.env.desktop-urls');
-  const body = `${Object.entries(urls).map(([k, v]) => `${k}=${v}`).join('\n')}\n`;
-  writeFileSync(envPath, body);
-  console.log(`Wrote ${envPath}`);
-} catch {
-  /* ignore */
-}

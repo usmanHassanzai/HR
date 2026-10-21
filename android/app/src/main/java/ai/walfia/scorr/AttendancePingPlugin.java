@@ -40,6 +40,10 @@ import java.util.concurrent.Executors;
         @Permission(
             alias = "notifications",
             strings = { Manifest.permission.POST_NOTIFICATIONS }
+        ),
+        @Permission(
+            alias = "nearbyWifi",
+            strings = { "android.permission.NEARBY_WIFI_DEVICES" }
         )
     }
 )
@@ -421,6 +425,93 @@ public class AttendancePingPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void requestNearbyWifi(PluginCall call) {
+        if (Build.VERSION.SDK_INT < 33) {
+            JSObject result = new JSObject();
+            result.put("status", "granted");
+            call.resolve(result);
+            return;
+        }
+        if (ContextCompat.checkSelfPermission(getContext(), "android.permission.NEARBY_WIFI_DEVICES")
+            == PackageManager.PERMISSION_GRANTED) {
+            JSObject result = new JSObject();
+            result.put("status", "granted");
+            call.resolve(result);
+            return;
+        }
+        requestPermissionForAlias("nearbyWifi", call, "onNearbyWifiResult");
+    }
+
+    @PermissionCallback
+    private void onNearbyWifiResult(PluginCall call) {
+        JSObject result = new JSObject();
+        boolean ok =
+            Build.VERSION.SDK_INT < 33
+                || ContextCompat.checkSelfPermission(
+                        getContext(), "android.permission.NEARBY_WIFI_DEVICES")
+                    == PackageManager.PERMISSION_GRANTED;
+        result.put("status", ok ? "granted" : "denied");
+        call.resolve(result);
+    }
+
+    /** System dialog: ignore battery optimizations so FGS keeps probing. */
+    @PluginMethod
+    public void requestBatteryUnrestricted(PluginCall call) {
+        try {
+            Context ctx = getContext();
+            boolean unrestricted = true;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                android.os.PowerManager pm =
+                    (android.os.PowerManager) ctx.getSystemService(Context.POWER_SERVICE);
+                unrestricted =
+                    pm != null && pm.isIgnoringBatteryOptimizations(ctx.getPackageName());
+                if (!unrestricted) {
+                    android.content.Intent intent =
+                        new android.content.Intent(
+                            android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                    intent.setData(android.net.Uri.parse("package:" + ctx.getPackageName()));
+                    intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+                    ctx.startActivity(intent);
+                }
+            }
+            JSObject result = new JSObject();
+            result.put("opened", !unrestricted);
+            result.put("batteryUnrestricted", unrestricted);
+            call.resolve(result);
+        } catch (Exception e) {
+            call.reject(e.getMessage());
+        }
+    }
+
+    /** Android 12+: prompt for exact alarms used to wake at shift window start. */
+    @PluginMethod
+    public void requestExactAlarms(PluginCall call) {
+        JSObject result = new JSObject();
+        try {
+            Context ctx = getContext();
+            boolean allowed = true;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                android.app.AlarmManager am =
+                    (android.app.AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
+                allowed = am != null && am.canScheduleExactAlarms();
+                if (!allowed) {
+                    android.content.Intent intent =
+                        new android.content.Intent(
+                            android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM);
+                    intent.setData(android.net.Uri.parse("package:" + ctx.getPackageName()));
+                    intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+                    ctx.startActivity(intent);
+                }
+            }
+            result.put("exactAlarm", allowed ? "granted" : "prompted");
+            call.resolve(result);
+        } catch (Exception e) {
+            result.put("exactAlarm", "unknown");
+            call.resolve(result);
+        }
+    }
+
+    @PluginMethod
     public void getPermissionSnapshot(PluginCall call) {
         Context ctx = getContext();
         JSObject result = new JSObject();
@@ -450,6 +541,18 @@ public class AttendancePingPlugin extends Plugin {
             lm.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)
             || lm.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER)
         );
+        boolean nearbyWifi = true;
+        if (Build.VERSION.SDK_INT >= 33) {
+            nearbyWifi =
+                ContextCompat.checkSelfPermission(ctx, "android.permission.NEARBY_WIFI_DEVICES")
+                    == PackageManager.PERMISSION_GRANTED;
+        }
+        boolean exactAlarm = true;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            android.app.AlarmManager am =
+                (android.app.AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
+            exactAlarm = am != null && am.canScheduleExactAlarms();
+        }
 
         result.put("location", fine || coarse ? "granted" : "denied");
         result.put("coarseLocation", coarse ? "granted" : "denied");
@@ -457,6 +560,8 @@ public class AttendancePingPlugin extends Plugin {
         result.put("precise", fine);
         result.put("locationServicesEnabled", servicesOn);
         result.put("notifications", notif ? "granted" : "denied");
+        result.put("nearbyWifi", nearbyWifi ? "granted" : "denied");
+        result.put("exactAlarm", exactAlarm ? "granted" : "denied");
         if (batteryUnrestricted != null) result.put("batteryUnrestricted", batteryUnrestricted);
         result.put("manufacturer", Build.MANUFACTURER != null ? Build.MANUFACTURER : "");
         call.resolve(result);

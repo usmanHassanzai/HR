@@ -137,5 +137,27 @@ export function applyBranding(config: BrandingConfig): void {
   root.style.setProperty('--accent-glow', `0 0 20px rgba(${rgb}, 0.3)`);
   root.style.setProperty('--border-hover', `rgba(${rgb}, 0.4)`);
 
+  // Do not overwrite Electron’s “Scorr Desktop x.y.z” window title with the website tagline.
+  try {
+    const w = window as Window & {
+      scorrDesktop?: { isDesktop?: boolean };
+      __SCORR_ELECTRON_SHELL__?: boolean;
+    };
+    const electron =
+      Boolean(w.scorrDesktop?.isDesktop) ||
+      w.__SCORR_ELECTRON_SHELL__ === true ||
+      /\bElectron\//i.test(navigator.userAgent || '') ||
+      /\bScorrDesktop\//i.test(navigator.userAgent || '');
+    if (electron) {
+      const ver =
+        (w as Window & { __SCORR_ELECTRON_VERSION__?: string }).__SCORR_ELECTRON_VERSION__ ||
+        document.documentElement?.dataset?.scorrDesktop ||
+        '';
+      document.title = ver ? `Scorr Desktop ${ver}` : 'Scorr Desktop';
+      return;
+    }
+  } catch {
+    /* fall through */
+  }
   document.title = `${config.brandName} — ${config.tagline}`;
 }

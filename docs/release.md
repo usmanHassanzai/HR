@@ -6,7 +6,7 @@ Android, iOS (Capacitor), and desktop Electron load **`https://scorr.walfia.ai/?
 
 Most product changes ship with a **Vercel deploy only** — no new APK / IPA / installer.
 
-Users see **“New version available — Refresh”** when `webBuildId` in `/downloads/version.json` advances (browser, iOS Home Screen, and inside native shells).
+Clients poll **`/build-meta.json`** (and `/downloads/version.json`) on every open / focus and hard-refresh when `webBuildId` advances (browser, iOS Home Screen, Electron shell, Capacitor WebView).
 
 ### Needs a NEW native build
 
@@ -58,23 +58,41 @@ Alternative: `npx vercel login` (browser). `deploy-site.mjs` will read the CLI t
 - **Key change / first release-signed APK:** anyone still on a **debug-signed** build must uninstall once, then install the release APK. After that, updates install over the old app forever (same key). The in-app banner notes this when `notes` say so.
 - Play Store later: same keystore, upload AAB (`bundleRelease`), enable Play App Signing.
 
+## What auto-updates vs what needs a fresh install
+
+| Surface | Auto after deploy/release? | Still needs manual install once |
+| --- | --- | --- |
+| Browser / PWA / Electron **web UI** | Yes — hard refresh via `build-meta.json` | — |
+| Desktop **binary** (NSIS / AppImage) | Yes — electron-updater reads `…/downloads/desktop/latest.yml` (binaries on GitHub Releases) | First install of Setup.exe / AppImage / `.deb` |
+| Desktop **`.deb`** | Banner + download link (updater works best with AppImage/NSIS) | `apt`/dpkg install or switch to AppImage |
+| Android APK | Yes — in-app download + system Install prompt when `versionCode` advances | First APK install; Play Store later |
+| iOS Home Screen | Yes — same as web | Add to Home Screen once |
+| iOS native IPA | Messaging via `version.json`; store/TestFlight when published | TestFlight / App Store / Ad Hoc |
+
+**Deploy checklist:** after `npm run build`, confirm these are in `dist/` and live:
+
+- `/build-meta.json`, `/downloads/version.json`
+- `/downloads/desktop/latest.yml`, `/downloads/desktop/latest-linux.yml` (404 here breaks desktop auto-update)
+
 ## Windows
 
-- NSIS installer + **electron-updater** (generic feed `…/downloads/desktop/`).
-- Checks on start and every **6 hours**; background download; notification **Restart to update**.
+- NSIS installer + **electron-updater** (generic feed `https://scorr.walfia.ai/downloads/desktop/`; `latest.yml` points at GitHub Release assets).
+- Checks **on every launch**, around local **5:00 AM**, and on resume; background download then quit-and-install.
+- About → Check for updates uses the binary version (not the website package id).
 - Login / attendance tokens live in Electron userData (not wiped on update).
 
 ## Linux
 
-- **AppImage** uses electron-updater (same feed, `latest-linux.yml`).
-- **`.deb`** shows in-app “Update available” + Download (apt channel optional later).
+- **AppImage** uses electron-updater (`latest-linux.yml`) — Check for updates auto-downloads and `quitAndInstall`s in the background.
+- **`.deb`** cannot silent-replace itself (dpkg/apt). Check for updates opens the AppImage (or `.deb`) download as best-effort and instructs a manual install. Prefer AppImage for background auto-update.
+- **Windows NSIS** — same silent path as AppImage (`autoDownload` + `quitAndInstall` after download).
 
 ## iOS
 
 | Channel | How updates ship |
 | --- | --- |
-| Home Screen / PWA | Vercel web deploy + Refresh banner |
-| Native Capacitor 1.3.7+ | TestFlight / App Store; in-app `version.json` → store link |
+| Home Screen / PWA | Vercel web deploy + automatic hard refresh |
+| Native Capacitor | TestFlight / App Store when published; in-app `version.json` opens store or PWA URL |
 
 ### Distribution pros / cons
 

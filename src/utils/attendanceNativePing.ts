@@ -1,29 +1,12 @@
-import { registerPlugin } from '@capacitor/core';
 import { supabaseUrl, supabaseAnonKey } from '../lib/supabaseConfig';
 import { packageVersion } from './appUpdate';
-import { isAndroidApp } from './nativePlatform';
+import { AttendancePing } from './attendancePingPlugin';
+import { isAndroidApp, isIosApp } from './nativePlatform';
 import { getAttendanceDeviceToken } from './attendanceDevice';
 
-interface AttendancePingPlugin {
-  startAutoAttendance(options: {
-    supabaseUrl: string;
-    anonKey: string;
-    deviceToken: string;
-    deviceId: string;
-    appVersion?: string;
-  }): Promise<void>;
-  stopAutoAttendance(): Promise<void>;
-  syncSchedule(): Promise<{ ok?: boolean }>;
-  isAutoAttendanceEnabled?(): Promise<{
-    enabled?: boolean;
-    hasToken?: boolean;
-    insideWindow?: boolean;
-  }>;
-  /** @deprecated JWT path removed */
-  stop(): Promise<void>;
+function isNativeAutoAttendanceApp(): boolean {
+  return isAndroidApp() || isIosApp();
 }
-
-const AttendancePing = registerPlugin<AttendancePingPlugin>('AttendancePing');
 
 const DEVICE_ID_KEY = 'scorr_attendance_device_id';
 /** JS fallback when APK lacks isAutoAttendanceEnabled (live web + older native). */
@@ -108,12 +91,11 @@ function isPluginMethodMissing(e: unknown): boolean {
 }
 
 /**
- * Android only: Wi-Fi auto check-in via device token + schedule window.
- * iOS auto path stays off.
+ * Android / iOS Capacitor: auto check-in via device token + schedule window.
  * Throws when the plugin rejects so enroll UI can surface a real warning.
  */
 export async function startNativeAttendancePings(): Promise<void> {
-  if (!isAndroidApp()) return;
+  if (!isNativeAutoAttendanceApp()) return;
   if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error('Missing Supabase config — cannot start background check-in.');
   }
@@ -122,8 +104,9 @@ export async function startNativeAttendancePings(): Promise<void> {
     throw new Error('No device token saved — register this device first.');
   }
   const deviceId = await resolveDeviceId();
+  const platformLabel = isIosApp() ? 'iOS' : 'Android';
   try {
-    await AttendancePing.startAutoAttendance({
+    await AttendancePing.startAutoAttendance!({
       supabaseUrl,
       anonKey: supabaseAnonKey,
       deviceToken,
@@ -135,7 +118,7 @@ export async function startNativeAttendancePings(): Promise<void> {
     const msg = pluginErrorMessage(e);
     if (/not implemented|unimplemented|no such method/i.test(msg)) {
       throw new Error(
-        'This Android app build is outdated for automatic check-in. Update or reinstall Scorr, then tap Enable again.',
+        `This ${platformLabel} app build is outdated for automatic check-in. Update or reinstall Scorr, then tap Enable again.`,
       );
     }
     if (/Auto attendance not enabled/i.test(msg)) {
@@ -155,7 +138,9 @@ export async function startNativeAttendancePings(): Promise<void> {
     }
     if (/permission|notification|foreground service|startForeground/i.test(msg)) {
       throw new Error(
-        'Android blocked background check-in. Allow location (All the time), notifications, and Unrestricted battery for Scorr, then tap Enable.',
+        isIosApp()
+          ? 'iPhone blocked background check-in. Allow Location → Always and notifications for Scorr, then tap Enable.'
+          : 'Android blocked background check-in. Allow location (All the time), notifications, and Unrestricted battery for Scorr, then tap Enable.',
       );
     }
     throw e instanceof Error ? e : new Error(msg || 'Failed to start background check-in.');
@@ -169,7 +154,7 @@ export async function startNativeAttendancePings(): Promise<void> {
  * successful startAutoAttendance (avoids forever “Needs setup” with live web).
  */
 export async function isNativeAutoAttendanceArmed(): Promise<boolean> {
-  if (!isAndroidApp()) return false;
+  if (!isNativeAutoAttendanceApp()) return false;
   try {
     const res = await AttendancePing.isAutoAttendanceEnabled!();
     const enabled = Boolean(res?.enabled);
@@ -186,24 +171,24 @@ export async function isNativeAutoAttendanceArmed(): Promise<boolean> {
 }
 
 export async function refreshNativeAttendanceSession(): Promise<void> {
-  if (!isAndroidApp()) return;
+  if (!isNativeAutoAttendanceApp()) return;
   const deviceToken = await getAttendanceDeviceToken();
   if (!deviceToken) return;
   try {
-    await AttendancePing.syncSchedule();
+    await AttendancePing.syncSchedule?.();
   } catch {
     /* ignore */
   }
 }
 
 export async function stopNativeAttendancePings(): Promise<void> {
-  if (!isAndroidApp()) return;
+  if (!isNativeAutoAttendanceApp()) return;
   await setArmedFlag(false);
   try {
-    await AttendancePing.stopAutoAttendance();
+    await AttendancePing.stopAutoAttendance?.();
   } catch {
     try {
-      await AttendancePing.stop();
+      await AttendancePing.stop?.();
     } catch {
       /* ignore */
     }

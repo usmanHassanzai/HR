@@ -10,10 +10,16 @@ directories:
 files:
   - main.cjs
   - preload.cjs
+  - wifiProbe.cjs
+  - desktopNotify.cjs
+  - runtime-config.cjs
   - icon.png
   - package.json
   - node_modules/**/*
 asar: true
+# Linux sometimes fails to execute preload from inside app.asar — unpack it.
+asarUnpack:
+  - preload.cjs
 publish:
   - provider: generic
     url: https://scorr.walfia.ai/downloads/desktop/

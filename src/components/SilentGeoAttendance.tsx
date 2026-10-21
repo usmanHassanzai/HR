@@ -7,16 +7,15 @@ import {
   getAttendanceDeviceToken,
   sendAutoAttendanceEventWithLocation,
 } from '../utils/attendanceDevice';
-import { isAndroidApp, isDesktopApp } from '../utils/nativePlatform';
+import { isAndroidApp, isDesktopApp, isIosApp } from '../utils/nativePlatform';
 
 /**
  * Arms Wi-Fi / radius auto check-in after enrollment.
- * Android: native FGS / schedule. Desktop: renderer ping with GPS (Electron main also heartbeats).
- * iOS: explicitly left off.
+ * Android: native FGS / schedule. iOS: region monitoring. Desktop: Electron heartbeat.
  */
 export default function SilentGeoAttendance() {
   useEffect(() => {
-    if (!isAndroidApp() && !isDesktopApp()) return;
+    if (!isAndroidApp() && !isIosApp() && !isDesktopApp()) return;
     let cancelled = false;
     let desktopTimer: number | undefined;
 
@@ -24,13 +23,27 @@ export default function SilentGeoAttendance() {
       try {
         const token = await getAttendanceDeviceToken();
         if (cancelled || !token) return;
-        if (isAndroidApp()) {
+        if (isAndroidApp() || isIosApp()) {
           await startNativeAttendancePings();
           await refreshNativeAttendanceSession();
         }
         if (isDesktopApp()) {
-          // Desktop Electron main process owns background heartbeats; this nudges
-          // a check-in with GPS while the window is open (Wi-Fi probed in main).
+          // Re-push token into main (Linux keyring can drop decrypt after reboot)
+          // so tray heartbeats stay armed, then nudge a check-in while UI is open.
+          try {
+            const desk = (
+              window as Window & {
+                scorrDesktop?: {
+                  saveAttendanceToken?: (t: string) => Promise<boolean> | boolean | void;
+                  prepareAutoAttendance?: () => Promise<unknown>;
+                };
+              }
+            ).scorrDesktop;
+            if (desk?.saveAttendanceToken) await Promise.resolve(desk.saveAttendanceToken(token));
+            if (desk?.prepareAutoAttendance) await Promise.resolve(desk.prepareAutoAttendance());
+          } catch {
+            /* main bridge optional */
+          }
           await sendAutoAttendanceEventWithLocation('ping');
         }
       } catch {

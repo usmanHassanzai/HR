@@ -58,12 +58,25 @@ function sizeLabel(bytes) {
 
 function findArtifact(dir, matcher) {
   if (!existsSync(dir)) return null;
-  const files = readdirSync(dir);
-  const hit = files.find((f) => matcher(f));
-  return hit ? join(dir, hit) : null;
+  const files = readdirSync(dir).filter((f) => matcher(f));
+  if (!files.length) return null;
+  // Prefer the current package version, then newest mtime (avoid stale Scorr-1.3.x picks).
+  const versioned = files.filter((f) => f.includes(version));
+  const pool = versioned.length ? versioned : files;
+  pool.sort((a, b) => {
+    try {
+      return statSync(join(dir, b)).mtimeMs - statSync(join(dir, a)).mtimeMs;
+    } catch {
+      return 0;
+    }
+  });
+  return join(dir, pool[0]);
 }
 
 console.log('Scorr Desktop build\n');
+
+console.log('Writing desktop runtime config (Supabase anon for auto attendance)…');
+run('node', ['scripts/write-desktop-runtime-config.mjs']);
 
 const version = packageVersion(root);
 try {

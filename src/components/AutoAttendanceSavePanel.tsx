@@ -18,12 +18,16 @@ import {
   type AutoAttendanceSaveStatus,
 } from '../utils/autoAttendanceEnroll';
 import { friendlyAutoAttendanceError } from '../utils/attendanceDevice';
+import { DESKTOP_LINUX_DEB_PATH, DESKTOP_WIN_PATH } from '../utils/appStoreLinks';
+import DesktopWifiDiagnostics from './DesktopWifiDiagnostics';
 
 type UiState = 'active' | 'needs_setup' | 'off';
 
 function resolveUiState(status: AutoAttendanceSaveStatus): UiState {
   if (!status.saved) return 'off';
   if (status.backgroundArmed) {
+    // Desktop: armed = Active (no phone permission gates). setupIssues are informational.
+    if (status.kind === 'desktop') return 'active';
     const blocking =
       status.needsLocation ||
       status.needsBackgroundLocation ||
@@ -95,6 +99,28 @@ export default function AutoAttendanceSavePanel() {
     void refresh();
   }, [refresh]);
 
+  // Electron injects window.scorrDesktop / shell marker slightly after first paint.
+  // Re-check so we do not stay stuck on “Browser” inside the real desktop window.
+  useEffect(() => {
+    let cancelled = false;
+    const again = () => {
+      if (cancelled) return;
+      const desk = typeof window !== 'undefined' ? window.scorrDesktop : undefined;
+      const marked =
+        typeof window !== 'undefined' &&
+        Boolean(
+          (window as Window & { __SCORR_ELECTRON_SHELL__?: boolean }).__SCORR_ELECTRON_SHELL__ ||
+            document.documentElement?.dataset?.scorrDesktop,
+        );
+      if (desk?.isDesktop || marked) void refresh();
+    };
+    const ids = [300, 800, 1600, 3200].map((ms) => window.setTimeout(again, ms));
+    return () => {
+      cancelled = true;
+      ids.forEach((id) => window.clearTimeout(id));
+    };
+  }, [refresh]);
+
   const onSave = async () => {
     setBusy(true);
     setError('');
@@ -113,7 +139,9 @@ export default function AutoAttendanceSavePanel() {
         return;
       }
 
-      if (!reallyArmed) {
+      // Desktop: enrollment + main arm already validated in saveAccountForAutoAttendance.
+      // Do not turn soft warnings into a red failure (that caused the false “not armed” loop).
+      if (!reallyArmed && next?.kind !== 'desktop') {
         setError(
           res.warnings[0] ||
             'Setup did not finish on this phone. Allow location All the time, notifications, and Unrestricted battery, then tap Enable automatic check-in.',
@@ -122,12 +150,17 @@ export default function AutoAttendanceSavePanel() {
       }
 
       const extra = res.warnings.filter(Boolean);
-      if (reallyActive) {
+      if (reallyActive || (next?.kind === 'desktop' && reallyArmed)) {
         setNoteTone('success');
         setNote(
           extra.length
             ? `Automatic check-in is on. ${extra.join(' ')}`
             : 'Automatic check-in is on — you can close the app.',
+        );
+      } else if (next?.kind === 'desktop' && !reallyArmed) {
+        setError(
+          res.error ||
+            'Could not arm background check-in. Quit Scorr fully, open the installed app, then tap Enable.',
         );
       } else {
         // Armed but still needs a permission — show blocker, not green “updated”
@@ -193,17 +226,69 @@ export default function AutoAttendanceSavePanel() {
   if (!status) return null;
 
   if (status.kind === 'unsupported') {
+    const isLinuxHint =
+      typeof navigator !== 'undefined' && /linux/i.test(navigator.userAgent || '');
+    const isWinHint =
+      typeof navigator !== 'undefined' && /windows/i.test(navigator.userAgent || '');
     return (
       <div className="auto-attend-save">
         <p style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>
           Automatic check-in
         </p>
         <p style={{ margin: '0.4rem 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-          Available in the <strong>Android app</strong> and <strong>desktop app</strong>. Open Settings
-          there to enable it. iOS and the browser cannot stay enrolled in the background.
+          This window is the <strong>website</strong> (Chrome/Firefox or a Chrome “Install app”
+          shortcut), not the Scorr Desktop program. About can show a version from the website —
+          that does <strong>not</strong> mean the desktop binary is running. The window title must
+          say <strong>Scorr Desktop</strong> with a version in the window title
+          (Windows 1.3.40+ / Linux 1.3.39+).
         </p>
+        <ol
+          style={{
+            margin: '0.65rem 0 0',
+            paddingLeft: '1.2rem',
+            fontSize: '0.85rem',
+            color: 'var(--text-secondary)',
+            lineHeight: 1.5,
+          }}
+        >
+          {isLinuxHint ? (
+            <>
+              <li>
+                Download{' '}
+                <a href={DESKTOP_LINUX_DEB_PATH} style={{ color: 'var(--accent, #0f766e)' }}>
+                  Scorr.deb
+                </a>{' '}
+                (Linux v1.3.39+)
+              </li>
+              <li>
+                Install: <code>sudo apt install ./Scorr.deb</code>
+              </li>
+              <li>
+                Open <strong>Scorr</strong> from the Applications menu (search “Scorr”) — close
+                Chrome/Firefox tabs for scorr.walfia.ai
+              </li>
+              <li>Sign in → Settings → Automatic check-in → Enable</li>
+            </>
+          ) : isWinHint ? (
+            <>
+              <li>
+                Download{' '}
+                <a href={DESKTOP_WIN_PATH} style={{ color: 'var(--accent, #0f766e)' }}>
+                  Scorr-Setup.exe
+                </a>
+              </li>
+              <li>Install, then open Scorr from the Start Menu (not Edge/Chrome)</li>
+              <li>Sign in → Settings → Automatic check-in → Enable</li>
+            </>
+          ) : (
+            <>
+              <li>Install the Android, iOS, or desktop app from Downloads</li>
+              <li>Open that app (not this browser tab) and enable Automatic check-in</li>
+            </>
+          )}
+        </ol>
         <p style={{ margin: '0.65rem 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-          This device: {status.platformLabel}
+          This window: {status.platformLabel}
         </p>
       </div>
     );
@@ -280,8 +365,11 @@ export default function AutoAttendanceSavePanel() {
           <MapPin size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
           Otherwise, office area (with location on)
         </li>
-        <li>
+        <li style={{ marginBottom: '0.25rem' }}>
           Runs from 1 hour before shift start until shift end
+        </li>
+        <li>
+          Enable once — then auto works without opening the dashboard (app/tray must stay allowed to run)
         </li>
       </ul>
 
@@ -382,6 +470,8 @@ export default function AutoAttendanceSavePanel() {
           </>
         )}
       </div>
+
+      {status.kind === 'desktop' && <DesktopWifiDiagnostics />}
 
       {error && (
         <p style={{ color: 'var(--color-danger)', fontSize: '0.85rem', margin: '0.75rem 0 0' }}>{error}</p>

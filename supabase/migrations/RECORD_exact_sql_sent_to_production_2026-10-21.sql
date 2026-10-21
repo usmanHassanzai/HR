@@ -1,0 +1,66 @@
+-- RECORD ONLY. Do not run this file.
+-- Exact SQL sent to production project yvnbxweitelowucdhwpg on 2026-10-21.
+-- Production was not queried again after these calls.
+
+-- ---------------------------------------------------------------------------
+-- Call 1 — FAILED. The Management API returned HTTP 400 and applied nothing.
+-- Postgres rejected the script because chr(0) is a null byte inside the
+-- function body: "null character not permitted" in attendance_normalize_ssid.
+-- The rest of that script was the same five functions as Call 2, without the
+-- desktop checkout guard.
+-- ---------------------------------------------------------------------------
+-- CREATE OR REPLACE FUNCTION public.attendance_normalize_ssid(p_ssid TEXT)
+-- ...
+--   SELECT NULLIF(
+--     btrim(regexp_replace(
+--       replace(replace(btrim(btrim(COALESCE(p_ssid, '')), '"'), chr(0), ''), E'\u00a0', ' '),
+--       '[[:space:]]+', ' ', 'g'
+--     )),
+--     ''
+--   );
+-- The other functions in that failed script were attendance_ssid_in_list,
+-- attendance_normalize_bssid, attendance_bssid_in_list, and
+-- attendance_match_office_wifi (any SSID or BSSID or public IP, no auth.uid guard).
+
+-- ---------------------------------------------------------------------------
+-- Call 2 — SUCCEEDED. Same five functions with chr(0) removed from
+-- attendance_normalize_ssid. This is the live matcher (before Call 3).
+-- Confirmed after the call: ssid_ok true, bssid_ok true, any_match true.
+-- ---------------------------------------------------------------------------
+
+-- ---------------------------------------------------------------------------
+-- Call 3 — SUCCEEDED. Re-sent Call 2, then this block, which injected the
+-- guard into whatever attendance_device_early_checkout was already live
+-- (the repo copy of that body is FIX_auto_reentry_session_probe_2026-10-14).
+-- Confirmed: windows wifi_disconnected returns action ignored /
+-- reason desktop_checkout_only_at_shift_end, and a null android user still
+-- returns user_gone.
+-- ---------------------------------------------------------------------------
+-- DO $$
+-- DECLARE
+--   def text;
+--   sig text := 'public.attendance_device_early_checkout(uuid,uuid,uuid,text,text,timestamptz,timestamptz,uuid,double precision,double precision,double precision,text,text,text)';
+-- BEGIN
+--   def := pg_get_functiondef(sig::regprocedure);
+--   IF position('desktop_checkout_only_at_shift_end' in def) > 0 THEN
+--     RETURN;
+--   END IF;
+--   def := regexp_replace(def, 'BEGIN',
+-- $guard$BEGIN
+--   IF lower(COALESCE(p_platform, '')) IN ('windows', 'linux') THEN
+--     RETURN jsonb_build_object(
+--       'ok', true,
+--       'action', 'ignored',
+--       'reason', 'desktop_checkout_only_at_shift_end',
+--       'session_open', true,
+--       'suppress_checkin', true,
+--       'message', 'Desktop stays checked in until shift end or a manual Clock Out.'
+--     );
+--   END IF;$guard$, 1);
+--   EXECUTE def;
+-- END $$;
+
+-- The review migration wifi_match_any_saved_network_2026-10-21.sql is the
+-- explicit final bodies (including that guard written out in full) plus an
+-- auth.uid() assignment check that was NOT part of the production calls.
+-- Apply that file yourself. Do not apply this record.

@@ -50,16 +50,6 @@ serve(async (req) => {
       return json(req, { error: 'device_id and platform required' }, 400);
     }
 
-    if (platform === 'ios') {
-      return json(req, {
-        ok: false,
-        status: 'platform_disabled',
-        device_token: null,
-        message:
-          'Automatic check-in is not available on iOS yet. Use Android or the desktop app.',
-      });
-    }
-
     const userClient = createClient(url, anon, {
       global: { headers: { Authorization: `Bearer ${jwt}` } },
     });

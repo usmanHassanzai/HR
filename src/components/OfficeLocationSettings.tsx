@@ -311,7 +311,7 @@ export default function OfficeLocationSettings() {
               newWifiDraft({
                 id: r.id || null,
                 ssid: (r.ssids && r.ssids[0]) || '',
-                bssid: (r.wifi_bssids && r.wifi_bssids[0]) || '',
+                bssid: (r.wifi_bssids || []).filter(Boolean).join(', '),
                 public_ip: (r.public_ip_cidrs && r.public_ip_cidrs[0]) || '',
               }),
             ),
@@ -516,14 +516,20 @@ export default function OfficeLocationSettings() {
       showMsg('Latitude and longitude must be valid numbers.');
       return;
     }
+    const parseBssids = (raw: string): string[] =>
+      raw
+        .split(/[,;\s]+/)
+        .map((b) => b.trim().toLowerCase().replace(/-/g, ':'))
+        .filter(Boolean);
+
     const wifiRows = form.wifi_networks
       .map((row) => ({
         id: row.id || null,
         ssid: row.ssid.trim(),
-        bssid: row.bssid.trim().toLowerCase(),
+        bssids: parseBssids(row.bssid),
         public_ip: row.public_ip.trim(),
       }))
-      .filter((row) => row.ssid || row.bssid || row.public_ip);
+      .filter((row) => row.ssid || row.bssids.length > 0 || row.public_ip);
 
     for (const row of wifiRows) {
       if (!row.ssid) {
@@ -536,7 +542,7 @@ export default function OfficeLocationSettings() {
     for (const row of wifiRows) {
       const key = row.ssid.toLowerCase();
       if (seenSsids.has(key)) {
-        showMsg(`Duplicate Wi-Fi name “${row.ssid}”. Each network should appear once.`);
+        showMsg(`Duplicate Wi-Fi name “${row.ssid}”. Each network should appear once (add multiple BSSIDs in one row if needed).`);
         return;
       }
       seenSsids.add(key);
@@ -547,13 +553,13 @@ export default function OfficeLocationSettings() {
     const savedName = form.name.trim();
     const wasNew = !form.id;
     const wifiSsids = wifiRows.map((r) => r.ssid);
-    const wifiBssids = wifiRows.map((r) => r.bssid).filter(Boolean);
+    const wifiBssids = wifiRows.flatMap((r) => r.bssids);
     const publicIps = wifiRows.map((r) => r.public_ip).filter(Boolean);
     const networkPayload = wifiRows.map((row) => ({
       ...(row.id ? { id: row.id } : {}),
       label: row.ssid,
       ssids: [row.ssid],
-      wifi_bssids: row.bssid ? [row.bssid] : [],
+      wifi_bssids: row.bssids,
       public_ip_cidrs: row.public_ip ? [row.public_ip] : [],
       active: true,
     }));
@@ -1226,9 +1232,9 @@ export default function OfficeLocationSettings() {
                     </p>
                     <p className="admin-office-form-help" style={{ marginBottom: '0.75rem' }}>
                       Networks saved here apply only to this location pin — not sibling locations under the same
-                      office. Connecting to any of these SSIDs (or entering this location’s radius) auto checks in
-                      enrolled Android/desktop devices assigned here. Browser does not auto check in. iOS auto
-                      check-in is off.
+                      office. Connecting to any saved SSID or BSSID checks in without GPS; otherwise GPS inside this
+                      radius is required. Public/unsaved Wi-Fi never counts. Browser does not auto check in (manual
+                      Clock in can still use GPS or a saved public IP). Native iOS auto check-in is off.
                     </p>
                     {wifiListLoading && form.id ? (
                       <p className="admin-office-form-help" style={{ marginBottom: '0.75rem' }}>
@@ -1274,7 +1280,7 @@ export default function OfficeLocationSettings() {
                                 id={`location-wifi-bssid-${row.key}`}
                                 value={row.bssid}
                                 onChange={(e) => updateWifiDraft(row.key, { bssid: e.target.value })}
-                                placeholder="aa:bb:cc:dd:ee:ff"
+                                placeholder="aa:bb:cc:dd:ee:ff (comma-separate for mesh APs)"
                                 autoComplete="off"
                                 disabled={wifiListLoading && !!form.id}
                               />
@@ -1304,8 +1310,9 @@ export default function OfficeLocationSettings() {
                     </button>
                     <p className="admin-office-form-help" style={{ marginTop: '0.5rem' }}>
                       Add or remove networks anytime, then Save/Update location — the saved list fully replaces the
-                      previous one (removed SSIDs stop auto check-in immediately). Optional BSSID locks the match to
-                      that access point; optional public IP/CIDR adds an extra check when set.
+                      previous one (removed SSIDs stop matching immediately). Check-in succeeds when the device SSID
+                      or BSSID matches any saved network (not both required). Optional public IP/CIDR is an alternate
+                      match for browser / IP-only setups.
                     </p>
                   </div>
 

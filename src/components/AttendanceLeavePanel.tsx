@@ -17,6 +17,7 @@ import {
 } from '../utils/attendanceHelpers';
 import { emailLeaveRequestNotifications } from '../utils/attendanceEmail';
 import GeoAttendancePanel from './GeoAttendancePanel';
+import DesktopWifiDiagnostics from './DesktopWifiDiagnostics';
 import MyShiftCard from './MyShiftCard';
 import ShiftManagementPanel, { CompanyLocationWindowCard } from './ShiftManagementPanel';
 import AdminAttendanceDirectory from './AdminAttendanceDirectory';
@@ -487,9 +488,35 @@ export default function AttendanceLeavePanel({
               ? 'Checked in inside office radius'
               : attendanceActionMessage(result.action),
         );
-        await load();
-        setHistoryRefreshKey((k) => k + 1);
-        window.dispatchEvent(new CustomEvent(GEO_CLOCK_EVENT));
+        // Optimistic: mark today present so Check in lights up before full reload.
+        setMyAttendance((prev) => {
+          const now = new Date().toISOString();
+          const dateKey = shiftDate ?? todayStr;
+          const idx = prev.findIndex((r) => r.attendance_date === dateKey);
+          if (idx >= 0) {
+            const next = [...prev];
+            next[idx] = { ...next[idx], clock_in_at: next[idx].clock_in_at || now, clock_out_at: null, status: 'present' };
+            return next;
+          }
+          return [
+            {
+              id: `optimistic-${now}`,
+              user_id: userId,
+              attendance_date: dateKey,
+              status: 'present',
+              clock_in_at: now,
+              clock_out_at: null,
+              attendance_source: result.match_via === 'wifi' ? 'wifi' : 'geo',
+            } as AttendanceRecord,
+            ...prev,
+          ];
+        });
+        setSubmitting(false);
+        void load({ silent: true }).then(() => {
+          setHistoryRefreshKey((k) => k + 1);
+          window.dispatchEvent(new CustomEvent(GEO_CLOCK_EVENT));
+        });
+        return;
       } else if (result.action === 'no_connection') {
         setMsg(attendanceActionMessage('no_connection'));
       } else {
@@ -524,9 +551,16 @@ export default function AttendanceLeavePanel({
             ? 'Checked out for the rest of your shift. Submit your leave request on the next tab.'
             : attendanceCheckoutMessage(result),
         );
-        await load();
-        setHistoryRefreshKey((k) => k + 1);
-        window.dispatchEvent(new CustomEvent(GEO_CLOCK_EVENT));
+        // Optimistic: clear open session so Check out lights as current state.
+        setMyAttendance((prev) => {
+          const now = new Date().toISOString();
+          const dateKey = shiftDate ?? todayStr;
+          return prev.map((r) =>
+            (r.attendance_date === dateKey || (r.clock_in_at && !r.clock_out_at)) && r.clock_in_at && !r.clock_out_at
+              ? { ...r, clock_out_at: now }
+              : r,
+          );
+        });
         if (opts?.thenRequestLeave) {
           setLeaveStart(todayStr);
           setLeaveEnd(todayStr);
@@ -536,6 +570,12 @@ export default function AttendanceLeavePanel({
           if (mode === 'hr') setAdminTab('today');
           else setEmployeeTab('leave');
         }
+        setSubmitting(false);
+        void load({ silent: true }).then(() => {
+          setHistoryRefreshKey((k) => k + 1);
+          window.dispatchEvent(new CustomEvent(GEO_CLOCK_EVENT));
+        });
+        return;
       } else if (result.action === 'no_open_visit') {
         setMsg('Check in first, then you can check out.');
       } else if (result.action === 'no_connection') {
@@ -930,8 +970,9 @@ export default function AttendanceLeavePanel({
         </button>
         <button
           type="button"
-          className={`btn attendance-hero__btn att-toggle att-toggle--out${stillOnSiteToday ? ' is-primary-out' : ''}${checkedOutToday ? ' is-active' : ''}`}
+          className={`btn attendance-hero__btn att-toggle att-toggle--out${!stillOnSiteToday ? ' is-active' : ''}`}
           disabled={submitting || !stillOnSiteToday}
+          aria-pressed={!stillOnSiteToday}
           onClick={() => { if (stillOnSiteToday) void checkOutToday(); }}
         >
           {submitting && stillOnSiteToday ? <Loader2 size={18} className="spin-icon" /> : <LogOut size={18} />}
@@ -949,6 +990,7 @@ export default function AttendanceLeavePanel({
           </button>
         )}
       </div>
+      <DesktopWifiDiagnostics compact />
       {stillOnSiteToday ? (
         <p className="attendance-present-banner" role="status">
           You are still present in the office and working. This stays visible after every check-in until you check out.

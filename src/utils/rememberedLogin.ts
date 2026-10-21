@@ -8,8 +8,9 @@
  *    without login IPC, and PWA standalone)
  * Web browser (marketing site): no password persistence (browser password manager).
  */
-import { Capacitor, registerPlugin } from '@capacitor/core';
+import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
+import { AttendancePing } from './attendancePingPlugin';
 import { isAppShell, isDesktopApp, isNativeApp } from './nativePlatform';
 
 const LEGACY_EMAIL_KEY = 'scorr_remember_login_email';
@@ -19,14 +20,6 @@ const VAULT_DB = 'scorr-remember-login';
 const VAULT_STORE = 'vault';
 const VAULT_KEY_ID = 'device-key';
 const VAULT_CREDS_ID = 'credentials';
-
-interface SecureLoginPlugin {
-  saveLoginCredentials(options: { email: string; password: string }): Promise<void>;
-  loadLoginCredentials(): Promise<{ email?: string | null; password?: string | null }>;
-  clearLoginCredentials(): Promise<void>;
-}
-
-const AttendancePing = registerPlugin<SecureLoginPlugin>('AttendancePing');
 
 type DesktopApi = {
   saveLoginCredentials?: (email: string, password: string) => Promise<boolean> | boolean;
@@ -206,7 +199,7 @@ async function loadFromDesktop(): Promise<{ email: string; password: string } | 
 
 async function loadFromNative(): Promise<{ email: string; password: string } | null> {
   if (!(isNativeApp() || Capacitor.isNativePlatform())) return null;
-  const raw = await AttendancePing.loadLoginCredentials();
+  const raw = await AttendancePing.loadLoginCredentials!();
   const email = (raw?.email || '').trim();
   const password = raw?.password || '';
   if (email && password) return { email, password };
@@ -221,7 +214,7 @@ async function saveToDesktop(email: string, password: string): Promise<boolean> 
 
 async function saveToNative(email: string, password: string): Promise<boolean> {
   if (!(isNativeApp() || Capacitor.isNativePlatform())) return false;
-  await AttendancePing.saveLoginCredentials({ email, password });
+  await AttendancePing.saveLoginCredentials!({ email, password });
   return true;
 }
 
@@ -342,7 +335,7 @@ export async function clearRememberedLogin(): Promise<void> {
   }
   try {
     if (isNativeApp() || Capacitor.isNativePlatform()) {
-      await AttendancePing.clearLoginCredentials();
+      await AttendancePing.clearLoginCredentials!();
     }
   } catch {
     /* ignore */

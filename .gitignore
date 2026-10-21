@@ -15,6 +15,8 @@ dist-ssr
 .env
 .env.*
 !.env.example
+# Generated at desktop build (public anon key baked for packaged auto attendance)
+desktop/runtime-config.cjs
 *.pem
 *.p12
 id_rsa

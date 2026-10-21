@@ -44,15 +44,24 @@ export const APK_DIRECT_UNTIL = new Date('2026-11-01T00:00:00.000Z');
 export const APK_PATH = '/downloads/scorr.apk';
 
 /**
- * Desktop packages are large and hosted on GitHub Releases (not Vercel).
- * Prefer env overrides when set; otherwise /downloads/… fallbacks.
+ * Desktop packages are large and hosted on GitHub Releases (not Vercel —
+ * *.deb / *.exe are gitignored so /downloads/Scorr.deb 404s on the site).
+ * Windows and Linux can point at different release tags (Windows-only hotfixes).
  */
+const DESKTOP_GH_WIN =
+  'https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.45';
+const DESKTOP_GH_LINUX =
+  'https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.45';
+
 export const DESKTOP_WIN_PATH =
-  envUrl('VITE_DESKTOP_WIN_URL') || '/downloads/Scorr-Setup.exe';
+  envUrl('VITE_DESKTOP_WIN_URL') || `${DESKTOP_GH_WIN}/Scorr-Setup.exe`;
 
 /** Linux .deb package (Electron). */
 export const DESKTOP_LINUX_DEB_PATH =
-  envUrl('VITE_DESKTOP_LINUX_DEB_URL') || '/downloads/Scorr.deb';
+  envUrl('VITE_DESKTOP_LINUX_DEB_URL') || `${DESKTOP_GH_LINUX}/Scorr.deb`;
+
+export const DESKTOP_LINUX_APPIMAGE_PATH =
+  envUrl('VITE_DESKTOP_LINUX_APPIMAGE_URL') || `${DESKTOP_GH_LINUX}/Scorr.AppImage`;
 
 export function isApkDirectDownloadAvailable(now = new Date()): boolean {
   return now.getTime() < APK_DIRECT_UNTIL.getTime();

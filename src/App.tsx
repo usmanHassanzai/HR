@@ -208,12 +208,16 @@ function WebMarketingRoot() {
 
   if (boot === 'portal') {
     return (
-      <Suspense fallback={<RouteFallback />}>
-        <PortalApp
-          initialSession={portalSession as { user?: { id: string } } | null}
-          onSignedOut={exitPortal}
-        />
-      </Suspense>
+      <>
+        {/* Must stay mounted while logged in — desktop/Android/iOS auto check-in arming. */}
+        <SilentGeoAttendance />
+        <Suspense fallback={<RouteFallback />}>
+          <PortalApp
+            initialSession={portalSession as { user?: { id: string } } | null}
+            onSignedOut={exitPortal}
+          />
+        </Suspense>
+      </>
     );
   }
 

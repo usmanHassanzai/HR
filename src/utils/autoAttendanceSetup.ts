@@ -1,7 +1,7 @@
 /**
  * Automatic attendance setup — shared eligibility, registration, progress.
  */
-import { Capacitor, registerPlugin } from '@capacitor/core';
+import { Capacitor } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
 import { supabase } from '../lib/supabase';
 import {
@@ -10,6 +10,7 @@ import {
   isIosHomeScreen,
   isNativeApp,
 } from './nativePlatform';
+import { AttendancePing } from './attendancePingPlugin';
 import { withTimeout } from './withTimeout';
 import { getAttendanceDeviceToken } from './attendanceDevice';
 
@@ -40,32 +41,6 @@ export type SetupStatus = {
   enrolled_device_count: number;
   is_admin: boolean;
 };
-
-interface SetupPlugin {
-  openAppSettings(): Promise<void>;
-  openBatterySettings(): Promise<void>;
-  openNotificationSettings(): Promise<{ opened?: boolean }>;
-  getPermissionSnapshot(): Promise<{
-    location?: string;
-    coarseLocation?: string;
-    backgroundLocation?: string;
-    precise?: boolean;
-    locationServicesEnabled?: boolean;
-    notifications?: string;
-    batteryUnrestricted?: boolean | null;
-    manufacturer?: string;
-  }>;
-  requestNotifications(): Promise<{ status?: string }>;
-  requestAlwaysLocation(): Promise<{
-    status?: string;
-    location?: string;
-    backgroundLocation?: string;
-  }>;
-  setAutoLaunch?(enabled: boolean): Promise<{ ok?: boolean }>;
-  getAutoLaunch?(): Promise<{ enabled?: boolean }>;
-}
-
-const AttendancePing = registerPlugin<SetupPlugin>('AttendancePing');
 
 export function loadSetupProgress(): number {
   try {
@@ -137,19 +112,20 @@ export async function registerDeviceViaRpc(appVersion?: string): Promise<{
       }
     })();
 
-  if (platform === 'ios') {
-    return {
-      ok: false,
-      error:
-        'Automatic Wi-Fi check-in is not available on iOS yet. Use the Android app or desktop app.',
-    };
-  }
-
   if (platform === 'web') {
     return {
       ok: false,
       error:
-        'Automatic Wi-Fi check-in needs the Android app or desktop app. The browser cannot stay enrolled in the background.',
+        'Automatic Wi-Fi check-in needs the Android, iOS, or desktop app. The browser cannot stay enrolled in the background.',
+    };
+  }
+
+  // Home Screen / Safari “ios” without Capacitor — no background geofence plugin.
+  if (platform === 'ios' && !Capacitor.isNativePlatform()) {
+    return {
+      ok: false,
+      error:
+        'Automatic check-in needs the installable Scorr iOS app (not Add to Home Screen).',
     };
   }
 
@@ -269,7 +245,7 @@ export async function requestAlwaysLocation(): Promise<{ ok: boolean; detail: st
 
   try {
     const res = await withTimeout(
-      AttendancePing.requestAlwaysLocation(),
+      AttendancePing.requestAlwaysLocation!(),
       20_000,
       'Waiting for Always location',
     );
@@ -397,7 +373,7 @@ export async function getNativePermissionSnapshot() {
     };
   }
   try {
-    return await withTimeout(AttendancePing.getPermissionSnapshot(), 12_000, 'Reading device permissions');
+    return await withTimeout(AttendancePing.getPermissionSnapshot!(), 12_000, 'Reading device permissions');
   } catch {
     // Fallback to Capacitor geolocation only
     try {
@@ -420,12 +396,185 @@ export async function getNativePermissionSnapshot() {
 
 export async function openNativeAppSettings(): Promise<void> {
   if (!isNativeApp()) return;
-  await withTimeout(AttendancePing.openAppSettings(), 10_000, 'Opening settings');
+  await withTimeout(AttendancePing.openAppSettings!(), 10_000, 'Opening settings');
 }
 
 export async function openNativeBatterySettings(): Promise<void> {
   if (!isNativeApp()) return;
-  await withTimeout(AttendancePing.openBatterySettings(), 10_000, 'Opening battery settings');
+  await withTimeout(AttendancePing.openBatterySettings!(), 10_000, 'Opening battery settings');
+}
+
+/** Request iOS Capacitor access for geofence auto attendance (When-In-Use → Always + notifications). */
+export async function requestAllIosAutoAttendanceAccess(): Promise<{
+  ok: boolean;
+  warnings: string[];
+  error?: string;
+}> {
+  const warnings: string[] = [];
+  const whileUsing = await requestWhileUsingLocation();
+  if (!whileUsing.ok) {
+    return { ok: false, warnings, error: whileUsing.detail };
+  }
+  const notif = await requestNativeNotifications();
+  if (!notif.ok) warnings.push(notif.detail);
+  const always = await requestAlwaysLocation();
+  if (!always.ok) {
+    return {
+      ok: false,
+      warnings,
+      error:
+        always.detail ||
+        'Allow Location → Always so automatic check-in works when Scorr is closed.',
+    };
+  }
+  try {
+    const snap = await getNativePermissionSnapshot();
+    if (snap.notifications !== 'granted' && snap.notifications !== 'authorized') {
+      warnings.push('Allow notifications for check-in alerts.');
+    }
+  } catch {
+    /* optional */
+  }
+  return { ok: true, warnings };
+}
+
+/** Request every Android access auto attendance needs (location, Wi‑Fi, alerts, battery, alarms). */
+export async function requestAllAndroidAutoAttendanceAccess(): Promise<{
+  ok: boolean;
+  warnings: string[];
+  error?: string;
+}> {
+  const warnings: string[] = [];
+  const whileUsing = await requestWhileUsingLocation();
+  if (!whileUsing.ok) {
+    return { ok: false, warnings, error: whileUsing.detail };
+  }
+  const notif = await requestNativeNotifications();
+  if (!notif.ok) warnings.push(notif.detail);
+  try {
+    if (typeof AttendancePing.requestNearbyWifi === 'function') {
+      const wifi = await withTimeout(
+        AttendancePing.requestNearbyWifi(),
+        15_000,
+        'Waiting for Wi-Fi permission',
+      );
+      if (wifi.status !== 'granted') {
+        warnings.push('Allow Nearby Wi‑Fi / Wi‑Fi devices so office SSID can be read.');
+      }
+    }
+  } catch {
+    /* older APK */
+  }
+  const always = await requestAlwaysLocation();
+  if (!always.ok) {
+    return {
+      ok: false,
+      warnings,
+      error:
+        always.detail ||
+        'Allow location All the time so automatic check-in works when Scorr is closed.',
+    };
+  }
+  try {
+    if (typeof AttendancePing.requestBatteryUnrestricted === 'function') {
+      await withTimeout(
+        AttendancePing.requestBatteryUnrestricted(),
+        12_000,
+        'Opening battery prompt',
+      );
+    } else {
+      await openNativeBatterySettings();
+    }
+  } catch {
+    warnings.push('Set battery use to Unrestricted for Scorr.');
+  }
+  try {
+    if (typeof AttendancePing.requestExactAlarms === 'function') {
+      await withTimeout(AttendancePing.requestExactAlarms(), 12_000, 'Opening alarm settings');
+    }
+  } catch {
+    /* optional */
+  }
+  try {
+    const snap = await getNativePermissionSnapshot();
+    if (snap.batteryUnrestricted === false) {
+      warnings.push('Confirm Unrestricted battery for Scorr so background check-in is not paused.');
+    }
+    if (snap.notifications !== 'granted' && snap.notifications !== 'authorized') {
+      warnings.push('Allow notifications so the attendance service can stay active.');
+    }
+    if (snap.nearbyWifi === 'denied') {
+      warnings.push('Allow Nearby Wi‑Fi devices for office SSID matching.');
+    }
+    if (snap.exactAlarm === 'denied') {
+      warnings.push('Allow Alarms & reminders so Scorr wakes at shift start.');
+    }
+  } catch {
+    /* snapshot optional */
+  }
+  return { ok: true, warnings };
+}
+
+/** Desktop: notifications + location prompt + auto-launch + Wi‑Fi probe. */
+export async function requestAllDesktopAutoAttendanceAccess(): Promise<{
+  ok: boolean;
+  warnings: string[];
+}> {
+  const warnings: string[] = [];
+  try {
+    const prep = window.scorrDesktop?.prepareAutoAttendance;
+    if (typeof prep === 'function') {
+      const res = await Promise.resolve(prep());
+      if (res?.wifi?.ssid) {
+        /* probed ok */
+      } else if (res?.wifiOk === false) {
+        warnings.push('Could not read Wi‑Fi yet — connect to office Wi‑Fi during your shift.');
+      }
+      if (res?.location === 'denied') {
+        warnings.push('Allow location if radius check-in is needed when Wi‑Fi does not match.');
+      }
+      if (res?.notifications === 'denied' && window.scorrDesktop?.platform !== 'win32') {
+        warnings.push('Allow notifications for check-in alerts.');
+      }
+      return { ok: true, warnings };
+    }
+  } catch {
+    /* fall through */
+  }
+  const skipNotificationPermission = window.scorrDesktop?.platform === 'win32';
+  try {
+    if (
+      !skipNotificationPermission &&
+      typeof Notification !== 'undefined' &&
+      Notification.permission === 'default'
+    ) {
+      await Notification.requestPermission();
+    }
+  } catch {
+    /* ignore */
+  }
+  try {
+    await new Promise<void>((resolve) => {
+      if (!navigator.geolocation) {
+        resolve();
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        () => resolve(),
+        () => resolve(),
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 },
+      );
+    });
+  } catch {
+    /* ignore */
+  }
+  try {
+    const set = window.scorrDesktop?.setAutoLaunch;
+    if (set) await Promise.resolve(set(true));
+  } catch {
+    warnings.push('Turn on “Open at login” in the desktop app if auto-start is off.');
+  }
+  return { ok: true, warnings };
 }
 
 export async function requestNativeNotifications(): Promise<{ ok: boolean; detail: string }> {
@@ -452,7 +601,7 @@ export async function requestNativeNotifications(): Promise<{ ok: boolean; detai
     } catch {
       /* continue to request */
     }
-    const res = await withTimeout(AttendancePing.requestNotifications(), 15_000, 'Waiting for notification permission');
+    const res = await withTimeout(AttendancePing.requestNotifications!(), 15_000, 'Waiting for notification permission');
     if (res.status === 'granted' || res.status === 'authorized') {
       return { ok: true, detail: 'Notifications allowed' };
     }
@@ -510,9 +659,8 @@ export async function probeOfficeNetworkMatch(): Promise<{
   let ssid = '';
   let bssid = '';
   try {
-    const probe = registerPlugin<{ probeNetwork?: () => Promise<{ ssid?: string; bssid?: string }> }>('AttendancePing');
-    if (typeof probe.probeNetwork === 'function') {
-      const n = await withTimeout(probe.probeNetwork(), 8_000, 'Reading Wi-Fi');
+    if (typeof AttendancePing.probeNetwork === 'function') {
+      const n = await withTimeout(AttendancePing.probeNetwork(), 8_000, 'Reading Wi-Fi');
       ssid = n?.ssid || '';
       bssid = n?.bssid || '';
     }
