@@ -31,11 +31,28 @@ function androidVersionCode() {
 
 // Desktop feed URLs are pinned here. Never read them from .env / .env.local /
 // .env.desktop-urls — those files still point Windows at desktop-v1.3.8.
-// desktop-v1.3.46 is published but crashes on start (missing windowsVariant.cjs),
-// so it is not a release the website may advertise. 1.3.48 is the Windows feed.
-const WINDOWS_RELEASE = '1.3.48';
+// desktop-v1.3.46 crashes on start. 1.3.47 and 1.3.48 stay pre-releases until STEP B.
+// The website feed follows WINDOWS_RELEASE only. 1.3.45 is the current public feed.
+const WINDOWS_RELEASE = '1.3.45';
 const LINUX_RELEASE = '1.3.45';
 const CRASHING_WINDOWS_RELEASES = new Set(['1.3.46']);
+const WINDOWS_INSTALLERS = {
+  '1.3.45': {
+    sha512: '6xOC8K5GcOgSmr4RXEQ2P+VgRyTARv6NCVlQ8/glrm294xhrdedgepTw9uTrLLbAj7C77Xr3FK7/goujBkY30Q==',
+    size: 92397531,
+    releaseDate: '2026-10-19T20:02:31.650Z',
+  },
+  '1.3.48': {
+    sha512: '8NwKpqnj5JefgwFKvkLSlRTPwHbuHTuEXOXGRJzAEiGVdyRk3jlO1VOa/KIXat1/jVHYhnWXjugZOMb3g3RU4A==',
+    size: 92385285,
+    releaseDate: '2026-10-21T16:49:33.787Z',
+  },
+};
+const winInstaller = WINDOWS_INSTALLERS[WINDOWS_RELEASE];
+if (!winInstaller) {
+  console.error(`Windows feed check failed: no installer metadata for ${WINDOWS_RELEASE}`);
+  process.exit(1);
+}
 const GH_RELEASE = 'https://github.com/usmanHassanzai/HR/releases/download';
 const winUrl = `${GH_RELEASE}/desktop-v${WINDOWS_RELEASE}/Scorr-Setup.exe`;
 const debUrl = `${GH_RELEASE}/desktop-v${LINUX_RELEASE}/Scorr.deb`;
@@ -67,6 +84,8 @@ function lastPublishedWindowsRelease() {
     const found = [];
     if (r.status === 0) {
       for (const line of String(r.stdout || '').split('\n')) {
+        const cols = line.split('\t');
+        if (cols[1] === 'Pre-release') continue;
         const m = line.match(/desktop-v(\d+(?:\.\d+){1,2})/);
         if (m && !CRASHING_WINDOWS_RELEASES.has(m[1])) found.push(m[1]);
       }
@@ -179,16 +198,17 @@ mkdirSync(desktopDir, { recursive: true });
 let latestYml = '';
 let latestLinuxYml = '';
 
-// Local Scorr-Setup-1.3.48.exe. Do not hash a different installer, and do not read the URL from .env.
+// Installer hash and size come from WINDOWS_INSTALLERS for WINDOWS_RELEASE.
+// Do not hash a different local exe, and do not read the URL from .env.
 latestYml = [
   `version: ${WINDOWS_RELEASE}`,
   'files:',
   `  - url: ${winUrl}`,
-  '    sha512: 8NwKpqnj5JefgwFKvkLSlRTPwHbuHTuEXOXGRJzAEiGVdyRk3jlO1VOa/KIXat1/jVHYhnWXjugZOMb3g3RU4A==',
-  '    size: 92385285',
+  `    sha512: ${winInstaller.sha512}`,
+  `    size: ${winInstaller.size}`,
   `path: ${winUrl}`,
-  'sha512: 8NwKpqnj5JefgwFKvkLSlRTPwHbuHTuEXOXGRJzAEiGVdyRk3jlO1VOa/KIXat1/jVHYhnWXjugZOMb3g3RU4A==',
-  "releaseDate: '2026-10-21T16:49:33.787Z'",
+  `sha512: ${winInstaller.sha512}`,
+  `releaseDate: '${winInstaller.releaseDate}'`,
   '',
 ].join('\n');
 writeFileSync(join(desktopDir, 'latest.yml'), latestYml);
@@ -254,7 +274,7 @@ function syncWindowsPointers() {
   info.desktop.version = WINDOWS_RELEASE;
   info.desktop.releaseTag = `desktop-v${WINDOWS_RELEASE}`;
   info.desktop.platforms = info.desktop.platforms || {};
-  const winBytes = 92385285;
+  const winBytes = winInstaller.size;
   info.desktop.platforms.windows = {
     ...(info.desktop.platforms.windows || {}),
     available: true,
