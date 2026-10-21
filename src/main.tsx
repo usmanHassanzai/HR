@@ -11,26 +11,20 @@ import './styles/mobile-polish.css'
 import App from './App.tsx'
 import { applyBranding, loadBranding } from './lib/branding'
 import { initTheme } from './lib/theme'
-import {
-  initNativeApp,
-  isAppShell,
-  isElectronShell,
-  isNativeApp,
-} from './utils/nativePlatform'
+import { initNativeApp, isAppShell, isNativeApp } from './utils/nativePlatform'
 import { isDeleteAccountRoute, isPlatformRoute } from './utils/companyHelpers'
 
 initTheme()
 applyBranding(loadBranding())
 void initNativeApp()
 
-// One-shot reload when a lazy chunk 404s / CSS preload fails (stale cache or bad MIME).
+// One-shot reload when a lazy chunk 404s after a new deploy (stale SW / tab cache).
 const CHUNK_RELOAD_KEY = 'scorr-chunk-reload'
-const VITE_PRELOAD_RELOAD_KEY = 'scorr-vite-preload-reload'
 function isDynamicImportFailure(reason: unknown): boolean {
   const msg = String(
     reason instanceof Error ? reason.message : reason ?? '',
   )
-  return /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed|Unable to preload CSS/i.test(
+  return /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed/i.test(
     msg,
   )
 }
@@ -51,25 +45,9 @@ window.addEventListener('error', (event) => {
     reloadOnceForStaleChunk()
   }
 })
-// Vite fires this when a CSS/JS preload fails (e.g. CSS served as text/plain).
-window.addEventListener('vite:preloadError', ((event: Event) => {
-  const e = event as Event & { preventDefault?: () => void }
-  try {
-    e.preventDefault?.()
-  } catch {
-    /* ignore */
-  }
-  try {
-    if (sessionStorage.getItem(VITE_PRELOAD_RELOAD_KEY)) return
-    sessionStorage.setItem(VITE_PRELOAD_RELOAD_KEY, '1')
-  } catch {
-    /* still reload once */
-  }
-  window.location.reload()
-}) as EventListener)
 
-// Service worker — website/PWA only (never Capacitor or Electron / scorr-desktop)
-if ('serviceWorker' in navigator && import.meta.env.PROD && !isNativeApp() && !isElectronShell()) {
+// Service worker — website/PWA only (never on Capacitor native)
+if ('serviceWorker' in navigator && import.meta.env.PROD && !isNativeApp()) {
   window.addEventListener('load', () => {
     navigator.serviceWorker
       .register('/sw.js')
@@ -77,13 +55,6 @@ if ('serviceWorker' in navigator && import.meta.env.PROD && !isNativeApp() && !i
         void reg.update()
       })
       .catch(() => {})
-  })
-} else if ('serviceWorker' in navigator && isElectronShell()) {
-  // Drop any SW left over from opening the same origin in Chrome.
-  void navigator.serviceWorker.getRegistrations().then((regs) => {
-    regs.forEach((r) => {
-      void r.unregister()
-    })
   })
 }
 

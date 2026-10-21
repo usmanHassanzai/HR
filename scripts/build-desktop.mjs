@@ -142,6 +142,8 @@ if (buildWin) {
       'Windows NSIS build needs Wine or Docker. Install one, then re-run npm run build:desktop',
     );
   }
+  const asarPath = join(outDir, 'win-unpacked', 'resources', 'app.asar');
+  run('node', ['scripts/verify-desktop-asar.mjs', asarPath]);
 }
 
 const exportedAt = new Date();

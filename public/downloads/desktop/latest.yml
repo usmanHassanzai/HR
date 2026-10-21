@@ -1,8 +1,8 @@
-version: 1.3.45
+version: 1.3.47
 files:
-  - url: https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.45/Scorr-Setup.exe
-    sha512: 6xOC8K5GcOgSmr4RXEQ2P+VgRyTARv6NCVlQ8/glrm294xhrdedgepTw9uTrLLbAj7C77Xr3FK7/goujBkY30Q==
-    size: 92397531
-path: https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.45/Scorr-Setup.exe
-sha512: 6xOC8K5GcOgSmr4RXEQ2P+VgRyTARv6NCVlQ8/glrm294xhrdedgepTw9uTrLLbAj7C77Xr3FK7/goujBkY30Q==
-releaseDate: 2026-10-19T20:02:31.650Z
+  - url: https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.47/Scorr-Setup.exe
+    sha512: czTXbWggX7cbz7rTshm38+csBCJMVV+DHuqvP3HS4Jdk+4GFAIyD++c9fWfZsuqzeUKyASgT3cMY20nIZFPxLg==
+    size: 92391753
+path: https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.47/Scorr-Setup.exe
+sha512: czTXbWggX7cbz7rTshm38+csBCJMVV+DHuqvP3HS4Jdk+4GFAIyD++c9fWfZsuqzeUKyASgT3cMY20nIZFPxLg==
+releaseDate: '2026-10-21T16:10:48.018Z'

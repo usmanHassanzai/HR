@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-21T15:49:37.704Z",
-  "webBuildId": "1.3.46-2026-10-21154933",
+  "generatedAt": "2026-10-21T16:12:16.107Z",
+  "webBuildId": "1.3.47-2026-10-21161216",
   "mandatory": false,
   "notes": "Automatic attendance, Office Wi-Fi, 1-hour sessions, auto-updates. If install fails with a signature error, uninstall the old debug APK once, then install this release — after that, updates install over the old app.",
   "android": {
@@ -12,8 +12,8 @@
     "sizeBytes": 5787079
   },
   "windows": {
-    "version": "1.3.45",
-    "setupUrl": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.45/Scorr-Setup.exe",
+    "version": "1.3.47",
+    "setupUrl": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.47/Scorr-Setup.exe",
     "latestYmlUrl": "https://scorr.walfia.ai/downloads/desktop/latest.yml",
     "notes": "Automatic attendance, Office Wi-Fi, 1-hour sessions, auto-updates. If install fails with a signature error, uninstall the old debug APK once, then install this release — after that, updates install over the old app."
   },

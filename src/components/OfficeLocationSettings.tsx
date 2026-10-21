@@ -629,7 +629,7 @@ export default function OfficeLocationSettings() {
     const radiusM = parseInt(form.radius_meters, 10) || 150;
     const pathNote =
       wifiSsids.length > 0
-        ? `any of ${wifiSsids.length} Wi-Fi network${wifiSsids.length !== 1 ? 's' : ''} (${wifiSsids.join(', ')}) or entering ${radiusM}m`
+        ? `the saved office network (${wifiSsids.join(', ')}) or entering ${radiusM}m`
         : `GPS radius only (${radiusM}m) — no Wi-Fi SSIDs saved (removed networks no longer check in)`;
     const warnNote = wifiWarnings.length > 0 ? ` Note: ${wifiWarnings.join(' ')}` : '';
     showMsg(
@@ -1083,10 +1083,10 @@ export default function OfficeLocationSettings() {
           </h3>
           <p>
             {form.id
-              ? 'Update GPS center, radius, and optional office Wi-Fi. Assigned people auto check in on Wi-Fi or when they enter this radius.'
+              ? 'Update GPS center, radius, and the saved office network. The saved office network is used for automatic check-in.'
               : parentOfficesOk
-                ? 'Pick the parent office, capture live GPS, set the radius, and optionally add office Wi-Fi. Assigned people auto check in on either path.'
-                : 'Capture live GPS, set the radius, and optionally add office Wi-Fi. Assigned people auto check in on either path.'}
+                ? 'Pick the parent office, capture live GPS, set the radius, and save the office network. The saved office network is used for automatic check-in.'
+                : 'Capture live GPS, set the radius, and save the office network. The saved office network is used for automatic check-in.'}
           </p>
 
           {parentOfficesOk && officeGroups.length === 0 ? (
@@ -1232,9 +1232,9 @@ export default function OfficeLocationSettings() {
                     </p>
                     <p className="admin-office-form-help" style={{ marginBottom: '0.75rem' }}>
                       Networks saved here apply only to this location pin — not sibling locations under the same
-                      office. Connecting to any saved SSID or BSSID checks in without GPS; otherwise GPS inside this
-                      radius is required. Public/unsaved Wi-Fi never counts. Browser does not auto check in (manual
-                      Clock in can still use GPS or a saved public IP). Native iOS auto check-in is off.
+                      office. The saved office network is used for automatic check-in. Public or unsaved Wi-Fi does
+                      not check people in. Browser does not auto check in (manual Clock in can still use GPS or a
+                      saved public IP). Native iOS auto check-in is off.
                     </p>
                     {wifiListLoading && form.id ? (
                       <p className="admin-office-form-help" style={{ marginBottom: '0.75rem' }}>
@@ -1310,9 +1310,8 @@ export default function OfficeLocationSettings() {
                     </button>
                     <p className="admin-office-form-help" style={{ marginTop: '0.5rem' }}>
                       Add or remove networks anytime, then Save/Update location — the saved list fully replaces the
-                      previous one (removed SSIDs stop matching immediately). Check-in succeeds when the device SSID
-                      or BSSID matches any saved network (not both required). Optional public IP/CIDR is an alternate
-                      match for browser / IP-only setups.
+                      previous one. The saved office network is used for automatic check-in. Optional public IP/CIDR
+                      is an alternate match for browser / IP-only setups.
                     </p>
                   </div>
 

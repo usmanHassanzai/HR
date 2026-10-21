@@ -163,7 +163,7 @@ export async function getDesktopLocalVersion(): Promise<DesktopLocalVersion> {
 
 function desktopInstallFallback(plat: 'windows' | 'linux'): string {
   return plat === 'windows'
-    ? 'https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.45/Scorr-Setup.exe'
+    ? 'https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.47/Scorr-Setup.exe'
     : 'https://scorr.walfia.ai/downloads/Scorr.deb';
 }
 

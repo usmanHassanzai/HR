@@ -8,8 +8,11 @@ directories:
   output: ../dist-desktop
   buildResources: .
 files:
-  - main.cjs
-  - preload.cjs
+  # Every local module main.cjs / preload.cjs require must be listed.
+  # An explicit list replaces electron-builder's default, which is why
+  # 1.3.46 shipped without windowsVariant.cjs and the app crashed on start.
+  - "**/*.cjs"
+  - "!**/*.test.cjs"
   - icon.png
   - package.json
   - node_modules/**/*

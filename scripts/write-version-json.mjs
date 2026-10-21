@@ -32,9 +32,8 @@ function androidVersionCode() {
 // Desktop feed URLs are pinned here. Never read them from .env / .env.local /
 // .env.desktop-urls — those files still point Windows at desktop-v1.3.8.
 // desktop-v1.3.46 is published but crashes on start (missing windowsVariant.cjs),
-// so it is not a release the website may advertise. The floor is the newest
-// other published desktop release, which is 1.3.45.
-const WINDOWS_RELEASE = '1.3.45';
+// so it is not a release the website may advertise. 1.3.47 is the Windows feed.
+const WINDOWS_RELEASE = '1.3.47';
 const LINUX_RELEASE = '1.3.45';
 const CRASHING_WINDOWS_RELEASES = new Set(['1.3.46']);
 const GH_RELEASE = 'https://github.com/usmanHassanzai/HR/releases/download';
@@ -180,17 +179,17 @@ mkdirSync(desktopDir, { recursive: true });
 let latestYml = '';
 let latestLinuxYml = '';
 
-// Published desktop-v1.3.45 asset. Do not hash a local Scorr-Setup.exe: that
-// file is not this release, and .env must not choose the URL.
+// Installer built from main for desktop-v1.3.47. Do not hash a different local exe,
+// and do not read the URL from .env.
 latestYml = [
   `version: ${WINDOWS_RELEASE}`,
   'files:',
   `  - url: ${winUrl}`,
-  '    sha512: 6xOC8K5GcOgSmr4RXEQ2P+VgRyTARv6NCVlQ8/glrm294xhrdedgepTw9uTrLLbAj7C77Xr3FK7/goujBkY30Q==',
-  '    size: 92397531',
+  '    sha512: czTXbWggX7cbz7rTshm38+csBCJMVV+DHuqvP3HS4Jdk+4GFAIyD++c9fWfZsuqzeUKyASgT3cMY20nIZFPxLg==',
+  '    size: 92391753',
   `path: ${winUrl}`,
-  'sha512: 6xOC8K5GcOgSmr4RXEQ2P+VgRyTARv6NCVlQ8/glrm294xhrdedgepTw9uTrLLbAj7C77Xr3FK7/goujBkY30Q==',
-  'releaseDate: 2026-10-19T20:02:31.650Z',
+  'sha512: czTXbWggX7cbz7rTshm38+csBCJMVV+DHuqvP3HS4Jdk+4GFAIyD++c9fWfZsuqzeUKyASgT3cMY20nIZFPxLg==',
+  "releaseDate: '2026-10-21T16:10:48.018Z'",
   '',
 ].join('\n');
 writeFileSync(join(desktopDir, 'latest.yml'), latestYml);

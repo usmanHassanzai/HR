@@ -50,12 +50,12 @@ export const APK_PATH = '/downloads/scorr.apk';
  * Windows and Linux can point at different release tags (Windows-only hotfixes).
  */
 const DESKTOP_GH_WIN =
-  'https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.45';
+  'https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.47';
 const DESKTOP_GH_LINUX =
   'https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.45';
 
 // Do not read VITE_DESKTOP_* from .env. Those values are stale (desktop-v1.3.8).
-// 1.3.46 is published but crashes on start, so Windows stays on 1.3.45.
+// Windows is desktop-v1.3.47. Linux stays on desktop-v1.3.45.
 export const DESKTOP_WIN_PATH = `${DESKTOP_GH_WIN}/Scorr-Setup.exe`;
 
 /** Linux .deb package (Electron). */

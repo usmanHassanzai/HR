@@ -1,16 +1,7 @@
 // Service worker — cache hashed Vite assets for faster repeat visits.
 // HTML and API stay network-first so users always get fresh app shell.
 // Bump CACHE on every deploy that changes hashed chunk names so old assets are purged.
-const CACHE = 'scorr-assets-v7';
-
-/** Never cache — clients poll these to force UI refresh after deploy. */
-const NEVER_CACHE = new Set([
-  '/build-meta.json',
-  '/downloads/version.json',
-  '/downloads/desktop/latest.yml',
-  '/downloads/desktop/latest-linux.yml',
-  '/sw.js',
-]);
+const CACHE = 'scorr-assets-v6';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -42,12 +33,6 @@ self.addEventListener('fetch', (event) => {
         return cached || Response.error();
       }),
     );
-    return;
-  }
-
-  // Version / updater manifests — network only (ignore any accidental cache).
-  if (NEVER_CACHE.has(url.pathname) || url.pathname.startsWith('/downloads/desktop/')) {
-    event.respondWith(fetch(req, { cache: 'no-store' }));
     return;
   }
 
