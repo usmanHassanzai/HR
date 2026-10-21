@@ -85,6 +85,7 @@ serve(async (req) => {
       p_platform: body.platform ?? null,
       p_app_version: body.app_version ?? null,
       p_client_ip: clientIp,
+      ...(body.platform_variant === 'windows11' ? { p_platform_variant: 'windows11' } : {}),
     });
 
     if (error) return json(req, { ok: false, reason: error.message }, 400);

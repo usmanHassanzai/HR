@@ -22,6 +22,15 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { net } = require('electron');
+const { isWindows11Build, readWindowsBuildNumber } = require('./windowsVariant.cjs');
+const { normalizeSsid: looseNormalizeSsid, normalizeBssid: looseNormalizeBssid } = require('./wifiProbe.cjs');
+const { LOCATION_MESSAGE } = require('./wifiProbe.cjs');
+const {
+  probeWindows11Wifi,
+  readWindowsLocationAllowed,
+  readWindowsVersionLabel,
+} = require('./windows11Wifi.cjs');
+const { deliverAttendanceNotice } = require('./desktopNotify.cjs');
 
 const APP_URL = process.env.SCORR_DESKTOP_URL || 'https://scorr.walfia.ai/?app=1';
 const SUPABASE_URL = process.env.SCORR_SUPABASE_URL || 'https://yvnbxweitelowucdhwpg.supabase.co';
@@ -71,6 +80,44 @@ const INTERVAL_CHECKIN_PROBE_MS = 1000;
 const INTERVAL_CHECKED_IN_MS = 30 * 1000;
 let lastCheckedInWorkAt = 0;
 let heartbeatInflight = false;
+let lastServerResult = null;
+let lastWifiProbe = { ssid: null, bssid: null, ssidBlank: false, locationAllowed: null };
+let cachedPublicIp = '';
+let windows11WifiCache = { ssid: null, bssid: null, at: 0 };
+const WINDOWS11_WIFI_KEEP_MS = 120_000;
+
+let cachedWindowsBuild = null;
+
+function windowsBuildNumber() {
+  if (cachedWindowsBuild != null) return cachedWindowsBuild;
+  cachedWindowsBuild = readWindowsBuildNumber();
+  return cachedWindowsBuild;
+}
+
+function isWindows11() {
+  return process.platform === 'win32' && isWindows11Build(windowsBuildNumber());
+}
+
+function argvWantsHiddenStart() {
+  try {
+    return process.argv.some((a) => a === '--hidden' || a === '--tray' || a === '--start-hidden');
+  } catch {
+    return false;
+  }
+}
+
+function applyLoginItemSettings(enabled) {
+  const on = Boolean(enabled);
+  if (isWindows11()) {
+    app.setLoginItemSettings({
+      openAtLogin: on,
+      enabled: on,
+      args: on ? ['--hidden'] : [],
+    });
+    return;
+  }
+  app.setLoginItemSettings({ openAtLogin: on, openAsHidden: true });
+}
 
 function platformName() {
   return process.platform === 'win32' ? 'windows' : 'linux';
@@ -258,7 +305,7 @@ function clearTrustedDeviceToken() {
   return true;
 }
 
-function notify(title, body) {
+function showSystemToast(title, body) {
   try {
     if (Notification.isSupported()) {
       new Notification({ title, body }).show();
@@ -266,6 +313,12 @@ function notify(title, body) {
   } catch {
     /* ignore */
   }
+}
+
+function notify(title, body, kind = 'reminder') {
+  deliverAttendanceNotice(process.platform, kind, () => showSystemToast(title, body), {
+    windows11: isWindows11(),
+  });
 }
 
 function httpJson(url, { method = 'POST', headers = {}, body } = {}) {
@@ -446,8 +499,60 @@ function logDesktopStaleDrop(event, occurred, ageMs, source) {
   console.info('[scorr-att] dropped stale event', { source, event, age_ms: ageMs, occurred_at_utc_ms: occurred });
 }
 
+function appendWifiLog(entry) {
+  if (!isWindows11()) return;
+  try {
+    const file = path.join(app.getPath('userData'), 'wifi-diagnostics.log');
+    fs.appendFileSync(file, `${JSON.stringify({ at: new Date().toISOString(), ...entry })}\n`);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Windows 11 only. A failed or blank read keeps the last SSID for two minutes. */
+function readWindows11WifiIdentity() {
+  const now = Date.now();
+  const probed = probeWindows11Wifi();
+  lastWifiProbe = probed;
+  if (!probed.ssid && !probed.bssid) {
+    appendWifiLog({ type: 'probe_empty', locationAllowed: probed.locationAllowed });
+    if (
+      (windows11WifiCache.ssid || windows11WifiCache.bssid) &&
+      now - windows11WifiCache.at < WINDOWS11_WIFI_KEEP_MS
+    ) {
+      return { ssid: windows11WifiCache.ssid, bssid: windows11WifiCache.bssid };
+    }
+    return { ssid: null, bssid: null };
+  }
+  windows11WifiCache = { ssid: probed.ssid, bssid: probed.bssid, at: now };
+  return { ssid: probed.ssid, bssid: probed.bssid };
+}
+
+function matchesScheduleOfficeWifiWindows11(wifi) {
+  const zones = cachedSchedule?.zones || [];
+  const ssid = looseNormalizeSsid(wifi?.ssid);
+  const bssid = looseNormalizeBssid(wifi?.bssid);
+  if (!ssid && !bssid) return false;
+  for (const z of zones) {
+    const bssids = Array.isArray(z.wifi_bssids) ? z.wifi_bssids : [];
+    if (bssid) {
+      for (const want of bssids) {
+        if (looseNormalizeBssid(want) === bssid) return true;
+      }
+    }
+    const ssids = Array.isArray(z.wifi_ssids) ? z.wifi_ssids : [];
+    if (ssid) {
+      for (const want of ssids) {
+        if (looseNormalizeSsid(want).toLowerCase() === ssid.toLowerCase()) return true;
+      }
+    }
+  }
+  return false;
+}
+
 /** Best-effort SSID/BSSID for desktop Wi-Fi auto check-in. */
 function readWifiIdentity() {
+  if (isWindows11()) return readWindows11WifiIdentity();
   const { execSync } = require('child_process');
   try {
     if (process.platform === 'win32') {
@@ -490,6 +595,7 @@ function normalizeSsid(s) {
 
 /** True when current SSID/BSSID matches any assigned zone from schedule. */
 function matchesScheduleOfficeWifi(wifi) {
+  if (isWindows11()) return matchesScheduleOfficeWifiWindows11(wifi);
   const zones = cachedSchedule?.zones || [];
   const ssid = normalizeSsid(wifi?.ssid);
   const bssid = String(wifi?.bssid || '')
@@ -532,6 +638,7 @@ function stillSuppressCheckin() {
 
 /** While open session: if GPS is clearly outside every GPS zone, fire exit. */
 async function probeLeaveWhileCheckedIn() {
+  if (isWindows11()) return;
   if (!stillSuppressCheckin()) return;
   const zones = (cachedSchedule?.zones || []).filter((z) => {
     const mode = String(z?.detection_mode || 'gps_or_wifi').toLowerCase();
@@ -622,10 +729,11 @@ async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = nul
         ssid: wifi.ssid,
         bssid: wifi.bssid,
         is_mock: false,
+        ...(isWindows11() ? { platform_variant: 'windows11' } : {}),
       },
     });
   } catch (e) {
-    notify('Scorr', 'No connection - will check when online');
+    notify('Scorr', 'No connection - will check when online', 'no_connection');
     return { ok: false, reason: 'no_connection', action: 'no_connection' };
   }
 
@@ -664,18 +772,19 @@ async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = nul
       new Date().toISOString().slice(0, 10);
   }
 
+  lastServerResult = res || null;
   if (res?.action === 'clock_in') {
     wasOnOfficeWifi = matchesScheduleOfficeWifi(wifi) || wasOnOfficeWifi;
-    notify('Scorr', res?.reentry ? 'Checked in again' : 'Checked in');
+    notify('Scorr', res?.reentry ? 'Checked in again' : 'Checked in', 'check_in');
   } else if (res?.action === 'clock_out') {
     const t = res?.local_time ? ` at ${res.local_time}` : '';
-    notify('Scorr', `Checked out${t}`);
+    notify('Scorr', `Checked out${t}`, 'check_out');
   } else if (res?.action === 'already_in') {
     /* quiet — open session; leave or shift-end closes */
   } else if (res?.action === 'not_on_office_wifi' || res?.action === 'not_on_office_network') {
-    notify('Scorr', 'Connect to the office Wi-Fi or enter the office radius');
+    notify('Scorr', 'Connect to the office Wi-Fi or enter the office radius', 'reminder');
   } else if (res?.action === 'outside_radius') {
-    notify('Scorr', 'Not on office Wi-Fi and outside the office radius');
+    notify('Scorr', 'Not on office Wi-Fi and outside the office radius', 'reminder');
   } else if (res?.action === 'need_fresh_location' || res?.action === 'gps_unusable') {
     /* keep trying on next heartbeat */
   } else if (res?.action === 'checkin_blocked_shift_ended' || res?.action === 'outside_window') {
@@ -742,7 +851,7 @@ function startHeartbeatIfInWindow() {
     const onOffice = matchesScheduleOfficeWifi(wifi);
     // Early leave: drop office Wi-Fi while checked in → checkout (server ignores location).
     // Run on every 1s tick so Wi-Fi leave is not delayed by the checked-in gate.
-    if (stillSuppressCheckin() && wasOnOfficeWifi && !onOffice) {
+    if (!isWindows11() && stillSuppressCheckin() && wasOnOfficeWifi && !onOffice) {
       wasOnOfficeWifi = false;
       void sendEvent('wifi_disconnected');
       return;
@@ -806,6 +915,7 @@ function createWindow() {
   ses.setUserAgent(`${ses.getUserAgent()} ScorrDesktop/1.0`);
 
   mainWindow.once('ready-to-show', () => {
+    if (isWindows11() && argvWantsHiddenStart()) return;
     mainWindow?.show();
   });
 
@@ -905,7 +1015,7 @@ function wirePowerEvents() {
   // Screen lock must NOT check out (R49) — ignore lock-screen if available
 }
 
-app.setLoginItemSettings({ openAtLogin: true, openAsHidden: true });
+applyLoginItemSettings(true);
 
 const DAILY_UPDATE_HOUR = 5; // local 5:00 AM
 const UPDATE_CHECK_STAMP = () => path.join(app.getPath('userData'), 'last-update-check.txt');
@@ -1023,8 +1133,14 @@ function setupAutoUpdater() {
 }
 
 app.whenReady().then(async () => {
+  ipcMain.on('scorr:platformVariantSync', (e) => {
+    e.returnValue = isWindows11() ? 'windows11' : null;
+  });
+  ipcMain.on('scorr:windowsBuildSync', (e) => {
+    e.returnValue = process.platform === 'win32' ? windowsBuildNumber() : null;
+  });
   ipcMain.handle('scorr:setAutoLaunch', (_e, enabled) => {
-    app.setLoginItemSettings({ openAtLogin: Boolean(enabled), openAsHidden: true });
+    applyLoginItemSettings(Boolean(enabled));
     return { ok: true, enabled: Boolean(enabled) };
   });
   ipcMain.handle('scorr:getAutoLaunch', () => {
@@ -1048,6 +1164,57 @@ app.whenReady().then(async () => {
     }
   });
   ipcMain.handle('scorr:probeWifi', () => readWifiIdentity());
+  ipcMain.handle('scorr:openLocationSettings', () => {
+    if (!isWindows11()) return { ok: false };
+    void shell.openExternal('ms-settings:privacy-location');
+    return { ok: true };
+  });
+  ipcMain.handle('scorr:wifiDiagnostics', async () => {
+    if (!isWindows11()) return { platformVariant: null };
+    if (!cachedPublicIp) {
+      cachedPublicIp = await new Promise((resolve) => {
+        try {
+          const req = require('https').get('https://api.ipify.org', { timeout: 2500 }, (res) => {
+            let body = '';
+            res.on('data', (chunk) => { body += chunk; });
+            res.on('end', () => {
+              const ip = String(body || '').trim();
+              resolve(/^\d{1,3}(\.\d{1,3}){3}$/.test(ip) ? ip : '');
+            });
+          });
+          req.on('error', () => resolve(''));
+          req.setTimeout(2500, () => {
+            req.destroy();
+            resolve('');
+          });
+        } catch {
+          resolve('');
+        }
+      });
+    }
+    const wifi = readWifiIdentity();
+    const locationAllowed = readWindowsLocationAllowed();
+    const ssidHidden = Boolean(lastWifiProbe?.ssidBlank) && locationAllowed === false;
+    const snap = {
+      platformVariant: 'windows11',
+      windowsVersion: `${readWindowsVersionLabel()} (build ${windowsBuildNumber() || 'unknown'})`,
+      windowsBuild: windowsBuildNumber(),
+      locationAllowed,
+      locationMessage: ssidHidden ? LOCATION_MESSAGE : null,
+      ssid: wifi.ssid,
+      bssid: wifi.bssid,
+      publicIp: cachedPublicIp || null,
+      matchesSaved: matchesScheduleOfficeWifi(wifi),
+      lastResult: lastServerResult,
+      autoLaunch: Boolean(app.getLoginItemSettings({ args: ['--hidden'] }).openAtLogin),
+      trayRunning: Boolean(tray),
+      appRunning: true,
+      logPath: path.join(app.getPath('userData'), 'wifi-diagnostics.log'),
+      notRunningNote: loadToken() ? null : 'If Scorr is not running, nothing can check in.',
+    };
+    appendWifiLog({ type: 'diagnostics', ...snap });
+    return snap;
+  });
   ipcMain.handle('scorr:quitAndInstall', () => {
     if (autoUpdater) autoUpdater.quitAndInstall(false, true);
     return { ok: true };
