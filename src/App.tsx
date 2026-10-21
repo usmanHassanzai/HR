@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from
 import { SpeedInsights } from '@vercel/speed-insights/react';
 import LandingPage from './components/LandingPage';
 import NativeScrollRoot from './components/NativeScrollRoot';
+import RouteErrorBoundary from './components/RouteErrorBoundary';
 import SilentGeoAttendance from './components/SilentGeoAttendance';
 import AppUpdateBanner from './components/AppUpdateBanner';
 import { isAppShell } from './utils/nativePlatform';
@@ -14,7 +15,23 @@ const PlatformOwnerPortal = lazy(() => import('./components/PlatformOwnerPortal'
 const DeleteAccountPage = lazy(() => import('./components/DeleteAccountPage'));
 
 function RouteFallback() {
-  return <div style={{ minHeight: '100vh' }} aria-hidden />;
+  // Visible placeholder — empty 100vh div looked like a permanent blank screen in Electron.
+  return (
+    <div
+      style={{
+        minHeight: '100dvh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'var(--text-secondary, #64748b)',
+        fontSize: '0.9rem',
+        background: 'var(--bg-app, #f1f5f9)',
+      }}
+      role="status"
+    >
+      Loading…
+    </div>
+  );
 }
 
 /** Peek localStorage only — does not import @supabase/supabase-js. */
@@ -208,12 +225,18 @@ function WebMarketingRoot() {
 
   if (boot === 'portal') {
     return (
-      <Suspense fallback={<RouteFallback />}>
-        <PortalApp
-          initialSession={portalSession as { user?: { id: string } } | null}
-          onSignedOut={exitPortal}
-        />
-      </Suspense>
+      <>
+        {/* Must stay mounted while logged in — desktop/Android/iOS auto check-in arming. */}
+        <SilentGeoAttendance />
+        <RouteErrorBoundary>
+          <Suspense fallback={<RouteFallback />}>
+            <PortalApp
+              initialSession={portalSession as { user?: { id: string } } | null}
+              onSignedOut={exitPortal}
+            />
+          </Suspense>
+        </RouteErrorBoundary>
+      </>
     );
   }
 
@@ -235,25 +258,31 @@ function App() {
   if (isPlatformRoute()) {
     content = (
       <NativeScrollRoot>
-        <Suspense fallback={<RouteFallback />}>
-          <PlatformOwnerPortal />
-        </Suspense>
+        <RouteErrorBoundary>
+          <Suspense fallback={<RouteFallback />}>
+            <PlatformOwnerPortal />
+          </Suspense>
+        </RouteErrorBoundary>
       </NativeScrollRoot>
     );
   } else if (isDeleteAccountRoute()) {
     content = (
       <NativeScrollRoot>
-        <Suspense fallback={<RouteFallback />}>
-          <DeleteAccountPage />
-        </Suspense>
+        <RouteErrorBoundary>
+          <Suspense fallback={<RouteFallback />}>
+            <DeleteAccountPage />
+          </Suspense>
+        </RouteErrorBoundary>
       </NativeScrollRoot>
     );
   } else if (isAppShell()) {
     // Installed app / PWA shell — auth required; load portal (and Supabase) immediately.
     content = (
-      <Suspense fallback={<RouteFallback />}>
-        <PortalApp />
-      </Suspense>
+      <RouteErrorBoundary>
+        <Suspense fallback={<RouteFallback />}>
+          <PortalApp />
+        </Suspense>
+      </RouteErrorBoundary>
     );
   } else {
     content = <WebMarketingRoot />;

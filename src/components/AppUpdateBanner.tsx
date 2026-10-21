@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import {
   applyNativeUpdate,
   DAILY_UPDATE_HOUR,
@@ -6,7 +6,6 @@ import {
   hardRefreshWeb,
   markUpdateChecked,
   msUntilNextDailyUpdateCheck,
-  shouldRunDailyUpdateCheck,
   type UpdateAction,
 } from '../utils/appUpdate';
 import { isDesktopApp } from '../utils/nativePlatform';
@@ -35,9 +34,12 @@ function markAutoApplied(key: string) {
   }
 }
 
+/**
+ * Headless updater — downloads/installs in the background with no on-screen banner.
+ * Android may still show the system Install sheet (OS requirement for sideloaded APKs).
+ * Desktop electron-updater downloads then quitAndInstall; web hard-refreshes silently.
+ */
 export default function AppUpdateBanner({ forceCheck = false }: { forceCheck?: boolean }) {
-  const [action, setAction] = useState<UpdateAction>({ kind: 'none' });
-  const [note, setNote] = useState('');
   const applyingRef = useRef(false);
   const desktopInstallStartedRef = useRef(false);
 
@@ -54,14 +56,11 @@ export default function AppUpdateBanner({ forceCheck = false }: { forceCheck?: b
       if (desktopInstallStartedRef.current) return;
       desktopInstallStartedRef.current = true;
       applyingRef.current = true;
-      setAction(next);
-      setNote('Updating…');
       if (window.scorrDesktop?.quitAndInstall) {
         window.setTimeout(() => {
           void Promise.resolve(window.scorrDesktop?.quitAndInstall?.()).catch(() => {
             desktopInstallStartedRef.current = false;
             applyingRef.current = false;
-            setNote('Update ready — will install when Scorr quits.');
           });
         }, 400);
       }
@@ -71,24 +70,16 @@ export default function AppUpdateBanner({ forceCheck = false }: { forceCheck?: b
     if (applyingRef.current || alreadyAutoApplied(key)) return;
     applyingRef.current = true;
     markAutoApplied(key);
-    setAction(next);
-    setNote('Updating…');
 
     if (next.kind === 'refresh') {
-      window.setTimeout(() => hardRefreshWeb(), 500);
+      window.setTimeout(() => hardRefreshWeb(), 300);
       return;
     }
 
     if (next.kind === 'native') {
       try {
-        const msg = await applyNativeUpdate(next);
-        setNote(
-          next.platform === 'android'
-            ? 'Downloading update… Confirm Install when Android asks.'
-            : msg || 'Updating…',
-        );
-      } catch (e) {
-        setNote(e instanceof Error ? e.message : 'Update failed.');
+        await applyNativeUpdate(next);
+      } catch {
         applyingRef.current = false;
       }
     }
@@ -96,23 +87,17 @@ export default function AppUpdateBanner({ forceCheck = false }: { forceCheck?: b
 
   const runCheck = useCallback(
     async (forced = false) => {
-      if (!forced && !shouldRunDailyUpdateCheck(DAILY_UPDATE_HOUR) && !forceCheck) return;
+      if (!forced && !forceCheck) return;
       const next = await evaluateUpdate();
       markUpdateChecked();
-      if (next.kind === 'none') {
-        setAction(next);
-        return;
-      }
+      if (next.kind === 'none') return;
       void autoApply(next);
     },
     [autoApply, forceCheck],
   );
 
   useEffect(() => {
-    // Catch-up: if we missed today's 5 AM window (app was closed), check now.
-    if (forceCheck || shouldRunDailyUpdateCheck(DAILY_UPDATE_HOUR)) {
-      void runCheck(true);
-    }
+    void runCheck(true);
 
     let dailyTimer: number | null = null;
     const armDailyTimer = () => {
@@ -123,17 +108,15 @@ export default function AppUpdateBanner({ forceCheck = false }: { forceCheck?: b
     };
     armDailyTimer();
 
-    // When the laptop wakes, run if the 5 AM window is due.
     const onVis = () => {
       if (document.visibilityState !== 'visible') return;
-      if (!shouldRunDailyUpdateCheck(DAILY_UPDATE_HOUR)) return;
       void runCheck(true);
     };
     document.addEventListener('visibilitychange', onVis);
 
-    let unsub: (() => void) | undefined;
+    let unsubReady: (() => void) | undefined;
     if (isDesktopApp() && window.scorrDesktop?.onUpdateReady) {
-      unsub = window.scorrDesktop.onUpdateReady((payload) => {
+      unsubReady = window.scorrDesktop.onUpdateReady((payload) => {
         void autoApply({
           kind: 'native',
           platform: navigator.userAgent.toLowerCase().includes('windows') ? 'windows' : 'linux',
@@ -146,30 +129,15 @@ export default function AppUpdateBanner({ forceCheck = false }: { forceCheck?: b
         });
       });
     }
+    // Intentionally ignore onUpdateStatus — no in-app progress banner.
     return () => {
       if (dailyTimer != null) window.clearTimeout(dailyTimer);
       document.removeEventListener('visibilitychange', onVis);
-      unsub?.();
+      unsubReady?.();
     };
   }, [autoApply, forceCheck, runCheck]);
 
-  if (action.kind === 'none') return null;
-
-  return (
-    <div className="app-update-banner app-update-banner--applying" role="status" aria-live="polite">
-      <div className="app-update-banner__body">
-        <strong>Updating…</strong>
-        <span className="app-update-banner__notes">
-          {note ||
-            (action.kind === 'refresh'
-              ? 'Loading the latest web build. Your login stays signed in.'
-              : action.kind === 'native' && action.platform === 'android'
-                ? 'Preparing the APK. Android may ask you to confirm Install once.'
-                : 'Installing in the background. Login and attendance stay intact.')}
-        </span>
-      </div>
-    </div>
-  );
+  return null;
 }
 
 /** Imperative check used by Settings → About. */

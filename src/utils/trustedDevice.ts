@@ -4,8 +4,9 @@
  * Capacitor: Keystore/Keychain via AttendancePing plugin.
  * Electron: safeStorage via scorrDesktop bridge.
  */
-import { Capacitor, registerPlugin } from '@capacitor/core';
+import { Capacitor } from '@capacitor/core';
 import { supabase } from '../lib/supabase';
+import { AttendancePing } from './attendancePingPlugin';
 import { isAppShell, isDesktopApp, isNativeApp } from './nativePlatform';
 
 const DEVICE_ID_KEY = 'scorr_trusted_device_id';
@@ -22,14 +23,6 @@ export type TrustedDeviceRow = {
   expires_at: string;
   last_used_at?: string | null;
 };
-
-interface TrustedDevicePlugin {
-  saveTrustedDeviceToken(options: { token: string }): Promise<void>;
-  loadTrustedDeviceToken(): Promise<{ token?: string | null }>;
-  clearTrustedDeviceToken(): Promise<void>;
-}
-
-const AttendancePing = registerPlugin<TrustedDevicePlugin>('AttendancePing');
 
 type DesktopApi = {
   saveTrustedDeviceToken?: (token: string) => Promise<boolean> | boolean;
@@ -89,7 +82,7 @@ async function storeTokenLocal(token: string): Promise<void> {
       return;
     }
     if (isNativeApp() || Capacitor.isNativePlatform()) {
-      await AttendancePing.saveTrustedDeviceToken({ token });
+      await AttendancePing.saveTrustedDeviceToken!({ token });
       return;
     }
   } catch {
@@ -111,7 +104,7 @@ async function loadTokenLocal(): Promise<string | null> {
       return t || null;
     }
     if (isNativeApp() || Capacitor.isNativePlatform()) {
-      const raw = await AttendancePing.loadTrustedDeviceToken();
+      const raw = await AttendancePing.loadTrustedDeviceToken!();
       return (raw?.token || '').trim() || null;
     }
   } catch {
@@ -132,7 +125,7 @@ export async function clearTrustedDeviceLocal(): Promise<void> {
   }
   try {
     if (isNativeApp() || Capacitor.isNativePlatform()) {
-      await AttendancePing.clearTrustedDeviceToken();
+      await AttendancePing.clearTrustedDeviceToken!();
     }
   } catch {
     /* ignore */
@@ -338,31 +331,15 @@ export async function saveMfaTrustPolicy(staffDays: number, adminDays: number): 
   if (error) throw new Error(error.message);
 }
 
-/** Sign out and optionally forget this device's trust token. */
+/**
+ * Optional forget on logout — clears local/cookie token only.
+ * Does not revoke all trusted devices (that would break multi-day trust).
+ */
 export async function forgetThisDeviceOnLogout(): Promise<void> {
   try {
-    await invokeTrustedDevice('revoke_all').catch(() => undefined);
+    await invokeTrustedDevice('clear_cookie').catch(() => undefined);
   } catch {
     /* ignore */
   }
   await clearTrustedDeviceLocal();
-  if (useCookieProxy()) {
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const access = sessionData.session?.access_token;
-      if (access) {
-        await fetch(COOKIE_API, {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${access}`,
-          },
-          body: JSON.stringify({ action: 'clear_cookie' }),
-        });
-      }
-    } catch {
-      /* ignore */
-    }
-  }
 }

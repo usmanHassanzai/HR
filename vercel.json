@@ -5,7 +5,7 @@
   "redirects": [
     {
       "source": "/downloads/Scorr-Setup.exe",
-      "destination": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.46/Scorr-Setup.exe",
+      "destination": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.45/Scorr-Setup.exe",
       "permanent": false
     },
     {
@@ -37,6 +37,20 @@
       "source": "/build-meta.json",
       "headers": [
         { "key": "Content-Type", "value": "application/json" },
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/downloads/desktop/latest.yml",
+      "headers": [
+        { "key": "Content-Type", "value": "text/yaml; charset=utf-8" },
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/downloads/desktop/latest-linux.yml",
+      "headers": [
+        { "key": "Content-Type", "value": "text/yaml; charset=utf-8" },
         { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
       ]
     },
@@ -93,8 +107,57 @@
       ]
     },
     {
+      "source": "/assets/(.*)\\.css",
+      "headers": [
+        { "key": "Content-Type", "value": "text/css; charset=utf-8" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/assets/(.*)\\.mjs",
+      "headers": [
+        { "key": "Content-Type", "value": "text/javascript; charset=utf-8" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/assets/(.*)\\.js",
+      "headers": [
+        { "key": "Content-Type", "value": "text/javascript; charset=utf-8" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/assets/(.*)\\.json",
+      "headers": [
+        { "key": "Content-Type", "value": "application/json" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/assets/(.*)\\.svg",
+      "headers": [
+        { "key": "Content-Type", "value": "image/svg+xml" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/assets/(.*)\\.woff2",
+      "headers": [
+        { "key": "Content-Type", "value": "font/woff2" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
       "source": "/assets/(.*)",
       "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
     },

@@ -13,10 +13,10 @@ const TOKEN_KEY = 'scorr_attendance_device_token';
 const DEVICE_ID_KEY = 'scorr_attendance_device_id';
 
 export const PHONE_OPT_IN_TEXT =
-  'Scorr can check you in automatically when this phone is on office Wi‑Fi or inside the office area during your shift. Public Wi‑Fi does not count.';
+  'Enable once: allow location (All the time), notifications, Wi‑Fi, and unrestricted battery. After that Scorr checks you in on office Wi‑Fi or inside the office radius during your shift — no daily login needed. Public Wi‑Fi does not count.';
 
 export const LAPTOP_OPT_IN_TEXT =
-  'Scorr can check you in automatically when this computer is on office Wi‑Fi or inside the office area during your shift. Public Wi‑Fi does not count.';
+  'Enable once: allow location if asked, keep the tray icon running, and turn on start at login. After that this computer checks you in on office Wi‑Fi or inside the office radius during your shift — no daily dashboard login needed. Public Wi‑Fi does not count.';
 
 /** Map raw Supabase / Postgres errors to short user-facing copy. */
 export function friendlyAutoAttendanceError(raw: unknown, fallback?: string): string {

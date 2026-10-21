@@ -59,6 +59,7 @@
             || (window.navigator).standalone === true;
           if (standalone || q.get('app') === '1' || q.get('mode') === 'app') {
             document.documentElement.classList.add('app-shell');
+            if (document.body) document.body.classList.add('app-shell');
           }
         } catch (e) {}
       })();

@@ -201,6 +201,7 @@ export function getAdminNavMeta(id: string): { label: string; description: strin
     companies: { label: 'Registered Companies', description: 'Approve new company sign-ups.' },
     kpiManagement: { label: 'KPIs', description: 'Individual assignments and weightage.' },
     branding: { label: 'Settings', description: 'Logo and company theme.' },
+    scoreWeightage: { label: 'Score weightage', description: 'Individual/team mix, live scores, and bonus %.' },
   };
   return map[id] ?? { label: 'Admin', description: 'Organization administration.' };
 }

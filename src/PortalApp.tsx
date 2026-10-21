@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, lazy, Suspense, type ReactNode } from
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { Profile } from './utils/kpiHelpers';
 import NativeScrollRoot from './components/NativeScrollRoot';
+import RouteErrorBoundary from './components/RouteErrorBoundary';
 import DemoModeBanner from './components/DemoModeBanner';
 import {
   isAppShell,
@@ -47,9 +48,24 @@ const GeoAttendanceTracker = lazy(() => import('./components/GeoAttendanceTracke
 const PrivilegedMfaGate = lazy(() => import('./components/PrivilegedMfaGate'));
 const CompanyPendingScreen = lazy(() => import('./components/CompanyPendingScreen'));
 
-/** Empty viewport placeholder — avoids spinner CLS on route transitions. */
+/** Visible placeholder — empty 100vh looked blank in Electron on small windows. */
 function RouteFallback() {
-  return <div style={{ minHeight: '100vh' }} aria-hidden />;
+  return (
+    <div
+      style={{
+        minHeight: '100dvh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'var(--text-secondary, #64748b)',
+        fontSize: '0.9rem',
+        background: 'var(--bg-app, #f1f5f9)',
+      }}
+      role="status"
+    >
+      Loading…
+    </div>
+  );
 }
 
 export type PortalAppProps = {
@@ -486,16 +502,18 @@ function PortalApp({ initialSession = null, onSignedOut }: PortalAppProps) {
   } else if (roleRequiresMfa(profile) && !privilegedMfaOk) {
     main = (
       <NativeScrollRoot>
-        <Suspense fallback={<RouteFallback />}>
-          <PrivilegedMfaGate
-            fullName={profile.full_name}
-            onSatisfied={() => setPrivilegedMfaOk(true)}
-            onCancel={() => {
-              void supabase.auth.signOut();
-              handleLogout();
-            }}
-          />
-        </Suspense>
+        <RouteErrorBoundary>
+          <Suspense fallback={<RouteFallback />}>
+            <PrivilegedMfaGate
+              fullName={profile.full_name}
+              onSatisfied={() => setPrivilegedMfaOk(true)}
+              onCancel={() => {
+                void supabase.auth.signOut();
+                handleLogout();
+              }}
+            />
+          </Suspense>
+        </RouteErrorBoundary>
       </NativeScrollRoot>
     );
   } else {
@@ -511,19 +529,21 @@ function PortalApp({ initialSession = null, onSignedOut }: PortalAppProps) {
         )}
         <div className={`dashboard-container${profile.role === 'admin' || profile.role === 'manager' || profile.role === 'employee' || profile.role === 'hr' ? ' dashboard-container--admin' : ''}`}>
           {isDemoProfile(profile) && <DemoModeBanner />}
-          <Suspense fallback={<RouteFallback />}>
-            <Header profile={profile} organizationName={company?.name} onLogout={handleLogout} />
+          <RouteErrorBoundary>
+            <Suspense fallback={<RouteFallback />}>
+              <Header profile={profile} organizationName={company?.name} onLogout={handleLogout} />
 
-            <main className="dashboard-main" style={{ marginTop: profile.role === 'admin' || profile.role === 'manager' || profile.role === 'hr' ? 0 : '1rem' }}>
-              {(profile.role === 'admin' || profile.role === 'hr') && (
-                <AdminDashboard profile={profile} organizationName={company?.name} />
-              )}
-              {profile.role === 'manager' && (
-                <ManagerDashboard profile={profile} organizationName={company?.name} />
-              )}
-              {profile.role === 'employee' && <EmployeeDashboard profile={profile} />}
-            </main>
-          </Suspense>
+              <main className="dashboard-main" style={{ marginTop: profile.role === 'admin' || profile.role === 'manager' || profile.role === 'hr' ? 0 : '1rem' }}>
+                {(profile.role === 'admin' || profile.role === 'hr') && (
+                  <AdminDashboard profile={profile} organizationName={company?.name} />
+                )}
+                {profile.role === 'manager' && (
+                  <ManagerDashboard profile={profile} organizationName={company?.name} />
+                )}
+                {profile.role === 'employee' && <EmployeeDashboard profile={profile} />}
+              </main>
+            </Suspense>
+          </RouteErrorBoundary>
         </div>
       </NativeScrollRoot>
     );

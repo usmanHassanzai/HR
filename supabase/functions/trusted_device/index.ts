@@ -11,7 +11,8 @@ const ALLOWED_ORIGINS = new Set([
 
 const PEPPER = Deno.env.get('MFA_CODE_PEPPER') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || 'scorr-mfa-pepper';
 const COOKIE_NAME = 'scorr_td';
-const GRANT_HOURS = 12;
+/** Fallback session grant when no device expiry is known (should be rare). */
+const GRANT_HOURS_FALLBACK = 24;
 
 function corsHeaders(req: Request) {
   const origin = req.headers.get('origin') || '';
@@ -124,9 +125,20 @@ async function createSessionGrant(
   userId: string,
   sessionId: string | null,
   method: string,
+  /** Prefer matching the trusted-device expiry so MFA is not re-asked within the policy window. */
+  expiresAtIso?: string | null,
 ) {
   const sid = sessionId || `fallback-${userId}`;
-  const expires = new Date(Date.now() + GRANT_HOURS * 3600 * 1000).toISOString();
+  let expiresMs = Date.now() + GRANT_HOURS_FALLBACK * 3600 * 1000;
+  if (expiresAtIso) {
+    const parsed = Date.parse(expiresAtIso);
+    if (!Number.isNaN(parsed) && parsed > Date.now()) {
+      expiresMs = parsed;
+    }
+  }
+  // Cap one grant at 30 days from now (device row still enforces absolute expiry).
+  const maxMs = Date.now() + 30 * 86400 * 1000;
+  const expires = new Date(Math.min(expiresMs, maxMs)).toISOString();
   await admin.from('mfa_session_grants').upsert({
     user_id: userId,
     session_id: sid,
@@ -294,7 +306,7 @@ serve(async (req) => {
         return json(req, { error: 'Could not trust this device.', detail: writeErr.message }, 500);
       }
 
-      await createSessionGrant(admin, callerId, sid, 'trusted_device');
+      await createSessionGrant(admin, callerId, sid, 'trusted_device', expiresAt);
       await audit(admin, callerId, 'trust_created', true, ip, `${platform} ${days}d`);
 
       const maxAge = Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000);
@@ -418,12 +430,12 @@ serve(async (req) => {
       }
       if (!rotated) {
         // Another request already rotated; grant MFA for this session without wiping cookie.
-        await createSessionGrant(admin, callerId, sid, 'trusted_device');
+        await createSessionGrant(admin, callerId, sid, 'trusted_device', row.expires_at);
         await audit(admin, callerId, 'trust_used', true, ip, `concurrent ${row.device_id}`);
         return json(req, { ok: true, reason: 'concurrent', device_id: row.device_id }, 200);
       }
 
-      await createSessionGrant(admin, callerId, sid, 'trusted_device');
+      await createSessionGrant(admin, callerId, sid, 'trusted_device', row.expires_at);
       await audit(admin, callerId, 'trust_used', true, ip, row.device_id);
 
       const maxAge = Math.floor((new Date(row.expires_at).getTime() - Date.now()) / 1000);

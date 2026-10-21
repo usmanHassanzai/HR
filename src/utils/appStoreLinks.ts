@@ -12,11 +12,6 @@ function isScorrDesktopShell(): boolean {
   }
 }
 
-function envUrl(key: string): string {
-  const v = (import.meta.env[key] as string | undefined)?.trim() || '';
-  return v;
-}
-
 /** Google Play listing (live only after the app is published). Currently 404 — do not use as primary CTA. */
 export const PLAY_STORE_URL =
   'https://play.google.com/store/apps/details?id=ai.walfia.scorr';
@@ -30,11 +25,17 @@ export const PLAY_STORE_LIVE = false;
 /**
  * Apple App Store product page.
  * Set `VITE_APP_STORE_URL` (e.g. https://apps.apple.com/app/scorr/idXXXXXXXXX)
- * when the listing is live; until then iOS uses Home Screen install.
+ * when the listing is live.
  */
 export const APP_STORE_URL = (
   (import.meta.env.VITE_APP_STORE_URL as string | undefined) || ''
 ).trim();
+
+/** Direct IPA (Ad Hoc / enterprise) — same pattern as Android APK when published. */
+export const IPA_PATH = '/downloads/scorr.ipa';
+
+/** OTA install manifest for Ad Hoc IPA (itms-services). */
+export const IOS_MANIFEST_PATH = '/downloads/ios/manifest.plist';
 
 export const IOS_PWA_INSTALL_URL = 'https://scorr.walfia.ai/?app=1';
 
@@ -44,16 +45,23 @@ export const APK_DIRECT_UNTIL = new Date('2026-11-01T00:00:00.000Z');
 export const APK_PATH = '/downloads/scorr.apk';
 
 /**
- * Desktop packages are large and hosted on GitHub Releases (not Vercel).
- * Prefer env overrides when set; otherwise /downloads/… fallbacks.
+ * Desktop packages are large and hosted on GitHub Releases (not Vercel —
+ * *.deb / *.exe are gitignored so /downloads/Scorr.deb 404s on the site).
+ * Windows and Linux can point at different release tags (Windows-only hotfixes).
  */
-export const DESKTOP_WIN_PATH =
-  envUrl('VITE_DESKTOP_WIN_URL') ||
-  'https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.46/Scorr-Setup.exe';
+const DESKTOP_GH_WIN =
+  'https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.45';
+const DESKTOP_GH_LINUX =
+  'https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.45';
+
+// Do not read VITE_DESKTOP_* from .env. Those values are stale (desktop-v1.3.8).
+// 1.3.46 is published but crashes on start, so Windows stays on 1.3.45.
+export const DESKTOP_WIN_PATH = `${DESKTOP_GH_WIN}/Scorr-Setup.exe`;
 
 /** Linux .deb package (Electron). */
-export const DESKTOP_LINUX_DEB_PATH =
-  envUrl('VITE_DESKTOP_LINUX_DEB_URL') || '/downloads/Scorr.deb';
+export const DESKTOP_LINUX_DEB_PATH = `${DESKTOP_GH_LINUX}/Scorr.deb`;
+
+export const DESKTOP_LINUX_APPIMAGE_PATH = `${DESKTOP_GH_LINUX}/Scorr.AppImage`;
 
 export function isApkDirectDownloadAvailable(now = new Date()): boolean {
   return now.getTime() < APK_DIRECT_UNTIL.getTime();
@@ -77,13 +85,25 @@ export function androidInstallIsDownload(): boolean {
   return !PLAY_STORE_LIVE && isApkDirectDownloadAvailable();
 }
 
-/** Working iOS install target — App Store when configured, else PWA install page. */
-export function iosInstallHref(): string {
-  return APP_STORE_URL || IOS_PWA_INSTALL_URL;
+/** Working iOS install target — App Store → IPA OTA → PWA fallback. */
+export function iosInstallHref(opts?: { ipaAvailable?: boolean }): string {
+  if (APP_STORE_URL) return APP_STORE_URL;
+  if (opts?.ipaAvailable) return IPA_PATH;
+  return IOS_PWA_INSTALL_URL;
 }
 
 export function iosInstallIsAppStore(): boolean {
   return Boolean(APP_STORE_URL);
+}
+
+export function iosInstallIsIpa(opts?: { ipaAvailable?: boolean }): boolean {
+  return !APP_STORE_URL && Boolean(opts?.ipaAvailable);
+}
+
+/** Safari OTA install URL for Ad Hoc / enterprise IPA (requires HTTPS manifest). */
+export function iosOtaInstallHref(origin = 'https://scorr.walfia.ai'): string {
+  const manifestUrl = `${origin.replace(/\/$/, '')}${IOS_MANIFEST_PATH}`;
+  return `itms-services://?action=download-manifest&url=${encodeURIComponent(manifestUrl)}`;
 }
 
 /** Store / sideload install CTAs — never show inside Capacitor or Electron shells. */

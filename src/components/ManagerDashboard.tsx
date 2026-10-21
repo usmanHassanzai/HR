@@ -4,7 +4,7 @@ import { Profile } from '../utils/kpiHelpers';
 import { runOverdueKpiCheckOnce } from '../utils/overdueKpiCheck';
 import Leaderboard from './Leaderboard';
 import EmployeeDashboard from './EmployeeDashboard';
-import { Users, KeyRound, Trophy, Settings, CalendarCheck, ClipboardList, BarChart2, FileText } from 'lucide-react';
+import { Users, KeyRound, Trophy, Settings, CalendarCheck, ClipboardList, BarChart2, FileText, Scale } from 'lucide-react';
 import ChangePasswordModal from './ChangePasswordModal';
 import AdminSidebarNav, { findAdminNavIcon, type AdminNavGroup } from './AdminSidebarNav';
 import AdminHamburgerButton from './AdminHamburgerButton';
@@ -27,11 +27,12 @@ const AdminLiveTracking = lazy(() => import('./AdminLiveTracking'));
 const AccountSecurityPanel = lazy(() => import('./AccountSecurityPanel'));
 const AutoAttendanceSavePanel = lazy(() => import('./AutoAttendanceSavePanel'));
 const BackupCodesLowBanner = lazy(() => import('./BackupCodesLowBanner'));
+const ScoreWeightagePanel = lazy(() => import('./ScoreWeightagePanel'));
 
-type ManagerTab = 'mine' | 'employees' | 'kpis' | 'attendance' | 'rewards' | 'dailyReport' | 'settings';
+type ManagerTab = 'mine' | 'employees' | 'kpis' | 'attendance' | 'rewards' | 'dailyReport' | 'settings' | 'scoreWeightage';
 
 const MANAGER_TAB_KEY = 'scorr-manager-active-tab';
-const MANAGER_TABS: ManagerTab[] = ['mine', 'employees', 'kpis', 'attendance', 'rewards', 'dailyReport', 'settings'];
+const MANAGER_TABS: ManagerTab[] = ['mine', 'employees', 'kpis', 'attendance', 'rewards', 'dailyReport', 'scoreWeightage', 'settings'];
 
 function initialManagerTab(): ManagerTab {
   const fromHash = parseAppHash()?.tab;
@@ -54,6 +55,7 @@ function getManagerNavMeta(id: string): { label: string; description: string } {
     attendance: { label: 'Attendance', description: 'Team leave and check-in.' },
     rewards: { label: 'Rewards', description: 'Company gifts for you and your team.' },
     dailyReport: { label: 'Daily report', description: 'Submit and review your daily work log.' },
+    scoreWeightage: { label: 'Score weightage', description: 'Department mix and team scores.' },
     settings: { label: 'Settings', description: 'Password and account security.' },
   };
   return map[id] ?? { label: 'Manager', description: 'Team and personal workspace.' };
@@ -182,6 +184,7 @@ export default function ManagerDashboard({ profile, organizationName }: ManagerD
         { id: 'attendance', label: 'Attendance', icon: <CalendarCheck size={16} /> },
         { id: 'rewards', label: 'Rewards', icon: <Trophy size={16} /> },
         { id: 'dailyReport', label: 'Daily report', icon: <FileText size={16} /> },
+        { id: 'scoreWeightage', label: 'Score weightage', icon: <Scale size={16} /> },
         { id: 'settings', label: 'Settings', icon: <Settings size={16} /> },
       ],
     },
@@ -293,6 +296,8 @@ export default function ManagerDashboard({ profile, organizationName }: ManagerD
           </div>
         ) : activeTab === 'dailyReport' ? (
           <DailyWorkReportPanel profile={profile} />
+        ) : activeTab === 'scoreWeightage' ? (
+          <ScoreWeightagePanel profile={profile} />
         ) : (
           <div className="app-settings-stack">
             <BackupCodesLowBanner onOpenSettings={() => setActiveTab('settings')} />
