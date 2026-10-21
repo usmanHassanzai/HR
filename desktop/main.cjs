@@ -496,8 +496,73 @@ function logDesktopStaleDrop(event, occurred, ageMs, source) {
   console.info('[scorr-att] dropped stale event', { source, event, age_ms: ageMs, occurred_at_utc_ms: occurred });
 }
 
-/** Best-effort SSID/BSSID for desktop Wi-Fi auto check-in. */
+function isBlankOrHiddenSsid(ssid) {
+  const s = String(ssid ?? '').trim();
+  if (!s) return true;
+  return /^(?:<hidden>|hidden)$/i.test(s);
+}
+
+/** Windows duplicate profiles are "Office" then "Office 2", "Office 3". */
+function stripWindowsProfileSuffix(name) {
+  return String(name || '').trim().replace(/[ \t]+\d{1,2}$/, '').trim();
+}
+
+let windowsProfileReads = 0;
+
+/**
+ * Profile name of the active Wi-Fi interface. No Location permission and no admin.
+ * Never called on Windows 10 (build < 22000), Linux, Android, iOS, or browsers.
+ */
+function readWindowsWifiProfileName() {
+  if (!isWindows11()) return null;
+  windowsProfileReads += 1;
+  if (
+    String(process.env.SCORR_SIMULATE_WINDOWS_BUILD || '').trim() !== '' &&
+    process.env.SCORR_SIMULATE_WIFI_PROFILE != null
+  ) {
+    const simulated = String(process.env.SCORR_SIMULATE_WIFI_PROFILE);
+    if (simulated === '' || simulated === '__NONE__') return null;
+    return stripWindowsProfileSuffix(simulated) || null;
+  }
+  if (process.platform !== 'win32') return null;
+  try {
+    const command = [
+      "$ErrorActionPreference='SilentlyContinue'",
+      "$p = @(Get-NetConnectionProfile | Where-Object {",
+      "$_.IPv4Connectivity -ne 'Disconnected' -and ($_.InterfaceAlias -match 'Wi-?Fi|WLAN|Wireless')",
+      "} | Select-Object -First 1)",
+      "if ($p.Count -gt 0 -and $p[0].Name) { $p[0].Name }",
+    ].join('; ');
+    const out = execFileSync(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-Command', command],
+      { encoding: 'utf8', timeout: 4000, windowsHide: true },
+    );
+    const line = String(out || '').split(/\r?\n/).map((s) => s.trim()).find(Boolean) || '';
+    return stripWindowsProfileSuffix(line) || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Best-effort SSID/BSSID. Windows 11 may fill a blank SSID from the profile name. */
 function readWifiIdentity() {
+  const wifi = readCurrentWifiIdentity();
+  if (!isWindows11()) return wifi;
+  if (!isBlankOrHiddenSsid(wifi.ssid)) return wifi;
+  const profile = readWindowsWifiProfileName();
+  if (!profile) return { ssid: null, bssid: wifi.bssid };
+  return { ssid: profile, bssid: wifi.bssid, ssid_source: 'profile_name' };
+}
+
+function readCurrentWifiIdentity() {
+  if (
+    String(process.env.SCORR_SIMULATE_WINDOWS_BUILD || '').trim() !== '' &&
+    process.env.SCORR_SIMULATE_NETSH_SSID != null
+  ) {
+    const raw = String(process.env.SCORR_SIMULATE_NETSH_SSID).trim();
+    return { ssid: raw || null, bssid: null };
+  }
   const { execSync } = require('child_process');
   try {
     if (process.platform === 'win32') {
@@ -525,6 +590,12 @@ function readWifiIdentity() {
     /* ignore — Wi-Fi probe is best-effort; GPS radius still works */
   }
   return { ssid: null, bssid: null };
+}
+
+function attendanceWifiPayload(wifi) {
+  const body = { ssid: wifi?.ssid ?? null, bssid: wifi?.bssid ?? null };
+  if (wifi?.ssid_source === 'profile_name') body.ssid_source = 'profile_name';
+  return body;
 }
 
 function isCheckinEventName(event) {
@@ -671,8 +742,7 @@ async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = nul
         latitude: fix?.latitude ?? null,
         longitude: fix?.longitude ?? null,
         accuracy_m: fix?.accuracy_m ?? null,
-        ssid: wifi.ssid,
-        bssid: wifi.bssid,
+        ...attendanceWifiPayload(wifi),
         is_mock: false,
         ...attendancePlatformFields(),
       },
@@ -1175,3 +1245,10 @@ app.on('before-quit', () => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin' && !loadToken()) app.quit();
 });
+
+module.exports = {
+  readWifiIdentity,
+  isWindows11,
+  attendanceWifiPayload,
+  profileReadCount: () => windowsProfileReads,
+};
