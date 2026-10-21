@@ -41,6 +41,28 @@ function clientLabel(electronVersion: string | null): string {
   return 'Browser';
 }
 
+/** Electron's default product token. Ignores the ScorrDesktop/1.0 shell marker. */
+export function desktopVersionFromUserAgent(ua: string): string | null {
+  const match = ua.match(/(?:^|[^\w])scorr\/(\d+\.\d+(?:\.\d+)?)(?!\.\d)/i);
+  return match?.[1] ?? null;
+}
+
+function appVersionLabel(): string {
+  if (hasScorrDesktopBridge()) {
+    const version = desktopVersionFromUserAgent(navigator.userAgent || '');
+    return version
+      ? `${version} (desktop app)`
+      : 'Desktop app (version shown in Windows Settings → Apps)';
+  }
+  if (shellMarkerVersion()) {
+    return `${shellMarkerVersion()} (shell marker — bridge incomplete)`;
+  }
+  if (isElectronShell()) {
+    return `${packageVersion()} (website UI — desktop bridge not detected)`;
+  }
+  return `${packageVersion()} (website UI — desktop binary not detected)`;
+}
+
 function shellMarkerVersion(): string | null {
   if (typeof window === 'undefined') return null;
   try {
@@ -196,15 +218,7 @@ export default function AboutUpdatesPanel() {
       <dl className="about-updates__meta">
         <div>
           <dt>App version</dt>
-          <dd>
-            {electronVersion
-              ? electronVersion
-              : shellMarkerVersion()
-                ? `${shellMarkerVersion()} (shell marker — bridge incomplete)`
-                : isElectronShell()
-                  ? `${packageVersion()} (website UI — desktop bridge not detected)`
-                  : `${packageVersion()} (website UI — desktop binary not detected)`}
-          </dd>
+          <dd>{appVersionLabel()}</dd>
         </div>
         <div>
           <dt>Web build</dt>

@@ -30,9 +30,9 @@ function androidVersionCode() {
 
 // Desktop feed URLs are pinned here. Never read them from .env / .env.local /
 // .env.desktop-urls — those files still point Windows at desktop-v1.3.8.
-// desktop-v1.3.46 crashes on start. 1.3.47 and 1.3.48 stay pre-releases until STEP B.
-// The website feed follows WINDOWS_RELEASE only. 1.3.45 is the current public feed.
-const WINDOWS_RELEASE = '1.3.48';
+// desktop-v1.3.46 crashes on start. 1.3.46 and 1.3.47 stay pre-releases.
+// Linux and Android stay on 1.3.45. The website Windows feed is WINDOWS_RELEASE.
+const WINDOWS_RELEASE = '1.3.49';
 const LINUX_RELEASE = '1.3.45';
 const WINDOWS_INSTALLERS = {
   '1.3.45': {
@@ -44,6 +44,11 @@ const WINDOWS_INSTALLERS = {
     sha512: '8NwKpqnj5JefgwFKvkLSlRTPwHbuHTuEXOXGRJzAEiGVdyRk3jlO1VOa/KIXat1/jVHYhnWXjugZOMb3g3RU4A==',
     size: 92385285,
     releaseDate: '2026-10-21T16:49:33.787Z',
+  },
+  '1.3.49': {
+    sha512: '3T5zizzyD/bGA66COztqoIsS7/W/qbcLPjWfPTIqT8h/cPbRM7AkulPONw3mspUd0jRA2gcV3T6N2hkC6NxWgQ==',
+    size: 92386022,
+    releaseDate: '2026-10-21T20:45:46.128Z',
   },
 };
 const winInstaller = WINDOWS_INSTALLERS[WINDOWS_RELEASE];

@@ -34,6 +34,7 @@ import {
 } from '../utils/appStoreLinks';
 
 const BUILD_INFO_PATH = '/downloads/build-info.json';
+const VERSION_JSON_PATH = '/downloads/version.json';
 const USER_GUIDE_PATH = '/downloads/Scorr-Client-Feature-Guide.pdf';
 const SECURITY_GUIDE_PATH = '/downloads/Scorr-Security-Overview.pdf';
 
@@ -80,6 +81,12 @@ interface BuildInfoFile {
   desktop?: DesktopBuildInfo;
 }
 
+interface VersionManifest {
+  android?: { versionName?: string };
+  linux?: { version?: string };
+  windows?: { version?: string };
+}
+
 function isWindowsUa(): boolean {
   if (typeof navigator === 'undefined') return false;
   return /Windows/i.test(navigator.userAgent);
@@ -117,6 +124,16 @@ function isAndroid(): boolean {
 async function fetchBuildInfo(): Promise<BuildInfoFile | null> {
   try {
     const r = await fetch(assetUrl(BUILD_INFO_PATH), { cache: 'no-store' });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch {
+    return null;
+  }
+}
+
+async function fetchVersionManifest(): Promise<VersionManifest | null> {
+  try {
+    const r = await fetch(assetUrl(VERSION_JSON_PATH), { cache: 'no-store' });
     if (!r.ok) return null;
     return await r.json();
   } catch {
@@ -189,6 +206,7 @@ async function checkDesktopFile(path: string): Promise<boolean> {
 
 export default function MobileAppDownload() {
   const [buildInfo, setBuildInfo] = useState<BuildInfoFile | null>(null);
+  const [versionManifest, setVersionManifest] = useState<VersionManifest | null>(null);
   const [apkReady, setApkReady] = useState<boolean | null>(null);
   const [ipaReady, setIpaReady] = useState<boolean | null>(null);
   const [desktopReady, setDesktopReady] = useState<{
@@ -234,8 +252,9 @@ export default function MobileAppDownload() {
     });
     setInstalled(isStandalonePwa());
     void (async () => {
-      const info = await fetchBuildInfo();
+      const [info, manifest] = await Promise.all([fetchBuildInfo(), fetchVersionManifest()]);
       setBuildInfo(info);
+      setVersionManifest(manifest);
       if (!apkWindowOpen) {
         setApkReady(false);
       } else {
@@ -302,7 +321,11 @@ export default function MobileAppDownload() {
 
           {androidInfo && apkReady && (
             <div className="landing-download-meta">
-              <span><Package size={14} /> v{androidInfo.version} · {androidInfo.sizeLabel}</span>
+              <span>
+                <Package size={14} />{' '}
+                {versionManifest?.android?.versionName ? `v${versionManifest.android.versionName}` : 'Android'}
+                {androidInfo.sizeLabel ? ` · ${androidInfo.sizeLabel}` : ''}
+              </span>
               <span><Calendar size={14} /> Updated {androidInfo.updatedLabel}</span>
               <span><Shield size={14} /> {androidInfo.appId || 'ai.walfia.scorr'}</span>
             </div>
@@ -588,7 +611,8 @@ export default function MobileAppDownload() {
           {desktopInfo?.platforms?.linuxDeb && (
             <div className="landing-download-meta">
               <span>
-                <Package size={14} /> v{desktopInfo.version}
+                <Package size={14} />{' '}
+                {versionManifest?.linux?.version ? `v${versionManifest.linux.version}` : 'Linux'}
                 {desktopInfo.platforms.linuxDeb.sizeLabel
                   ? ` · ${desktopInfo.platforms.linuxDeb.sizeLabel}`
                   : ''}
