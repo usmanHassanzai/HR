@@ -60,24 +60,53 @@ function attendancePlatformFields() {
   return isWindows11() ? { platform_variant: 'windows11' } : {};
 }
 
+/**
+ * Same startup entry as desktop 1.3.45 on every Windows version.
+ * 1.3.49 added args: ['--hidden'] on Windows 11. Windows 11 then disables that
+ * startup item, so the process never runs and check-in waits until someone
+ * opens Scorr. openAsHidden is macOS-only and does not hide the Windows window.
+ */
 function setStartupEntry(enabled) {
   const on = Boolean(enabled);
-  if (isWindows11()) {
+  try {
     app.setLoginItemSettings({
-      openAtLogin: on,
-      openAsHidden: true,
-      args: on ? ['--hidden'] : [],
+      openAtLogin: false,
+      args: ['--hidden'],
     });
-    return;
+  } catch {
+    /* 1.3.49 entry may not exist */
   }
-  app.setLoginItemSettings({ openAtLogin: on, openAsHidden: true });
+  try {
+    if (process.platform === 'win32') {
+      app.setLoginItemSettings({
+        openAtLogin: on,
+        openAsHidden: true,
+        enabled: on,
+      });
+      return;
+    }
+    app.setLoginItemSettings({ openAtLogin: on, openAsHidden: true });
+  } catch (e) {
+    console.warn('[scorr] setStartupEntry failed', e);
+  }
 }
 
 const APP_URL = process.env.SCORR_DESKTOP_URL || 'https://scorr.walfia.ai/?app=1';
-const SUPABASE_URL = process.env.SCORR_SUPABASE_URL || 'https://yvnbxweitelowucdhwpg.supabase.co';
+/** Packaged builds bake the public anon key into runtime-config.cjs (same key the website uses). */
+let runtimeConfig = {};
+try {
+  runtimeConfig = require('./runtime-config.cjs');
+} catch {
+  runtimeConfig = {};
+}
+const SUPABASE_URL =
+  process.env.SCORR_SUPABASE_URL ||
+  runtimeConfig.supabaseUrl ||
+  'https://yvnbxweitelowucdhwpg.supabase.co';
 const SUPABASE_ANON =
   process.env.SCORR_SUPABASE_ANON ||
   process.env.VITE_SUPABASE_ANON_KEY ||
+  runtimeConfig.supabaseAnonKey ||
   '';
 
 let autoUpdater = null;
@@ -93,6 +122,8 @@ const TOKEN_FILE = () => path.join(app.getPath('userData'), 'attendance-token.bi
 const DEVICE_ID_FILE = () => path.join(app.getPath('userData'), 'attendance-device-id.txt');
 const SCHEDULE_FILE = () => path.join(app.getPath('userData'), 'attendance-schedule.json');
 const CHECKED_IN_FILE = () => path.join(app.getPath('userData'), 'attendance-checked-in.json');
+const TOKEN_FALLBACK_FILE = () => path.join(app.getPath('userData'), 'attendance-token.aes');
+const TOKEN_KEY_FILE = () => path.join(app.getPath('userData'), 'attendance-token.key');
 const LOGIN_CREDS_FILE = () => path.join(app.getPath('userData'), 'login-credentials.bin');
 /** AES-GCM fallback when OS safeStorage (keyring) is unavailable — e.g. some Linux desktops. */
 const LOGIN_CREDS_FALLBACK_FILE = () => path.join(app.getPath('userData'), 'login-credentials.aes');
@@ -109,6 +140,8 @@ let windowStartTimer = null;
 let windowEndTimer = null;
 /** @type {any} */
 let cachedSchedule = null;
+/** In-memory token so a later keyring glitch cannot stop a check-in already armed. */
+let memoryAttendanceToken = null;
 /** Attendance date string (YYYY-MM-DD) after successful auto check-in — suppress repeats. */
 let checkedInAttendanceDate = null;
 /** @type {{ attendance_date?: string } | null} */
@@ -137,38 +170,99 @@ function deviceId() {
   return id;
 }
 
-function saveToken(plaintext) {
-  if (!plaintext) return;
+function aesFileKey(keyFile) {
   try {
-    if (safeStorage.isEncryptionAvailable()) {
-      const buf = safeStorage.encryptString(String(plaintext));
-      fs.writeFileSync(TOKEN_FILE(), buf);
-      return;
+    if (fs.existsSync(keyFile)) {
+      const raw = fs.readFileSync(keyFile);
+      if (raw.length === 32) return raw;
     }
   } catch {
-    /* fall through */
+    /* recreate */
   }
-  fs.writeFileSync(TOKEN_FILE() + '.txt', String(plaintext), 'utf8');
+  const key = crypto.randomBytes(32);
+  fs.writeFileSync(keyFile, key, { mode: 0o600 });
+  return key;
+}
+
+function aesSave(file, keyFile, plaintext) {
+  const key = aesFileKey(keyFile);
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const enc = Buffer.concat([cipher.update(String(plaintext), 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  fs.writeFileSync(file, Buffer.concat([iv, tag, enc]), { mode: 0o600 });
+}
+
+function aesLoad(file, keyFile) {
+  if (!fs.existsSync(file) || !fs.existsSync(keyFile)) return null;
+  const key = fs.readFileSync(keyFile);
+  if (key.length !== 32) return null;
+  const buf = fs.readFileSync(file);
+  if (buf.length < 28) return null;
+  const iv = buf.subarray(0, 12);
+  const tag = buf.subarray(12, 28);
+  const data = buf.subarray(28);
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
+}
+
+function saveToken(plaintext) {
+  if (!plaintext) return;
+  const value = String(plaintext);
+  memoryAttendanceToken = value;
+  try {
+    aesSave(TOKEN_FALLBACK_FILE(), TOKEN_KEY_FILE(), value);
+  } catch (e) {
+    console.warn('[scorr-att] token fallback save failed', e);
+  }
+  try {
+    if (safeStorage.isEncryptionAvailable()) {
+      fs.writeFileSync(TOKEN_FILE(), safeStorage.encryptString(value));
+    }
+  } catch (e) {
+    console.warn('[scorr-att] token keyring save failed', e);
+  }
 }
 
 function loadToken() {
+  if (memoryAttendanceToken) return memoryAttendanceToken;
+  let found = null;
   try {
     if (fs.existsSync(TOKEN_FILE()) && safeStorage.isEncryptionAvailable()) {
-      return safeStorage.decryptString(fs.readFileSync(TOKEN_FILE()));
-    }
-    if (fs.existsSync(TOKEN_FILE() + '.txt')) {
-      return fs.readFileSync(TOKEN_FILE() + '.txt', 'utf8').trim();
+      const t = safeStorage.decryptString(fs.readFileSync(TOKEN_FILE()));
+      if (t) found = t;
     }
   } catch {
-    /* ignore */
+    /* keyring decrypt failed — use the AES copy */
   }
-  return null;
+  if (!found) {
+    try {
+      const t = aesLoad(TOKEN_FALLBACK_FILE(), TOKEN_KEY_FILE());
+      if (t && t.trim()) found = t.trim();
+    } catch {
+      /* ignore */
+    }
+  }
+  if (!found) {
+    try {
+      if (fs.existsSync(TOKEN_FILE() + '.txt')) {
+        found = fs.readFileSync(TOKEN_FILE() + '.txt', 'utf8').trim() || null;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  if (found) memoryAttendanceToken = found;
+  return found;
 }
 
 function clearToken() {
+  memoryAttendanceToken = null;
   try {
-    if (fs.existsSync(TOKEN_FILE())) fs.unlinkSync(TOKEN_FILE());
-    if (fs.existsSync(TOKEN_FILE() + '.txt')) fs.unlinkSync(TOKEN_FILE() + '.txt');
+    for (const file of [TOKEN_FILE(), TOKEN_FILE() + '.txt', TOKEN_FALLBACK_FILE(), TOKEN_KEY_FILE()]) {
+      if (fs.existsSync(file)) fs.unlinkSync(file);
+    }
   } catch {
     /* ignore */
   }
@@ -218,25 +312,23 @@ function loadLoginCredentialsFallback() {
 function saveLoginCredentials(email, password) {
   if (!email || !password) return false;
   const payload = JSON.stringify({ email: String(email).trim(), password: String(password) });
+  // Always keep the AES file. 1.3.49 deleted it after a safeStorage write, then
+  // the next launch could not decrypt the keyring copy and the form was empty.
+  let saved = false;
+  try {
+    saved = Boolean(saveLoginCredentialsFallback(payload));
+  } catch {
+    /* try keyring */
+  }
   try {
     if (safeStorage.isEncryptionAvailable()) {
       fs.writeFileSync(LOGIN_CREDS_FILE(), safeStorage.encryptString(payload));
-      // Prefer OS keyring; drop AES fallback copy if present.
-      try {
-        if (fs.existsSync(LOGIN_CREDS_FALLBACK_FILE())) fs.unlinkSync(LOGIN_CREDS_FALLBACK_FILE());
-      } catch {
-        /* ignore */
-      }
-      return true;
+      saved = true;
     }
   } catch {
-    /* fall through to AES file */
+    /* AES copy remains */
   }
-  try {
-    return saveLoginCredentialsFallback(payload);
-  } catch {
-    return false;
-  }
+  return saved;
 }
 
 function loadLoginCredentials() {
@@ -453,6 +545,13 @@ function activeWindow(schedule, nowMs) {
     }
   }
   return null;
+}
+
+function readFreshLocationBounded(maxAccuracyM, timeoutMs) {
+  return Promise.race([
+    readFreshLocation(maxAccuracyM),
+    new Promise((resolve) => setTimeout(() => resolve(null), timeoutMs)),
+  ]).catch(() => null);
 }
 
 async function readFreshLocation(maxAccuracyM = 50) {
@@ -708,17 +807,15 @@ async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = nul
     return { ok: false, reason: 'event_too_old', action: 'event_too_old', client_dropped: true };
   }
 
-  // Ordered signals for server: Wi-Fi identity first; GPS only needed if Wi-Fi may miss.
+  // Wi-Fi first. A hidden or just-opened window can leave geolocation pending
+  // for the whole 15s read, and 1.3.49 waited on that even when the SSID was
+  // already known — so check-in never fired until someone opened Scorr.
   const wifi = readWifiIdentity();
-  let fix = coords;
-  if (!wifi.ssid && (!fix || fix.latitude == null || fix.longitude == null)) {
-    fix = await readFreshLocation(100);
-  } else if (fix?.latitude == null && !wifi.ssid) {
-    fix = await readFreshLocation(100);
-  }
-  // Still attach GPS when available so radius fallback can succeed in one round-trip.
-  if (wifi.ssid && (!fix || fix.latitude == null)) {
-    fix = (await readFreshLocation(100)) || fix;
+  let fix = coords && coords.latitude != null ? coords : null;
+  const hasWifi = Boolean(wifi.ssid || wifi.bssid);
+  if (!hasWifi && (!fix || fix.latitude == null)) {
+    fix = await readFreshLocationBounded(100, 2500);
+    if (fix && fix.latitude == null) fix = null;
   }
 
   let res;
@@ -758,7 +855,7 @@ async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = nul
     !wifi.ssid &&
     (res?.action === 'need_fresh_location' || res?.action === 'gps_unusable' || res?.action === 'outside_radius')
   ) {
-    const pos = await readFreshLocation(100);
+    const pos = await readFreshLocationBounded(100, 4000);
     if (pos && pos.latitude != null && pos.longitude != null) {
       return sendEvent(event, pos, false);
     }
@@ -921,6 +1018,9 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      // Tray / login launch must keep running the page. Background throttling
+      // froze geolocation and the website check-in until the window was shown.
+      backgroundThrottling: false,
     },
     show: false,
   });
@@ -929,7 +1029,19 @@ function createWindow() {
   ses.setUserAgent(`${ses.getUserAgent()} ScorrDesktop/1.0`);
 
   mainWindow.once('ready-to-show', () => {
-    if (isWindows11() && process.argv.includes('--hidden')) return;
+    // Login startup should check in without popping the window, same as 1.3.45
+    // did for people who never clicked Scorr. A normal double-click still shows it.
+    let openedAtLogin = false;
+    try {
+      openedAtLogin = Boolean(app.getLoginItemSettings().wasOpenedAtLogin);
+    } catch {
+      openedAtLogin = false;
+    }
+    const legacyHidden = process.argv.includes('--hidden');
+    if (openedAtLogin || legacyHidden) {
+      mainWindow?.hide();
+      return;
+    }
     mainWindow?.show();
   });
 
@@ -1033,8 +1145,6 @@ function wirePowerEvents() {
   });
   // Screen lock must NOT check out (R49) — ignore lock-screen if available
 }
-
-setStartupEntry(true);
 
 const DAILY_UPDATE_HOUR = 5; // local 5:00 AM
 const UPDATE_CHECK_STAMP = () => path.join(app.getPath('userData'), 'last-update-check.txt');
@@ -1151,7 +1261,26 @@ function setupAutoUpdater() {
   }
 }
 
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+} else {
+  // A second Scorr (hidden login process + a later double-click) locked the
+  // Chromium profile. The new window then had an empty session, so the saved
+  // email and password looked gone.
+  app.on('second-instance', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) createWindow();
+    else {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+}
+
 app.whenReady().then(async () => {
+  if (!gotSingleInstanceLock) return;
+  setStartupEntry(true);
   ipcMain.handle('scorr:setAutoLaunch', (_e, enabled) => {
     setStartupEntry(enabled);
     return { ok: true, enabled: Boolean(enabled) };

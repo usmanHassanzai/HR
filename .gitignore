@@ -16,6 +16,7 @@ dist-ssr
 .env.*
 !.env.example
 *.pem
+desktop/runtime-config.cjs
 *.p12
 id_rsa
 id_rsa.pub

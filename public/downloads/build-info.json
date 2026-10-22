@@ -28,18 +28,18 @@
     "available": true,
     "appName": "Scorr",
     "appId": "ai.walfia.scorr.desktop",
-    "version": "1.3.49",
+    "version": "1.3.50",
     "updatedAt": "2026-10-21T16:10:48.018Z",
     "updatedLabel": "October 21, 2026",
-    "releaseTag": "desktop-v1.3.49",
+    "releaseTag": "desktop-v1.3.50",
     "releaseRepo": "usmanHassanzai/HR",
     "platforms": {
       "windows": {
         "available": true,
         "filename": "Scorr-Setup.exe",
-        "sizeBytes": 92386022,
+        "sizeBytes": 92387283,
         "sizeLabel": "88.1 MB",
-        "url": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.49/Scorr-Setup.exe"
+        "url": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.50/Scorr-Setup.exe"
       },
       "linuxDeb": {
         "available": true,

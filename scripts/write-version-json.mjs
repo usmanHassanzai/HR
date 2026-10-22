@@ -32,7 +32,7 @@ function androidVersionCode() {
 // .env.desktop-urls — those files still point Windows at desktop-v1.3.8.
 // desktop-v1.3.46 crashes on start. 1.3.46 and 1.3.47 stay pre-releases.
 // Linux and Android stay on 1.3.45. The website Windows feed is WINDOWS_RELEASE.
-const WINDOWS_RELEASE = '1.3.49';
+const WINDOWS_RELEASE = '1.3.50';
 const LINUX_RELEASE = '1.3.45';
 const WINDOWS_INSTALLERS = {
   '1.3.45': {
@@ -49,6 +49,11 @@ const WINDOWS_INSTALLERS = {
     sha512: '3T5zizzyD/bGA66COztqoIsS7/W/qbcLPjWfPTIqT8h/cPbRM7AkulPONw3mspUd0jRA2gcV3T6N2hkC6NxWgQ==',
     size: 92386022,
     releaseDate: '2026-10-21T20:45:46.128Z',
+  },
+  '1.3.50': {
+    sha512: 'Zl324XykG/oq9O9hM/LF9NjzsGkroBTxcGhac4GvFx9EsMcrcQt/yMiZA7eQYa/zf5YfpO7gfDpni8nd0QXSAQ==',
+    size: 92387283,
+    releaseDate: '2026-10-22T13:38:00.000Z',
   },
 };
 const winInstaller = WINDOWS_INSTALLERS[WINDOWS_RELEASE];

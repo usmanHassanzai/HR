@@ -65,11 +65,27 @@ function findArtifact(dir, matcher) {
 
 console.log('Scorr Desktop build\n');
 
+console.log('Writing desktop runtime config (Supabase anon for auto attendance)…');
+run('node', ['scripts/write-desktop-runtime-config.mjs']);
+
 const version = packageVersion(root);
 try {
   const deskPkgPath = join(root, 'desktop', 'package.json');
   const deskPkg = JSON.parse(readFileSync(deskPkgPath, 'utf8'));
-  if (deskPkg.version !== version) {
+  // Root package.json is the website version. Do not downgrade a newer desktop installer.
+  const parse = (v) => String(v || '0').split('.').map((p) => Number.parseInt(p, 10) || 0);
+  const a = parse(deskPkg.version);
+  const b = parse(version);
+  const n = Math.max(a.length, b.length);
+  let desktopOlder = false;
+  for (let i = 0; i < n; i += 1) {
+    if ((a[i] || 0) < (b[i] || 0)) {
+      desktopOlder = true;
+      break;
+    }
+    if ((a[i] || 0) > (b[i] || 0)) break;
+  }
+  if (desktopOlder) {
     deskPkg.version = version;
     writeFileSync(deskPkgPath, `${JSON.stringify(deskPkg, null, 2)}\n`);
     console.log(`Synced desktop/package.json version → ${version}`);
