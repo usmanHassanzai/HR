@@ -19,6 +19,9 @@ contextBridge.exposeInMainWorld('scorrDesktop', {
   checkForUpdates: () => ipcRenderer.invoke('scorr:checkForUpdates'),
   quitAndInstall: () => ipcRenderer.invoke('scorr:quitAndInstall'),
   probeWifi: () => ipcRenderer.invoke('scorr:probeWifi'),
+  notifyManualCheckIn: () => ipcRenderer.invoke('scorr:manualCheckIn'),
+  notifyManualCheckOut: () => ipcRenderer.invoke('scorr:manualCheckOut'),
+  notifyManualCheckout: () => ipcRenderer.invoke('scorr:manualCheckOut'),
   onUpdateReady: (cb) => {
     const handler = (_e, payload) => cb(payload);
     ipcRenderer.on('scorr:update-ready', handler);

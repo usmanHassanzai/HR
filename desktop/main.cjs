@@ -61,34 +61,91 @@ function attendancePlatformFields() {
 }
 
 /**
- * Same startup entry as desktop 1.3.45 on every Windows version.
- * 1.3.49 added args: ['--hidden'] on Windows 11. Windows 11 then disables that
- * startup item, so the process never runs and check-in waits until someone
- * opens Scorr. openAsHidden is macOS-only and does not hide the Windows window.
+ * Windows sign-in must start Scorr hidden. A login entry with no args opens
+ * the window, and Windows 11 disables a --hidden entry unless StartupApproved
+ * is set back to enabled.
  */
+function forceWindowsStartupEnabled() {
+  if (process.platform !== 'win32') return;
+  const { execFileSync } = require('child_process');
+  let text = '';
+  try {
+    text = execFileSync(
+      'reg',
+      ['query', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run'],
+      { encoding: 'utf8', windowsHide: true, timeout: 4000 },
+    );
+  } catch {
+    return;
+  }
+  const names = [];
+  for (const line of String(text).split(/\r?\n/)) {
+    const match = line.match(/^\s+(\S+)\s+REG_\w+\s+(.*)$/);
+    if (!match) continue;
+    if (/scorr/i.test(match[1]) || /scorr/i.test(match[2])) names.push(match[1]);
+  }
+  for (const name of names) {
+    try {
+      execFileSync(
+        'reg',
+        [
+          'add',
+          'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StartupApproved\\Run',
+          '/v',
+          name,
+          '/t',
+          'REG_BINARY',
+          '/d',
+          '020000000000000000000000',
+          '/f',
+        ],
+        { windowsHide: true, timeout: 4000 },
+      );
+    } catch (e) {
+      console.warn('[scorr] startup approve failed', name, e);
+    }
+  }
+}
+
 function setStartupEntry(enabled) {
   const on = Boolean(enabled);
   try {
-    app.setLoginItemSettings({
-      openAtLogin: false,
-      args: ['--hidden'],
-    });
-  } catch {
-    /* 1.3.49 entry may not exist */
-  }
-  try {
     if (process.platform === 'win32') {
+      try {
+        app.setLoginItemSettings({ openAtLogin: false });
+      } catch {
+        /* ignore */
+      }
       app.setLoginItemSettings({
         openAtLogin: on,
-        openAsHidden: true,
+        args: on ? ['--hidden'] : [],
         enabled: on,
       });
+      if (on) forceWindowsStartupEnabled();
       return;
     }
     app.setLoginItemSettings({ openAtLogin: on, openAsHidden: true });
   } catch (e) {
     console.warn('[scorr] setStartupEntry failed', e);
   }
+}
+
+let userAskedToShow = false;
+
+function launchShouldStayHidden() {
+  if (userAskedToShow) return false;
+  if (process.argv.includes('--hidden') || process.argv.includes('--tray') || process.argv.includes('--start-hidden')) {
+    return true;
+  }
+  if (process.platform !== 'win32') return false;
+  try {
+    const withArgs = app.getLoginItemSettings({ args: ['--hidden'] });
+    if (withArgs.wasOpenedAtLogin) return true;
+    if (app.getLoginItemSettings().wasOpenedAtLogin) return true;
+  } catch {
+    /* ignore */
+  }
+  return false;
 }
 
 const APP_URL = process.env.SCORR_DESKTOP_URL || 'https://scorr.walfia.ai/?app=1';
@@ -122,6 +179,8 @@ const TOKEN_FILE = () => path.join(app.getPath('userData'), 'attendance-token.bi
 const DEVICE_ID_FILE = () => path.join(app.getPath('userData'), 'attendance-device-id.txt');
 const SCHEDULE_FILE = () => path.join(app.getPath('userData'), 'attendance-schedule.json');
 const CHECKED_IN_FILE = () => path.join(app.getPath('userData'), 'attendance-checked-in.json');
+/** After a manual clock-out, block auto check-in until this shift window ends. */
+const MANUAL_HOLD_FILE = () => path.join(app.getPath('userData'), 'attendance-manual-hold.json');
 const TOKEN_FALLBACK_FILE = () => path.join(app.getPath('userData'), 'attendance-token.aes');
 const TOKEN_KEY_FILE = () => path.join(app.getPath('userData'), 'attendance-token.key');
 const LOGIN_CREDS_FILE = () => path.join(app.getPath('userData'), 'login-credentials.bin');
@@ -142,6 +201,10 @@ let windowEndTimer = null;
 let cachedSchedule = null;
 /** In-memory token so a later keyring glitch cannot stop a check-in already armed. */
 let memoryAttendanceToken = null;
+/** Epoch ms. Auto check-in is refused while now is before this. 0 = not holding. */
+let manualCheckoutHoldUntilMs = 0;
+/** When the person clicked Clock In. Stops a late auto response from re-arming the hold. */
+let manualCheckInAtMs = 0;
 /** Attendance date string (YYYY-MM-DD) after successful auto check-in — suppress repeats. */
 let checkedInAttendanceDate = null;
 /** @type {{ attendance_date?: string } | null} */
@@ -437,9 +500,85 @@ function httpJson(url, { method = 'POST', headers = {}, body } = {}) {
   });
 }
 
+function clearManualCheckoutHold() {
+  manualCheckoutHoldUntilMs = 0;
+  try {
+    if (fs.existsSync(MANUAL_HOLD_FILE())) fs.unlinkSync(MANUAL_HOLD_FILE());
+  } catch {
+    /* ignore */
+  }
+}
+
+function loadManualCheckoutHold() {
+  try {
+    if (!fs.existsSync(MANUAL_HOLD_FILE())) return;
+    const parsed = JSON.parse(fs.readFileSync(MANUAL_HOLD_FILE(), 'utf8'));
+    const until = Number(parsed?.untilMs);
+    if (Number.isFinite(until) && until > Date.now()) manualCheckoutHoldUntilMs = until;
+    else clearManualCheckoutHold();
+  } catch {
+    /* ignore */
+  }
+}
+
+function noteManualCheckIn() {
+  manualCheckInAtMs = Date.now();
+  clearManualCheckoutHold();
+  const win = activeWindow(cachedSchedule, Date.now());
+  checkedInAttendanceDate =
+    win?.attendance_date || win?.attendanceDate || checkedInAttendanceDate || new Date().toISOString().slice(0, 10);
+  checkedInState = win || checkedInState;
+}
+
+/** Block automatic check-in for the rest of this shift. A manual Clock In clears it. */
+function armManualCheckoutHold() {
+  const win = activeWindow(cachedSchedule, Date.now());
+  let until = win ? Date.parse(win.window_end_utc) : NaN;
+  if (!Number.isFinite(until) || until <= Date.now()) {
+    const now = Date.now();
+    let nextStart = null;
+    for (const w of cachedSchedule?.windows || []) {
+      const start = Date.parse(w.window_start_utc);
+      if (Number.isFinite(start) && start > now && (nextStart == null || start < nextStart)) nextStart = start;
+    }
+    until = nextStart != null ? nextStart : now + 18 * 60 * 60 * 1000;
+  }
+  manualCheckoutHoldUntilMs = until;
+  try {
+    fs.writeFileSync(MANUAL_HOLD_FILE(), JSON.stringify({ untilMs: until }), 'utf8');
+  } catch (e) {
+    console.warn('[scorr-att] manual hold save failed', e);
+  }
+}
+
+function inManualCheckoutHold() {
+  if (!manualCheckoutHoldUntilMs) return false;
+  if (Date.now() >= manualCheckoutHoldUntilMs) {
+    clearManualCheckoutHold();
+    return false;
+  }
+  return true;
+}
+
+function windowsStaysCheckedIn() {
+  return process.platform === 'win32';
+}
+
+/** Start time of the schedule request currently stored in cachedSchedule. */
+let scheduleRequestStartedAtMs = 0;
+
+function scheduleIsOlderThanManualCheckIn() {
+  return Boolean(
+    manualCheckInAtMs &&
+      scheduleRequestStartedAtMs &&
+      manualCheckInAtMs >= scheduleRequestStartedAtMs,
+  );
+}
+
 async function syncSchedule() {
   const token = loadToken();
   if (!token || !SUPABASE_ANON) return null;
+  const started = Date.now();
   const data = await httpJson(`${SUPABASE_URL}/functions/v1/attendance-schedule`, {
     method: 'POST',
     headers: {
@@ -450,9 +589,20 @@ async function syncSchedule() {
     body: { device_token: token },
   });
   if (data?.ok) {
+    scheduleRequestStartedAtMs = started;
     cachedSchedule = data;
-    // Manual / other-device checkout: clear local suppress so re-entry can fire.
-    if (Object.prototype.hasOwnProperty.call(data, 'session_open') && data.session_open === false) {
+    const manualWins = manualCheckInAtMs && manualCheckInAtMs >= started;
+    // A closed session after we were checked in is a manual clock-out (or another
+    // device). Do not check in again until the next shift window.
+    // An open session during the hold is a manual Clock In — follow that session.
+    if (data.session_open === true && inManualCheckoutHold()) {
+      noteManualCheckIn();
+    } else if (
+      Object.prototype.hasOwnProperty.call(data, 'session_open') &&
+      data.session_open === false &&
+      !manualWins
+    ) {
+      if (checkedInAttendanceDate || checkedInState) armManualCheckoutHold();
       checkedInAttendanceDate = null;
       checkedInState = null;
     }
@@ -737,14 +887,20 @@ function stillSuppressCheckin() {
   if (!checkedInAttendanceDate) return false;
   if (cachedSchedule && Object.prototype.hasOwnProperty.call(cachedSchedule, 'session_open')
       && cachedSchedule.session_open === false) {
-    checkedInAttendanceDate = null;
-    return false;
+    if (!scheduleIsOlderThanManualCheckIn()) {
+      armManualCheckoutHold();
+      checkedInAttendanceDate = null;
+      return false;
+    }
   }
   const win = activeWindow(cachedSchedule, Date.now());
   if (!win) return false;
   if (Object.prototype.hasOwnProperty.call(win, 'session_open') && win.session_open === false) {
-    checkedInAttendanceDate = null;
-    return false;
+    if (!scheduleIsOlderThanManualCheckIn()) {
+      armManualCheckoutHold();
+      checkedInAttendanceDate = null;
+      return false;
+    }
   }
   const date = win.attendance_date || win.attendanceDate;
   return !date || String(date) === String(checkedInAttendanceDate);
@@ -752,8 +908,8 @@ function stillSuppressCheckin() {
 
 /** While open session: if GPS is clearly outside every GPS zone, fire exit. */
 async function probeLeaveWhileCheckedIn() {
-  // Windows 11 stays checked in until shift end or Clock Out.
-  if (isWindows11()) return;
+  // Windows stays checked in until the person clocks out or the shift ends.
+  if (windowsStaysCheckedIn()) return;
   if (!stillSuppressCheckin()) return;
   const zones = (cachedSchedule?.zones || []).filter((z) => {
     const mode = String(z?.detection_mode || 'gps_or_wifi').toLowerCase();
@@ -789,10 +945,16 @@ function haversineMeters(lat1, lon1, lat2, lon2) {
 async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = null) {
   const token = loadToken();
   if (!token || !SUPABASE_ANON) return null;
+  const eventStartedAt = Date.now();
+
+  // Manual clock-out holds until this shift ends. Heartbeats must not check in again.
+  if (isCheckinEventName(event) && inManualCheckoutHold()) {
+    return { ok: true, action: 'none', reason: 'manual_checkout_hold', ignored: true, client_suppressed: true };
+  }
 
   // Suppress spammy enter/wifi/power_on while locally checked in.
-  // heartbeat + ping ALWAYS hit the server so a closed session (manual /
-  // other-device checkout) can re-open while still in radius or on Wi-Fi.
+  // heartbeat + ping still run so a shift-end close is observed, but a manual
+  // clock-out is held above and is not reopened the same day.
   if (isCheckinEventName(event) && stillSuppressCheckin()) {
     const e = String(event || '').toLowerCase();
     if (e !== 'heartbeat' && e !== 'ping') {
@@ -861,6 +1023,7 @@ async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = nul
     }
   }
 
+  const wasLocallyCheckedIn = Boolean(checkedInAttendanceDate || checkedInState);
   if (
     res?.action === 'clock_out' ||
     res?.session_open === false ||
@@ -868,6 +1031,9 @@ async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = nul
     res?.reason === 'already_checked_out' ||
     res?.reason === 'not_checked_in'
   ) {
+    if (wasLocallyCheckedIn && !(manualCheckInAtMs && manualCheckInAtMs >= eventStartedAt)) {
+      armManualCheckoutHold();
+    }
     checkedInAttendanceDate = null;
     checkedInState = null;
     wasOnOfficeWifi = false;
@@ -962,7 +1128,7 @@ function startHeartbeatIfInWindow() {
     const onOffice = matchesScheduleOfficeWifi(wifi);
     // Early leave: drop office Wi-Fi while checked in → checkout (server ignores location).
     // Run on every 1s tick so Wi-Fi leave is not delayed by the checked-in gate.
-    if (!isWindows11() && stillSuppressCheckin() && wasOnOfficeWifi && !onOffice) {
+    if (!windowsStaysCheckedIn() && stillSuppressCheckin() && wasOnOfficeWifi && !onOffice) {
       wasOnOfficeWifi = false;
       void sendEvent('wifi_disconnected');
       return;
@@ -1028,17 +1194,18 @@ function createWindow() {
   const ses = mainWindow.webContents.session;
   ses.setUserAgent(`${ses.getUserAgent()} ScorrDesktop/1.0`);
 
-  mainWindow.once('ready-to-show', () => {
-    // Login startup should check in without popping the window, same as 1.3.45
-    // did for people who never clicked Scorr. A normal double-click still shows it.
-    let openedAtLogin = false;
+  const stayHidden = launchShouldStayHidden();
+  if (stayHidden) {
     try {
-      openedAtLogin = Boolean(app.getLoginItemSettings().wasOpenedAtLogin);
+      mainWindow.setSkipTaskbar(true);
     } catch {
-      openedAtLogin = false;
+      /* ignore */
     }
-    const legacyHidden = process.argv.includes('--hidden');
-    if (openedAtLogin || legacyHidden) {
+  }
+  mainWindow.once('ready-to-show', () => {
+    // Windows sign-in passes --hidden. Check-in runs in the tray process.
+    // A Start Menu double-click has no flag, so that window still opens.
+    if (stayHidden || launchShouldStayHidden()) {
       mainWindow?.hide();
       return;
     }
@@ -1098,8 +1265,14 @@ function setupTray() {
         {
           label: 'Open Scorr',
           click: () => {
-            if (!mainWindow) createWindow();
+            userAskedToShow = true;
+            if (!mainWindow || mainWindow.isDestroyed()) createWindow();
             else {
+              try {
+                mainWindow.setSkipTaskbar(false);
+              } catch {
+                /* ignore */
+              }
               mainWindow.show();
               mainWindow.focus();
             }
@@ -1129,19 +1302,21 @@ function wirePowerEvents() {
   powerMonitor.on('resume', () => {
     void syncSchedule().then(() => {
       startHeartbeatIfInWindow();
-      // Fresh location on wake / reconnect path.
-      void sendEvent('power_on');
+      if (!windowsStaysCheckedIn()) void sendEvent('power_on');
     });
   });
   powerMonitor.on('unlock-screen', () => {
-    void sendEvent('heartbeat');
+    if (!inManualCheckoutHold()) void sendEvent('heartbeat');
   });
   powerMonitor.on('suspend', () => {
-    void sendEvent('power_off');
-    stopHeartbeat();
+    // Windows sleep is not a clock-out. The session stays until Clock Out or shift end.
+    if (!windowsStaysCheckedIn()) {
+      void sendEvent('power_off');
+      stopHeartbeat();
+    }
   });
   powerMonitor.on('shutdown', () => {
-    void sendEvent('power_off');
+    if (!windowsStaysCheckedIn()) void sendEvent('power_off');
   });
   // Screen lock must NOT check out (R49) — ignore lock-screen if available
 }
@@ -1269,8 +1444,14 @@ if (!gotSingleInstanceLock) {
   // Chromium profile. The new window then had an empty session, so the saved
   // email and password looked gone.
   app.on('second-instance', () => {
+    userAskedToShow = true;
     if (!mainWindow || mainWindow.isDestroyed()) createWindow();
     else {
+      try {
+        mainWindow.setSkipTaskbar(false);
+      } catch {
+        /* ignore */
+      }
       if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.show();
       mainWindow.focus();
@@ -1280,6 +1461,7 @@ if (!gotSingleInstanceLock) {
 
 app.whenReady().then(async () => {
   if (!gotSingleInstanceLock) return;
+  loadManualCheckoutHold();
   setStartupEntry(true);
   ipcMain.handle('scorr:setAutoLaunch', (_e, enabled) => {
     setStartupEntry(enabled);
@@ -1306,6 +1488,18 @@ app.whenReady().then(async () => {
     }
   });
   ipcMain.handle('scorr:probeWifi', () => readWifiIdentity());
+  ipcMain.handle('scorr:manualCheckIn', () => {
+    noteManualCheckIn();
+    return { ok: true };
+  });
+  ipcMain.handle('scorr:manualCheckOut', () => {
+    manualCheckInAtMs = 0;
+    armManualCheckoutHold();
+    checkedInAttendanceDate = null;
+    checkedInState = null;
+    wasOnOfficeWifi = false;
+    return { ok: true };
+  });
   ipcMain.handle('scorr:quitAndInstall', () => {
     if (autoUpdater) autoUpdater.quitAndInstall(false, true);
     return { ok: true };
@@ -1368,7 +1562,7 @@ app.whenReady().then(async () => {
 });
 
 app.on('before-quit', () => {
-  void sendEvent('power_off');
+  if (!windowsStaysCheckedIn()) void sendEvent('power_off');
 });
 
 app.on('window-all-closed', () => {

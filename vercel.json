@@ -5,7 +5,7 @@
   "redirects": [
     {
       "source": "/downloads/Scorr-Setup.exe",
-      "destination": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.50/Scorr-Setup.exe",
+      "destination": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.51/Scorr-Setup.exe",
       "permanent": false
     },
     {

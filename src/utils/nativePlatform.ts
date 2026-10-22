@@ -32,6 +32,8 @@ type ScorrDesktopApi = {
   }>;
   quitAndInstall?: () => Promise<{ ok?: boolean }> | { ok?: boolean };
   probeWifi?: () => Promise<{ ssid?: string | null; bssid?: string | null }>;
+  notifyManualCheckIn?: () => Promise<{ ok?: boolean }> | { ok?: boolean };
+  notifyManualCheckOut?: () => Promise<{ ok?: boolean }> | { ok?: boolean };
   wifiDiagnostics?: () => Promise<{
     platform?: string;
     windowsVersion?: string;
@@ -59,7 +61,7 @@ type ScorrDesktopApi = {
     wifiOk?: boolean;
     wifi?: { ssid?: string | null; bssid?: string | null };
   }>;
-  /** Desktop only — tell main process a manual Clock Out happened so auto re-entry resumes. */
+  /** Desktop only — a manual Clock Out holds automatic check-in until the next shift. */
   notifyManualCheckout?: () => Promise<{ ok?: boolean }> | { ok?: boolean };
   onUpdateReady?: (cb: (payload: { version?: string; message?: string; autoInstall?: boolean }) => void) => () => void;
   onUpdateStatus?: (

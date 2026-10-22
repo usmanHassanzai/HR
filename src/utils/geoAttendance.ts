@@ -559,7 +559,33 @@ export async function submitGeoClockEvent(intent: GeoClockIntent): Promise<GeoPi
     auto: false,
     checkedAt: Date.now(),
   });
+  notifyDesktopManualClock(intent, result);
   return result;
+}
+
+/** Desktop only. A manual Clock In clears the auto-check-in hold for this shift. */
+function notifyDesktopManualClock(intent: GeoClockIntent, result: GeoPingResult) {
+  const action = String(result?.action || '');
+  const api = (window as Window & {
+    scorrDesktop?: {
+      notifyManualCheckIn?: () => Promise<unknown> | unknown;
+      notifyManualCheckOut?: () => Promise<unknown> | unknown;
+      notifyManualCheckout?: () => Promise<unknown> | unknown;
+    };
+  }).scorrDesktop;
+  if (!api) return;
+  const checkedIn = action === 'clock_in' || action === 'already_clocked_in' || action === 'already_in';
+  const checkedOut =
+    action === 'clock_out' || action === 'already_clocked_out' || action === 'clock_out_shift_end';
+  try {
+    if (intent === 'clock_in' && checkedIn) void api.notifyManualCheckIn?.();
+    if (intent === 'clock_out' && checkedOut) {
+      const notifyOut = api.notifyManualCheckOut || api.notifyManualCheckout;
+      void notifyOut?.();
+    }
+  } catch {
+    /* older desktop shells do not expose these methods */
+  }
 }
 
 /**
