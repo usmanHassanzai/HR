@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, Building2, CheckCircle2, ChevronLeft, ClipboardCheck, ClipboardList, Loader2, Pencil, Plus, Search, Send, Trash2, Timer } from 'lucide-react';
+import { AlertCircle, Building2, CheckCircle2, ChevronDown, ChevronLeft, ClipboardCheck, ClipboardList, Loader2, Pencil, Plus, Search, Send, Trash2, Timer } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Profile, Kpi, displayRoleLabel, isKpiAwaitingReview } from '../utils/kpiHelpers';
 import { Department } from '../utils/departmentHelpers';
@@ -24,6 +24,7 @@ import EditAssignedKpiModal from './EditAssignedKpiModal';
 import KpiTaskBrief from './KpiTaskBrief';
 import { scrollNavTarget } from '../utils/notificationDeepLink';
 import '../styles/assign-tasks.css';
+import '../styles/departments.css';
 import '../styles/manager-kpi-tasks.css';
 import '../styles/admin-dashboard.css';
 import '../styles/studio-mobile.css';
@@ -204,6 +205,7 @@ export default function ManagerKpiConfig({
   const dates0 = useMemo(() => defaultKpiDates(), []);
   /** Bumps on every assign/board KPI fetch so slower in-flight responses cannot resurrect removed rows. */
   const kpiListFetchGen = useRef(0);
+  const kpiMenuRef = useRef<HTMLDivElement>(null);
 
   const [desk, setDesk] = useState<Desk>(() => {
     if (initialDesk && DESKS.includes(initialDesk)) return initialDesk;
@@ -231,6 +233,7 @@ export default function ManagerKpiConfig({
   const [boardRosterLoading, setBoardRosterLoading] = useState(true);
   const [boardKpisLoading, setBoardKpisLoading] = useState(false);
   const [boardTaskView, setBoardTaskView] = useState<BoardTaskView>('progress');
+  const [kpiMenuOpen, setKpiMenuOpen] = useState(false);
   const [selectedKpiIds, setSelectedKpiIds] = useState<string[]>(() => {
     if (draft?.assignKpiIds?.length) return draft.assignKpiIds;
     return draft?.assignKpiId ? [draft.assignKpiId] : [];
@@ -559,8 +562,18 @@ export default function ManagerKpiConfig({
   }, [assignerId, isAdmin, managerDepartmentId]);
 
   useEffect(() => {
+    if (!kpiMenuOpen) return;
+    const close = (event: MouseEvent) => {
+      if (!kpiMenuRef.current?.contains(event.target as Node)) setKpiMenuOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [kpiMenuOpen]);
+
+  useEffect(() => {
     let cancelled = false;
     setSelectedKpiIds([]);
+    setKpiMenuOpen(false);
     void (async () => {
       const [list] = await Promise.all([fetchKpis(assignUserId), loadPersonTemplates(assignUserId)]);
       if (!cancelled && list) setAssignKpis(list);
@@ -1501,68 +1514,102 @@ export default function ManagerKpiConfig({
                     </div>
                   </div>
                 ) : (
-                  <div className="studio-kpi-pick">
-                    <div className="studio-kpi-pick__bar">
-                      <label className="studio-checkbox-field">
-                        <input
-                          type="checkbox"
-                          checked={allKpisSelected}
-                          onChange={() => {
-                            setSelectedKpiIds(allKpisSelected ? [] : personTemplates.map((tpl) => tpl.id));
-                          }}
+                  <div className="studio-assign-field">
+                    <span>KPI</span>
+                    <div className="kpi-multi-select" ref={kpiMenuRef}>
+                      <button
+                        type="button"
+                        className="kpi-multi-select__trigger"
+                        aria-expanded={kpiMenuOpen}
+                        onClick={() => setKpiMenuOpen((open) => !open)}
+                      >
+                        <span className="kpi-multi-select__trigger-text">
+                          {selectedTemplates.length === 0
+                            ? 'Select KPI'
+                            : allKpisSelected
+                              ? `All ${personTemplates.length} KPIs`
+                              : selectedTemplates.length === 1
+                                ? selectedTemplates[0].name
+                                : `${selectedTemplates.length} KPIs selected`}
+                        </span>
+                        <ChevronDown
+                          size={16}
+                          className={kpiMenuOpen ? 'kpi-multi-select__chevron kpi-multi-select__chevron--open' : 'kpi-multi-select__chevron'}
                         />
-                        <span>{allKpisSelected ? 'Clear selection' : 'Select all KPIs'}</span>
-                      </label>
-                      <p>
-                        {selectedTemplates.length} of {personTemplates.length} selected
-                      </p>
+                      </button>
+                      {kpiMenuOpen && (
+                        <div className="kpi-multi-select__menu">
+                          <div className="kpi-multi-select__menu-actions">
+                            <button
+                              type="button"
+                              className="kpi-multi-select__text-btn"
+                              onClick={() => {
+                                setSelectedKpiIds(allKpisSelected ? [] : personTemplates.map((tpl) => tpl.id));
+                              }}
+                            >
+                              {allKpisSelected ? 'Clear selection' : 'Select all KPIs'}
+                            </button>
+                            <span>{selectedTemplates.length} of {personTemplates.length} selected</span>
+                          </div>
+                          <div className="kpi-multi-select__options">
+                            {personTemplates.map((tpl) => {
+                              const checked = selectedKpiIds.includes(tpl.id);
+                              const penalty = formatLatePenaltyLabel(kpiScoringRule(tpl));
+                              return (
+                                <div
+                                  key={tpl.id}
+                                  className={checked ? 'kpi-multi-select__option kpi-multi-select__option--selected' : 'kpi-multi-select__option'}
+                                >
+                                  <label className="kpi-multi-select__option-hit">
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      onChange={() => {
+                                        setSelectedKpiIds((prev) => (
+                                          prev.includes(tpl.id)
+                                            ? prev.filter((id) => id !== tpl.id)
+                                            : [...prev, tpl.id]
+                                        ));
+                                      }}
+                                    />
+                                    <span className={`kpi-multi-select__check${checked ? ' kpi-multi-select__check--on' : ''}`} aria-hidden>
+                                      {checked ? '✓' : ''}
+                                    </span>
+                                    <span className="kpi-multi-select__option-body">
+                                      <span className="kpi-multi-select__option-title">
+                                        <strong>{tpl.name}</strong>
+                                        <span className="studio-tag">{kpiCategoryMeta(tpl.kpi_category).label}</span>
+                                        <span>{formatKpiWeight(weightFor(tpl))}</span>
+                                      </span>
+                                      {tpl.description?.trim() ? (
+                                        <span className="kpi-multi-select__option-desc">{tpl.description.trim()}</span>
+                                      ) : null}
+                                      {penalty ? <span className="studio-tag studio-tag--warn">{penalty}</span> : null}
+                                    </span>
+                                  </label>
+                                  {checked && (
+                                    <label className="kpi-multi-select__weight">
+                                      Weight %
+                                      <input
+                                        type="number"
+                                        min={1}
+                                        max={100}
+                                        step={0.5}
+                                        value={kpiWeights[tpl.id] ?? String(tpl.weight)}
+                                        onChange={(e) => {
+                                          const value = e.target.value;
+                                          setKpiWeights((prev) => ({ ...prev, [tpl.id]: value }));
+                                        }}
+                                      />
+                                    </label>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <ul className="studio-kpi-pick__list">
-                      {personTemplates.map((tpl) => {
-                        const checked = selectedKpiIds.includes(tpl.id);
-                        const penalty = formatLatePenaltyLabel(kpiScoringRule(tpl));
-                        return (
-                          <li key={tpl.id} className={checked ? 'is-selected' : ''}>
-                            <label className="studio-kpi-pick__choice">
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={() => {
-                                  setSelectedKpiIds((prev) => (
-                                    prev.includes(tpl.id)
-                                      ? prev.filter((id) => id !== tpl.id)
-                                      : [...prev, tpl.id]
-                                  ));
-                                }}
-                              />
-                              <span className="studio-kpi-pick__copy">
-                                <strong>{tpl.name}</strong>
-                                <span className="studio-tag">{kpiCategoryMeta(tpl.kpi_category).label}</span>
-                                {tpl.description?.trim() ? <em>{tpl.description.trim()}</em> : null}
-                                {penalty ? <span className="studio-tag studio-tag--warn">{penalty}</span> : null}
-                              </span>
-                            </label>
-                            {checked && (
-                              <label className="studio-assign-field studio-assign-field--weight">
-                                Weight (%)
-                                <input
-                                  type="number"
-                                  min={1}
-                                  max={100}
-                                  step={0.5}
-                                  value={kpiWeights[tpl.id] ?? String(tpl.weight)}
-                                  onChange={(e) => {
-                                    const value = e.target.value;
-                                    setKpiWeights((prev) => ({ ...prev, [tpl.id]: value }));
-                                  }}
-                                  required
-                                />
-                              </label>
-                            )}
-                          </li>
-                        );
-                      })}
-                    </ul>
                   </div>
                 )}
               </section>
