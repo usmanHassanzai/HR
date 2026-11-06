@@ -431,7 +431,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
         userId={activeUser.id}
         rewardsSummary={rewardsSummary}
         title="KPI scoreboard"
-        deferAchievedUntilMonthEnd
+        deferAchievedUntilMonthEnd={!isReadOnly}
         period={{ mode: periodMode, month: filterMonth, year: filterYear }}
         onPeriodChange={(next) => {
           setPeriodMode(next.mode);
@@ -443,7 +443,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
             <ExportButton
               kpis={visibleKpis}
               userName={activeUser.full_name}
-              deferAwardedUntilMonthEnd
+              deferAwardedUntilMonthEnd={!isReadOnly}
             />
             <button type="button" className="btn btn-secondary" onClick={() => void fetchKpis()} title="Reload" aria-label="Reload KPIs">
               <RefreshCw size={16} />
@@ -565,13 +565,13 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
             ) : (
               <AssignedTaskHistory
                 groups={historyGroups}
-                deferAwardedUntilMonthEnd
+                deferAwardedUntilMonthEnd={!isReadOnly}
                 renderTask={(kpi) => {
                   const badge = kpiProgressBadge(kpi);
                   const penaltyLabel = formatLatePenaltyLabel(kpiScoringRule(kpi));
                   const historyDate = kpiCompletionTimestamp(kpi);
                   const awarded = displayedAwardedWeightage(kpi, {
-                    deferUntilMonthEnd: true,
+                    deferUntilMonthEnd: !isReadOnly,
                   });
                   return (
                     <article
@@ -591,7 +591,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
                       <dl className="emp-kpi-facts">
                         <div>
                           <dt>KPI weightage</dt>
-                          <dd>{(ownTaskWeightageHidden(kpi) ? 'Last day' : formatKpiWeight(kpi.weight))}</dd>
+                          <dd>{(!isReadOnly && ownTaskWeightageHidden(kpi) ? 'Last day' : formatKpiWeight(kpi.weight))}</dd>
                         </div>
                         {awarded != null ? (
                           <div>
@@ -655,7 +655,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
                   const latePenalized = isKpiLatePenaltyApplied(kpi);
                   const penaltyLabel = formatLatePenaltyLabel(kpiScoringRule(kpi));
                   const awarded = complete
-                    ? displayedAwardedWeightage(kpi, { deferUntilMonthEnd: true })
+                    ? displayedAwardedWeightage(kpi, { deferUntilMonthEnd: !isReadOnly })
                     : null;
                   return (
                     <article
@@ -677,7 +677,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
                       <dl className="emp-kpi-facts">
                         <div>
                           <dt>KPI weightage</dt>
-                          <dd>{(ownTaskWeightageHidden(kpi) ? 'Last day' : formatKpiWeight(kpi.weight))}</dd>
+                          <dd>{(!isReadOnly && ownTaskWeightageHidden(kpi) ? 'Last day' : formatKpiWeight(kpi.weight))}</dd>
                         </div>
                         {awarded != null ? (
                           <div>
@@ -707,7 +707,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
                           <div className="emp-kpi-detail__row">
                             <span>Awarded</span>
                             <strong>
-                              {`${formatKpiWeight(awarded)} of ${(ownTaskWeightageHidden(kpi) ? 'Last day' : formatKpiWeight(kpi.weight))} weightage`}
+                              {`${formatKpiWeight(awarded)} of ${(!isReadOnly && ownTaskWeightageHidden(kpi) ? 'Last day' : formatKpiWeight(kpi.weight))} weightage`}
                             </strong>
                           </div>
                         ) : null}
@@ -725,7 +725,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
                             : 'Awarded weightage posts on the last day of the month')
                           : awaitingReview
                             ? 'Submitted — awaiting review'
-                            : `Assigned weightage ${(ownTaskWeightageHidden(kpi) ? 'Last day' : formatKpiWeight(kpi.weight))}`}
+                            : `Assigned weightage ${(!isReadOnly && ownTaskWeightageHidden(kpi) ? 'Last day' : formatKpiWeight(kpi.weight))}`}
                       </p>
                       <KpiEvaluationBlock
                         kpi={kpi}
@@ -774,7 +774,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
                         <dl className="emp-kpi-facts">
                           <div>
                             <dt>KPI weightage</dt>
-                            <dd>{(ownTaskWeightageHidden(kpi) ? 'Last day' : formatKpiWeight(kpi.weight))}</dd>
+                            <dd>{(!isReadOnly && ownTaskWeightageHidden(kpi) ? 'Last day' : formatKpiWeight(kpi.weight))}</dd>
                           </div>
                           <div>
                             <dt>Dates</dt>
