@@ -51,13 +51,15 @@ describe('bonusPct', () => {
 });
 
 describe('calcFinalScore', () => {
-  it('95 × 80 = 76, 90 × 20 = 18, 76 + 18 = 94', () => {
-    assert.equal(calcIndividualPoints(95, 80), 76);
-    assert.equal(calcTeamPoints(90, 20), 18);
-    assert.equal(calcFinalScore(95, 90, 80, 20), 94);
+  it('own points are the awarded total, not awarded times the individual weight', () => {
+    assert.equal(calcIndividualPoints(44.5, 50), 44.5);
+    assert.equal(calcIndividualPoints(47, 50), 47);
+    assert.equal(calcIndividualPoints(48, 50), 48);
+    assert.equal(calcIndividualPoints(44.5, 50) + 42.5, 87);
+    assert.equal(bonusPct(87), 0);
   });
 
-  it('rounds each side to 1 decimal, then adds, including 89.96', () => {
+  it('rounds each side to 1 decimal, then adds', () => {
     const cases = [
       [60, 40, 80, 20],
       [0, 20, 80, 20],
@@ -66,19 +68,20 @@ describe('calcFinalScore', () => {
       [9, 3, 80, 20],
       [89.96, 89.96, 80, 20],
     ];
-    for (const [kpi, avg, individual, team] of cases) {
-      const points = calcIndividualPoints(kpi, individual);
+    for (const [awarded, avg, individual, team] of cases) {
+      const points = calcIndividualPoints(awarded, individual);
       const teamPoints = calcTeamPoints(avg, team);
-      const score = calcFinalScore(kpi, avg, individual, team);
+      const score = calcFinalScore(awarded, avg, individual, team);
       assert.equal(score, points + teamPoints);
     }
-    assert.equal(calcIndividualPoints(89.96, 80), 72);
+    assert.equal(calcIndividualPoints(89.96, 80), 90);
     assert.equal(calcTeamPoints(89.96, 20), 18);
-    assert.equal(calcFinalScore(89.96, 89.96, 80, 20), 90);
-    assert.equal(bonusPct(90), 10);
+    assert.equal(calcFinalScore(89.96, 89.96, 80, 20), 108);
+    assert.equal(bonusPct(108), 20);
     assert.equal(calcIndividualPoints(0, 80), 0);
     assert.equal(calcTeamPoints(20, 20), 4);
     assert.equal(calcFinalScore(0, 20, 80, 20), 4);
+    assert.equal(bonusPct(0), 0);
   });
 });
 

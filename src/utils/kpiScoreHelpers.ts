@@ -1,8 +1,7 @@
 import type { Kpi } from './kpiHelpers';
 import {
   karachiYearMonth,
-  kpiOverlapsCurrentMonth,
-  kpiOverlapsMonth,
+  kpiBelongsToMonth,
   kpiOverlapsYear,
 } from './kpiCategories';
 import { kpiScoringRule } from './kpiScoringRules';
@@ -126,14 +125,15 @@ export function calculateOverallKpiScore(kpis: Kpi[]): number {
   return roundKpiScore((points / totalWeight) * 100);
 }
 
-export function thisMonthKpis(kpis: Kpi[]): Kpi[] {
-  return kpis.filter((k) => kpiOverlapsCurrentMonth(k));
+export function thisMonthKpis(kpis: Kpi[], now = new Date()): Kpi[] {
+  const { year, monthIndex } = karachiYearMonth(now);
+  return kpis.filter((k) => kpiBelongsToMonth(k, year, monthIndex));
 }
 
 export function previousMonthKpis(kpis: Kpi[], now = new Date()): Kpi[] {
   const { year, monthIndex } = karachiYearMonth(now);
   const prev = new Date(year, monthIndex - 1, 1);
-  return kpis.filter((k) => kpiOverlapsMonth(k, prev.getFullYear(), prev.getMonth()));
+  return kpis.filter((k) => kpiBelongsToMonth(k, prev.getFullYear(), prev.getMonth()));
 }
 
 export function monthLabel(year: number, monthIndex: number): string {
@@ -170,7 +170,7 @@ export function kpisForPeriod(
 ): Kpi[] {
   if (mode === 'overall') return kpis;
   if (mode === 'year') return kpis.filter((k) => kpiOverlapsYear(k, year));
-  return kpis.filter((k) => kpiOverlapsMonth(k, year, monthIndex));
+  return kpis.filter((k) => kpiBelongsToMonth(k, year, monthIndex));
 }
 
 export function periodLabel(mode: KpiPeriodMode, year: number, monthIndex = 0): string {
@@ -223,9 +223,9 @@ export function completedKpisForPeriod(
  * History list for a period — strictly by completion calendar month/year
  * (Asia/Karachi via `kpiCompletionYmd`), not task date-span overlap.
  *
- * Open / scoreboard weight pools still use `kpisForPeriod` (date-span). History must
- * never surface a prior month’s completions when Month (or Year) is selected — even
- * if the task’s start/end span into the selected period.
+ * Open tasks and the scoreboard use `kpisForPeriod`, which keeps a task in the
+ * month it starts. History uses the completion month. A previous month's task
+ * does not appear on the current month dashboard.
  */
 export function historyKpisForPeriod(
   kpis: Kpi[],

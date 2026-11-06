@@ -220,6 +220,7 @@ const MIGRATIONS = [
   'FIX_mfa_trust_30_days_all_roles_2026-10-14.sql',
   'score_weightage_2026-10-19.sql',
   'team_points_given_2026-11-06.sql',
+  'fix_own_points_no_second_weight_2026-11-06.sql',
 ];
 
 async function runMigration(filename) {

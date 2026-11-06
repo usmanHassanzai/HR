@@ -29,7 +29,7 @@ function mergeById(lists: Kpi[][]): Kpi[] {
 
 /**
  * Always-visible list of the logged-in user's current Asia/Karachi month tasks:
- * open = date-span overlap with this month; completed = completed this calendar month
+ * open = tasks that start this month; completed = completed this calendar month
  * only (same rule as Active → History). Awarded weightage after month-end unlock.
  */
 export default function CurrentMonthCompletedTasks({ kpis }: CurrentMonthCompletedTasksProps) {

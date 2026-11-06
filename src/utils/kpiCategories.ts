@@ -85,6 +85,24 @@ function karachiCalendarYmd(value: string | null | undefined, fallback: string):
   return `${y}-${mo}-${day}`;
 }
 
+/**
+ * The month a task belongs to is the month it starts (or was created).
+ * A task that started last month does not stay on this month's dashboard
+ * just because its end date runs into this month.
+ */
+export function kpiBelongsToMonth(
+  kpi: { start_date?: string | null; created_at?: string | null },
+  year: number,
+  monthIndex: number,
+): boolean {
+  const raw = kpi.start_date || kpi.created_at;
+  if (!raw) return false;
+  const anchor = karachiCalendarYmd(raw, '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(anchor)) return false;
+  const month = String(monthIndex + 1).padStart(2, '0');
+  return anchor.slice(0, 7) === `${year}-${month}`;
+}
+
 /** Tasks that overlap the calendar month in Asia/Karachi. */
 export function kpiOverlapsMonth(
   kpi: { start_date?: string | null; end_date?: string | null; created_at?: string },

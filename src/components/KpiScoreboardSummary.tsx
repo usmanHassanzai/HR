@@ -15,6 +15,12 @@ import { karachiYearMonth } from '../utils/kpiCategories';
 import type { RewardsSummary } from '../utils/rewardsHelpers';
 import { fetchMonthWeightageBalance } from '../utils/monthWeightageBalance';
 import {
+  fetchUserMonthScore,
+  formatPoints,
+  monthStartIso,
+  type MyScoreWeightage,
+} from '../utils/scoreWeightage';
+import {
   estimateUnusedPriorWeightage,
   isWeightageRevealDay,
   weightageRevealHint,
@@ -72,6 +78,8 @@ export default function KpiScoreboardSummary({
   const [giftAvailable, setGiftAvailable] = useState<number | null>(null);
   const [giftBanked, setGiftBanked] = useState(0);
   const [giftEarned, setGiftEarned] = useState<number | null>(null);
+  const [monthScore, setMonthScore] = useState<MyScoreWeightage | null>(null);
+  const [monthScoreState, setMonthScoreState] = useState<'loading' | 'ready' | 'empty' | 'unavailable'>('loading');
 
   const controlled = period != null;
   const periodMode = controlled ? period.mode : internalMode;
@@ -134,6 +142,34 @@ export default function KpiScoreboardSummary({
       cancelled = true;
     };
   }, [userId, kpis, revealToday, estimatedPriorBanked]);
+
+  useEffect(() => {
+    if (periodMode !== 'month' || !userId) {
+      setMonthScore(null);
+      setMonthScoreState('empty');
+      return;
+    }
+    let cancelled = false;
+    setMonthScoreState('loading');
+    void fetchUserMonthScore(userId, monthStartIso(filterYear, filterMonth))
+      .then((row) => {
+        if (cancelled) return;
+        setMonthScore(row);
+        setMonthScoreState(
+          row.department_id && row.individual_weight != null && row.team_weight != null
+            ? 'ready'
+            : 'empty',
+        );
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setMonthScore(null);
+        setMonthScoreState('unavailable');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, periodMode, filterYear, filterMonth]);
 
   const overallKpis = kpis;
   const overallSummary = useMemo(
@@ -393,10 +429,111 @@ export default function KpiScoreboardSummary({
               </p>
             ) : null}
           </section>
+
+          {periodMode === 'month' && userId ? (
+            <MonthOutOfHundred
+              state={monthScoreState}
+              score={monthScore}
+              label={selectedLabel}
+            />
+          ) : null}
         </article>
       </div>
 
       {footer}
+    </section>
+  );
+}
+
+function shareWidth(points: number | null, weight: number | null): number {
+  const value = points == null || !Number.isFinite(points) ? 0 : Math.max(0, points);
+  const cap = weight != null && Number.isFinite(weight) ? Math.max(0, weight) : value;
+  return Math.min(value, cap > 0 ? cap : value);
+}
+
+function MonthOutOfHundred({
+  state,
+  score,
+  label,
+}: {
+  state: 'loading' | 'ready' | 'empty' | 'unavailable';
+  score: MyScoreWeightage | null;
+  label: string;
+}) {
+  const ownWeight = score?.individual_weight ?? 0;
+  const teamWeight = score?.team_weight ?? 0;
+  const ownPoints = shareWidth(score?.individual_points ?? 0, ownWeight);
+  const teamPoints = shareWidth(score?.team_points ?? 0, teamWeight);
+  const gained = (score?.individual_points ?? 0) + (score?.team_points ?? 0);
+  const shown = score?.score != null ? score.score : gained;
+  const ready = state === 'ready' && score != null;
+
+  return (
+    <section className="emp-kpi-mix" aria-label={`${label} total out of 100`}>
+      <div className="emp-kpi-mix__head">
+        <div>
+          <h4>From 100 this month</h4>
+          <p>
+            KPI weightage and team points add up to 100.
+            {score?.department_name ? ` ${score.department_name}.` : ''}
+          </p>
+        </div>
+        <div className="emp-kpi-mix__total">
+          <span>Gained</span>
+          <strong>{ready ? formatPoints(shown) : '—'}</strong>
+          <em>of 100</em>
+        </div>
+      </div>
+
+      {state === 'loading' ? (
+        <p className="emp-kpi-mix__note">Loading this month…</p>
+      ) : state === 'unavailable' ? (
+        <p className="emp-kpi-mix__note">
+          The month total is not available yet. Run the latest score update, then refresh.
+        </p>
+      ) : !ready ? (
+        <p className="emp-kpi-mix__note">
+          This total appears once the person is in a department for {label}.
+        </p>
+      ) : (
+        <>
+          <div
+            className="emp-kpi-mix__bar"
+            role="img"
+            aria-label={`Obtained ${formatPoints(score.individual_points)} of ${formatPoints(ownWeight)} KPI weightage, and gained ${formatPoints(score.team_points)} of ${formatPoints(teamWeight)} team points. Total ${formatPoints(shown)} of 100.`}
+          >
+            <span className="emp-kpi-mix__own" style={{ width: `${ownPoints}%` }} />
+            <span className="emp-kpi-mix__team" style={{ width: `${teamPoints}%` }} />
+          </div>
+          <ul className="emp-kpi-mix__legend">
+            <li><i className="emp-kpi-mix__own" /> Obtained from KPIs</li>
+            <li><i className="emp-kpi-mix__team" /> Gained from the team</li>
+            <li><i className="emp-kpi-mix__rest" /> Not gained yet</li>
+          </ul>
+          <dl className="emp-kpi-mix__stats">
+            <div>
+              <dt>KPI weightage</dt>
+              <dd>{formatPoints(ownWeight)}</dd>
+              <span>Share of the month’s 100</span>
+            </div>
+            <div>
+              <dt>Obtained</dt>
+              <dd>{formatPoints(score.individual_points)}</dd>
+              <span>Awarded from this month’s tasks</span>
+            </div>
+            <div>
+              <dt>Team points</dt>
+              <dd>{formatPoints(teamWeight)}</dd>
+              <span>Share of the month’s 100</span>
+            </div>
+            <div>
+              <dt>Gained</dt>
+              <dd>{formatPoints(score.team_points)}</dd>
+              <span>Points given to the team</span>
+            </div>
+          </dl>
+        </>
+      )}
     </section>
   );
 }

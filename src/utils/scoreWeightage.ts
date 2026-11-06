@@ -104,19 +104,25 @@ function round1(value: number): number {
   return Math.round(value * 10) / 10;
 }
 
-/** Round each side to 1 decimal, then add. The shown points always equal the score. */
+/**
+ * Own points are the Month Scoreboard awarded total.
+ * The department individual weight is not applied again.
+ * Team points still use the team weight, unless HR entered points given.
+ */
 export function calcFinalScore(
-  individualKpiPct: number,
+  awardedTotal: number,
   teamAvgKpiPct: number,
-  individualWeight: number,
+  _individualWeight: number,
   teamWeight: number,
 ): number {
-  return calcIndividualPoints(individualKpiPct, individualWeight)
+  return calcIndividualPoints(awardedTotal)
     + calcTeamPoints(teamAvgKpiPct, teamWeight);
 }
 
-export function calcIndividualPoints(individualKpiPct: number, individualWeight: number): number {
-  return round1((individualKpiPct * individualWeight) / 100);
+/** Awarded KPI total, rounded to 1 decimal. Already weighted on the scoreboard. */
+export function calcIndividualPoints(awardedTotal: number, _individualWeight?: number): number {
+  if (!Number.isFinite(awardedTotal)) return 0;
+  return round1(awardedTotal);
 }
 
 export function calcTeamPoints(teamAvgKpiPct: number, teamWeight: number): number {
@@ -264,11 +270,7 @@ export async function approveScoreMonth(monthIso: string): Promise<void> {
   if (error) throw error;
 }
 
-export async function fetchMyScoreWeightage(monthIso: string): Promise<MyScoreWeightage> {
-  const supabase = await getSupabase();
-  const { data, error } = await supabase.rpc('get_my_score_weightage', { p_month: monthIso });
-  if (error) throw error;
-  const row = (data || {}) as Record<string, unknown>;
+function mapScoreWeightage(row: Record<string, unknown>, monthIso: string): MyScoreWeightage {
   return {
     month: String(row.month ?? monthIso).slice(0, 10),
     status: (row.status as ScoreMonthStatus) || 'open',
@@ -285,6 +287,24 @@ export async function fetchMyScoreWeightage(monthIso: string): Promise<MyScoreWe
     score: numOrNull(row.score),
     bonus_pct: numOrNull(row.bonus_pct),
   };
+}
+
+export async function fetchMyScoreWeightage(monthIso: string): Promise<MyScoreWeightage> {
+  const supabase = await getSupabase();
+  const { data, error } = await supabase.rpc('get_my_score_weightage', { p_month: monthIso });
+  if (error) throw error;
+  return mapScoreWeightage((data || {}) as Record<string, unknown>, monthIso);
+}
+
+/** Month result out of 100 for the KPI scoreboard. Same numbers as Scores and bonus. */
+export async function fetchUserMonthScore(userId: string, monthIso: string): Promise<MyScoreWeightage> {
+  const supabase = await getSupabase();
+  const { data, error } = await supabase.rpc('get_user_month_score', {
+    p_user_id: userId,
+    p_month: monthIso,
+  });
+  if (error) throw error;
+  return mapScoreWeightage((data || {}) as Record<string, unknown>, monthIso);
 }
 
 export async function fetchDepartmentScoreResults(
