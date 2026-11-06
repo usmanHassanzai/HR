@@ -32,6 +32,7 @@ export default function ScoreWeightageHrView({ monthIso, status, locked, onChang
   const [bonusRows, setBonusRows] = useState<OrgBonusRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [savingAll, setSavingAll] = useState(false);
   const [closing, setClosing] = useState(false);
   const [reopening, setReopening] = useState(false);
   const [error, setError] = useState('');
@@ -90,6 +91,42 @@ export default function ScoreWeightageHrView({ monthIso, status, locked, onChang
       setError(e instanceof Error ? e.message : 'Save failed');
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const saveAll = async () => {
+    if (locked || status !== 'open' || weights.length === 0) return;
+    const rows = weights.map((w) => ({
+      w,
+      draft: drafts[w.department_id] || {
+        individual: w.individual_weight,
+        team: w.team_weight,
+        given: w.team_points_given,
+      },
+    }));
+    const bad = rows.find(({ draft }) =>
+      !weightsTotalOk(draft.individual, draft.team)
+      || (draft.given != null && !teamPointsGivenOk(draft.given, draft.team)),
+    );
+    if (bad) {
+      setMsg('');
+      setError(`${bad.w.department_name}: weights must total 100, and points given must be from 0 up to the team weight.`);
+      return;
+    }
+    setSavingAll(true);
+    setError('');
+    setMsg('');
+    try {
+      await Promise.all(rows.map(({ w, draft }) =>
+        upsertDepartmentWeightage(w.department_id, monthIso, draft.individual, draft.team, draft.given),
+      ));
+      setMsg(`Saved all ${rows.length} departments.`);
+      await load();
+      onChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Save all failed');
+    } finally {
+      setSavingAll(false);
     }
   };
 
@@ -156,7 +193,16 @@ export default function ScoreWeightageHrView({ monthIso, status, locked, onChang
             <button
               type="button"
               className="btn btn-primary"
-              disabled={!editing || closing}
+              disabled={!editing || savingAll || busyId != null || weights.length === 0}
+              onClick={() => void saveAll()}
+            >
+              {savingAll ? <Loader2 className="spin-icon" size={16} /> : <Save size={16} />}
+              Save all
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={!editing || closing || savingAll}
               onClick={() => void closeMonth()}
             >
               {closing ? <Loader2 className="spin-icon" size={16} /> : <Lock size={16} />}
@@ -290,7 +336,7 @@ export default function ScoreWeightageHrView({ monthIso, status, locked, onChang
                       <button
                         type="button"
                         className="btn btn-primary"
-                        disabled={!editing || !ok || !givenOk || busyId === w.department_id}
+                        disabled={!editing || !ok || !givenOk || savingAll || busyId === w.department_id}
                         onClick={() => void saveDept(w.department_id)}
                       >
                         {busyId === w.department_id ? <Loader2 className="spin-icon" size={14} /> : <Save size={14} />}
@@ -303,6 +349,19 @@ export default function ScoreWeightageHrView({ monthIso, status, locked, onChang
             </tbody>
           </table>
         </div>
+        {weights.length > 0 ? (
+          <div className="sw-card__actions" style={{ justifyContent: 'flex-end', marginTop: '0.75rem' }}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={!editing || savingAll || busyId != null}
+              onClick={() => void saveAll()}
+            >
+              {savingAll ? <Loader2 className="spin-icon" size={16} /> : <Save size={16} />}
+              Save all
+            </button>
+          </div>
+        ) : null}
       </SwSection>
 
       <BonusTable rows={bonusRows} monthIso={monthIso} empty="No employees to list for this month." />
