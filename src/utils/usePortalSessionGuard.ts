@@ -251,13 +251,18 @@ export function usePortalSessionGuard(enabled: boolean, _options?: { idle?: bool
       e.preventDefault();
     };
 
+    let lastActivityHandled = 0;
     const onActivity = () => {
       if (!enabledRef.current) return;
+      const now = Date.now();
+      // Scroll and touch fire many times a second. Only the first one in this window does work.
+      if (now - lastActivityHandled < 15_000) return;
+      lastActivityHandled = now;
       if (isPortalSessionExpired()) {
         expireNow();
         return;
       }
-      touchPortalActivity(false);
+      touchPortalActivity(true);
       armAbsoluteTimer();
     };
 
@@ -268,10 +273,10 @@ export function usePortalSessionGuard(enabled: boolean, _options?: { idle?: bool
     };
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', checkExpiry);
-    window.addEventListener('pointerdown', onActivity, true);
+    window.addEventListener('pointerdown', onActivity, { capture: true, passive: true });
     window.addEventListener('keydown', onActivity, true);
-    window.addEventListener('scroll', onActivity, true);
-    window.addEventListener('touchstart', onActivity, true);
+    window.addEventListener('scroll', onActivity, { capture: true, passive: true });
+    window.addEventListener('touchstart', onActivity, { capture: true, passive: true });
     window.addEventListener('keydown', onBackspaceNav, true);
 
     const onStorage = (e: StorageEvent) => {

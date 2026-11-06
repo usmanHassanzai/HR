@@ -1,0 +1,63 @@
+/*
+ * Keep scrolling smooth on phones, laptops, Windows, Linux, and the website.
+ * Blur and hover-lift force a new paint on every frame while the page moves.
+ */
+
+html {
+  scroll-behavior: auto;
+}
+
+.app-header,
+.admin-shell__topbar,
+.studio-board-filters,
+.studio-assign-bar,
+.mobile-dash-nav,
+.dwr-dept-rail,
+.kpi-edit-dialog__head,
+.kpi-edit-dialog__foot,
+.landing-nav {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.native-scroll-root,
+.dashboard-main,
+.admin-shell__main,
+.admin-shell__panel,
+.admin-shell__nav {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: auto;
+}
+
+/* Skip layout and paint for cards that are far off screen. */
+.assigned-kpi-card,
+.kpi-card,
+.reward-card,
+.leaderboard-row,
+.redemption-row,
+.attendance-approval-item {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 148px;
+}
+
+@media (hover: none) {
+  .glass-panel:hover,
+  .dashboard-main .glass-panel:hover,
+  .dashboard-main .kpi-card:hover,
+  .app-home-card:hover,
+  .admin-report-card:hover,
+  .people-card--interactive:hover,
+  .reward-card--unlocked:hover,
+  .btn-primary:hover {
+    transform: none;
+  }
+}
+
+button,
+a,
+.btn,
+input,
+select,
+textarea {
+  touch-action: manipulation;
+}

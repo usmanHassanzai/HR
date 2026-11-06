@@ -180,7 +180,8 @@ html, body {
 
 body {
   background: var(--body-glow), var(--body-gradient);
-  background-attachment: fixed;
+  /* A fixed background is repainted on every scroll frame and makes phones and laptops stutter. */
+  background-attachment: scroll;
 }
 
 #root { position: relative; z-index: 1; min-height: 100vh; }
