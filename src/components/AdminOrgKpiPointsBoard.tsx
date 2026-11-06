@@ -49,6 +49,10 @@ export interface OrgKpiPointsRow {
   month_used?: number;
   month_banked?: number;
   month_earned?: number | null;
+  /** Department team share for the selected month. */
+  month_team_weight?: number;
+  /** Team points gained. Null when only the assigned team share is known. */
+  month_team_points?: number | null;
 }
 
 type RoleFilter = 'all' | 'manager' | 'employee' | 'admin';
@@ -63,6 +67,10 @@ interface AdminOrgKpiPointsBoardProps {
   embedded?: boolean;
   /** Employee, manager, and HR do not see this month's scores until the last day. */
   concealUntilMonthEnd?: boolean;
+}
+
+function assignedLabel(n: number): string {
+  return `${n.toFixed(n % 1 === 0 ? 0 : 1)}% assigned`;
 }
 
 function roleLabel(role: string): string {
@@ -284,6 +292,7 @@ export default function AdminOrgKpiPointsBoard({
   const [rows, setRows] = useState<OrgKpiPointsRow[]>([]);
   const [kpisByUser, setKpisByUser] = useState<Record<string, Kpi[]>>({});
   const [usedByUser, setUsedByUser] = useState<Record<string, number>>({});
+  const [teamByUser, setTeamByUser] = useState<Record<string, { teamWeight: number; teamPoints: number | null }>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState(initialSearch || '');
@@ -397,6 +406,53 @@ export default function AdminOrgKpiPointsBoard({
     };
   }, [rows, filterYear, filterMonth]);
 
+  useEffect(() => {
+    if (rows.length === 0) {
+      setTeamByUser({});
+      return;
+    }
+    let cancelled = false;
+    const month = monthStartIso(filterYear, filterMonth);
+    const deptIds = [...new Set(rows.map((r) => r.department_id).filter((id): id is string => Boolean(id)))];
+    void (async () => {
+      const map: Record<string, { teamWeight: number; teamPoints: number | null }> = {};
+      await Promise.all(deptIds.map(async (deptId) => {
+        const { data, error: scoreError } = await supabase.rpc('list_department_score_results', {
+          p_department_id: deptId,
+          p_month: month,
+        });
+        if (scoreError || !data) return;
+        for (const row of data as Array<Record<string, unknown>>) {
+          const id = String(row.user_id || '');
+          if (!id) continue;
+          map[id] = {
+            teamWeight: Number(row.team_weight) || 0,
+            teamPoints: row.team_points == null ? null : Number(row.team_points) || 0,
+          };
+        }
+      }));
+
+      const missing = rows.filter((r) => !map[r.user_id]);
+      await Promise.all(missing.map(async (person) => {
+        const { data, error: scoreError } = await supabase.rpc('get_user_month_score', {
+          p_user_id: person.user_id,
+          p_month: month,
+        });
+        if (scoreError || !data || typeof data !== 'object') return;
+        const row = data as Record<string, unknown>;
+        map[person.user_id] = {
+          teamWeight: Number(row.team_weight) || 0,
+          teamPoints: row.team_points == null ? null : Number(row.team_points) || 0,
+        };
+      }));
+
+      if (!cancelled) setTeamByUser(map);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [rows, filterYear, filterMonth]);
+
   useSupabaseRealtime(
     'admin-org-kpi-points',
     companyId
@@ -408,6 +464,7 @@ export default function AdminOrgKpiPointsBoard({
           { table: 'reward_redemptions' },
           { table: 'kpi_award_qualifications' },
           { table: 'reward_weightage_ledger' },
+          { table: 'department_score_weightage' },
         ]
       : [],
     () => { void load({ silent: true }); },
@@ -435,6 +492,10 @@ export default function AdminOrgKpiPointsBoard({
       const board = employeeKpiBoardBreakdown(monthKpis);
       const used = usedByUser[r.user_id] || 0;
       const earned = board.weightAchieved;
+      const team = teamByUser[r.user_id];
+      const teamWeight = team?.teamWeight ?? 0;
+      const teamPoints = team?.teamPoints ?? null;
+      const teamGained = teamPoints != null ? teamPoints : teamWeight;
       return {
         ...r,
         weight_assigned: board.weightAssigned,
@@ -443,11 +504,13 @@ export default function AdminOrgKpiPointsBoard({
         completed_kpis: board.completed,
         pending_kpis: board.pending,
         month_earned: earned,
-        month_available: Math.max(0, earned - used),
+        month_team_weight: teamWeight,
+        month_team_points: teamPoints,
+        month_available: Math.max(0, earned - used) + teamGained,
         month_used: used,
       };
     });
-  }, [scopedRows, search, roleFilter, kpisByUser, usedByUser, filterYear, filterMonth]);
+  }, [scopedRows, search, roleFilter, kpisByUser, usedByUser, teamByUser, filterYear, filterMonth]);
 
   if (loading && rows.length === 0) {
     return (
@@ -587,6 +650,8 @@ function PeopleTable({
               <th>Person</th>
               <th>Role</th>
               <th title="Weightage earned from this month's tasks">Earned</th>
+              <th title="Team weightage assigned to this person's department">Team</th>
+              <th title="KPI earned plus team points">Total</th>
               <th>KPI tasks</th>
               <th>Month</th>
               <th title="This month's earned weightage minus gifts">Current</th>
@@ -598,7 +663,11 @@ function PeopleTable({
             {rows.map((r) => {
               const weightAssigned = Number(r.weight_assigned) || 0;
               const earned = Number(r.month_earned ?? r.weight_achieved) || 0;
-              const current = r.month_available != null ? Number(r.month_available) : earned;
+              const teamWeight = Number(r.month_team_weight) || 0;
+              const teamPoints = r.month_team_points == null ? null : Number(r.month_team_points);
+              const teamForSum = teamPoints != null ? teamPoints : teamWeight;
+              const total = earned + teamForSum;
+              const current = r.month_available != null ? Number(r.month_available) : earned + teamForSum;
               const used = Number(r.month_used) || 0;
               return (
                 <tr
@@ -631,7 +700,33 @@ function PeopleTable({
                     <div className="admin-kpi-points__month-score">
                       <strong>{scoresHidden ? 'Last day' : formatWeightagePct(earned)}</strong>
                       <span className="admin-kpi-points__month-reward">
-                        {scoresHidden ? 'Hidden until month end' : `${weightAssigned.toFixed(weightAssigned % 1 === 0 ? 0 : 1)}% assigned`}
+                        {scoresHidden ? 'Hidden until month end' : assignedLabel(weightAssigned)}
+                      </span>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="admin-kpi-points__month-score">
+                      <strong>{scoresHidden ? 'Last day' : formatWeightagePct(teamWeight)}</strong>
+                      <span className="admin-kpi-points__month-reward">
+                        {scoresHidden
+                          ? 'Hidden until month end'
+                          : teamPoints != null
+                            ? `${formatWeightagePct(teamPoints)} gained`
+                            : 'assigned'}
+                      </span>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="admin-kpi-points__month-score">
+                      <strong style={{ color: scoresHidden ? 'var(--text-muted)' : 'var(--color-success)' }}>
+                        {scoresHidden ? 'Last day' : formatWeightagePct(total)}
+                      </strong>
+                      <span className="admin-kpi-points__month-reward">
+                        {scoresHidden
+                          ? 'Hidden until month end'
+                          : teamPoints != null
+                            ? 'KPI earned + team gained'
+                            : 'KPI earned + team assigned'}
                       </span>
                     </div>
                   </td>
@@ -675,7 +770,11 @@ function PeopleTable({
       <div className="admin-kpi-points__mobile-cards" aria-label="People list">
         {rows.map((r) => {
           const earned = Number(r.month_earned ?? r.weight_achieved) || 0;
-          const current = r.month_available != null ? Number(r.month_available) : earned;
+          const teamWeight = Number(r.month_team_weight) || 0;
+          const teamPoints = r.month_team_points == null ? null : Number(r.month_team_points);
+          const teamForSum = teamPoints != null ? teamPoints : teamWeight;
+          const total = earned + teamForSum;
+          const current = r.month_available != null ? Number(r.month_available) : earned + teamForSum;
           const used = Number(r.month_used) || 0;
           return (
             <article
@@ -696,6 +795,20 @@ function PeopleTable({
                 <div>
                   <dt>Earned</dt>
                   <dd>{scoresHidden ? 'Last day' : formatWeightagePct(earned)}</dd>
+                </div>
+                <div>
+                  <dt>Team</dt>
+                  <dd>
+                    {scoresHidden
+                      ? 'Last day'
+                      : teamPoints != null
+                        ? `${formatWeightagePct(teamWeight)} assigned · ${formatWeightagePct(teamPoints)} gained`
+                        : `${formatWeightagePct(teamWeight)} assigned`}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Total</dt>
+                  <dd>{scoresHidden ? 'Last day' : formatWeightagePct(total)}</dd>
                 </div>
                 <div>
                   <dt>Current</dt>
