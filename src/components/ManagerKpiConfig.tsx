@@ -42,6 +42,8 @@ type KpiStudioDraft = {
   libUserId: string;
   libDeptId: string;
   assignKpiId: string;
+  assignKpiIds: string[];
+  assignWeights: Record<string, string>;
   assignNotes: string;
   assignStartDate: string;
   assignEndDate: string;
@@ -200,7 +202,6 @@ export default function ManagerKpiConfig({
 }: ManagerKpiConfigProps) {
   const draft = useMemo(() => readKpiDraft(assignerId), [assignerId]);
   const dates0 = useMemo(() => defaultKpiDates(), []);
-  const skipWeightSyncRef = useRef(Boolean(draft?.assignWeight && draft?.assignKpiId));
   /** Bumps on every assign/board KPI fetch so slower in-flight responses cannot resurrect removed rows. */
   const kpiListFetchGen = useRef(0);
 
@@ -230,7 +231,15 @@ export default function ManagerKpiConfig({
   const [boardRosterLoading, setBoardRosterLoading] = useState(true);
   const [boardKpisLoading, setBoardKpisLoading] = useState(false);
   const [boardTaskView, setBoardTaskView] = useState<BoardTaskView>('progress');
-  const [assignKpiId, setAssignKpiId] = useState(() => draft?.assignKpiId || '');
+  const [selectedKpiIds, setSelectedKpiIds] = useState<string[]>(() => {
+    if (draft?.assignKpiIds?.length) return draft.assignKpiIds;
+    return draft?.assignKpiId ? [draft.assignKpiId] : [];
+  });
+  const [kpiWeights, setKpiWeights] = useState<Record<string, string>>(() => {
+    if (draft?.assignWeights && Object.keys(draft.assignWeights).length) return draft.assignWeights;
+    if (draft?.assignKpiId && draft.assignWeight) return { [draft.assignKpiId]: draft.assignWeight };
+    return {};
+  });
   const [loading, setLoading] = useState(true);
   const [formLoading, setFormLoading] = useState(false);
   const [error, setError] = useState('');
@@ -262,7 +271,6 @@ export default function ManagerKpiConfig({
   const [assignNotes, setAssignNotes] = useState(() => draft?.assignNotes || '');
   const [assignStartDate, setAssignStartDate] = useState(() => draft?.assignStartDate || dates0.start);
   const [assignEndDate, setAssignEndDate] = useState(() => draft?.assignEndDate || dates0.end);
-  const [assignWeight, setAssignWeight] = useState(() => draft?.assignWeight || '');
   const [boardSearch, setBoardSearch] = useState(() => draft?.boardSearch || '');
   const [pauseOngoingOnUrgent, setPauseOngoingOnUrgent] = useState(() =>
     typeof draft?.pauseOngoingOnUrgent === 'boolean' ? draft.pauseOngoingOnUrgent : true,
@@ -272,22 +280,30 @@ export default function ManagerKpiConfig({
   const boardPerson = reports.find((r) => r.id === boardUserId) || null;
   const libPerson = reports.find((r) => r.id === libUserId) || null;
   const remaining = remainingKpiWeightBudget(assignKpis);
-  const selectedTemplate = personTemplates.find((t) => t.id === assignKpiId) || null;
-  const selectedWeight = Number(assignWeight || selectedTemplate?.weight || 0);
-  const selectedScore = selectedWeight;
-  const assignReady = Boolean(assignUserId && assignKpiId && selectedTemplate);
+  const selectedTemplates = personTemplates.filter((t) => selectedKpiIds.includes(t.id));
+  const weightFor = (tpl: KpiTemplate) => {
+    const raw = kpiWeights[tpl.id];
+    const n = raw != null && raw !== '' ? Number(raw) : Number(tpl.weight);
+    return Number.isFinite(n) ? n : 0;
+  };
+  const selectedWeight = selectedTemplates.reduce((sum, tpl) => sum + weightFor(tpl), 0);
+  const allKpisSelected = personTemplates.length > 0 && selectedTemplates.length === personTemplates.length;
+  const assignReady = Boolean(assignUserId && selectedTemplates.length > 0);
 
   useEffect(() => {
-    if (!selectedTemplate) {
-      if (!assignKpiId) setAssignWeight('');
-      return;
-    }
-    if (skipWeightSyncRef.current) {
-      skipWeightSyncRef.current = false;
-      if (assignWeight) return;
-    }
-    setAssignWeight(String(selectedTemplate.weight));
-  }, [selectedTemplate?.id, assignKpiId]);
+    setKpiWeights((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const id of selectedKpiIds) {
+        if (next[id] != null && next[id] !== '') continue;
+        const tpl = personTemplates.find((t) => t.id === id);
+        if (!tpl) continue;
+        next[id] = String(tpl.weight);
+        changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [selectedKpiIds, personTemplates]);
 
   useEffect(() => {
     writeSessionJson(kpiDraftKey(assignerId), {
@@ -298,11 +314,13 @@ export default function ManagerKpiConfig({
       boardDeptId,
       libUserId,
       libDeptId,
-      assignKpiId,
+      assignKpiId: selectedKpiIds[0] || '',
+      assignKpiIds: selectedKpiIds,
+      assignWeights: kpiWeights,
       assignNotes,
       assignStartDate,
       assignEndDate,
-      assignWeight,
+      assignWeight: selectedKpiIds[0] ? (kpiWeights[selectedKpiIds[0]] || '') : '',
       pauseOngoingOnUrgent,
       boardSearch,
       libSearch,
@@ -324,11 +342,11 @@ export default function ManagerKpiConfig({
     boardDeptId,
     libUserId,
     libDeptId,
-    assignKpiId,
+    selectedKpiIds,
+    kpiWeights,
     assignNotes,
     assignStartDate,
     assignEndDate,
-    assignWeight,
     pauseOngoingOnUrgent,
     boardSearch,
     libSearch,
@@ -542,12 +560,10 @@ export default function ManagerKpiConfig({
 
   useEffect(() => {
     let cancelled = false;
+    setSelectedKpiIds([]);
     void (async () => {
       const [list] = await Promise.all([fetchKpis(assignUserId), loadPersonTemplates(assignUserId)]);
-      if (!cancelled && list) {
-        setAssignKpis(list);
-        setAssignKpiId('');
-      }
+      if (!cancelled && list) setAssignKpis(list);
     })();
     return () => { cancelled = true; };
   }, [assignUserId]);
@@ -731,9 +747,9 @@ export default function ManagerKpiConfig({
   }, [boardUserId, peopleWithKpis, boardRosterLoading]);
 
   const whoHint = isAdmin
-    ? 'Select the department and person, then pick one of their KPIs to assign.'
+    ? 'Select the department and person, then choose the KPIs to assign.'
     : managerDepartmentId
-      ? 'Select the employee, then pick one of their KPIs to assign.'
+      ? 'Select the employee, then choose the KPIs to assign.'
       : 'Ask an admin to set your department before you can assign KPIs.';
 
   const resetLibraryForm = () => {
@@ -862,7 +878,7 @@ export default function ManagerKpiConfig({
       await loadLibPersonTemplates(libUserId);
       if (assignUserId === libUserId) {
         await loadPersonTemplates(libUserId);
-        if (assignKpiId === tpl.id) setAssignKpiId('');
+        setSelectedKpiIds((prev) => prev.filter((id) => id !== tpl.id));
       }
     }
   };
@@ -879,8 +895,8 @@ export default function ManagerKpiConfig({
       setError('Select who this is for.');
       return;
     }
-    if (!selectedTemplate) {
-      setError('Select one of this person’s KPIs.');
+    if (selectedTemplates.length === 0) {
+      setError('Select one or more of this person’s KPIs.');
       return;
     }
     if (!assignStartDate || !assignEndDate) {
@@ -891,12 +907,12 @@ export default function ManagerKpiConfig({
       setError('Due date must be on or after start date.');
       return;
     }
-    if (!Number.isFinite(selectedWeight) || selectedWeight < 1 || selectedWeight > 100) {
-      setError('Weight must be between 1% and 100%.');
-      return;
-    }
-    if (!Number.isFinite(selectedScore) || selectedScore < 0) {
-      setError('Weightage cannot be negative.');
+    const badWeight = selectedTemplates.find((tpl) => {
+      const w = weightFor(tpl);
+      return !Number.isFinite(w) || w < 1 || w > 100;
+    });
+    if (badWeight) {
+      setError(`Weight for “${badWeight.name}” must be between 1% and 100%.`);
       return;
     }
     if (sumEmployeeKpiWeights(assignKpis) + selectedWeight > KPI_WEIGHT_CAP + 0.05) {
@@ -904,53 +920,69 @@ export default function ManagerKpiConfig({
       return;
     }
 
-    const kpiName = selectedTemplate.name;
-    const kpiCategory = (selectedTemplate.kpi_category as KpiCategoryId) || 'monthly_goal';
-    const kpiDescription = (selectedTemplate.description || '').trim();
-
+    const toAssign = selectedTemplates;
     setFormLoading(true);
     try {
-      const isUrgent = kpiCategory === 'urgent_tasks';
+      const isUrgent = toAssign.some((tpl) => tpl.kpi_category === 'urgent_tasks');
       const ongoingIds = assignKpis
         .filter((k) => k.completion_status !== 'completed' && !k.paused_at)
         .map((k) => k.id);
 
-      const { data, error: rpcErr } = await supabase.rpc('assign_kpi_from_template', {
-        p_employee_id: assignUserId,
-        p_template_id: selectedTemplate.id,
-        p_start_date: assignStartDate,
-        p_end_date: assignEndDate,
-        p_notes: assignNotes.trim() || null,
-        p_weight: selectedWeight,
-        p_assigned_score: selectedScore,
-      });
-      if (rpcErr) throw rpcErr;
+      const assignedNames: string[] = [];
+      const failures: string[] = [];
+      let newKpiId: string | null = null;
+      for (const tpl of toAssign) {
+        const weight = weightFor(tpl);
+        const { data, error: rpcErr } = await supabase.rpc('assign_kpi_from_template', {
+          p_employee_id: assignUserId,
+          p_template_id: tpl.id,
+          p_start_date: assignStartDate,
+          p_end_date: assignEndDate,
+          p_notes: assignNotes.trim() || null,
+          p_weight: weight,
+          p_assigned_score: weight,
+        });
+        if (rpcErr) {
+          failures.push(`${tpl.name}: ${rpcErr.message}`);
+          continue;
+        }
+        assignedNames.push(tpl.name);
+        const row = Array.isArray(data) ? data[0] : data;
+        if (row?.kpi_id) newKpiId = String(row.kpi_id);
+        if (row?.employee_email) {
+          await emailKpiAssigned(
+            row.employee_email,
+            row.employee_name,
+            row.kpi_name || tpl.name,
+            assignEndDate,
+            assignNotes.trim() || (tpl.description || '').trim(),
+          );
+        }
+      }
+
+      if (assignedNames.length === 0) {
+        throw new Error(failures[0] || 'Could not assign these KPIs.');
+      }
 
       if (isUrgent && pauseOngoingOnUrgent && ongoingIds.length > 0) {
         await supabase.rpc('pause_assigned_kpis', { p_kpi_ids: ongoingIds });
       }
 
-      const row = Array.isArray(data) ? data[0] : data;
-      if (row?.employee_email) {
-        await emailKpiAssigned(
-          row.employee_email,
-          row.employee_name,
-          row.kpi_name || kpiName,
-          assignEndDate,
-          assignNotes.trim() || kpiDescription || '',
-        );
-      }
-
       const who = assignPerson?.full_name || 'this person';
       const paused = isUrgent && pauseOngoingOnUrgent && ongoingIds.length > 0;
-      const newKpiId = row?.kpi_id ? String(row.kpi_id) : null;
+      const names = assignedNames.length === 1
+        ? `“${assignedNames[0]}”`
+        : `${assignedNames.length} KPIs`;
       setSuccess(
         paused
-          ? `Assigned “${kpiName}” to ${who} and paused ${ongoingIds.length} ongoing task(s). Showing it on top.`
-          : `Assigned “${kpiName}” to ${who}. Showing it on top of their Current tasks.`,
+          ? `Assigned ${names} to ${who} and paused ${ongoingIds.length} ongoing task(s).`
+          : `Assigned ${names} to ${who}. Showing them on their Current tasks.`,
       );
+      if (failures.length > 0) {
+        setError(`Some KPIs were not assigned. ${failures.join(' ')}`);
+      }
 
-      setAssignKpiId('');
+      setSelectedKpiIds([]);
       setAssignNotes('');
       const dates = defaultKpiDates();
       setAssignStartDate(dates.start);
@@ -1330,7 +1362,7 @@ export default function ManagerKpiConfig({
                         onChange={(e) => {
                           setAssignDeptId(e.target.value);
                           setAssignUserId('');
-                          setAssignKpiId('');
+                          setSelectedKpiIds([]);
                           setError('');
                         }}
                         required
@@ -1351,7 +1383,7 @@ export default function ManagerKpiConfig({
                       value={assignUserId}
                       onChange={(e) => {
                         setAssignUserId(e.target.value);
-                        setAssignKpiId('');
+                        setSelectedKpiIds([]);
                         setError('');
                       }}
                       disabled={isAdmin && !assignDeptId}
@@ -1439,8 +1471,8 @@ export default function ManagerKpiConfig({
                     <h3>What</h3>
                     <p>
                       {assignPerson
-                        ? `Only ${assignPerson.full_name.split(' ')[0]}’s individual KPIs — create new ones under KPI’s.`
-                        : 'Choose a person first, then pick one of their KPIs.'}
+                        ? `Select all of ${assignPerson.full_name.split(' ')[0]}’s KPIs, or only the ones to assign now.`
+                        : 'Choose a person first, then select the KPIs to assign.'}
                     </p>
                   </div>
                 </header>
@@ -1469,54 +1501,69 @@ export default function ManagerKpiConfig({
                     </div>
                   </div>
                 ) : (
-                  <>
-                    <label className="studio-assign-field">
-                      KPI
-                      <select
-                        value={assignKpiId}
-                        onChange={(e) => setAssignKpiId(e.target.value)}
-                        required
-                      >
-                        <option value="">Select KPI</option>
-                        {personTemplates.map((tpl) => (
-                          <option key={tpl.id} value={tpl.id}>
-                            {tpl.name} · {kpiCategoryMeta(tpl.kpi_category).label} · {formatKpiWeight(Number(tpl.weight))}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    {selectedTemplate && (
-                      <div className="studio-assign-kpi-preview">
-                        <div className="studio-assign-kpi-preview__main">
-                          <span className="studio-tag">{kpiCategoryMeta(selectedTemplate.kpi_category).label}</span>
-                          <strong>{selectedTemplate.name}</strong>
-                          {selectedTemplate.description?.trim() ? (
-                            <p>{selectedTemplate.description.trim()}</p>
-                          ) : (
-                            <p className="studio-assign-kpi-preview__muted">No description on this KPI.</p>
-                          )}
-                          {formatLatePenaltyLabel(kpiScoringRule(selectedTemplate)) ? (
-                            <span className="studio-tag studio-tag--warn">
-                              {formatLatePenaltyLabel(kpiScoringRule(selectedTemplate))}
-                            </span>
-                          ) : null}
-                        </div>
-                        <label className="studio-assign-field studio-assign-field--weight">
-                          Weight (%)
-                          <input
-                            type="number"
-                            min={1}
-                            max={100}
-                            step={0.5}
-                            value={assignWeight}
-                            onChange={(e) => setAssignWeight(e.target.value)}
-                            required
-                          />
-                        </label>
-                      </div>
-                    )}
-                  </>
+                  <div className="studio-kpi-pick">
+                    <div className="studio-kpi-pick__bar">
+                      <label className="studio-checkbox-field">
+                        <input
+                          type="checkbox"
+                          checked={allKpisSelected}
+                          onChange={() => {
+                            setSelectedKpiIds(allKpisSelected ? [] : personTemplates.map((tpl) => tpl.id));
+                          }}
+                        />
+                        <span>{allKpisSelected ? 'Clear selection' : 'Select all KPIs'}</span>
+                      </label>
+                      <p>
+                        {selectedTemplates.length} of {personTemplates.length} selected
+                      </p>
+                    </div>
+                    <ul className="studio-kpi-pick__list">
+                      {personTemplates.map((tpl) => {
+                        const checked = selectedKpiIds.includes(tpl.id);
+                        const penalty = formatLatePenaltyLabel(kpiScoringRule(tpl));
+                        return (
+                          <li key={tpl.id} className={checked ? 'is-selected' : ''}>
+                            <label className="studio-kpi-pick__choice">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => {
+                                  setSelectedKpiIds((prev) => (
+                                    prev.includes(tpl.id)
+                                      ? prev.filter((id) => id !== tpl.id)
+                                      : [...prev, tpl.id]
+                                  ));
+                                }}
+                              />
+                              <span className="studio-kpi-pick__copy">
+                                <strong>{tpl.name}</strong>
+                                <span className="studio-tag">{kpiCategoryMeta(tpl.kpi_category).label}</span>
+                                {tpl.description?.trim() ? <em>{tpl.description.trim()}</em> : null}
+                                {penalty ? <span className="studio-tag studio-tag--warn">{penalty}</span> : null}
+                              </span>
+                            </label>
+                            {checked && (
+                              <label className="studio-assign-field studio-assign-field--weight">
+                                Weight (%)
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={100}
+                                  step={0.5}
+                                  value={kpiWeights[tpl.id] ?? String(tpl.weight)}
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    setKpiWeights((prev) => ({ ...prev, [tpl.id]: value }));
+                                  }}
+                                  required
+                                />
+                              </label>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
                 )}
               </section>
 
@@ -1549,7 +1596,7 @@ export default function ManagerKpiConfig({
                   </label>
                 </div>
 
-                {selectedTemplate?.kpi_category === 'urgent_tasks' && (
+                {selectedTemplates.some((tpl) => tpl.kpi_category === 'urgent_tasks') && (
                   <label className="studio-checkbox-field">
                     <input
                       type="checkbox"
@@ -1574,12 +1621,14 @@ export default function ManagerKpiConfig({
               <div className="studio-assign-bar">
                 <p>
                   {!assignReady
-                    ? 'Complete Who and What above, then assign.'
-                    : `Ready: ${selectedTemplate?.name || 'KPI'} (${formatKpiWeight(selectedWeight)}) · ${formatKpiWeight(Math.max(0, remaining - selectedWeight))} weight left after`}
+                    ? 'Select who this is for and at least one KPI, then assign.'
+                    : `Ready: ${selectedTemplates.length === personTemplates.length && selectedTemplates.length > 1 ? 'all ' : ''}${selectedTemplates.length} KPI${selectedTemplates.length === 1 ? '' : 's'} (${formatKpiWeight(selectedWeight)}) · ${formatKpiWeight(Math.max(0, remaining - selectedWeight))} weight left after`}
                 </p>
                 <button type="submit" className="btn btn-primary" disabled={formLoading || !assignReady}>
                   {formLoading ? <Loader2 size={18} className="spin-icon" /> : <Send size={18} />}
-                  {`Assign KPI${assignPerson ? ` to ${assignPerson.full_name.split(' ')[0]}` : ''}`}
+                  {selectedTemplates.length > 1
+                    ? `Assign ${selectedTemplates.length === personTemplates.length ? 'all ' : ''}${selectedTemplates.length} KPIs${assignPerson ? ` to ${assignPerson.full_name.split(' ')[0]}` : ''}`
+                    : `Assign KPI${assignPerson ? ` to ${assignPerson.full_name.split(' ')[0]}` : ''}`}
                 </button>
               </div>
             </form>
