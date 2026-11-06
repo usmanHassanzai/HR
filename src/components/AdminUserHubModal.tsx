@@ -399,7 +399,7 @@ export default function AdminUserHubModal({
                     </div>
                     <div className="user-hub-metric">
                       <span>Current</span>
-                      <strong>{formatWeightagePct((stats.monthAvailable ?? stats.rewardPoints) + stats.monthBanked)}</strong>
+                      <strong>{formatWeightagePct(stats.monthAvailable ?? stats.rewardPoints)}</strong>
                     </div>
                     <div className="user-hub-metric">
                       <span>Used</span>
@@ -576,7 +576,7 @@ export default function AdminUserHubModal({
                 </div>
                 <div className="user-hub-metric-row">
                   <span>Current:</span>
-                  <strong>{formatWeightagePct((stats.monthAvailable ?? stats.rewardPoints) + stats.monthBanked)}</strong>
+                  <strong>{formatWeightagePct(stats.monthAvailable ?? stats.rewardPoints)}</strong>
                 </div>
                 <div className="user-hub-metric-row">
                   <span>Used:</span>

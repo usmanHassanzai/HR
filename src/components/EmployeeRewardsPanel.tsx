@@ -169,7 +169,7 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
           <div className="emp-rewards-stat">
             <TrendingUp size={16} />
             <span className="emp-rewards-stat__label">Earned this month</span>
-            <strong>{revealToday ? formatAwardWeightage((earnedWeightage ?? 0) + (Number(balance.banked) || 0)) : 'Month end'}</strong>
+            <strong>{revealToday ? formatAwardWeightage(earnedWeightage ?? 0) : 'Month end'}</strong>
           </div>
           <div className="emp-rewards-stat emp-rewards-stat--accent">
             <Gift size={16} />

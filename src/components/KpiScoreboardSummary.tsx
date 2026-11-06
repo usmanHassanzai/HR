@@ -21,7 +21,6 @@ import {
   type MyScoreWeightage,
 } from '../utils/scoreWeightage';
 import {
-  estimateUnusedPriorWeightage,
   isWeightageRevealDay,
   weightageRevealHint,
 } from '../utils/weightageReveal';
@@ -76,7 +75,6 @@ export default function KpiScoreboardSummary({
   const [internalYear, setInternalYear] = useState(now.year);
   const [giftUsed, setGiftUsed] = useState(0);
   const [giftAvailable, setGiftAvailable] = useState<number | null>(null);
-  const [giftBanked, setGiftBanked] = useState(0);
   const [giftEarned, setGiftEarned] = useState<number | null>(null);
   const [monthScore, setMonthScore] = useState<MyScoreWeightage | null>(null);
   const [monthScoreState, setMonthScoreState] = useState<'loading' | 'ready' | 'empty' | 'unavailable'>('loading');
@@ -114,17 +112,10 @@ export default function KpiScoreboardSummary({
   const deferActive =
     Boolean(deferAchievedUntilMonthEnd) && isCurrentMonthView && !revealToday;
 
-  const estimatedPriorBanked = useMemo(
-    () => estimateUnusedPriorWeightage(kpis),
-    [kpis],
-  );
-
   useEffect(() => {
-    // Banked is cross-month — load whenever we know the user, for every period view.
-    if (!userId) {
+    if (!userId || !isCurrentMonthView) {
       setGiftUsed(0);
       setGiftAvailable(null);
-      setGiftBanked(0);
       setGiftEarned(null);
       return;
     }
@@ -134,14 +125,12 @@ export default function KpiScoreboardSummary({
       if (cancelled) return;
       setGiftUsed(bal.deducted);
       setGiftAvailable(bal.available);
-      // Prefer server banked; fall back to prior-month unused until rollover migrates.
-      setGiftBanked(bal.banked > 0 ? bal.banked : estimatedPriorBanked);
       setGiftEarned(bal.earned);
     })();
     return () => {
       cancelled = true;
     };
-  }, [userId, kpis, revealToday, estimatedPriorBanked]);
+  }, [userId, kpis, revealToday, isCurrentMonthView]);
 
   useEffect(() => {
     if (periodMode !== 'month' || !userId) {
@@ -195,9 +184,7 @@ export default function KpiScoreboardSummary({
   const activeEmpty = periodMode === 'overall' ? overallKpis.length === 0 : periodKpis.length === 0;
   const has = !activeEmpty && active.kpiCount > 0;
   const showLiveGiftLedger = Boolean(isCurrentMonthView && userId);
-  const showBankedRow = Boolean(userId);
 
-  const bankedWeightage = showBankedRow ? giftBanked : 0;
   const earnedWeightage = deferActive
     ? 0
     : showLiveGiftLedger && giftEarned != null
@@ -205,19 +192,15 @@ export default function KpiScoreboardSummary({
       : active.weightAchieved;
   const usedWeightage = deferActive ? 0 : (showLiveGiftLedger ? giftUsed : 0);
   const monthRemaining = Math.max(0, earnedWeightage - usedWeightage);
-  const currentOnly =
-    deferActive
+  const currentWeightage = isPastMonthView
+    ? monthRemaining
+    : deferActive
       ? 0
       : showLiveGiftLedger && giftAvailable != null
         ? giftAvailable
         : isCurrentMonthView
           ? monthRemaining
-          : 0;
-  /** Earlier leftover is part of this month, not a separate banked figure. */
-  const currentWeightage = isPastMonthView
-    ? monthRemaining
-    : currentOnly + bankedWeightage;
-  const earnedShown = isCurrentMonthView ? earnedWeightage + bankedWeightage : earnedWeightage;
+          : earnedWeightage;
 
   const rating = performanceRatingForScore(earnedWeightage);
   const ratingColor = performanceRatingColor(rating);
@@ -231,7 +214,7 @@ export default function KpiScoreboardSummary({
             <h2 className="emp-kpi-summary__title">{title}</h2>
             <p className="emp-kpi-summary__formula">
               Finish tasks to earn weightage (up to {KPI_WEIGHT_CAP}% each month). This month&apos;s awards unlock on the last day.
-              Weightage left from earlier months is included in this month.
+              Each month shows only the weightage from that month. Individual tasks use the individual share; the rest is team work.
             </p>
           </div>
           {toolbar ? <div className="emp-kpi-toolbar">{toolbar}</div> : null}
@@ -314,12 +297,12 @@ export default function KpiScoreboardSummary({
               ? `Everything you have been given · ${overallKpis.length} task${overallKpis.length === 1 ? '' : 's'}.`
               : periodMode === 'year'
                 ? `Tasks in ${filterYear}. Switch to Month for gift balance details.`
-                : `Tasks in ${selectedLabel}. Earlier leftover is included in this month's weightage.`}
+                : `Tasks in ${selectedLabel}. Only this month's weightage is shown.`}
           </p>
 
           {deferActive ? (
             <p className="emp-kpi-month__reveal" role="status">
-              {weightageRevealHint()} Weightage you can already use is included in this month.
+              {weightageRevealHint()}
             </p>
           ) : null}
 
@@ -331,23 +314,23 @@ export default function KpiScoreboardSummary({
             <div className="emp-kpi-month__score">
               <div className="emp-kpi-month__score-main">
                 <span className="emp-kpi-month__score-label">
-                  {showBankedRow || periodMode === 'month' ? 'Left to use now' : 'You earned'}
+                  {periodMode === 'month' ? 'Left to use now' : 'You earned'}
                 </span>
                 <span
                   className="emp-kpi-month__pct"
                   style={{ color: currentWeightage > 0 || (has && !deferActive) ? ratingColor : undefined }}
                 >
                   {formatKpiWeight(
-                    showBankedRow || periodMode === 'month' ? currentWeightage : earnedWeightage,
+                    periodMode === 'month' ? currentWeightage : earnedWeightage,
                   )}
                 </span>
                 {deferActive ? (
                   <span className="emp-kpi-month__score-hint">
-                    This month&apos;s awards unlock on the last day. Earlier leftover is included.
+                    This month&apos;s awards unlock on the last day.
                   </span>
-                ) : has && (showBankedRow || periodMode === 'month') ? (
+                ) : periodMode === 'month' ? (
                   <span className="emp-kpi-month__score-hint">
-                    This month, including earlier leftover
+                    This month only
                   </span>
                 ) : null}
               </div>
@@ -370,11 +353,9 @@ export default function KpiScoreboardSummary({
               </div>
               <div>
                 <dt>Earned this month</dt>
-                <dd>{formatKpiWeight(earnedShown)}</dd>
+                <dd>{formatKpiWeight(earnedWeightage)}</dd>
                 <span className="emp-kpi-stat-note">
-                  {deferActive || (isCurrentMonthView && bankedWeightage > 0)
-                    ? 'Includes earlier leftover'
-                    : 'From finished tasks'}
+                  {deferActive ? 'Unlocks on last day' : 'From this month\'s finished tasks'}
                 </span>
               </div>
               <div>
@@ -386,17 +367,13 @@ export default function KpiScoreboardSummary({
                 <dt>Left to use</dt>
                 <dd>{formatKpiWeight(currentWeightage)}</dd>
                 <span className="emp-kpi-stat-note">
-                  {deferActive
-                    ? 'Usable now'
-                    : isPastMonthView
-                      ? 'Unused this month'
-                      : 'Usable now'}
+                  {isPastMonthView ? 'Unused this month' : 'This month only'}
                 </span>
               </div>
               <div>
                 <dt>In your tasks</dt>
                 <dd>{formatKpiWeight(active.weightAssigned)}</dd>
-                <span className="emp-kpi-stat-note">Total task weight</span>
+                <span className="emp-kpi-stat-note">Individual tasks this month</span>
               </div>
               <div>
                 <dt>Still open</dt>
@@ -408,16 +385,11 @@ export default function KpiScoreboardSummary({
                 <dd>{`${active.completed} of ${active.kpiCount}`}</dd>
                 <span className="emp-kpi-stat-note">Approved or done</span>
               </div>
-              <div>
-                <dt>Not given yet</dt>
-                <dd>{formatKpiWeight(has ? active.weightUnassigned : KPI_WEIGHT_CAP)}</dd>
-                <span className="emp-kpi-stat-note">Room left to assign</span>
-              </div>
             </dl>
 
-            {showBankedRow ? (
+            {periodMode === 'month' ? (
               <p className="emp-kpi-weight-guide">
-                <strong>Left to use</strong> is this month&apos;s weightage, including anything left from earlier months, minus gifts already used.
+                <strong>Left to use</strong> is only this month&apos;s weightage, minus gifts already used. Earlier months stay on their own month.
               </p>
             ) : null}
           </section>

@@ -116,7 +116,6 @@ interface OrgUserMonthModalProps {
   thisMonthWeightage: number | null;
   monthUsed?: number;
   monthEarned?: number | null;
-  monthBanked?: number;
   onClose: () => void;
 }
 
@@ -128,7 +127,6 @@ function OrgUserMonthModal({
   thisMonthWeightage,
   monthUsed = 0,
   monthEarned = null,
-  monthBanked = 0,
   onClose,
 }: OrgUserMonthModalProps) {
   const initialYm = useMemo(() => karachiYearMonth(), []);
@@ -218,7 +216,7 @@ function OrgUserMonthModal({
                   <>
                     {' '}· Month weightage:{' '}
                     <strong style={{ color: 'var(--color-success)' }}>
-                      {Number(thisMonthWeightage + monthBanked).toFixed(Number(thisMonthWeightage + monthBanked) % 1 === 0 ? 0 : 1)}%
+                      {Number(thisMonthWeightage).toFixed(Number(thisMonthWeightage) % 1 === 0 ? 0 : 1)}%
                     </strong>
                   </>
                 )}
@@ -236,14 +234,14 @@ function OrgUserMonthModal({
                   <li>
                     <span>Current (available)</span>
                     <strong style={{ color: 'var(--color-success)' }}>
-                      {formatWeightagePct(thisMonthWeightage + monthBanked)}
+                      {formatWeightagePct(thisMonthWeightage)}
                     </strong>
                   </li>
                 )}
                 {monthEarned != null && (
                   <li>
                     <span>Earned this month</span>
-                    <strong>{formatWeightagePct(monthEarned + monthBanked)}</strong>
+                    <strong>{formatWeightagePct(monthEarned)}</strong>
                   </li>
                 )}
                 {monthUsed > 0 && (
@@ -497,7 +495,6 @@ export default function AdminOrgKpiPointsBoard({
           thisMonthWeightage={selectedRow.month_available ?? selectedRow.weight_achieved}
           monthUsed={selectedRow.month_used ?? 0}
           monthEarned={selectedRow.month_earned ?? selectedRow.weight_achieved}
-          monthBanked={selectedRow.month_banked ?? 0}
           onClose={() => setSelectedRow(null)}
         />
       )}
@@ -523,7 +520,7 @@ function PeopleTable({
               <th title="Assigned / earned completed weightage">Earned</th>
               <th>KPI tasks</th>
               <th>Period</th>
-              <th title="Current month weightage, including earlier leftover">Current</th>
+              <th title="This month's available weightage">Current</th>
               <th title="Weightage used on monthly gifts">Used</th>
               <th>History</th>
             </tr>
@@ -537,8 +534,7 @@ function PeopleTable({
                 : (start || end || currentMonthLabel());
               const weightAssigned = Number(r.weight_assigned) || 0;
               const earned = Number(r.month_earned ?? r.weight_achieved) || 0;
-              const banked = Number(r.month_banked) || 0;
-              const current = (r.month_available != null ? Number(r.month_available) : earned) + banked;
+              const current = r.month_available != null ? Number(r.month_available) : earned;
               const used = Number(r.month_used) || 0;
               return (
                 <tr
@@ -620,8 +616,7 @@ function PeopleTable({
             ? `${start} – ${end}`
             : (start || end || currentMonthLabel());
           const earned = Number(r.month_earned ?? r.weight_achieved) || 0;
-          const banked = Number(r.month_banked) || 0;
-          const current = (r.month_available != null ? Number(r.month_available) : earned) + banked;
+          const current = r.month_available != null ? Number(r.month_available) : earned;
           const used = Number(r.month_used) || 0;
           return (
             <article
