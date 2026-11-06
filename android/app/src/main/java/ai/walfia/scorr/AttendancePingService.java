@@ -29,7 +29,7 @@ import java.util.Locale;
 
 /**
  * Foreground service active ONLY during the shift window.
- * Checked out: Wi-Fi / radius check-in probe ~every 1s.
+ * Checked out: Wi-Fi / radius check-in probe about every 15s.
  * Checked in: leave + session-verify only (slower; no check-in spam).
  * Geofence EXIT remains instant via wifi/network callbacks.
  */
@@ -37,8 +37,8 @@ public class AttendancePingService extends Service {
     private static final String TAG = "ScorrAttFgs";
     private static final String CHANNEL_ID = "scorr_attendance_gps";
     private static final int NOTIF_ID = 41;
-    /** Aggressive re-entry / first check-in while session is closed. */
-    private static final long INTERVAL_CHECKIN_PROBE_MS = 1000L;
+    /** Re-entry / first check-in while the session is closed. 1s GPS froze the phone. */
+    private static final long INTERVAL_CHECKIN_PROBE_MS = 15_000L;
     /** Leave + session-verify while an open session exists (battery). */
     private static final long INTERVAL_CHECKED_IN_MS = 30 * 1000L;
     /** Treat within this many meters of the radius edge as "near edge". */
@@ -155,7 +155,6 @@ public class AttendancePingService extends Service {
             return;
         }
         maybeResyncSchedule();
-        // Always wake ~1s so checkout → re-entry resumes immediately.
         // While open: leave + session-verify only (gated); no check-in spam.
         if (AttendancePingStore.isAlreadyCheckedInForActiveWindow(this)) {
             long now = System.currentTimeMillis();
@@ -163,10 +162,10 @@ public class AttendancePingService extends Service {
                 lastCheckedInProbeAt = now;
                 requestLeaveProbe();
                 // Session-verify discovers manual/other-device checkout while still
-                // in radius/Wi-Fi so local suppress clears and 1s re-entry resumes.
+                // in radius or on Wi-Fi so local suppress clears.
                 sendSessionVerifyHeartbeat();
             }
-            handler.postDelayed(tick, INTERVAL_CHECKIN_PROBE_MS);
+            handler.postDelayed(tick, INTERVAL_CHECKED_IN_MS);
             return;
         }
         lastCheckedInProbeAt = 0L;
@@ -279,7 +278,7 @@ public class AttendancePingService extends Service {
             sendWifiOnlyCheckinIfCandidate();
             return;
         }
-        // ~1s loop: single fresh read (no multi-retry stacking); OS may coalesce GPS.
+        // Single fresh read (no multi-retry stacking); the OS may coalesce GPS.
         if (locationPingInflight) return;
         locationPingInflight = true;
         // Unstick if the provider never answers (battery / Doze).
@@ -495,8 +494,8 @@ public class AttendancePingService extends Service {
         AttendanceEventClient.updateStatusNotification(
             this,
             outsideOrEdge
-                ? "Outside / near edge — seeking check-in every 1s"
-                : "Inside office — seeking check-in every 1s",
+                ? "Outside / near edge — seeking check-in"
+                : "Inside office — seeking check-in",
             null
         );
     }

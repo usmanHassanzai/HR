@@ -1,8 +1,9 @@
 /**
  * Electron laptop automatic attendance (Section H / R45–R53).
  * powerMonitor suspend/resume/shutdown + windowed heartbeat:
- *   checked out → ~1s Wi-Fi/radius check-in probes;
- *   checked in  → slower leave + session-verify only.
+ *   checked out → Wi-Fi/radius check-in about every 15s (Windows and Linux);
+ *   checked in  → leave + session-verify about every 30s.
+ * Wi-Fi is read off the main thread so netsh, PowerShell, and nmcli cannot freeze the app.
  * Uses device token from safeStorage; no dashboard session required after enrollment.
  */
 const {
@@ -21,7 +22,7 @@ const {
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
-const { execFileSync } = require('child_process');
+const { execFile, execFileSync } = require('child_process');
 const { net } = require('electron');
 
 /**
@@ -213,7 +214,9 @@ let checkedInState = null;
 /** Last heartbeat saw an assigned office Wi-Fi (for early leave checkout). */
 let wasOnOfficeWifi = false;
 /** Aggressive check-in while session closed (battery-heavy by design). */
-const INTERVAL_CHECKIN_PROBE_MS = 1000;
+/** Office presence probe. 1s netsh/PowerShell/GPS froze the laptop; 15s stays smooth. */
+const INTERVAL_CHECKIN_PROBE_MS = 15_000;
+const WIFI_CACHE_MS = 12_000;
 /** Leave + session-verify while open session (no check-in spam). */
 const INTERVAL_CHECKED_IN_MS = 30 * 1000;
 let lastCheckedInWorkAt = 0;
@@ -804,14 +807,25 @@ function readWindowsWifiProfileName() {
   }
 }
 
+/** Last Wi-Fi read, so a heartbeat does not spawn netsh or PowerShell again immediately. */
+let wifiCache = null;
+let wifiCacheAt = 0;
+/** One in-flight Wi-Fi read shared by the heartbeat and sendEvent. */
+let wifiReadInflight = null;
+
 /** Best-effort SSID/BSSID. Windows 11 may fill a blank SSID from the profile name. */
 function readWifiIdentity() {
+  const now = Date.now();
+  if (wifiCache && now - wifiCacheAt < WIFI_CACHE_MS) return wifiCache;
   const wifi = readCurrentWifiIdentity();
-  if (!isWindows11()) return wifi;
-  if (!isBlankOrHiddenSsid(wifi.ssid)) return wifi;
-  const profile = readWindowsWifiProfileName();
-  if (!profile) return { ssid: null, bssid: wifi.bssid };
-  return { ssid: profile, bssid: wifi.bssid, ssid_source: 'profile_name' };
+  let result = wifi;
+  if (isWindows11() && isBlankOrHiddenSsid(wifi.ssid)) {
+    const profile = readWindowsWifiProfileName();
+    if (profile) result = { ssid: profile, bssid: wifi.bssid, ssid_source: 'profile_name' };
+  }
+  wifiCache = result;
+  wifiCacheAt = now;
+  return result;
 }
 
 function readCurrentWifiIdentity() {
@@ -849,6 +863,112 @@ function readCurrentWifiIdentity() {
     /* ignore — Wi-Fi probe is best-effort; GPS radius still works */
   }
   return { ssid: null, bssid: null };
+}
+
+/** Shell text without blocking the Electron main thread. Empty string on failure. */
+function execFileText(file, args, timeout = 4000) {
+  return new Promise((resolve) => {
+    execFile(
+      file,
+      args,
+      { encoding: 'utf8', timeout, windowsHide: true, maxBuffer: 1024 * 1024 },
+      (err, stdout) => resolve(err ? '' : String(stdout || '')),
+    );
+  });
+}
+
+function parseNetshWifi(out) {
+  const ssid = (String(out).match(/^\s*SSID\s*:\s*(.+)$/im) || [])[1]?.trim() || null;
+  const bssid = (String(out).match(/^\s*BSSID\s*:\s*(.+)$/im) || [])[1]?.trim()?.toLowerCase() || null;
+  return { ssid: ssid && ssid !== '' ? ssid : null, bssid };
+}
+
+function parseNmcliWifi(out) {
+  for (const line of String(out).split('\n')) {
+    const parts = line.split(':');
+    if (parts[0] === 'yes' || parts[0] === 'true') {
+      return {
+        ssid: parts[1] || null,
+        bssid: (parts.slice(2).join(':') || '').toLowerCase() || null,
+      };
+    }
+  }
+  return { ssid: null, bssid: null };
+}
+
+const WINDOWS_WIFI_PROFILE_COMMAND = [
+  "$ErrorActionPreference='SilentlyContinue'",
+  "$p = @(Get-NetConnectionProfile | Where-Object {",
+  "$_.IPv4Connectivity -ne 'Disconnected' -and ($_.InterfaceAlias -match 'Wi-?Fi|WLAN|Wireless')",
+  "} | Select-Object -First 1)",
+  "if ($p.Count -gt 0 -and $p[0].Name) { $p[0].Name }",
+].join('; ');
+
+/** Same result as readWifiIdentity, but netsh / nmcli / PowerShell run in the background. */
+async function readWifiIdentityAsync() {
+  const now = Date.now();
+  if (wifiCache && now - wifiCacheAt < WIFI_CACHE_MS) return wifiCache;
+  if (wifiReadInflight) return wifiReadInflight;
+  wifiReadInflight = (async () => {
+    try {
+      const wifi = await readCurrentWifiIdentityAsync();
+      let result = wifi;
+      if (isWindows11() && isBlankOrHiddenSsid(wifi.ssid)) {
+        const profile = await readWindowsWifiProfileNameAsync();
+        if (profile) result = { ssid: profile, bssid: wifi.bssid, ssid_source: 'profile_name' };
+      }
+      wifiCache = result;
+      wifiCacheAt = Date.now();
+      return result;
+    } finally {
+      wifiReadInflight = null;
+    }
+  })();
+  return wifiReadInflight;
+}
+
+async function readCurrentWifiIdentityAsync() {
+  if (
+    String(process.env.SCORR_SIMULATE_WINDOWS_BUILD || '').trim() !== '' &&
+    process.env.SCORR_SIMULATE_NETSH_SSID != null
+  ) {
+    return readCurrentWifiIdentity();
+  }
+  try {
+    if (process.platform === 'win32') {
+      return parseNetshWifi(await execFileText('netsh', ['wlan', 'show', 'interfaces']));
+    }
+    if (process.platform === 'linux') {
+      return parseNmcliWifi(
+        await execFileText('nmcli', ['-t', '-f', 'ACTIVE,SSID,BSSID', 'dev', 'wifi']),
+      );
+    }
+  } catch {
+    /* ignore — Wi-Fi probe is best-effort; GPS radius still works */
+  }
+  return { ssid: null, bssid: null };
+}
+
+async function readWindowsWifiProfileNameAsync() {
+  if (!isWindows11()) return null;
+  if (
+    String(process.env.SCORR_SIMULATE_WINDOWS_BUILD || '').trim() !== '' &&
+    process.env.SCORR_SIMULATE_WIFI_PROFILE != null
+  ) {
+    return readWindowsWifiProfileName();
+  }
+  if (process.platform !== 'win32') return null;
+  windowsProfileReads += 1;
+  const out = await execFileText('powershell.exe', [
+    '-NoProfile',
+    '-NonInteractive',
+    '-WindowStyle',
+    'Hidden',
+    '-Command',
+    WINDOWS_WIFI_PROFILE_COMMAND,
+  ]);
+  const line = String(out || '').split(/\r?\n/).map((s) => s.trim()).find(Boolean) || '';
+  return stripWindowsProfileSuffix(line) || null;
 }
 
 function attendanceWifiPayload(wifi) {
@@ -982,7 +1102,7 @@ async function sendEvent(event, coords, allowRetry = true, occurredAtUtcMs = nul
   // Wi-Fi first. A hidden or just-opened window can leave geolocation pending
   // for the whole 15s read, and 1.3.49 waited on that even when the SSID was
   // already known — so check-in never fired until someone opened Scorr.
-  const wifi = readWifiIdentity();
+  const wifi = await readWifiIdentityAsync();
   let fix = coords && coords.latitude != null ? coords : null;
   const hasWifi = Boolean(wifi.ssid || wifi.bssid);
   if (!hasWifi && (!fix || fix.latitude == null)) {
@@ -1129,44 +1249,39 @@ function startHeartbeatIfInWindow() {
   void sendEvent('power_on');
   lastCheckedInWorkAt = 0;
   heartbeatTimer = setInterval(() => {
+    if (heartbeatInflight) return;
+    heartbeatInflight = true;
+    void (async () => {
+    try {
     const w = activeWindow(cachedSchedule, Date.now());
     if (!w) {
       stopHeartbeat();
       return;
     }
-    const wifi = readWifiIdentity();
+    const wifi = await readWifiIdentityAsync();
     const onOffice = matchesScheduleOfficeWifi(wifi);
     // Early leave: drop office Wi-Fi while checked in → checkout (server ignores location).
-    // Run on every 1s tick so Wi-Fi leave is not delayed by the checked-in gate.
     if (!windowsStaysCheckedIn() && stillSuppressCheckin() && wasOnOfficeWifi && !onOffice) {
       wasOnOfficeWifi = false;
-      void sendEvent('wifi_disconnected');
+      await sendEvent('wifi_disconnected');
       return;
     }
     wasOnOfficeWifi = onOffice || wasOnOfficeWifi;
     if (stillSuppressCheckin()) {
       const now = Date.now();
       if (now - lastCheckedInWorkAt < INTERVAL_CHECKED_IN_MS) return;
-      if (heartbeatInflight) return;
       lastCheckedInWorkAt = now;
-      heartbeatInflight = true;
-      // Leave probe + session-verify (discovers closed session → clear suppress → 1s re-entry).
-      void (async () => {
-        try {
-          await probeLeaveWhileCheckedIn();
-          await sendEvent('heartbeat');
-        } finally {
-          heartbeatInflight = false;
-        }
-      })();
+      // Leave probe + session-verify (discovers closed session → clear suppress).
+      await probeLeaveWhileCheckedIn();
+      await sendEvent('heartbeat');
       return;
     }
     lastCheckedInWorkAt = 0;
-    if (heartbeatInflight) return;
-    heartbeatInflight = true;
-    void sendEvent('heartbeat').finally(() => {
+    await sendEvent('heartbeat');
+    } finally {
       heartbeatInflight = false;
-    });
+    }
+    })();
   }, INTERVAL_CHECKIN_PROBE_MS);
 }
 
@@ -1505,7 +1620,7 @@ app.whenReady().then(async () => {
       return { ok: false, message: e instanceof Error ? e.message : String(e) };
     }
   });
-  ipcMain.handle('scorr:probeWifi', () => readWifiIdentity());
+  ipcMain.handle('scorr:probeWifi', () => readWifiIdentityAsync());
   ipcMain.handle('scorr:manualCheckIn', () => {
     noteManualCheckIn();
     return { ok: true };

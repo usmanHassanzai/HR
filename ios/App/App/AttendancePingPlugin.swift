@@ -507,7 +507,10 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
     private override init() {
         super.init()
         manager.delegate = self
-        manager.desiredAccuracy = kCLLocationAccuracyBest
+        // Office presence is region monitoring, not a 1-second GPS loop.
+        // Best accuracy is used only for a one-shot leave fix.
+        manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        manager.distanceFilter = 50
         manager.allowsBackgroundLocationUpdates = true
         manager.pausesLocationUpdatesAutomatically = false
         if #available(iOS 11.0, *) {
