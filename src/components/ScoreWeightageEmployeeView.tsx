@@ -107,7 +107,11 @@ export default function ScoreWeightageEmployeeView({ monthIso, status }: Props) 
             <article className="sw-metric">
               <span>Team</span>
               <strong>{formatPoints(row.team_points)}</strong>
-              <em>Department average {formatPct(row.team_avg_kpi_pct)}</em>
+              <em>
+                {row.team_points_given != null
+                  ? `Given ${formatPoints(row.team_points_given)} of ${formatPoints(row.team_weight)}`
+                  : `Department average ${formatPct(row.team_avg_kpi_pct)}`}
+              </em>
             </article>
           </div>
           <p className="sw-sum">

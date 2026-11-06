@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import { Loader2, Save } from 'lucide-react';
 import type { Profile } from '../utils/kpiHelpers';
 import {
+  clampTeamPointsGiven,
   fetchDepartmentScoreResults,
   fetchDepartmentWeightages,
   formatPct,
   formatPoints,
+  teamPointsGivenOk,
   upsertDepartmentWeightage,
   weightsTotalOk,
   type DepartmentWeightageRow,
@@ -32,6 +34,7 @@ export default function ScoreWeightageManagerView({
   const [weight, setWeight] = useState<DepartmentWeightageRow | null>(null);
   const [individual, setIndividual] = useState(80);
   const [team, setTeam] = useState(20);
+  const [given, setGiven] = useState<number | null>(null);
   const [rows, setRows] = useState<ScoreResultRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -54,6 +57,9 @@ export default function ScoreWeightageManagerView({
         if (mine) {
           setIndividual(mine.individual_weight);
           setTeam(mine.team_weight);
+          setGiven(mine.team_points_given);
+        } else {
+          setGiven(null);
         }
         if (profile.department_id) {
           const results = await fetchDepartmentScoreResults(profile.department_id, monthIso);
@@ -76,11 +82,15 @@ export default function ScoreWeightageManagerView({
       setError('Weights must be between 0 and 100, with at most one decimal place, and total 100');
       return;
     }
+    if (given != null && !teamPointsGivenOk(given, team)) {
+      setError('Points given must be between 0 and the team weight, with at most one decimal place');
+      return;
+    }
     setSaving(true);
     setError('');
     setMsg('');
     try {
-      await upsertDepartmentWeightage(profile.department_id, monthIso, individual, team);
+      await upsertDepartmentWeightage(profile.department_id, monthIso, individual, team, given);
       setMsg('Weightage saved.');
       setReloadToken((n) => n + 1);
       onChanged();
@@ -100,6 +110,7 @@ export default function ScoreWeightageManagerView({
   }
 
   const totalOk = weightsTotalOk(individual, team);
+  const givenOk = given == null || teamPointsGivenOk(given, team);
   const sourceNote = weight?.source && weight.source !== 'stored'
     ? ` Currently showing ${sourceLabel(weight.source).toLowerCase()} until you save.`
     : '';
@@ -108,7 +119,7 @@ export default function ScoreWeightageManagerView({
     <>
       <SwSection
         title={`${weight?.department_name || 'My department'} mix`}
-        hint={`Change the individual and team split while the month is open.${sourceNote}`}
+        hint={`Change the individual and team split while the month is open. Points given is how many of the team weight you award to this team.${sourceNote}`}
       >
         {!profile.department_id ? (
           <SwNotice tone="info">You are not assigned to a department, so there is no mix to edit.</SwNotice>
@@ -133,8 +144,10 @@ export default function ScoreWeightageManagerView({
                   aria-label="Individual weight"
                   onChange={(e) => {
                     const v = Number(e.target.value);
+                    const nextTeam = Math.round((100 - v) * 10) / 10;
                     setIndividual(v);
-                    setTeam(Math.round((100 - v) * 10) / 10);
+                    setTeam(nextTeam);
+                    setGiven((current) => clampTeamPointsGiven(current, nextTeam));
                   }}
                 />
               </label>
@@ -153,13 +166,36 @@ export default function ScoreWeightageManagerView({
                     const v = Number(e.target.value);
                     setTeam(v);
                     setIndividual(Math.round((100 - v) * 10) / 10);
+                    setGiven((current) => clampTeamPointsGiven(current, v));
                   }}
                 />
+              </label>
+              <label className="sw-field">
+                Points given
+                <span className="sw-given">
+                  <input
+                    className={givenOk ? 'sw-num' : 'sw-num sw-num--bad'}
+                    type="number"
+                    min={0}
+                    max={Number.isFinite(team) ? team : 100}
+                    step={0.1}
+                    value={given ?? ''}
+                    disabled={!canEdit || saving}
+                    placeholder="—"
+                    aria-label={`Points given to the team, out of ${team}`}
+                    title="How many of the team weight you give to this team. Blank uses the department average."
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      setGiven(raw === '' ? null : Number(raw));
+                    }}
+                  />
+                  <span className="sw-given__of">of {Number.isFinite(team) ? team : '—'}</span>
+                </span>
               </label>
               <span className={totalOk ? 'sw-total sw-total--ok' : 'sw-total sw-total--bad'}>
                 Total {Number.isFinite(individual + team) ? (individual + team).toFixed(1) : '—'}
               </span>
-              <button type="button" className="btn btn-primary" disabled={!canEdit || saving} onClick={() => void save()}>
+              <button type="button" className="btn btn-primary" disabled={!canEdit || !totalOk || !givenOk || saving} onClick={() => void save()}>
                 {saving ? <Loader2 className="spin-icon" size={16} /> : <Save size={16} />}
                 Save mix
               </button>

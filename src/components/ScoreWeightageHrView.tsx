@@ -7,8 +7,10 @@ import {
   downloadBonusCsv,
   fetchDepartmentWeightages,
   fetchOrgBonusList,
+  clampTeamPointsGiven,
   formatPct,
   formatPoints,
+  teamPointsGivenOk,
   upsertDepartmentWeightage,
   weightsTotalOk,
   type DepartmentWeightageRow,
@@ -26,7 +28,7 @@ interface Props {
 
 export default function ScoreWeightageHrView({ monthIso, status, locked, onChanged }: Props) {
   const [weights, setWeights] = useState<DepartmentWeightageRow[]>([]);
-  const [drafts, setDrafts] = useState<Record<string, { individual: number; team: number }>>({});
+  const [drafts, setDrafts] = useState<Record<string, { individual: number; team: number; given: number | null }>>({});
   const [bonusRows, setBonusRows] = useState<OrgBonusRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -46,7 +48,11 @@ export default function ScoreWeightageHrView({ monthIso, status, locked, onChang
       setWeights(w);
       setDrafts(
         Object.fromEntries(
-          w.map((row) => [row.department_id, { individual: row.individual_weight, team: row.team_weight }]),
+          w.map((row) => [row.department_id, {
+            individual: row.individual_weight,
+            team: row.team_weight,
+            given: row.team_points_given,
+          }]),
         ),
       );
       setBonusRows(bonus);
@@ -68,11 +74,15 @@ export default function ScoreWeightageHrView({ monthIso, status, locked, onChang
       setError('Weights must be between 0 and 100, with at most one decimal place, and total 100');
       return;
     }
+    if (draft.given != null && !teamPointsGivenOk(draft.given, draft.team)) {
+      setError('Points given must be between 0 and the team weight, with at most one decimal place');
+      return;
+    }
     setBusyId(departmentId);
     setError('');
     setMsg('');
     try {
-      await upsertDepartmentWeightage(departmentId, monthIso, draft.individual, draft.team);
+      await upsertDepartmentWeightage(departmentId, monthIso, draft.individual, draft.team, draft.given);
       setMsg('Weightage saved.');
       await load();
       onChanged();
@@ -131,7 +141,7 @@ export default function ScoreWeightageHrView({ monthIso, status, locked, onChang
     <>
       <SwSection
         title="Department mix"
-        hint="Each row must total 100, using numbers from 0 to 100 with at most one decimal. Close the month when HR is finished, or reopen it before approval."
+        hint="Each row must total 100. Points given is how many of that team weight you award to the team. Leave it blank to use the department average, or enter a number from 0 up to the team weight (50 when team is 50)."
         actions={(
           <>
             <button
@@ -164,6 +174,7 @@ export default function ScoreWeightageHrView({ monthIso, status, locked, onChang
                 <th>Department</th>
                 <th className="sw-numcol">Individual</th>
                 <th className="sw-numcol">Team</th>
+                <th className="sw-numcol">Points given</th>
                 <th>Source</th>
                 <th />
               </tr>
@@ -171,11 +182,16 @@ export default function ScoreWeightageHrView({ monthIso, status, locked, onChang
             <tbody>
               {weights.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="sw-muted">No active departments.</td>
+                  <td colSpan={6} className="sw-muted">No active departments.</td>
                 </tr>
               ) : weights.map((w) => {
-                const draft = drafts[w.department_id] || { individual: w.individual_weight, team: w.team_weight };
+                const draft = drafts[w.department_id] || {
+                  individual: w.individual_weight,
+                  team: w.team_weight,
+                  given: w.team_points_given,
+                };
                 const ok = weightsTotalOk(draft.individual, draft.team);
+                const givenOk = draft.given == null || teamPointsGivenOk(draft.given, draft.team);
                 return (
                   <tr key={w.department_id}>
                     <td className="sw-span" data-label="Department">
@@ -195,10 +211,18 @@ export default function ScoreWeightageHrView({ monthIso, status, locked, onChang
                         aria-label={`${w.department_name} individual weight`}
                         onChange={(e) => {
                           const v = Number(e.target.value);
-                          setDrafts((prev) => ({
-                            ...prev,
-                            [w.department_id]: { individual: v, team: Math.round((100 - v) * 10) / 10 },
-                          }));
+                          const team = Math.round((100 - v) * 10) / 10;
+                          setDrafts((prev) => {
+                            const current = prev[w.department_id] || draft;
+                            return {
+                              ...prev,
+                              [w.department_id]: {
+                                individual: v,
+                                team,
+                                given: clampTeamPointsGiven(current.given, team),
+                              },
+                            };
+                          });
                         }}
                         className={ok ? 'sw-num' : 'sw-num sw-num--bad'}
                       />
@@ -214,20 +238,59 @@ export default function ScoreWeightageHrView({ monthIso, status, locked, onChang
                         aria-label={`${w.department_name} team weight`}
                         onChange={(e) => {
                           const v = Number(e.target.value);
-                          setDrafts((prev) => ({
-                            ...prev,
-                            [w.department_id]: { individual: Math.round((100 - v) * 10) / 10, team: v },
-                          }));
+                          const individual = Math.round((100 - v) * 10) / 10;
+                          setDrafts((prev) => {
+                            const current = prev[w.department_id] || draft;
+                            return {
+                              ...prev,
+                              [w.department_id]: {
+                                individual,
+                                team: v,
+                                given: clampTeamPointsGiven(current.given, v),
+                              },
+                            };
+                          });
                         }}
                         className={ok ? 'sw-num' : 'sw-num sw-num--bad'}
                       />
+                    </td>
+                    <td className="sw-numcol" data-label="Points given">
+                      <div className="sw-given">
+                        <input
+                          type="number"
+                          min={0}
+                          max={Number.isFinite(draft.team) ? draft.team : 100}
+                          step={0.1}
+                          value={draft.given ?? ''}
+                          disabled={!editing}
+                          placeholder="—"
+                          aria-label={`${w.department_name} points given to the team, out of ${draft.team}`}
+                          title="How many of the team weight you give to this team. Blank uses the department average."
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            setDrafts((prev) => {
+                              const current = prev[w.department_id] || draft;
+                              return {
+                                ...prev,
+                                [w.department_id]: {
+                                  individual: current.individual,
+                                  team: current.team,
+                                  given: raw === '' ? null : Number(raw),
+                                },
+                              };
+                            });
+                          }}
+                          className={givenOk ? 'sw-num' : 'sw-num sw-num--bad'}
+                        />
+                        <span className="sw-given__of">of {Number.isFinite(draft.team) ? draft.team : '—'}</span>
+                      </div>
                     </td>
                     <td data-label="Source"><span className="sw-badge">{sourceLabel(w.source)}</span></td>
                     <td data-label="Save">
                       <button
                         type="button"
                         className="btn btn-primary"
-                        disabled={!editing || !ok || busyId === w.department_id}
+                        disabled={!editing || !ok || !givenOk || busyId === w.department_id}
                         onClick={() => void saveDept(w.department_id)}
                       >
                         {busyId === w.department_id ? <Loader2 className="spin-icon" size={14} /> : <Save size={14} />}

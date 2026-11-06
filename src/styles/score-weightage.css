@@ -120,6 +120,23 @@
   background: var(--color-danger-bg);
 }
 
+.sw-given,
+.sw-given-read {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.sw-given__of {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  white-space: nowrap;
+}
+
 .sw .btn {
   min-height: 40px;
   padding: 0.5rem 0.9rem;

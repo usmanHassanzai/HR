@@ -23,6 +23,8 @@ export interface DepartmentWeightageRow {
   month: string;
   individual_weight: number;
   team_weight: number;
+  /** Points HR awards from the team weight. Null keeps the department-average formula. */
+  team_points_given: number | null;
   source: WeightSource;
   updated_by: string | null;
   updated_at: string | null;
@@ -37,6 +39,7 @@ export interface MyScoreWeightage {
   team_avg_kpi_pct: number | null;
   individual_weight: number | null;
   team_weight: number | null;
+  team_points_given: number | null;
   weight_source: WeightSource | null;
   individual_points: number | null;
   team_points: number | null;
@@ -68,6 +71,8 @@ export interface ScoreWeightageLogRow {
   old_team: number | null;
   new_individual: number | null;
   new_team: number | null;
+  old_team_points_given: number | null;
+  new_team_points_given: number | null;
   old_status: string | null;
   new_status: string | null;
   changed_by: string | null;
@@ -156,6 +161,21 @@ export function weightsTotalOk(individual: number, team: number): boolean {
     && Math.abs(Math.round((individual + team) * 10) - 1000) < 1e-6;
 }
 
+/** Award from the team weight: 0 to that weight, at most one decimal. */
+export function teamPointsGivenOk(given: number, teamWeight: number): boolean {
+  return oneDecimal(given)
+    && Number.isFinite(teamWeight)
+    && given >= 0
+    && given <= teamWeight + 1e-9;
+}
+
+/** Keep a typed award inside the current team weight. Blank stays blank. */
+export function clampTeamPointsGiven(given: number | null, teamWeight: number): number | null {
+  if (given == null || !Number.isFinite(given) || !Number.isFinite(teamWeight)) return given;
+  const capped = Math.min(Math.max(given, 0), teamWeight);
+  return Math.round(capped * 10) / 10;
+}
+
 function numOrNull(v: unknown): number | null {
   if (v == null || v === '') return null;
   const n = Number(v);
@@ -197,6 +217,7 @@ export async function fetchDepartmentWeightages(monthIso: string): Promise<Depar
     month: String(r.month).slice(0, 10),
     individual_weight: num(r.individual_weight),
     team_weight: num(r.team_weight),
+    team_points_given: numOrNull(r.team_points_given),
     source: (r.source as WeightSource) || 'default',
   }));
 }
@@ -206,9 +227,13 @@ export async function upsertDepartmentWeightage(
   monthIso: string,
   individualWeight: number,
   teamWeight: number,
+  teamPointsGiven: number | null = null,
 ): Promise<void> {
   if (!weightsTotalOk(individualWeight, teamWeight)) {
     throw new Error('Weights must be between 0 and 100, with at most one decimal place, and total 100');
+  }
+  if (teamPointsGiven != null && !teamPointsGivenOk(teamPointsGiven, teamWeight)) {
+    throw new Error('Points given must be between 0 and the team weight, with at most one decimal place');
   }
   const supabase = await getSupabase();
   const { error } = await supabase.rpc('upsert_department_score_weightage', {
@@ -216,6 +241,7 @@ export async function upsertDepartmentWeightage(
     p_month: monthIso,
     p_individual_weight: individualWeight,
     p_team_weight: teamWeight,
+    p_team_points_given: teamPointsGiven,
   });
   if (error) throw error;
 }
@@ -252,6 +278,7 @@ export async function fetchMyScoreWeightage(monthIso: string): Promise<MyScoreWe
     team_avg_kpi_pct: numOrNull(row.team_avg_kpi_pct),
     individual_weight: numOrNull(row.individual_weight),
     team_weight: numOrNull(row.team_weight),
+    team_points_given: numOrNull(row.team_points_given),
     weight_source: (row.weight_source as WeightSource) || null,
     individual_points: numOrNull(row.individual_points),
     team_points: numOrNull(row.team_points),
@@ -295,6 +322,8 @@ export async function fetchScoreWeightageLog(monthIso: string): Promise<ScoreWei
     old_team: numOrNull(r.old_team),
     new_individual: numOrNull(r.new_individual),
     new_team: numOrNull(r.new_team),
+    old_team_points_given: numOrNull(r.old_team_points_given),
+    new_team_points_given: numOrNull(r.new_team_points_given),
     old_status: r.old_status ?? null,
     new_status: r.new_status ?? null,
   }));

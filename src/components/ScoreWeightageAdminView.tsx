@@ -80,7 +80,7 @@ export default function ScoreWeightageAdminView({ monthIso, status, onChanged }:
     <>
       <SwSection
         title="Department mix"
-        hint="Read only. HR sets the mix and closes the month. Approving locks every score for that month."
+        hint="Read only. HR sets the mix and how many team points each department is given, then closes the month. Approving locks every score for that month."
         actions={(
           <button
             type="button"
@@ -111,13 +111,14 @@ export default function ScoreWeightageAdminView({ monthIso, status, onChanged }:
                 <th>Department</th>
                 <th className="sw-numcol">Individual</th>
                 <th className="sw-numcol">Team</th>
+                <th className="sw-numcol">Points given</th>
                 <th>Source</th>
               </tr>
             </thead>
             <tbody>
               {weights.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="sw-muted">No active departments.</td>
+                  <td colSpan={5} className="sw-muted">No active departments.</td>
                 </tr>
               ) : weights.map((w) => (
                 <tr key={w.department_id}>
@@ -129,6 +130,14 @@ export default function ScoreWeightageAdminView({ monthIso, status, onChanged }:
                   </td>
                   <td className="sw-numcol" data-label="Individual">{formatPoints(w.individual_weight)}</td>
                   <td className="sw-numcol" data-label="Team">{formatPoints(w.team_weight)}</td>
+                  <td className="sw-numcol" data-label="Points given">
+                    {w.team_points_given == null ? '—' : (
+                      <span className="sw-given-read">
+                        <strong>{formatPoints(w.team_points_given)}</strong>
+                        <span className="sw-given__of">of {w.team_weight}</span>
+                      </span>
+                    )}
+                  </td>
                   <td data-label="Source"><span className="sw-badge">{sourceLabel(w.source)}</span></td>
                 </tr>
               ))}

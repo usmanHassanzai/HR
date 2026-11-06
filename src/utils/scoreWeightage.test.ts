@@ -7,6 +7,8 @@ import {
   calcIndividualPoints,
   calcTeamPoints,
   formatPct,
+  clampTeamPointsGiven,
+  teamPointsGivenOk,
   weightsTotalOk,
   monthStartIso,
 } from './scoreWeightage.ts';
@@ -95,6 +97,24 @@ describe('weightsTotalOk', () => {
     assert.equal(weightsTotalOk(-10, 110), false);
     assert.equal(weightsTotalOk(101, -1), false);
     assert.equal(weightsTotalOk(80.55, 19.45), false);
+  });
+});
+
+describe('teamPointsGivenOk', () => {
+  it('accepts an award from 0 up to the team weight', () => {
+    assert.equal(teamPointsGivenOk(0, 50), true);
+    assert.equal(teamPointsGivenOk(30, 50), true);
+    assert.equal(teamPointsGivenOk(50, 50), true);
+    assert.equal(teamPointsGivenOk(12.5, 50), true);
+    assert.equal(teamPointsGivenOk(50.1, 50), false);
+    assert.equal(teamPointsGivenOk(-1, 50), false);
+    assert.equal(teamPointsGivenOk(10.55, 50), false);
+  });
+
+  it('clamps an award when the team weight shrinks, and keeps a blank award blank', () => {
+    assert.equal(clampTeamPointsGiven(40, 30), 30);
+    assert.equal(clampTeamPointsGiven(12.5, 50), 12.5);
+    assert.equal(clampTeamPointsGiven(null, 50), null);
   });
 });
 

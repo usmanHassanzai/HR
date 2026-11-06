@@ -2,19 +2,20 @@ import { useEffect, useState } from 'react';
 import { fetchScoreWeightageLog, type ScoreWeightageLogRow } from '../utils/scoreWeightage';
 import { SwLoading, SwNotice, SwSection } from './scoreWeightageUi';
 
-function pair(individual: number | null, team: number | null): string {
+function pair(individual: number | null, team: number | null, given: number | null): string {
   if (individual == null || team == null) return '—';
-  return `${individual} / ${team}`;
+  if (given == null) return `${individual} / ${team}`;
+  return `${individual} / ${team}, given ${given}`;
 }
 
 function oldText(row: ScoreWeightageLogRow): string {
   if (row.old_status || row.new_status) return row.old_status || '—';
-  return pair(row.old_individual, row.old_team);
+  return pair(row.old_individual, row.old_team, row.old_team_points_given);
 }
 
 function newText(row: ScoreWeightageLogRow): string {
   if (row.old_status || row.new_status) return row.new_status || '—';
-  return pair(row.new_individual, row.new_team);
+  return pair(row.new_individual, row.new_team, row.new_team_points_given);
 }
 
 function whenLabel(iso: string): string {
@@ -48,7 +49,7 @@ export default function ScoreWeightageAuditLog({ monthIso }: { monthIso: string 
   return (
     <SwSection
       title="Activity"
-      hint="Weight changes show the old and new mix. Close, reopen, and approve show the month status."
+      hint="Weight changes show the old and new mix, including points given to the team. Close, reopen, and approve show the month status."
     >
       {loading ? <SwLoading /> : error ? <SwNotice tone="error">{error}</SwNotice> : (
         <div className="sw-table-wrap">

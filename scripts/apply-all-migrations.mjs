@@ -219,6 +219,7 @@ const MIGRATIONS = [
   'wifi_windows11_variant_2026-10-21.sql',
   'FIX_mfa_trust_30_days_all_roles_2026-10-14.sql',
   'score_weightage_2026-10-19.sql',
+  'team_points_given_2026-11-06.sql',
 ];
 
 async function runMigration(filename) {
