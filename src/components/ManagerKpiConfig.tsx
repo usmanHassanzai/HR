@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, Building2, CheckCircle2, ChevronDown, ChevronLeft, ClipboardCheck, ClipboardList, Loader2, Pencil, Plus, Search, Send, Trash2, Timer } from 'lucide-react';
+import { AlertCircle, Building2, Check, CheckCircle2, ChevronDown, ChevronLeft, ClipboardCheck, ClipboardList, Loader2, Minus, Pencil, Plus, Search, Send, Trash2, Timer } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Profile, Kpi, displayRoleLabel, isKpiAwaitingReview } from '../utils/kpiHelpers';
 import { Department } from '../utils/departmentHelpers';
@@ -1524,13 +1524,16 @@ export default function ManagerKpiConfig({
                         onClick={() => setKpiMenuOpen((open) => !open)}
                       >
                         <span className="kpi-multi-select__trigger-text">
-                          {selectedTemplates.length === 0
-                            ? 'Select KPI'
-                            : allKpisSelected
-                              ? `All ${personTemplates.length} KPIs`
-                              : selectedTemplates.length === 1
-                                ? selectedTemplates[0].name
-                                : `${selectedTemplates.length} KPIs selected`}
+                          {selectedTemplates.length === 0 ? (
+                            'Select KPI'
+                          ) : selectedTemplates.length < 3 ? (
+                            selectedTemplates.map((tpl) => tpl.name).join(', ')
+                          ) : (
+                            <span className="kpi-multi-select__summary">
+                              <span className="kpi-multi-select__count">{selectedTemplates.length}</span>
+                              {allKpisSelected ? 'All KPIs selected' : 'KPIs selected'}
+                            </span>
+                          )}
                         </span>
                         <ChevronDown
                           size={16}
@@ -1539,28 +1542,37 @@ export default function ManagerKpiConfig({
                       </button>
                       {kpiMenuOpen && (
                         <div className="kpi-multi-select__menu">
-                          <div className="kpi-multi-select__menu-actions">
-                            <button
-                              type="button"
-                              className="kpi-multi-select__text-btn"
-                              onClick={() => {
+                          <label className="kpi-multi-select__all">
+                            <input
+                              type="checkbox"
+                              checked={allKpisSelected}
+                              ref={(el) => {
+                                if (el) el.indeterminate = selectedTemplates.length > 0 && !allKpisSelected;
+                              }}
+                              onChange={() => {
                                 setSelectedKpiIds(allKpisSelected ? [] : personTemplates.map((tpl) => tpl.id));
                               }}
+                            />
+                            <span
+                              className={`kpi-multi-select__check${allKpisSelected || selectedTemplates.length > 0 ? ' kpi-multi-select__check--on' : ''}`}
+                              aria-hidden
                             >
-                              {allKpisSelected ? 'Clear selection' : 'Select all KPIs'}
-                            </button>
-                            <span>{selectedTemplates.length} of {personTemplates.length} selected</span>
-                          </div>
+                              {allKpisSelected ? <Check size={12} strokeWidth={3} /> : selectedTemplates.length > 0 ? <Minus size={12} strokeWidth={3} /> : null}
+                            </span>
+                            <span className="kpi-multi-select__all-label">Select all</span>
+                            <span className="kpi-multi-select__all-count">
+                              {selectedTemplates.length} of {personTemplates.length}
+                            </span>
+                          </label>
                           <div className="kpi-multi-select__options">
                             {personTemplates.map((tpl) => {
                               const checked = selectedKpiIds.includes(tpl.id);
-                              const penalty = formatLatePenaltyLabel(kpiScoringRule(tpl));
                               return (
                                 <div
                                   key={tpl.id}
-                                  className={checked ? 'kpi-multi-select__option kpi-multi-select__option--selected' : 'kpi-multi-select__option'}
+                                  className={checked ? 'kpi-multi-select__row is-selected' : 'kpi-multi-select__row'}
                                 >
-                                  <label className="kpi-multi-select__option-hit">
+                                  <label className="kpi-multi-select__row-hit">
                                     <input
                                       type="checkbox"
                                       checked={checked}
@@ -1573,36 +1585,29 @@ export default function ManagerKpiConfig({
                                       }}
                                     />
                                     <span className={`kpi-multi-select__check${checked ? ' kpi-multi-select__check--on' : ''}`} aria-hidden>
-                                      {checked ? '✓' : ''}
+                                      {checked ? <Check size={12} strokeWidth={3} /> : null}
                                     </span>
-                                    <span className="kpi-multi-select__option-body">
-                                      <span className="kpi-multi-select__option-title">
-                                        <strong>{tpl.name}</strong>
-                                        <span className="studio-tag">{kpiCategoryMeta(tpl.kpi_category).label}</span>
-                                        <span>{formatKpiWeight(weightFor(tpl))}</span>
-                                      </span>
-                                      {tpl.description?.trim() ? (
-                                        <span className="kpi-multi-select__option-desc">{tpl.description.trim()}</span>
-                                      ) : null}
-                                      {penalty ? <span className="studio-tag studio-tag--warn">{penalty}</span> : null}
-                                    </span>
+                                    <span className="kpi-multi-select__row-name">{tpl.name}</span>
+                                    <span className="kpi-multi-select__row-meta">{kpiCategoryMeta(tpl.kpi_category).label}</span>
                                   </label>
-                                  {checked && (
-                                    <label className="kpi-multi-select__weight">
-                                      Weight %
-                                      <input
-                                        type="number"
-                                        min={1}
-                                        max={100}
-                                        step={0.5}
-                                        value={kpiWeights[tpl.id] ?? String(tpl.weight)}
-                                        onChange={(e) => {
-                                          const value = e.target.value;
-                                          setKpiWeights((prev) => ({ ...prev, [tpl.id]: value }));
-                                        }}
-                                      />
-                                    </label>
-                                  )}
+                                  <label className="kpi-multi-select__weight">
+                                    <span>Weight</span>
+                                    <input
+                                      type="number"
+                                      min={1}
+                                      max={100}
+                                      step={0.5}
+                                      aria-label={`Weight for ${tpl.name}`}
+                                      value={kpiWeights[tpl.id] ?? String(tpl.weight)}
+                                      onChange={(e) => {
+                                        const value = e.target.value;
+                                        setKpiWeights((prev) => ({ ...prev, [tpl.id]: value }));
+                                        if (!checked) {
+                                          setSelectedKpiIds((prev) => prev.includes(tpl.id) ? prev : [...prev, tpl.id]);
+                                        }
+                                      }}
+                                    />
+                                  </label>
                                 </div>
                               );
                             })}
