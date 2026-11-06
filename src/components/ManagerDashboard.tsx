@@ -271,7 +271,7 @@ export default function ManagerDashboard({ profile, organizationName }: ManagerD
                   />
                 ),
               },
-              { id: 'points', label: 'People', hint: 'Weightage and KPI scores for each person.', content: <AdminOrgKpiPointsBoard variant="manager" managerProfile={profile} /> },
+              { id: 'points', label: 'People', hint: 'Weightage and KPI scores for each person.', content: <AdminOrgKpiPointsBoard variant="manager" managerProfile={profile} concealUntilMonthEnd /> },
             ]}
           />
         ) : activeTab === 'rewards' ? (

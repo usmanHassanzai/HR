@@ -67,11 +67,13 @@ export default function AdminRewards({
   initialAwardId,
   initialRedemptionId,
   initialSearch,
+  concealUntilMonthEnd = false,
 }: {
   initialTab?: RewardsTab;
   initialAwardId?: string;
   initialRedemptionId?: string;
   initialSearch?: string;
+  concealUntilMonthEnd?: boolean;
 } = {}) {
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
   const [redemptions, setRedemptions] = useState<Redemption[]>([]);
@@ -359,7 +361,7 @@ export default function AdminRewards({
 
       {activeTab === 'history' && <AdminRewardHistoryPanel />}
 
-      {activeTab === 'board' && <AdminOrgKpiPointsBoard embedded />}
+      {activeTab === 'board' && <AdminOrgKpiPointsBoard embedded concealUntilMonthEnd={concealUntilMonthEnd} />}
 
       {activeTab === 'redemptions' && (
         <section className="admin-rewards-card glass-panel">

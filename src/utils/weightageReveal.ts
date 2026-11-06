@@ -1,5 +1,5 @@
 import type { Kpi } from './kpiHelpers';
-import { karachiYearMonth } from './kpiCategories';
+import { karachiYearMonth, kpiBelongsToMonth } from './kpiCategories';
 
 const TZ = 'Asia/Karachi';
 
@@ -80,6 +80,22 @@ export function isKpiAwardedWeightageVisible(
   if (kpi.completion_status !== 'completed') return false;
   const award = kpiAwardYearMonth(kpi);
   return isMonthAwardedWeightageVisible(award.year, award.monthIndex, now);
+}
+
+/** Current month's own weightage and score stay hidden until the last day. */
+export function ownTaskWeightageHidden(
+  kpi: { start_date?: string | null; created_at?: string | null },
+  now = new Date(),
+): boolean {
+  const cur = karachiYearMonth(now);
+  return kpiBelongsToMonth(kpi, cur.year, cur.monthIndex) && !isWeightageRevealDay(now);
+}
+
+export function ownMonthScoreHidden(monthIso: string, now = new Date()): boolean {
+  const cur = karachiYearMonth(now);
+  const month = monthIso.slice(0, 7);
+  const current = `${cur.year}-${String(cur.monthIndex + 1).padStart(2, '0')}`;
+  return month === current && !isWeightageRevealDay(now);
 }
 
 export function weightageRevealHint(now = new Date()): string {

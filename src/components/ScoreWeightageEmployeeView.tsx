@@ -7,6 +7,7 @@ import {
   type ScoreMonthStatus,
 } from '../utils/scoreWeightage';
 import { sourceLabel, SwLoading, SwMix, SwNotice } from './scoreWeightageUi';
+import { ownMonthScoreHidden, weightageRevealHint } from '../utils/weightageReveal';
 
 interface Props {
   monthIso: string;
@@ -50,6 +51,14 @@ export default function ScoreWeightageEmployeeView({ monthIso, status }: Props) 
     );
   }
   if (!row) return null;
+
+  if (ownMonthScoreHidden(monthIso)) {
+    return (
+      <section className="sw-card">
+        <SwNotice tone="info">{weightageRevealHint()} Your score and points stay hidden until then.</SwNotice>
+      </section>
+    );
+  }
 
   const missing = row.score == null && row.individual_weight == null;
   const weightNote = row.weight_source && row.weight_source !== 'stored'

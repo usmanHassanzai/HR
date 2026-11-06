@@ -23,7 +23,7 @@ import CurrentMonthCompletedTasks from './CurrentMonthCompletedTasks';
 import { karachiYearMonth, kpiCategoryMeta } from '../utils/kpiCategories';
 import { formatLatePenaltyLabel, kpiScoringRule } from '../utils/kpiScoringRules';
 import { fetchRewardsSummary, type RewardsSummary } from '../utils/rewardsHelpers';
-import { displayedAwardedWeightage } from '../utils/weightageReveal';
+import { displayedAwardedWeightage, ownTaskWeightageHidden } from '../utils/weightageReveal';
 import {
   BarChart2,
   CheckCircle2,
@@ -430,7 +430,7 @@ export default function ManagerPersonalPanel({ profile, focusKpiId }: ManagerPer
                       <dl className="emp-kpi-facts">
                         <div>
                           <dt>KPI weightage</dt>
-                          <dd>{formatKpiWeight(kpi.weight)}</dd>
+                          <dd>{(ownTaskWeightageHidden(kpi) ? 'Last day' : formatKpiWeight(kpi.weight))}</dd>
                         </div>
                         {awarded != null ? (
                           <div>
@@ -499,7 +499,7 @@ export default function ManagerPersonalPanel({ profile, focusKpiId }: ManagerPer
                       <dl className="emp-kpi-facts">
                         <div>
                           <dt>KPI weightage</dt>
-                          <dd>{formatKpiWeight(kpi.weight)}</dd>
+                          <dd>{(ownTaskWeightageHidden(kpi) ? 'Last day' : formatKpiWeight(kpi.weight))}</dd>
                         </div>
                         {awarded != null ? (
                           <div>
@@ -519,7 +519,7 @@ export default function ManagerPersonalPanel({ profile, focusKpiId }: ManagerPer
                             : 'Awarded weightage posts on the last day of the month')
                           : awaitingReview
                             ? 'Submitted — waiting for review'
-                            : `Assigned weightage ${formatKpiWeight(kpi.weight)} — awarded after approval`}
+                            : `Assigned weightage ${(ownTaskWeightageHidden(kpi) ? 'Last day' : formatKpiWeight(kpi.weight))} — awarded after approval`}
                       </p>
                       <KpiAssignmentDetails
                         kpi={kpi}
@@ -570,7 +570,7 @@ export default function ManagerPersonalPanel({ profile, focusKpiId }: ManagerPer
                         <dl className="emp-kpi-facts">
                           <div>
                             <dt>KPI weightage</dt>
-                            <dd>{formatKpiWeight(kpi.weight)}</dd>
+                            <dd>{(ownTaskWeightageHidden(kpi) ? 'Last day' : formatKpiWeight(kpi.weight))}</dd>
                           </div>
                           <div>
                             <dt>Dates</dt>

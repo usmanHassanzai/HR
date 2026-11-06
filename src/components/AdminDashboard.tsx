@@ -557,13 +557,14 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
           </div>
         </div>
       ) : activeTab === 'kpiPoints' ? (
-        <AdminOrgKpiPointsBoard />
+        <AdminOrgKpiPointsBoard concealUntilMonthEnd={isHr} />
       ) : activeTab === 'analytics' ? (
         <Analytics
           title="Individual Performance & Activity Analytics"
           subtitle="Select a department and teammate to inspect their KPI scores, task execution, attendance history, and daily work reports."
           initialUserId={analyticsNavState?.userId}
           initialDeptId={analyticsNavState?.deptId}
+          concealUntilMonthEnd={isHr}
         />
       ) : activeTab === 'settings' ? (
         <div className="app-settings-stack">
@@ -594,6 +595,7 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
           initialAwardId={rewardsNavState?.awardId}
           initialRedemptionId={rewardsNavState?.redemptionId}
           initialSearch={rewardsNavState?.search}
+          concealUntilMonthEnd={isHr}
         />
       ) : activeTab === 'attendance' ? (
         <AttendanceLeavePanel

@@ -77,7 +77,7 @@ export default function CurrentMonthCompletedTasks({ kpis }: CurrentMonthComplet
               {label} — open tasks overlapping this month, plus tasks completed this calendar month
               {showAwarded
                 ? ', with total and awarded weightage.'
-                : ', with each task’s total weightage. Awarded amounts post on the last day of the month.'}
+                : '. Weightage and scores appear on the last day of the month.'}
             </p>
           </div>
         </div>
@@ -85,7 +85,7 @@ export default function CurrentMonthCompletedTasks({ kpis }: CurrentMonthComplet
           <span>
             <strong>{totalCount}</strong> task{totalCount === 1 ? '' : 's'}
           </span>
-          {totalCount > 0 ? (
+          {showAwarded && totalCount > 0 ? (
             <span>
               Total <strong>{formatKpiWeight(totalWeight)}</strong>
             </span>
@@ -114,9 +114,11 @@ export default function CurrentMonthCompletedTasks({ kpis }: CurrentMonthComplet
                 {open.map((kpi) => (
                   <li key={kpi.id} className="emp-month-completed__row">
                     <span className="emp-month-completed__name">{kpi.name}</span>
-                    <span className="emp-month-completed__weight" title="Task total weightage">
-                      {formatKpiWeight(kpi.weight)}
-                    </span>
+                    {showAwarded ? (
+                      <span className="emp-month-completed__weight" title="Task total weightage">
+                        {formatKpiWeight(kpi.weight)}
+                      </span>
+                    ) : null}
                   </li>
                 ))}
               </ul>
@@ -142,14 +144,16 @@ export default function CurrentMonthCompletedTasks({ kpis }: CurrentMonthComplet
                   return (
                     <li key={kpi.id} className="emp-month-completed__row emp-month-completed__row--done">
                       <span className="emp-month-completed__name">{kpi.name}</span>
-                      <span className="emp-month-completed__weight" title="Task total weightage">
-                        {formatKpiWeight(kpi.weight)}
-                        {awarded != null ? (
-                          <em className="emp-month-completed__awarded" title="Awarded weightage">
-                            {' '}· awarded {formatKpiWeight(awarded)}
-                          </em>
-                        ) : null}
-                      </span>
+                      {showAwarded ? (
+                        <span className="emp-month-completed__weight" title="Task total weightage">
+                          {formatKpiWeight(kpi.weight)}
+                          {awarded != null ? (
+                            <em className="emp-month-completed__awarded" title="Awarded weightage">
+                              {' '}· awarded {formatKpiWeight(awarded)}
+                            </em>
+                          ) : null}
+                        </span>
+                      ) : null}
                     </li>
                   );
                 })}

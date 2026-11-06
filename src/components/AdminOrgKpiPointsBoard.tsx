@@ -14,14 +14,12 @@ import { supabase } from '../lib/supabase';
 import { useSupabaseRealtime } from '../utils/useSupabaseRealtime';
 import { Kpi } from '../utils/kpiHelpers';
 import { karachiYearMonth } from '../utils/kpiCategories';
-import { kpisForPeriod, type KpiPeriodMode } from '../utils/kpiScoreHelpers';
+import { employeeKpiBoardBreakdown, kpisForPeriod, MONTH_OPTIONS, type KpiPeriodMode } from '../utils/kpiScoreHelpers';
+import { monthStartIso } from '../utils/scoreWeightage';
+import { ownMonthScoreHidden } from '../utils/weightageReveal';
 import KpiScopedTasksList from './KpiScopedTasksList';
 import KpiScoreboardSummary, { type KpiScoreboardPeriodState } from './KpiScoreboardSummary';
-import {
-  fetchMonthWeightageBalances,
-  formatWeightagePct,
-  type MonthWeightageBalance,
-} from '../utils/monthWeightageBalance';
+import { formatWeightagePct } from '../utils/monthWeightageBalance';
 import '../styles/admin-kpi-points.css';
 import '../styles/employee-kpis.css';
 
@@ -63,6 +61,8 @@ interface AdminOrgKpiPointsBoardProps {
   initialSearch?: string;
   /** Hide the outer title card when embedded under Rewards tabs. */
   embedded?: boolean;
+  /** Employee, manager, and HR do not see this month's scores until the last day. */
+  concealUntilMonthEnd?: boolean;
 }
 
 function roleLabel(role: string): string {
@@ -97,25 +97,13 @@ function normalizeRows(data: unknown): OrgKpiPointsRow[] {
   });
 }
 
-function formatKpiDate(value: string | null): string | null {
-  if (!value) return null;
-  const d = new Date(`${value.slice(0, 10)}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-}
-
-function currentMonthLabel(): string {
-  return new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-}
-
 interface OrgUserMonthModalProps {
   userId: string;
   fullName: string;
   role: string;
-  overallWeightage: number | null;
-  thisMonthWeightage: number | null;
-  monthUsed?: number;
-  monthEarned?: number | null;
+  initialMonth: number;
+  initialYear: number;
+  concealUntilMonthEnd?: boolean;
   onClose: () => void;
 }
 
@@ -123,20 +111,18 @@ function OrgUserMonthModal({
   userId,
   fullName,
   role,
-  overallWeightage,
-  thisMonthWeightage,
-  monthUsed = 0,
-  monthEarned = null,
+  initialMonth,
+  initialYear,
+  concealUntilMonthEnd = false,
   onClose,
 }: OrgUserMonthModalProps) {
-  const initialYm = useMemo(() => karachiYearMonth(), []);
   const [allKpis, setAllKpis] = useState<Kpi[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [period, setPeriod] = useState<KpiScoreboardPeriodState>({
     mode: 'month',
-    month: initialYm.monthIndex,
-    year: initialYm.year,
+    month: initialMonth,
+    year: initialYear,
   });
 
   useEffect(() => {
@@ -168,8 +154,14 @@ function OrgUserMonthModal({
   }, [userId]);
 
   const scopedKpis = useMemo(
-    () => kpisForPeriod(allKpis, period.mode as KpiPeriodMode, period.year, period.month),
+    () => (period.mode === 'overall'
+      ? allKpis
+      : kpisForPeriod(allKpis, period.mode as KpiPeriodMode, period.year, period.month)),
     [allKpis, period],
+  );
+  const periodBoard = useMemo(
+    () => employeeKpiBoardBreakdown(scopedKpis),
+    [scopedKpis],
   );
   const completedKpis = scopedKpis.filter((k) => k.completion_status === 'completed');
   const openKpis = scopedKpis.filter((k) => k.completion_status !== 'completed');
@@ -206,52 +198,23 @@ function OrgUserMonthModal({
                 </span>
               </div>
               <p className="user-hub-hero__email user-hub-hero__email--scores">
-                Overall weightage:{' '}
+                {scopeLabel} weightage:{' '}
                 <strong style={{ color: 'var(--color-success)' }}>
-                  {overallWeightage != null
-                    ? `${Number(overallWeightage).toFixed(Number(overallWeightage) % 1 === 0 ? 0 : 1)}%`
-                    : '—'}
+                  {formatWeightagePct(periodBoard.weightAchieved)}
                 </strong>
-                {thisMonthWeightage != null && (
-                  <>
-                    {' '}· Month weightage:{' '}
-                    <strong style={{ color: 'var(--color-success)' }}>
-                      {Number(thisMonthWeightage).toFixed(Number(thisMonthWeightage) % 1 === 0 ? 0 : 1)}%
-                    </strong>
-                  </>
-                )}
+                {' '}· {periodBoard.weightAssigned.toFixed(periodBoard.weightAssigned % 1 === 0 ? 0 : 1)}% assigned
               </p>
               <ul className="user-hub-hero__score-stack" aria-label="Weightage summary">
                 <li>
-                  <span>Overall weightage</span>
+                  <span>Earned</span>
                   <strong style={{ color: 'var(--color-success)' }}>
-                    {overallWeightage != null
-                      ? `${Number(overallWeightage).toFixed(Number(overallWeightage) % 1 === 0 ? 0 : 1)}%`
-                      : '—'}
+                    {formatWeightagePct(periodBoard.weightAchieved)}
                   </strong>
                 </li>
-                {thisMonthWeightage != null && (
-                  <li>
-                    <span>Current (available)</span>
-                    <strong style={{ color: 'var(--color-success)' }}>
-                      {formatWeightagePct(thisMonthWeightage)}
-                    </strong>
-                  </li>
-                )}
-                {monthEarned != null && (
-                  <li>
-                    <span>Earned this month</span>
-                    <strong>{formatWeightagePct(monthEarned)}</strong>
-                  </li>
-                )}
-                {monthUsed > 0 && (
-                  <li>
-                    <span>Used on gifts</span>
-                    <strong style={{ color: 'var(--color-warning)' }}>
-                      {formatWeightagePct(monthUsed)}
-                    </strong>
-                  </li>
-                )}
+                <li>
+                  <span>Tasks</span>
+                  <strong>{periodBoard.completed}/{periodBoard.kpiCount}</strong>
+                </li>
               </ul>
             </div>
           </div>
@@ -275,6 +238,7 @@ function OrgUserMonthModal({
                 userId={userId}
                 compact
                 title={`${fullName}'s KPI weightage`}
+                deferAchievedUntilMonthEnd={concealUntilMonthEnd}
                 period={period}
                 onPeriodChange={setPeriod}
               />
@@ -313,13 +277,19 @@ export default function AdminOrgKpiPointsBoard({
   managerProfile,
   initialSearch = '',
   embedded = false,
+  concealUntilMonthEnd = false,
 }: AdminOrgKpiPointsBoardProps) {
   const isManagerView = variant === 'manager';
+  const now = useMemo(() => karachiYearMonth(), []);
   const [rows, setRows] = useState<OrgKpiPointsRow[]>([]);
+  const [kpisByUser, setKpisByUser] = useState<Record<string, Kpi[]>>({});
+  const [usedByUser, setUsedByUser] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState(initialSearch || '');
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
+  const [filterMonth, setFilterMonth] = useState(now.monthIndex);
+  const [filterYear, setFilterYear] = useState(now.year);
   const [selectedRow, setSelectedRow] = useState<OrgKpiPointsRow | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
 
@@ -347,21 +317,28 @@ export default function AdminOrgKpiPointsBoard({
     if (err) {
       setError(err.message);
       setRows([]);
+      setKpisByUser({});
     } else {
       const base = normalizeRows(data);
-      const balances = await fetchMonthWeightageBalances(base.map((r) => r.user_id));
-      setRows(
-        base.map((r) => {
-          const bal: MonthWeightageBalance | undefined = balances[r.user_id];
-          return {
-            ...r,
-            month_earned: bal?.earned ?? r.weight_achieved,
-            month_available: bal?.available ?? r.weight_achieved,
-            month_used: bal?.deducted ?? 0,
-            month_banked: bal?.banked ?? 0,
-          };
-        }),
-      );
+      setRows(base);
+      const ids = base.map((r) => r.user_id).filter(Boolean);
+      if (ids.length === 0) {
+        setKpisByUser({});
+      } else {
+        const kpiRes = await supabase.from('kpis').select('*').in('user_id', ids);
+        if (kpiRes.error) {
+          setError(kpiRes.error.message);
+          setKpisByUser({});
+        } else {
+          const grouped: Record<string, Kpi[]> = {};
+          for (const kpi of (kpiRes.data || []) as Kpi[]) {
+            const id = kpi.user_id;
+            if (!grouped[id]) grouped[id] = [];
+            grouped[id].push(kpi);
+          }
+          setKpisByUser(grouped);
+        }
+      }
     }
     setLoading(false);
   }, []);
@@ -369,6 +346,56 @@ export default function AdminOrgKpiPointsBoard({
   useEffect(() => {
     void load();
   }, [load]);
+
+  const scoresHidden = concealUntilMonthEnd && ownMonthScoreHidden(monthStartIso(filterYear, filterMonth));
+
+  const monthLabel = useMemo(
+    () => new Date(filterYear, filterMonth, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }),
+    [filterYear, filterMonth],
+  );
+
+  const yearOptions = useMemo(() => {
+    const years = new Set<number>([now.year, filterYear]);
+    for (const list of Object.values(kpisByUser)) {
+      for (const kpi of list) {
+        const raw = kpi.start_date || kpi.created_at;
+        const year = Number(String(raw || '').slice(0, 4));
+        if (year >= 2000 && year <= 2100) years.add(year);
+      }
+    }
+    return [...years].sort((a, b) => b - a);
+  }, [kpisByUser, now.year, filterYear]);
+
+  useEffect(() => {
+    const ids = rows.map((r) => r.user_id).filter(Boolean);
+    if (ids.length === 0) {
+      setUsedByUser({});
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { data, error: ledgerError } = await supabase
+        .from('reward_weightage_ledger')
+        .select('employee_id, amount')
+        .in('employee_id', ids)
+        .eq('month', monthStartIso(filterYear, filterMonth));
+      if (cancelled) return;
+      if (ledgerError) {
+        setUsedByUser({});
+        return;
+      }
+      const used: Record<string, number> = {};
+      for (const entry of data || []) {
+        const id = String(entry.employee_id || '');
+        if (!id) continue;
+        used[id] = (used[id] || 0) + (Number(entry.amount) || 0);
+      }
+      setUsedByUser(used);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [rows, filterYear, filterMonth]);
 
   useSupabaseRealtime(
     'admin-org-kpi-points',
@@ -403,8 +430,24 @@ export default function AdminOrgKpiPointsBoard({
         (r.department_name || '').toLowerCase().includes(q) ||
         roleLabel(r.role).toLowerCase().includes(q)
       );
+    }).map((r) => {
+      const monthKpis = kpisForPeriod(kpisByUser[r.user_id] || [], 'month', filterYear, filterMonth);
+      const board = employeeKpiBoardBreakdown(monthKpis);
+      const used = usedByUser[r.user_id] || 0;
+      const earned = board.weightAchieved;
+      return {
+        ...r,
+        weight_assigned: board.weightAssigned,
+        weight_achieved: earned,
+        total_kpis: board.kpiCount,
+        completed_kpis: board.completed,
+        pending_kpis: board.pending,
+        month_earned: earned,
+        month_available: Math.max(0, earned - used),
+        month_used: used,
+      };
     });
-  }, [scopedRows, search, roleFilter]);
+  }, [scopedRows, search, roleFilter, kpisByUser, usedByUser, filterYear, filterMonth]);
 
   if (loading && rows.length === 0) {
     return (
@@ -426,7 +469,7 @@ export default function AdminOrgKpiPointsBoard({
             <div>
               <h2 className="admin-kpi-points__title">KPI &amp; Rewards</h2>
               <p className="admin-kpi-points__subtitle">
-                Per-person weightage (0–100%). Catalog and company gifts redeem with weightage.
+                {monthLabel} only. Switch the month to see another month by itself.
               </p>
             </div>
           </div>
@@ -455,6 +498,24 @@ export default function AdminOrgKpiPointsBoard({
         </label>
 
         <div className="admin-kpi-points__filters">
+          <select
+            value={filterMonth}
+            onChange={(e) => setFilterMonth(Number(e.target.value))}
+            aria-label="Month"
+          >
+            {MONTH_OPTIONS.map((m) => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+          </select>
+          <select
+            value={filterYear}
+            onChange={(e) => setFilterYear(Number(e.target.value))}
+            aria-label="Year"
+          >
+            {yearOptions.map((year) => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
           <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value as RoleFilter)} aria-label="Filter by role">
             <option value="all">All roles</option>
             <option value="manager">Managers</option>
@@ -475,14 +536,19 @@ export default function AdminOrgKpiPointsBoard({
               <Users size={16} /> People
             </h3>
             <p>
-              {filtered.length} person{filtered.length !== 1 ? 's' : ''}
+              {filtered.length} person{filtered.length !== 1 ? 's' : ''} · {monthLabel}
             </p>
           </div>
         </header>
         {filtered.length === 0 ? (
           <p className="admin-kpi-points__empty">No people match your filters.</p>
         ) : (
-          <PeopleTable rows={filtered} onSelectRow={(row) => setSelectedRow(row)} />
+          <PeopleTable
+            rows={filtered}
+            monthLabel={monthLabel}
+            scoresHidden={scoresHidden}
+            onSelectRow={(row) => setSelectedRow(row)}
+          />
         )}
       </section>
 
@@ -491,10 +557,9 @@ export default function AdminOrgKpiPointsBoard({
           userId={selectedRow.user_id}
           fullName={selectedRow.full_name}
           role={selectedRow.role}
-          overallWeightage={selectedRow.weight_achieved}
-          thisMonthWeightage={selectedRow.month_available ?? selectedRow.weight_achieved}
-          monthUsed={selectedRow.month_used ?? 0}
-          monthEarned={selectedRow.month_earned ?? selectedRow.weight_achieved}
+          initialMonth={filterMonth}
+          initialYear={filterYear}
+          concealUntilMonthEnd={concealUntilMonthEnd}
           onClose={() => setSelectedRow(null)}
         />
       )}
@@ -504,9 +569,13 @@ export default function AdminOrgKpiPointsBoard({
 
 function PeopleTable({
   rows,
+  monthLabel,
+  scoresHidden = false,
   onSelectRow,
 }: {
   rows: OrgKpiPointsRow[];
+  monthLabel: string;
+  scoresHidden?: boolean;
   onSelectRow: (row: OrgKpiPointsRow) => void;
 }) {
   return (
@@ -517,21 +586,16 @@ function PeopleTable({
             <tr>
               <th>Person</th>
               <th>Role</th>
-              <th title="Assigned / earned completed weightage">Earned</th>
+              <th title="Weightage earned from this month's tasks">Earned</th>
               <th>KPI tasks</th>
-              <th>Period</th>
-              <th title="This month's available weightage">Current</th>
+              <th>Month</th>
+              <th title="This month's earned weightage minus gifts">Current</th>
               <th title="Weightage used on monthly gifts">Used</th>
               <th>History</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => {
-              const start = formatKpiDate(r.kpi_period_start);
-              const end = formatKpiDate(r.kpi_period_end);
-              const periodLabel = start && end && start !== end
-                ? `${start} – ${end}`
-                : (start || end || currentMonthLabel());
               const weightAssigned = Number(r.weight_assigned) || 0;
               const earned = Number(r.month_earned ?? r.weight_achieved) || 0;
               const current = r.month_available != null ? Number(r.month_available) : earned;
@@ -565,9 +629,9 @@ function PeopleTable({
                   </td>
                   <td>
                     <div className="admin-kpi-points__month-score">
-                      <strong>{formatWeightagePct(earned)}</strong>
+                      <strong>{scoresHidden ? 'Last day' : formatWeightagePct(earned)}</strong>
                       <span className="admin-kpi-points__month-reward">
-                        {weightAssigned.toFixed(weightAssigned % 1 === 0 ? 0 : 1)}% assigned
+                        {scoresHidden ? 'Hidden until month end' : `${weightAssigned.toFixed(weightAssigned % 1 === 0 ? 0 : 1)}% assigned`}
                       </span>
                     </div>
                   </td>
@@ -577,16 +641,16 @@ function PeopleTable({
                     </span>
                   </td>
                   <td>
-                    <span className="admin-kpi-points__period">{periodLabel}</span>
+                    <span className="admin-kpi-points__period">{monthLabel}</span>
                   </td>
                   <td>
-                    <strong style={{ color: current <= 0 && used > 0 ? 'var(--text-muted)' : 'var(--color-success)' }}>
-                      {formatWeightagePct(current)}
+                    <strong style={{ color: scoresHidden || (current <= 0 && used > 0) ? 'var(--text-muted)' : 'var(--color-success)' }}>
+                      {scoresHidden ? 'Last day' : formatWeightagePct(current)}
                     </strong>
                   </td>
                   <td>
-                    <strong style={{ color: used > 0 ? 'var(--color-warning)' : 'var(--text-muted)' }}>
-                      {formatWeightagePct(used)}
+                    <strong style={{ color: !scoresHidden && used > 0 ? 'var(--color-warning)' : 'var(--text-muted)' }}>
+                      {scoresHidden ? 'Last day' : formatWeightagePct(used)}
                     </strong>
                   </td>
                   <td>
@@ -610,11 +674,6 @@ function PeopleTable({
 
       <div className="admin-kpi-points__mobile-cards" aria-label="People list">
         {rows.map((r) => {
-          const start = formatKpiDate(r.kpi_period_start);
-          const end = formatKpiDate(r.kpi_period_end);
-          const periodLabel = start && end && start !== end
-            ? `${start} – ${end}`
-            : (start || end || currentMonthLabel());
           const earned = Number(r.month_earned ?? r.weight_achieved) || 0;
           const current = r.month_available != null ? Number(r.month_available) : earned;
           const used = Number(r.month_used) || 0;
@@ -636,18 +695,18 @@ function PeopleTable({
               <dl className="admin-kpi-points__mobile-card-grid">
                 <div>
                   <dt>Earned</dt>
-                  <dd>{formatWeightagePct(earned)}</dd>
+                  <dd>{scoresHidden ? 'Last day' : formatWeightagePct(earned)}</dd>
                 </div>
                 <div>
                   <dt>Current</dt>
-                  <dd style={{ color: current <= 0 && used > 0 ? 'var(--text-muted)' : 'var(--color-success)' }}>
-                    {formatWeightagePct(current)}
+                  <dd style={{ color: scoresHidden || (current <= 0 && used > 0) ? 'var(--text-muted)' : 'var(--color-success)' }}>
+                    {scoresHidden ? 'Last day' : formatWeightagePct(current)}
                   </dd>
                 </div>
                 <div>
                   <dt>Used</dt>
-                  <dd style={{ color: used > 0 ? 'var(--color-warning)' : undefined }}>
-                    {formatWeightagePct(used)}
+                  <dd style={{ color: !scoresHidden && used > 0 ? 'var(--color-warning)' : undefined }}>
+                    {scoresHidden ? 'Last day' : formatWeightagePct(used)}
                   </dd>
                 </div>
                 <div>
@@ -659,7 +718,7 @@ function PeopleTable({
                 </div>
                 <div className="admin-kpi-points__mobile-card-period">
                   <dt>Period</dt>
-                  <dd>{periodLabel}</dd>
+                  <dd>{monthLabel}</dd>
                 </div>
               </dl>
               <button

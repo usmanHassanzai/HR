@@ -15,6 +15,7 @@ import {
   type ScoreResultRow,
 } from '../utils/scoreWeightage';
 import { sourceLabel, SwLoading, SwMix, SwNotice, SwSection } from './scoreWeightageUi';
+import { ownMonthScoreHidden, weightageRevealHint } from '../utils/weightageReveal';
 
 interface Props {
   profile: Profile;
@@ -206,7 +207,7 @@ export default function ScoreWeightageManagerView({
         {msg && <SwNotice tone="ok">{msg}</SwNotice>}
       </SwSection>
 
-      <SwSection title="Department scores" hint="Everyone in the department, including people with no completed tasks.">
+      <SwSection title="Department scores" hint={ownMonthScoreHidden(monthIso) ? weightageRevealHint() : 'Everyone in the department, including people with no completed tasks.'}>
         <div className="sw-table-wrap">
           <table className="sw-table">
             <thead>
@@ -228,14 +229,14 @@ export default function ScoreWeightageManagerView({
               ) : rows.map((r) => (
                 <tr key={r.user_id}>
                   <td className="sw-person" data-label="Person">{r.full_name}</td>
-                  <td className="sw-numcol" data-label="Own KPI">{formatPct(r.individual_kpi_pct)}</td>
-                  <td className="sw-numcol" data-label="Team avg">{formatPct(r.team_avg_kpi_pct)}</td>
-                  <td className="sw-numcol" data-label="Own points">{formatPoints(r.individual_points)}</td>
-                  <td className="sw-numcol" data-label="Team points">{formatPoints(r.team_points)}</td>
-                  <td className="sw-numcol sw-score-cell" data-label="Score">{formatPoints(r.score)}</td>
+                  <td className="sw-numcol" data-label="Own KPI">{ownMonthScoreHidden(monthIso) ? '—' : formatPct(r.individual_kpi_pct)}</td>
+                  <td className="sw-numcol" data-label="Team avg">{ownMonthScoreHidden(monthIso) ? '—' : formatPct(r.team_avg_kpi_pct)}</td>
+                  <td className="sw-numcol" data-label="Own points">{ownMonthScoreHidden(monthIso) ? '—' : formatPoints(r.individual_points)}</td>
+                  <td className="sw-numcol" data-label="Team points">{ownMonthScoreHidden(monthIso) ? '—' : formatPoints(r.team_points)}</td>
+                  <td className="sw-numcol sw-score-cell" data-label="Score">{ownMonthScoreHidden(monthIso) ? '—' : formatPoints(r.score)}</td>
                   <td className="sw-numcol" data-label="Bonus">
-                    <span className={Number(r.bonus_pct) > 0 ? 'sw-badge sw-badge--score' : 'sw-badge sw-badge--zero'}>
-                      {formatPct(r.bonus_pct)}
+                    <span className="sw-badge sw-badge--zero">
+                      {ownMonthScoreHidden(monthIso) ? '—' : formatPct(r.bonus_pct)}
                     </span>
                   </td>
                 </tr>

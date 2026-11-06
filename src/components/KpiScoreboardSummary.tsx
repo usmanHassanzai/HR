@@ -185,22 +185,27 @@ export default function KpiScoreboardSummary({
   const has = !activeEmpty && active.kpiCount > 0;
   const showLiveGiftLedger = Boolean(isCurrentMonthView && userId);
 
-  const earnedWeightage = deferActive
+  const taskEarned = deferActive
     ? 0
     : showLiveGiftLedger && giftEarned != null
       ? giftEarned
       : active.weightAchieved;
+  /** Team points count once the month is visible. Hidden until the last day when deferred. */
+  const teamGained = !deferActive && periodMode === 'month' && monthScoreState === 'ready'
+    ? Math.max(0, Number(monthScore?.team_points) || 0)
+    : 0;
+  const earnedWeightage = taskEarned + teamGained;
   const usedWeightage = deferActive ? 0 : (showLiveGiftLedger ? giftUsed : 0);
-  const monthRemaining = Math.max(0, earnedWeightage - usedWeightage);
-  const currentWeightage = isPastMonthView
-    ? monthRemaining
-    : deferActive
-      ? 0
+  const kpiLeft = deferActive
+    ? 0
+    : isPastMonthView
+      ? Math.max(0, taskEarned - usedWeightage)
       : showLiveGiftLedger && giftAvailable != null
         ? giftAvailable
-        : isCurrentMonthView
-          ? monthRemaining
-          : earnedWeightage;
+        : Math.max(0, taskEarned - usedWeightage);
+  const currentWeightage = periodMode === 'month'
+    ? kpiLeft + teamGained
+    : taskEarned;
 
   const rating = performanceRatingForScore(earnedWeightage);
   const ratingColor = performanceRatingColor(rating);
@@ -306,6 +311,17 @@ export default function KpiScoreboardSummary({
             </p>
           ) : null}
 
+          {deferActive ? (
+            <section className="emp-kpi-block emp-kpi-block--weight" aria-label="Your weightage">
+              <div className="emp-kpi-block__head">
+                <h4 className="emp-kpi-block__title">Your weightage</h4>
+                <span className="emp-kpi-block__badge">Last day</span>
+              </div>
+              <p className="emp-kpi-month__reveal" role="status">
+                {weightageRevealHint()} Task weightage, team points, and your score stay hidden until then.
+              </p>
+            </section>
+          ) : (
           <section className="emp-kpi-block emp-kpi-block--weight" aria-label="Your weightage">
             <div className="emp-kpi-block__head">
               <h4 className="emp-kpi-block__title">Your weightage</h4>
@@ -330,13 +346,17 @@ export default function KpiScoreboardSummary({
                   </span>
                 ) : periodMode === 'month' ? (
                   <span className="emp-kpi-month__score-hint">
-                    This month only
+                    {teamGained > 0 ? 'Tasks plus team points this month' : 'This month only'}
                   </span>
                 ) : null}
               </div>
-              {has && !deferActive && earnedWeightage > 0 ? (
+              {has && !deferActive && taskEarned > 0 ? (
                 <span className="emp-kpi-month__rating" style={{ color: ratingColor }}>
                   {rating}
+                </span>
+              ) : teamGained > 0 ? (
+                <span className="emp-kpi-month__rating" style={{ color: ratingColor }}>
+                  Team points
                 </span>
               ) : (
                 <span className="emp-kpi-month__rating emp-kpi-month__rating--muted">
@@ -355,7 +375,11 @@ export default function KpiScoreboardSummary({
                 <dt>Earned this month</dt>
                 <dd>{formatKpiWeight(earnedWeightage)}</dd>
                 <span className="emp-kpi-stat-note">
-                  {deferActive ? 'Unlocks on last day' : 'From this month\'s finished tasks'}
+                  {teamGained > 0
+                    ? 'Finished tasks plus team points'
+                    : deferActive
+                      ? 'Unlocks on last day'
+                      : 'From this month\'s finished tasks'}
                 </span>
               </div>
               <div>
@@ -389,17 +413,29 @@ export default function KpiScoreboardSummary({
 
             {periodMode === 'month' ? (
               <p className="emp-kpi-weight-guide">
-                <strong>Left to use</strong> is only this month&apos;s weightage, minus gifts already used. Earlier months stay on their own month.
+                <strong>Left to use</strong> is what you gained this month, including team points, minus gifts already used. Earlier months stay on their own month.
               </p>
             ) : null}
           </section>
+          )}
 
           {periodMode === 'month' && userId ? (
+            deferActive ? (
+              <section className="emp-kpi-mix" aria-label={`${selectedLabel} total out of 100`}>
+                <div className="emp-kpi-mix__head">
+                  <div>
+                    <h4>From 100 this month</h4>
+                    <p>Your score and points appear on the last day of the month.</p>
+                  </div>
+                </div>
+              </section>
+            ) : (
             <MonthOutOfHundred
               state={monthScoreState}
               score={monthScore}
               label={selectedLabel}
             />
+            )
           ) : null}
         </article>
       </div>

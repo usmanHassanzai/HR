@@ -16,6 +16,7 @@ import {
 import { formatKpiWeight } from '../utils/kpiWeightHelpers';
 import KpiTaskBrief from './KpiTaskBrief';
 import KpiScoreboardSummary from './KpiScoreboardSummary';
+import { isWeightageRevealDay, weightageRevealHint } from '../utils/weightageReveal';
 import { fetchRewardsSummary, type RewardsSummary } from '../utils/rewardsHelpers';
 import {
   fetchMonthWeightageBalance,
@@ -62,6 +63,8 @@ interface AnalyticsProps {
   initialDeptId?: string;
   title?: string;
   subtitle?: string;
+  /** Hide this month's weightage and score until the last day. */
+  concealUntilMonthEnd?: boolean;
 }
 
 function attainmentBarClass(pct: number): string {
@@ -176,6 +179,7 @@ export default function Analytics({
   initialDeptId,
   title = 'Individual Performance & Activity Analytics',
   subtitle = 'Select a department and teammate to inspect their KPI scores, task execution, attendance history, and daily work reports.',
+  concealUntilMonthEnd = false,
 }: AnalyticsProps) {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [allUsers, setAllUsers] = useState<Profile[]>([]);
@@ -490,13 +494,21 @@ export default function Analytics({
             <div className="analytics-user-hero__score-box">
               <span className="analytics-user-hero__score-label">Current weightage</span>
               <div className="analytics-user-hero__score-num">
-                {formatWeightagePct(monthBalance?.available ?? overallWeightage)}
+                {concealUntilMonthEnd && !isWeightageRevealDay()
+                  ? 'Last day'
+                  : formatWeightagePct(monthBalance?.available ?? overallWeightage)}
               </div>
               <span className="analytics-user-hero__score-rating">
-                Earned {formatWeightagePct(monthBalance?.earned ?? overallWeightage)}
-                {monthBalance && monthBalance.deducted > 0
-                  ? ` · Used ${formatWeightagePct(monthBalance.deducted)}`
-                  : ` · ${formatKpiWeight(board.weightAssigned)} assigned`}
+                {concealUntilMonthEnd && !isWeightageRevealDay()
+                  ? weightageRevealHint()
+                  : (
+                    <>
+                      Earned {formatWeightagePct(monthBalance?.earned ?? overallWeightage)}
+                      {monthBalance && monthBalance.deducted > 0
+                        ? ` · Used ${formatWeightagePct(monthBalance.deducted)}`
+                        : ` · ${formatKpiWeight(board.weightAssigned)} assigned`}
+                    </>
+                  )}
               </span>
             </div>
           </section>
@@ -508,6 +520,7 @@ export default function Analytics({
               rewardsSummary={rewardsSummary}
               compact
               title={`${selectedUser.full_name}'s KPI weightage`}
+              deferAchievedUntilMonthEnd={concealUntilMonthEnd}
             />
           )}
 

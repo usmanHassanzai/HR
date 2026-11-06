@@ -25,6 +25,7 @@ export default function EmployeeKpiBoardSummary({ kpis, employeeName, userId }: 
         userId={userId}
         compact
         title={employeeName ? `${employeeName}'s KPI weightage` : 'KPI weightage'}
+        deferAchievedUntilMonthEnd
       />
 
       <div className="kpi-score-list employee-kpi-board-summary__tasks">

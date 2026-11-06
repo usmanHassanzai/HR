@@ -18,6 +18,7 @@ import {
   type ScoreMonthStatus,
 } from '../utils/scoreWeightage';
 import { sourceLabel, SwLoading, SwMix, SwNotice, SwSection } from './scoreWeightageUi';
+import { ownMonthScoreHidden, weightageRevealHint } from '../utils/weightageReveal';
 
 interface Props {
   monthIso: string;
@@ -315,7 +316,7 @@ function BonusTable({ rows, monthIso, empty }: { rows: OrgBonusRow[]; monthIso: 
   return (
     <SwSection
       title="Scores and bonus"
-      hint="Bonus is a percentage of the score. It is not a salary amount."
+      hint={ownMonthScoreHidden(monthIso) ? weightageRevealHint() : 'Bonus is a percentage of the score. It is not a salary amount.'}
       actions={(
         <button
           type="button"
@@ -348,12 +349,12 @@ function BonusTable({ rows, monthIso, empty }: { rows: OrgBonusRow[]; monthIso: 
               <tr key={r.user_id}>
                 <td className="sw-person" data-label="Person">{r.full_name}</td>
                 <td data-label="Department">{r.department_name}</td>
-                <td className="sw-numcol" data-label="Own points">{formatPoints(r.individual_points)}</td>
-                <td className="sw-numcol" data-label="Team points">{formatPoints(r.team_points)}</td>
-                <td className="sw-numcol sw-score-cell" data-label="Score">{formatPoints(r.score)}</td>
+                <td className="sw-numcol" data-label="Own points">{ownMonthScoreHidden(monthIso) ? '—' : formatPoints(r.individual_points)}</td>
+                <td className="sw-numcol" data-label="Team points">{ownMonthScoreHidden(monthIso) ? '—' : formatPoints(r.team_points)}</td>
+                <td className="sw-numcol sw-score-cell" data-label="Score">{ownMonthScoreHidden(monthIso) ? '—' : formatPoints(r.score)}</td>
                 <td className="sw-numcol" data-label="Bonus">
-                  <span className={Number(r.bonus_pct) > 0 ? 'sw-badge sw-badge--score' : 'sw-badge sw-badge--zero'}>
-                    {formatPct(r.bonus_pct)}
+                  <span className="sw-badge sw-badge--zero">
+                    {ownMonthScoreHidden(monthIso) ? '—' : formatPct(r.bonus_pct)}
                   </span>
                 </td>
               </tr>
