@@ -278,7 +278,7 @@ export default function ManagerRewardsPanel({
             <span className="mgr-rewards-stat__label">Earned this month</span>
             <strong>
               {revealToday
-                ? formatAwardWeightage((myBalance.earned ?? myWeightage) + (Number(myBalance.banked) || 0))
+                ? formatAwardWeightage((myBalance.earned ?? myWeightage ?? 0) + (Number(myBalance.banked) || 0))
                 : 'Month end'}
             </strong>
           </div>
