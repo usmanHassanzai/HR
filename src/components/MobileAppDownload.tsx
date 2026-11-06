@@ -10,7 +10,6 @@ import {
   Calendar,
   Shield,
   FileText,
-  Home,
   Monitor,
 } from 'lucide-react';
 import {
@@ -19,6 +18,8 @@ import {
   APP_STORE_URL,
   DESKTOP_LINUX_DEB_PATH,
   DESKTOP_WIN_PATH,
+  LINUX_DESKTOP_VERSION,
+  WINDOWS_DESKTOP_VERSION,
   IPA_PATH,
   IOS_PWA_INSTALL_URL,
   PLAY_STORE_LIVE,
@@ -83,8 +84,8 @@ interface BuildInfoFile {
 
 interface VersionManifest {
   android?: { versionName?: string };
-  linux?: { version?: string };
-  windows?: { version?: string };
+  linux?: { version?: string; debUrl?: string };
+  windows?: { version?: string; setupUrl?: string };
 }
 
 function isWindowsUa(): boolean {
@@ -102,12 +103,6 @@ function assetUrl(path: string): string {
   if (/^https?:\/\//i.test(path)) return path;
   if (typeof window !== 'undefined') return `${window.location.origin}${path}`;
   return path;
-}
-
-function isStandalonePwa(): boolean {
-  if (typeof window === 'undefined') return false;
-  return window.matchMedia('(display-mode: standalone)').matches
-    || (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
 }
 
 function isIos(): boolean {
@@ -214,14 +209,11 @@ export default function MobileAppDownload() {
     deb: boolean;
   } | null>(null);
   const [ua, setUa] = useState<{ ios: boolean; android: boolean; win: boolean; linux: boolean } | null>(null);
-  const [installed, setInstalled] = useState(false);
-  const [iosHint, setIosHint] = useState(false);
   const apkWindowOpen = isApkDirectDownloadAvailable();
 
   const androidInfo = buildInfo?.android;
   const iosInfo = buildInfo?.ios;
   const desktopInfo = buildInfo?.desktop;
-  const pwaUrl = iosInfo?.pwaUrl || IOS_PWA_INSTALL_URL;
   const ipaAvailable = Boolean(iosInfo?.ipaAvailable) || ipaReady === true;
   const iosIsIpa = iosInstallIsIpa({ ipaAvailable });
   const iosIsStore = iosInstallIsAppStore();
@@ -233,14 +225,18 @@ export default function MobileAppDownload() {
   const androidIsFile = androidInstallIsDownload();
 
   const winHref =
-    desktopInfo?.platforms?.windows?.url
+    versionManifest?.windows?.setupUrl
+    || desktopInfo?.platforms?.windows?.url
     || DESKTOP_WIN_PATH;
   const linuxDebHref =
-    desktopInfo?.platforms?.linuxDeb?.url
+    versionManifest?.linux?.debUrl
+    || desktopInfo?.platforms?.linuxDeb?.url
     || DESKTOP_LINUX_DEB_PATH;
+  const windowsVersion = versionManifest?.windows?.version || desktopInfo?.version || WINDOWS_DESKTOP_VERSION;
+  const linuxVersion = versionManifest?.linux?.version || LINUX_DESKTOP_VERSION;
 
-  const winReady = desktopReady?.win === true;
-  const linuxReady = desktopReady?.deb === true;
+  const winReady = desktopReady === null || desktopReady.win === true;
+  const linuxReady = desktopReady === null || desktopReady.deb === true;
 
   useEffect(() => {
     if (!showStoreInstallCtas()) return;
@@ -250,7 +246,6 @@ export default function MobileAppDownload() {
       win: isWindowsUa(),
       linux: isLinuxUa(),
     });
-    setInstalled(isStandalonePwa());
     void (async () => {
       const [info, manifest] = await Promise.all([fetchBuildInfo(), fetchVersionManifest()]);
       setBuildInfo(info);
@@ -279,26 +274,16 @@ export default function MobileAppDownload() {
     })();
   }, [apkWindowOpen]);
 
-  const openPwaInstall = () => {
-    setIosHint(true);
-    if (isIos() && !isStandalonePwa()) {
-      window.scrollTo({ top: document.getElementById('download-app')?.offsetTop ?? 0, behavior: 'smooth' });
-      return;
-    }
-    window.open(pwaUrl, '_blank', 'noopener,noreferrer');
-  };
-
   if (!showStoreInstallCtas()) return null;
 
   return (
     <section id="download-app" className="landing-section landing-section--alt">
       <div className="landing-section__header landing-reveal">
-        <div className="landing-section__eyebrow">Apps</div>
-        <h2 className="landing-section__title">Download Scorr for Windows, Linux, Android &amp; iOS</h2>
+        <div className="landing-section__eyebrow">Downloads</div>
+        <h2 className="landing-section__title">Download Scorr {windowsVersion}</h2>
         <p>
-          Separate installers for each platform — same Sign In for admin, HR, managers, and employees.
-          Windows Setup, Linux .deb, Android APK{PLAY_STORE_LIVE ? ' / Google Play' : ''}, and iPhone
-          {iosIsStore ? ' (App Store)' : iosIsIpa ? ' (native IPA)' : ' (native app — build on Mac)'}.
+          The current Windows app is version {windowsVersion}. Linux is {linuxVersion}.
+          Phone, laptop, and the website use the same Sign In.
         </p>
       </div>
 
@@ -481,33 +466,17 @@ export default function MobileAppDownload() {
             </>
           ) : (
             <>
-              <ol className="landing-download-steps">
-                <li>On a Mac with Xcode + Apple Developer account</li>
-                <li>Run <strong>npm run build:ios:release</strong> (archives + exports IPA)</li>
-                <li>Or open <strong>npm run cap:ios</strong> → Product → Archive → distribute to TestFlight / Ad Hoc</li>
-                <li>Publish <strong>scorr.ipa</strong> to /downloads for OTA install</li>
-              </ol>
               <a
-                href={iosInstallHref({ ipaAvailable: false })}
+                href={IOS_PWA_INSTALL_URL}
                 className="btn btn-secondary landing-download-btn"
-                onClick={(e) => {
-                  if (!iosIsStore) {
-                    e.preventDefault();
-                    openPwaInstall();
-                  }
-                }}
+                target="_blank"
+                rel="noopener noreferrer"
               >
-                <Home size={18} /> Temporary Home Screen (until IPA is published)
+                <Apple size={18} /> Open Scorr on iPhone
               </a>
               <p className="landing-download-footnote">
-                Native iOS project is in <strong>ios/</strong> — IPA must be signed on a Mac (Apple requirement).
-                Android / Windows / Linux downloads are unchanged.
+                On iPhone, open this page in Safari and sign in. The App Store listing will appear here when it is published.
               </p>
-              {iosHint && onIos && !installed && (
-                <p className="landing-download-note landing-download-note--highlight">
-                  Temporary only: Safari → Share → Add to Home Screen (not the full native app).
-                </p>
-              )}
             </>
           )}
         </div>
@@ -517,26 +486,22 @@ export default function MobileAppDownload() {
             <div className="landing-download-card__icon landing-download-card__icon--windows">
               <Monitor size={28} />
             </div>
-            {winReady && (
-              <span className="landing-download-badge landing-download-badge--live">Windows ready</span>
-            )}
+            <span className="landing-download-badge landing-download-badge--live">Version {windowsVersion}</span>
           </div>
 
-          <h3>Windows desktop</h3>
+          <h3>Windows {windowsVersion}</h3>
           <p>
             Install <strong>Scorr</strong> permanently on Windows PCs — Setup adds Start Menu and
             Desktop shortcuts. Opens to the same Sign In / Register screen for every role.
           </p>
 
-          {desktopInfo?.platforms?.windows && (
-            <div className="landing-download-meta">
-              <span><Package size={14} /> v{desktopInfo.version} · {desktopInfo.platforms.windows.sizeLabel}</span>
-              {desktopInfo.updatedLabel && (
-                <span><Calendar size={14} /> Updated {desktopInfo.updatedLabel}</span>
-              )}
-              <span><Shield size={14} /> {desktopInfo.appId || 'ai.walfia.scorr.desktop'}</span>
-            </div>
-          )}
+          <div className="landing-download-meta">
+            <span>
+              <Package size={14} /> Version {windowsVersion}
+              {desktopInfo?.platforms?.windows?.sizeLabel ? ` · ${desktopInfo.platforms.windows.sizeLabel}` : ''}
+            </span>
+            <span><Calendar size={14} /> Updated {desktopInfo?.updatedLabel || 'November 6, 2026'}</span>
+          </div>
 
           <ul className="landing-download-features">
             <li><CheckCircle size={14} /> Real installer (Start Menu + Desktop)</li>
@@ -550,40 +515,18 @@ export default function MobileAppDownload() {
             <li>Follow the installer → open Scorr from Start Menu</li>
           </ol>
 
-          {desktopReady === null ? (
-            <button type="button" className="btn btn-secondary landing-download-btn" disabled>
-              <Loader2 size={16} className="spin-icon" /> Checking download…
-            </button>
-          ) : winReady ? (
-            <>
-              <a
-                href={assetUrl(winHref)}
-                className="btn btn-primary landing-download-btn"
-                {...(/^https?:\/\//i.test(winHref)
-                  ? { target: '_blank', rel: 'noopener noreferrer' }
-                  : { download: 'Scorr-Setup.exe' })}
-              >
-                <Download size={18} /> Download for Windows
-                {desktopInfo?.platforms?.windows?.sizeLabel
-                  ? ` (${desktopInfo.platforms.windows.sizeLabel})`
-                  : ''}
-              </a>
-              <a
-                href={assetUrl(winHref)}
-                className="landing-download-direct"
-                {...(/^https?:\/\//i.test(winHref)
-                  ? { target: '_blank', rel: 'noopener noreferrer' }
-                  : { download: 'Scorr-Setup.exe' })}
-              >
-                Direct link · {/^https?:\/\//i.test(winHref) ? 'GitHub Release' : '/downloads/Scorr-Setup.exe'}
-              </a>
-            </>
-          ) : (
-            <div className="landing-download-soon">
-              <AlertCircle size={16} />
-              <span>Windows installer is being prepared — check back after the next deploy.</span>
-            </div>
-          )}
+          <a
+            href={assetUrl(winHref)}
+            className="btn btn-primary landing-download-btn"
+            {...(/^https?:\/\//i.test(winHref)
+              ? { target: '_blank', rel: 'noopener noreferrer' }
+              : { download: 'Scorr-Setup.exe' })}
+          >
+            <Download size={18} /> Download Windows {windowsVersion}
+            {desktopInfo?.platforms?.windows?.sizeLabel
+              ? ` (${desktopInfo.platforms.windows.sizeLabel})`
+              : ''}
+          </a>
 
           {onWindows && winReady && (
             <p className="landing-download-note landing-download-note--highlight">
@@ -597,12 +540,10 @@ export default function MobileAppDownload() {
             <div className="landing-download-card__icon landing-download-card__icon--linux">
               <Monitor size={28} />
             </div>
-            {linuxReady && (
-              <span className="landing-download-badge landing-download-badge--live">Linux ready</span>
-            )}
+            <span className="landing-download-badge landing-download-badge--live">Version {linuxVersion}</span>
           </div>
 
-          <h3>Linux desktop</h3>
+          <h3>Linux {linuxVersion}</h3>
           <p>
             Install <strong>Scorr</strong> with the .deb package on Ubuntu/Debian — same Sign In
             screen as Windows and mobile for admin, HR, manager, and employee.
@@ -612,7 +553,7 @@ export default function MobileAppDownload() {
             <div className="landing-download-meta">
               <span>
                 <Package size={14} />{' '}
-                {versionManifest?.linux?.version ? `v${versionManifest.linux.version}` : 'Linux'}
+                Version {linuxVersion}
                 {desktopInfo.platforms.linuxDeb.sizeLabel
                   ? ` · ${desktopInfo.platforms.linuxDeb.sizeLabel}`
                   : ''}
@@ -636,40 +577,18 @@ export default function MobileAppDownload() {
             <li>Open <strong>Scorr</strong> from the app menu → Sign In</li>
           </ol>
 
-          {desktopReady === null ? (
-            <button type="button" className="btn btn-secondary landing-download-btn" disabled>
-              <Loader2 size={16} className="spin-icon" /> Checking download…
-            </button>
-          ) : linuxReady ? (
-            <>
-              <a
-                href={assetUrl(linuxDebHref)}
-                className="btn btn-primary landing-download-btn"
-                {...(/^https?:\/\//i.test(linuxDebHref)
-                  ? { target: '_blank', rel: 'noopener noreferrer' }
-                  : { download: 'Scorr.deb' })}
-              >
-                <Download size={18} /> Download for Linux
-                {desktopInfo?.platforms?.linuxDeb?.sizeLabel
-                  ? ` (${desktopInfo.platforms.linuxDeb.sizeLabel})`
-                  : ''}
-              </a>
-              <a
-                href={assetUrl(linuxDebHref)}
-                className="landing-download-direct"
-                {...(/^https?:\/\//i.test(linuxDebHref)
-                  ? { target: '_blank', rel: 'noopener noreferrer' }
-                  : { download: 'Scorr.deb' })}
-              >
-                Direct link · {/^https?:\/\//i.test(linuxDebHref) ? 'GitHub Release' : '/downloads/Scorr.deb'}
-              </a>
-            </>
-          ) : (
-            <div className="landing-download-soon">
-              <AlertCircle size={16} />
-              <span>Linux package is being prepared — check back after the next deploy.</span>
-            </div>
-          )}
+          <a
+            href={assetUrl(linuxDebHref)}
+            className="btn btn-primary landing-download-btn"
+            {...(/^https?:\/\//i.test(linuxDebHref)
+              ? { target: '_blank', rel: 'noopener noreferrer' }
+              : { download: 'Scorr.deb' })}
+          >
+            <Download size={18} /> Download Linux {linuxVersion}
+            {desktopInfo?.platforms?.linuxDeb?.sizeLabel
+              ? ` (${desktopInfo.platforms.linuxDeb.sizeLabel})`
+              : ''}
+          </a>
 
           {onLinux && linuxReady && (
             <p className="landing-download-note landing-download-note--highlight">

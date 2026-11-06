@@ -6,16 +6,13 @@ import {
   Trophy, CalendarCheck, Users, FileSpreadsheet, Bell,
   Shield, Check, ArrowRight, CreditCard,
   TrendingUp, Target, Award, Clock, Building2, Radio,
-  Menu, X, Download, Apple, KeyRound, Lock, Smartphone, Monitor,
+  Menu, X, KeyRound, Lock, Smartphone, Monitor,
 } from 'lucide-react';
 import '../styles/landing.css';
 import LandingHeroVisual from './LandingHeroVisual';
 import {
-  androidInstallHref,
-  androidInstallIsDownload,
-  iosInstallHref,
-  iosInstallIsAppStore,
   showStoreInstallCtas,
+  WINDOWS_DESKTOP_VERSION,
 } from '../utils/appStoreLinks';
 
 const Login = lazy(() => import('./Login'));
@@ -320,7 +317,7 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
     { id: 'how-it-works', label: 'How It Works' },
     { id: 'security', label: 'Security' },
     { id: 'pricing', label: 'Pricing' },
-    { id: 'download-app', label: 'Mobile App' },
+    { id: 'download-app', label: 'Downloads' },
     { id: 'login', label: 'Sign In' },
   ];
 
@@ -429,51 +426,28 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
             </p>
             <div className="landing-hero__actions">
               <a href="#login" className="btn btn-primary" onClick={onRegisterNav}>
-                Register Company — Free for 3 Days <ArrowRight size={16} />
+                Start free trial <ArrowRight size={16} />
               </a>
               {showStoreInstallCtas() && (
-                <>
-                  <a
-                    href="#download-windows"
-                    className="btn btn-secondary"
-                    onClick={(e: MouseEvent<HTMLAnchorElement>) => onSectionNav(e, 'download-windows')}
-                  >
-                    <Monitor size={16} /> Download for Windows
-                  </a>
-                  <a
-                    href="#download-linux"
-                    className="btn btn-secondary"
-                    onClick={(e: MouseEvent<HTMLAnchorElement>) => onSectionNav(e, 'download-linux')}
-                  >
-                    <Download size={16} /> Download for Linux
-                  </a>
-                  <a
-                    href={androidInstallHref()}
-                    className="btn btn-secondary"
-                    {...(androidInstallIsDownload()
-                      ? { download: 'scorr.apk' }
-                      : { target: '_blank', rel: 'noopener noreferrer' })}
-                  >
-                    <Download size={16} /> Download Android App
-                  </a>
-                  <a
-                    href={iosInstallIsAppStore() ? iosInstallHref() : '#download-app'}
-                    className="btn btn-secondary"
-                    {...(iosInstallIsAppStore()
-                      ? { target: '_blank', rel: 'noopener noreferrer' }
-                      : { onClick: (e: MouseEvent<HTMLAnchorElement>) => onSectionNav(e, 'download-app') })}
-                  >
-                    <Apple size={16} /> Install on iPhone
-                  </a>
-                </>
+                <a
+                  href="#download-windows"
+                  className="btn btn-secondary"
+                  onClick={(e: MouseEvent<HTMLAnchorElement>) => onSectionNav(e, 'download-windows')}
+                >
+                  <Monitor size={16} /> Download Windows {WINDOWS_DESKTOP_VERSION}
+                </a>
               )}
               <a href="#login" className="btn btn-secondary" onClick={onLoginNav}>
                 Sign In
               </a>
-              <a href="#pricing" className="btn btn-secondary" onClick={(e) => onSectionNav(e, 'pricing')}>
-                View Pricing
-              </a>
             </div>
+            {showStoreInstallCtas() && (
+              <p className="landing-hero__more">
+                <a href="#download-app" onClick={(e) => onSectionNav(e, 'download-app')}>
+                  Also for Linux, Android, and iPhone
+                </a>
+              </p>
+            )}
             <div className="landing-trust-bar">
               {TRUST_ITEMS.map((item) => (
                 <span key={item}><Check size={14} /> {item}</span>

@@ -52,7 +52,9 @@ export const APK_PATH = '/downloads/scorr.apk';
 declare const __SCORR_WINDOWS_DESKTOP_RELEASE__: string;
 
 /** Injected from scripts/write-version-json.mjs WINDOWS_RELEASE. Linux stays 1.3.45. */
-const WINDOWS_DESKTOP_RELEASE = __SCORR_WINDOWS_DESKTOP_RELEASE__;
+export const WINDOWS_DESKTOP_VERSION = __SCORR_WINDOWS_DESKTOP_RELEASE__;
+export const LINUX_DESKTOP_VERSION = '1.3.45';
+const WINDOWS_DESKTOP_RELEASE = WINDOWS_DESKTOP_VERSION;
 const DESKTOP_GH_WIN =
   `https://github.com/usmanHassanzai/HR/releases/download/desktop-v${WINDOWS_DESKTOP_RELEASE}`;
 const DESKTOP_GH_LINUX =

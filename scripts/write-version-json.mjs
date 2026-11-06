@@ -280,6 +280,8 @@ function syncWindowsPointers() {
   info.desktop = info.desktop || {};
   info.desktop.version = WINDOWS_RELEASE;
   info.desktop.releaseTag = `desktop-v${WINDOWS_RELEASE}`;
+  info.desktop.updatedAt = winInstaller.releaseDate;
+  info.desktop.updatedLabel = formatUpdatedLabel(new Date(winInstaller.releaseDate));
   info.desktop.platforms = info.desktop.platforms || {};
   const winBytes = winInstaller.size;
   info.desktop.platforms.windows = {
