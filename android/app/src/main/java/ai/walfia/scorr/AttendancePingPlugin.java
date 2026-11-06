@@ -184,6 +184,17 @@ public class AttendancePingPlugin extends Plugin {
         call.resolve();
     }
 
+    @PluginMethod
+    public void setAttendanceNotifications(PluginCall call) {
+        boolean enabled = Boolean.TRUE.equals(call.getBoolean("enabled", false));
+        Context ctx = getContext().getApplicationContext();
+        AttendancePingStore.setAttendanceNotificationsEnabled(ctx, enabled);
+        if (!enabled) AttendanceEventClient.dismissCheckAlerts(ctx);
+        JSObject result = new JSObject();
+        result.put("ok", true);
+        call.resolve(result);
+    }
+
     /** Admin "Test office Wi-Fi" — SSID/BSSID seen on this device. */
     @PluginMethod
     public void probeNetwork(PluginCall call) {

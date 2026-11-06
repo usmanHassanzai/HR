@@ -285,6 +285,14 @@ final class AttendancePingStore {
         return true;
     }
 
+    static boolean attendanceNotificationsEnabled(Context ctx) {
+        return prefs(ctx).getBoolean("attendance_notifications", false);
+    }
+
+    static void setAttendanceNotificationsEnabled(Context ctx, boolean enabled) {
+        prefs(ctx).edit().putBoolean("attendance_notifications", enabled).commit();
+    }
+
     static void setLastStatusText(Context ctx, String text) {
         if (text != null) prefs(ctx).edit().putString("last_status_text", text).apply();
     }

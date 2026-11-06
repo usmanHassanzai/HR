@@ -3,18 +3,10 @@ import { App as CapApp } from '@capacitor/app';
 import { supabase } from '../lib/supabase';
 import { isNativeApp } from './nativePlatform';
 import { clearGeoHold } from './attendanceBackgroundSession';
-import {
-  hasAssignedShiftEnded,
-  isWithinAssignedShift,
-  locationWindowToMyShift,
-  msUntilAssignedShiftEnd,
-  type LocationWindow,
-} from './shiftHelpers';
 
 /**
- * Absolute portal session lifetime from login (not idle / sliding).
- * Refresh tokens may renew JWTs inside this window; at 1 hour the client
- * forcibly signs out on web, Capacitor, and Electron.
+ * Sign out after one hour without use. Activity resets the hour.
+ * Shift start and end do not sign anyone out. Web, phone, and desktop share this rule.
  */
 export const PORTAL_SESSION_MAX_MS = 60 * 60 * 1000;
 
@@ -22,6 +14,7 @@ export const PORTAL_SESSION_MAX_MS = 60 * 60 * 1000;
 export const PORTAL_IDLE_MS = PORTAL_SESSION_MAX_MS;
 
 const SESSION_STARTED_KEY = 'scorr-session-started-at';
+const LAST_ACTIVITY_KEY = 'scorr-last-activity';
 const AUTH_NOTICE_KEY = 'scorr-auth-notice';
 const SHIFT_SESSION_KEY = 'scorr-shift-session';
 
@@ -42,6 +35,7 @@ function clearAuthStorageSync() {
     sessionStorage.removeItem('scorr-mfa-ok');
     sessionStorage.removeItem(SHIFT_SESSION_KEY);
     // Legacy idle key from pre-1.3.7 sliding timeout
+    localStorage.removeItem(LAST_ACTIVITY_KEY);
     localStorage.removeItem('scorr-last-activity');
     sessionStorage.removeItem('scorr-last-activity');
   } catch {
@@ -87,14 +81,32 @@ export function authNoticeMessage(notice: AuthNotice): string {
   if (notice === 'shift_ended') {
     return 'Your shift ended, so you were signed out. Sign in again to continue.';
   }
-  return 'Your session expired after 1 hour. Please sign in again.';
+  return 'You were signed out after 1 hour without use. Please sign in again.';
 }
 
-/** Record login time. Pass reset=true on fresh SIGNED_IN. */
+/** Record that the person is using the app. Throttled unless force is set. */
+export function touchPortalActivity(force = false) {
+  try {
+    const now = Date.now();
+    if (!force) {
+      const prev = Number(localStorage.getItem(LAST_ACTIVITY_KEY) || 0);
+      if (Number.isFinite(prev) && now - prev < 15_000) return;
+    }
+    localStorage.setItem(LAST_ACTIVITY_KEY, String(now));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Record login time. Pass reset=true on fresh SIGNED_IN. Also starts the idle hour. */
 export function markPortalSessionStart(reset = false) {
   try {
-    if (!reset && localStorage.getItem(SESSION_STARTED_KEY)) return;
-    localStorage.setItem(SESSION_STARTED_KEY, String(Date.now()));
+    if (reset || !localStorage.getItem(SESSION_STARTED_KEY)) {
+      localStorage.setItem(SESSION_STARTED_KEY, String(Date.now()));
+    }
+    if (reset || !localStorage.getItem(LAST_ACTIVITY_KEY)) {
+      touchPortalActivity(true);
+    }
   } catch {
     /* ignore */
   }
@@ -110,16 +122,26 @@ export function readPortalSessionStartedAt(): number | null {
   }
 }
 
+function readLastActivityAt(): number | null {
+  try {
+    const raw = localStorage.getItem(LAST_ACTIVITY_KEY);
+    const n = raw ? Number(raw) : NaN;
+    return Number.isFinite(n) ? n : null;
+  } catch {
+    return null;
+  }
+}
+
 export function portalSessionRemainingMs(): number {
-  const started = readPortalSessionStartedAt();
-  if (started == null) return PORTAL_SESSION_MAX_MS;
-  return Math.max(0, PORTAL_SESSION_MAX_MS - (Date.now() - started));
+  const last = readLastActivityAt();
+  if (last == null) return PORTAL_SESSION_MAX_MS;
+  return Math.max(0, PORTAL_SESSION_MAX_MS - (Date.now() - last));
 }
 
 export function isPortalSessionExpired(): boolean {
-  const started = readPortalSessionStartedAt();
-  if (started == null) return false;
-  return Date.now() - started >= PORTAL_SESSION_MAX_MS;
+  const last = readLastActivityAt();
+  if (last == null) return false;
+  return Date.now() - last >= PORTAL_SESSION_MAX_MS;
 }
 
 /**
@@ -162,101 +184,14 @@ function isEditableTarget(target: EventTarget | null): boolean {
   return Boolean(target.closest('input, textarea, select, [contenteditable="true"]'));
 }
 
-function markShiftSession() {
-  try {
-    sessionStorage.setItem(SHIFT_SESSION_KEY, '1');
-  } catch {
-    /* ignore */
-  }
-}
-
-function hadShiftSession(): boolean {
-  try {
-    return sessionStorage.getItem(SHIFT_SESSION_KEY) === '1';
-  } catch {
-    return false;
-  }
+/** Shift end must not sign anyone out. Login stays valid during and outside the shift. */
+export function useShiftEndSessionLogout(_enabled: boolean) {
+  return;
 }
 
 /**
- * Auto-logout when the assigned shift (or company office window) ends.
- * After-hours logins are not kicked immediately — only sessions that were
- * active during the shift window.
- */
-export function useShiftEndSessionLogout(enabled: boolean) {
-  const enabledRef = useRef(enabled);
-  enabledRef.current = enabled;
-
-  useEffect(() => {
-    if (!enabled) return;
-
-    let cancelled = false;
-    let endTimer: number | null = null;
-    let pollId: number | null = null;
-
-    const clearEndTimer = () => {
-      if (endTimer != null) {
-        window.clearTimeout(endTimer);
-        endTimer = null;
-      }
-    };
-
-    const logoutForShiftEnd = async () => {
-      if (cancelled || !enabledRef.current) return;
-      await lockPortalSession({ force: true, reason: 'shift_ended' });
-    };
-
-    const sync = async () => {
-      if (cancelled || !enabledRef.current) return;
-      try {
-        const { data, error } = await supabase.rpc('get_my_location_window');
-        if (error || !data || cancelled) return;
-        const win = (Array.isArray(data) ? data[0] : data) as LocationWindow | undefined;
-        if (!win?.start_time || !win?.end_time) return;
-        const shift = locationWindowToMyShift(win);
-
-        if (isWithinAssignedShift(shift)) {
-          markShiftSession();
-          clearEndTimer();
-          const wait = Math.min(Math.max(msUntilAssignedShiftEnd(shift) + 2_000, 5_000), 12 * 60 * 60 * 1000);
-          endTimer = window.setTimeout(() => {
-            void logoutForShiftEnd();
-          }, wait);
-          return;
-        }
-
-        if (hasAssignedShiftEnded(shift) && hadShiftSession()) {
-          clearEndTimer();
-          await logoutForShiftEnd();
-        }
-      } catch {
-        /* network — retry on next poll */
-      }
-    };
-
-    void sync();
-    pollId = window.setInterval(() => {
-      void sync();
-    }, 60_000);
-
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') void sync();
-    };
-    document.addEventListener('visibilitychange', onVisible);
-
-    return () => {
-      cancelled = true;
-      clearEndTimer();
-      if (pollId != null) window.clearInterval(pollId);
-      document.removeEventListener('visibilitychange', onVisible);
-    };
-  }, [enabled]);
-}
-
-/**
- * Absolute 1-hour session from login across web, Capacitor, and Electron.
- * Activity does not extend the session. Token refresh is allowed only while
- * inside the window; past 1 hour the client signs out and returns to login.
+ * Sign out after one hour without use on web, phone, and desktop.
+ * Clicks, typing, and scrolling start the hour again. Shift times do not.
  */
 export function usePortalSessionGuard(enabled: boolean, _options?: { idle?: boolean }) {
   const enabledRef = useRef(enabled);
@@ -267,6 +202,7 @@ export function usePortalSessionGuard(enabled: boolean, _options?: { idle?: bool
     if (!enabled) return;
 
     markPortalSessionStart(false);
+    touchPortalActivity(true);
 
     const clearTimer = () => {
       if (timerRef.current != null) {
@@ -315,6 +251,16 @@ export function usePortalSessionGuard(enabled: boolean, _options?: { idle?: bool
       e.preventDefault();
     };
 
+    const onActivity = () => {
+      if (!enabledRef.current) return;
+      if (isPortalSessionExpired()) {
+        expireNow();
+        return;
+      }
+      touchPortalActivity(false);
+      armAbsoluteTimer();
+    };
+
     armAbsoluteTimer();
 
     const onVisible = () => {
@@ -322,6 +268,10 @@ export function usePortalSessionGuard(enabled: boolean, _options?: { idle?: bool
     };
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', checkExpiry);
+    window.addEventListener('pointerdown', onActivity, true);
+    window.addEventListener('keydown', onActivity, true);
+    window.addEventListener('scroll', onActivity, true);
+    window.addEventListener('touchstart', onActivity, true);
     window.addEventListener('keydown', onBackspaceNav, true);
 
     const onStorage = (e: StorageEvent) => {
@@ -350,6 +300,10 @@ export function usePortalSessionGuard(enabled: boolean, _options?: { idle?: bool
       window.clearInterval(pollId);
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('focus', checkExpiry);
+      window.removeEventListener('pointerdown', onActivity, true);
+      window.removeEventListener('keydown', onActivity, true);
+      window.removeEventListener('scroll', onActivity, true);
+      window.removeEventListener('touchstart', onActivity, true);
       window.removeEventListener('keydown', onBackspaceNav, true);
       window.removeEventListener('storage', onStorage);
       void appStateHandle?.remove();

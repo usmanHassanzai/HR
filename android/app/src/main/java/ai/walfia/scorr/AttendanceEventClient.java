@@ -354,7 +354,18 @@ final class AttendanceEventClient {
         }
     }
 
+    static void dismissCheckAlerts(Context app) {
+        NotificationManager nm = app.getSystemService(NotificationManager.class);
+        if (nm == null) return;
+        nm.cancel(NOTIFY_ID + 1);
+        nm.cancel(NOTIFY_ID + 2);
+    }
+
     private static void showCheckNotification(Context app, String action, JSONObject json) {
+        if (!AttendancePingStore.attendanceNotificationsEnabled(app)) {
+            dismissCheckAlerts(app);
+            return;
+        }
         createNotifyChannel(app);
         boolean checkIn = "clock_in".equals(action);
         String title = checkIn ? "Checked in" : "Checked out";
@@ -389,6 +400,10 @@ final class AttendanceEventClient {
 
     static void updateStatusNotification(Context app, String statusOverride, JSONObject lastBody) {
         createStatusChannel(app);
+        if (!AttendancePingStore.attendanceNotificationsEnabled(app)) {
+            dismissCheckAlerts(app);
+            statusOverride = "Scorr is running";
+        }
         String status = statusOverride;
         if (status == null || status.isEmpty()) {
             status = AttendancePingStore.lastStatusText(app);

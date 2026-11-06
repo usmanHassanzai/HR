@@ -21,8 +21,8 @@ export const supabase = createClient(
       flowType: isNative ? 'pkce' : 'implicit',
       detectSessionInUrl: !isNative,
       persistSession: true,
-      // JWT refresh stays on so API calls work inside the hour; absolute 1h logout
-      // is enforced in usePortalSessionGuard (web / Capacitor / Electron).
+      // JWT refresh stays on while the person is using the app. One hour without
+      // use signs them out in usePortalSessionGuard (web, phone, and desktop).
       autoRefreshToken: true,
     },
     realtime: { params: { eventsPerSecond: 4 } },

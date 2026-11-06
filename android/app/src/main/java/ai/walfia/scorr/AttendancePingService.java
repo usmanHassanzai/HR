@@ -92,9 +92,12 @@ public class AttendancePingService extends Service {
             return START_NOT_STICKY;
         }
 
+        String statusLine = AttendancePingStore.attendanceNotificationsEnabled(this)
+            ? "Wi-Fi first, then office radius during your shift window"
+            : "Scorr is running";
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Scorr attendance")
-            .setContentText("Wi-Fi first, then office radius during your shift window")
+            .setContentText(statusLine)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setOngoing(true)
             .setSilent(true)
@@ -112,9 +115,7 @@ public class AttendancePingService extends Service {
             return START_NOT_STICKY;
         }
 
-        AttendanceEventClient.updateStatusNotification(
-            this, "Wi-Fi first, then office radius during your shift window", null
-        );
+        AttendanceEventClient.updateStatusNotification(this, statusLine, null);
         AttendanceEventClient.flushQueue(this);
         if (freshExit) {
             handleFreshExitIntent(intent);

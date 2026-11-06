@@ -610,6 +610,25 @@ button.ws-dept-list__toggle {
   border-bottom: 1px solid var(--border-color);
 }
 
+.attendance-notify-setting__copy {
+  margin: 0 0 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.attendance-notify-setting__row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.attendance-notify-setting__row input {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
 .app-page-stack {
   display: flex;
   flex-direction: column;

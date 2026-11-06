@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('scorrDesktop', {
   loadTrustedDeviceToken: () => ipcRenderer.invoke('scorr:loadTrustedDeviceToken'),
   clearTrustedDeviceToken: () => ipcRenderer.invoke('scorr:clearTrustedDeviceToken'),
   setAutoLaunch: (enabled) => ipcRenderer.invoke('scorr:setAutoLaunch', Boolean(enabled)),
+  setAttendanceNotifications: (enabled) => ipcRenderer.invoke('scorr:setAttendanceNotifications', Boolean(enabled)),
   getAutoLaunch: () => ipcRenderer.invoke('scorr:getAutoLaunch'),
   checkForUpdates: () => ipcRenderer.invoke('scorr:checkForUpdates'),
   quitAndInstall: () => ipcRenderer.invoke('scorr:quitAndInstall'),

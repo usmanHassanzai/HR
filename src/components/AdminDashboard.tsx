@@ -27,6 +27,7 @@ const Analytics = lazy(() => import('./Analytics'));
 const BrandingSettings = lazy(() => import('./BrandingSettings'));
 const AccountSecurityPanel = lazy(() => import('./AccountSecurityPanel'));
 const AutoAttendanceSavePanel = lazy(() => import('./AutoAttendanceSavePanel'));
+const AttendanceNotificationSetting = lazy(() => import('./AttendanceNotificationSetting'));
 const CompanyMfaTrustSettings = lazy(() => import('./CompanyMfaTrustSettings'));
 const BackupCodesLowBanner = lazy(() => import('./BackupCodesLowBanner'));
 const AdminRewards = lazy(() => import('./AdminRewards'));
@@ -573,6 +574,9 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
               <CompanyMfaTrustSettings />
             </Suspense>
           </details>
+          <Suspense fallback={<Loader2 className="spin-icon" size={24} />}>
+            <AttendanceNotificationSetting />
+          </Suspense>
           <details className="app-settings-block" open>
             <summary>Automatic check-in</summary>
             <Suspense fallback={<Loader2 className="spin-icon" size={24} />}>

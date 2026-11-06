@@ -26,6 +26,7 @@ const AttendanceLeavePanel = lazy(() => import('./AttendanceLeavePanel'));
 const AdminLiveTracking = lazy(() => import('./AdminLiveTracking'));
 const AccountSecurityPanel = lazy(() => import('./AccountSecurityPanel'));
 const AutoAttendanceSavePanel = lazy(() => import('./AutoAttendanceSavePanel'));
+const AttendanceNotificationSetting = lazy(() => import('./AttendanceNotificationSetting'));
 const BackupCodesLowBanner = lazy(() => import('./BackupCodesLowBanner'));
 const ScoreWeightagePanel = lazy(() => import('./ScoreWeightagePanel'));
 
@@ -306,6 +307,7 @@ export default function ManagerDashboard({ profile, organizationName }: ManagerD
                 <KeyRound size={16} /> Change password
               </button>
             </div>
+            <AttendanceNotificationSetting />
             <details className="app-settings-block" open>
               <summary>Automatic check-in</summary>
               <AutoAttendanceSavePanel />

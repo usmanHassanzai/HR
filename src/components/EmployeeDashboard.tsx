@@ -46,6 +46,7 @@ const AttendanceLeavePanel = lazy(() => import('./AttendanceLeavePanel'));
 const DailyWorkReportPanel = lazy(() => import('./DailyWorkReportPanel'));
 const AccountSecurityPanel = lazy(() => import('./AccountSecurityPanel'));
 const AutoAttendanceSavePanel = lazy(() => import('./AutoAttendanceSavePanel'));
+const AttendanceNotificationSetting = lazy(() => import('./AttendanceNotificationSetting'));
 const BackupCodesLowBanner = lazy(() => import('./BackupCodesLowBanner'));
 const ScoreWeightagePanel = lazy(() => import('./ScoreWeightagePanel'));
 
@@ -915,6 +916,7 @@ export default function EmployeeDashboard({ profile, readOnlyUser, onBackToLeade
               </button>
             </div>
           )}
+          <AttendanceNotificationSetting />
           <details className="app-settings-block" open>
             <summary>Automatic check-in</summary>
             <AutoAttendanceSavePanel />

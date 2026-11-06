@@ -188,6 +188,7 @@ const LOGIN_CREDS_FILE = () => path.join(app.getPath('userData'), 'login-credent
 const LOGIN_CREDS_FALLBACK_FILE = () => path.join(app.getPath('userData'), 'login-credentials.aes');
 const LOGIN_CREDS_KEY_FILE = () => path.join(app.getPath('userData'), 'login-credentials.key');
 const TRUSTED_DEVICE_FILE = () => path.join(app.getPath('userData'), 'trusted-device.bin');
+const ATTENDANCE_NOTIFY_FILE = () => path.join(app.getPath('userData'), 'attendance-notifications.txt');
 
 /** @type {BrowserWindow | null} */
 let mainWindow = null;
@@ -463,7 +464,16 @@ function clearTrustedDeviceToken() {
   return true;
 }
 
+function attendanceNotificationsOn() {
+  try {
+    return fs.readFileSync(ATTENDANCE_NOTIFY_FILE(), 'utf8').trim() === '1';
+  } catch {
+    return false;
+  }
+}
+
 function notify(title, body) {
+  if (!attendanceNotificationsOn()) return;
   try {
     if (Notification.isSupported()) {
       new Notification({ title, body }).show();
@@ -1463,6 +1473,14 @@ app.whenReady().then(async () => {
   if (!gotSingleInstanceLock) return;
   loadManualCheckoutHold();
   setStartupEntry(true);
+  ipcMain.handle('scorr:setAttendanceNotifications', (_e, enabled) => {
+    try {
+      fs.writeFileSync(ATTENDANCE_NOTIFY_FILE(), enabled ? '1' : '0', 'utf8');
+      return { ok: true, enabled: Boolean(enabled) };
+    } catch (e) {
+      return { ok: false, enabled: false, reason: String(e) };
+    }
+  });
   ipcMain.handle('scorr:setAutoLaunch', (_e, enabled) => {
     setStartupEntry(enabled);
     return { ok: true, enabled: Boolean(enabled) };

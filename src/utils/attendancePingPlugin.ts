@@ -50,6 +50,7 @@ export type AttendancePingPlugin = {
   requestBatteryUnrestricted?(): Promise<{ opened?: boolean; batteryUnrestricted?: boolean }>;
   requestExactAlarms?(): Promise<{ exactAlarm?: string }>;
   setAutoLaunch?(enabled: boolean): Promise<{ ok?: boolean }>;
+  setAttendanceNotifications?(options: { enabled: boolean }): Promise<{ ok?: boolean }>;
   getAutoLaunch?(): Promise<{ enabled?: boolean }>;
   probeNetwork?(): Promise<{ ssid?: string; bssid?: string }>;
 

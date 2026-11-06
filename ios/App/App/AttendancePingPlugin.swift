@@ -28,6 +28,7 @@ public class AttendancePingPlugin: CAPPlugin, CAPBridgedPlugin {
         .init(name: "saveTrustedDeviceToken", returnType: CAPPluginReturnPromise),
         .init(name: "loadTrustedDeviceToken", returnType: CAPPluginReturnPromise),
         .init(name: "clearTrustedDeviceToken", returnType: CAPPluginReturnPromise),
+        .init(name: "setAttendanceNotifications", returnType: CAPPluginReturnPromise),
         .init(name: "openAppSettings", returnType: CAPPluginReturnPromise),
         .init(name: "openBatterySettings", returnType: CAPPluginReturnPromise),
         .init(name: "openNotificationSettings", returnType: CAPPluginReturnPromise),
@@ -115,6 +116,18 @@ public class AttendancePingPlugin: CAPPlugin, CAPBridgedPlugin {
 
     @objc func clearTrustedDeviceToken(_ call: CAPPluginCall) {
         AttendanceKeychain.clearTrustedDeviceToken()
+        call.resolve(["ok": true])
+    }
+
+    @objc func setAttendanceNotifications(_ call: CAPPluginCall) {
+        let enabled = call.getBool("enabled") ?? false
+        AttendanceStore.attendanceNotifications = enabled
+        if !enabled {
+            UNUserNotificationCenter.current().getDeliveredNotifications { notes in
+                let ids = notes.map(\.request.identifier).filter { $0.hasPrefix("scorr-att-") }
+                UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ids)
+            }
+        }
         call.resolve(["ok": true])
     }
 
@@ -357,6 +370,7 @@ private enum AttendanceStore {
     static let skewMsKey = "scorr_att_skew_ms"
     static let companyTzKey = "scorr_att_company_tz"
     static let enabledKey = "scorr_att_enabled"
+    static let attendanceNotificationsKey = "scorr_att_notifications"
     static let queueKey = "scorr_att_event_queue"
 
     static var defaults: UserDefaults { .standard }
@@ -379,6 +393,11 @@ private enum AttendanceStore {
     static var enabled: Bool {
         get { defaults.bool(forKey: enabledKey) }
         set { defaults.set(newValue, forKey: enabledKey) }
+    }
+
+    static var attendanceNotifications: Bool {
+        get { defaults.bool(forKey: attendanceNotificationsKey) }
+        set { defaults.set(newValue, forKey: attendanceNotificationsKey) }
     }
 
     static var skewMs: Int64 {
@@ -1145,6 +1164,7 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
     }
 
     private func notifyIfClocked(_ json: [String: Any]?) {
+        guard AttendanceStore.attendanceNotifications else { return }
         guard let json else { return }
         let action = (json["action"] as? String) ?? ""
         guard action == "clock_in" || action == "clock_out" else { return }

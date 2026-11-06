@@ -20,9 +20,9 @@ import {
   lockPortalSession,
   markPortalSessionStart,
   usePortalSessionGuard,
-  useShiftEndSessionLogout,
 } from './utils/usePortalSessionGuard';
 import { leaveLoginHash } from './utils/appHashRoute';
+import { syncAttendanceNotificationPref } from './utils/attendanceNotificationPref';
 import {
   clearGeoHold,
   isGeoHold,
@@ -85,12 +85,8 @@ function PortalApp({ initialSession = null, onSignedOut }: PortalAppProps) {
   const [geoHold, setGeoHold] = useState(() => isGeoHold());
   const [privilegedMfaOk, setPrivilegedMfaOk] = useState(false);
   const [mfaLinkMsg, setMfaLinkMsg] = useState('');
-  // Absolute 1h from login on web, Capacitor, and Electron (not idle / sliding).
+  // One hour without use signs out. Shift hours do not.
   usePortalSessionGuard(Boolean(session));
-  const shiftStaff =
-    Boolean(session && profile) &&
-    (profile?.role === 'employee' || profile?.role === 'manager' || profile?.role === 'hr');
-  useShiftEndSessionLogout(shiftStaff);
 
   useEffect(() => {
     if (!session?.user?.id) {
@@ -324,6 +320,10 @@ function PortalApp({ initialSession = null, onSignedOut }: PortalAppProps) {
   // Keep work URL as #app/... after auth so refresh does not reopen #login.
   useEffect(() => {
     if (session && profile) leaveLoginHash();
+  }, [session, profile]);
+
+  useEffect(() => {
+    if (session && profile) void syncAttendanceNotificationPref();
   }, [session, profile]);
 
   // Electron: compact Sign In window → full workspace after auth.

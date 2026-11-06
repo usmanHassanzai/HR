@@ -5,6 +5,7 @@ import { Notification, type UserRole } from '../utils/kpiHelpers';
 import { markNotificationsRead, notificationMessageInViewerTime } from '../utils/notificationHelpers';
 import { dispatchNotificationNav, resolveNotificationNav } from '../utils/notificationNavigation';
 import { Bell, AlertCircle, Info, Calendar, Flame, Check, ChevronRight } from 'lucide-react';
+import { attendanceNotificationsEnabled } from '../utils/attendanceNotificationPref';
 
 interface NotificationCenterProps {
   userId: string;
@@ -110,7 +111,12 @@ export default function NotificationCenter({ userId, role }: NotificationCenterP
           if (seenInsertIds.current.has(newRow.id)) return;
           seenInsertIds.current.add(newRow.id);
           setNotifications((prev) => (prev.some((n) => n.id === newRow.id) ? prev : [newRow, ...prev]));
-          if (!newRow.is_read && 'Notification' in window && window.Notification.permission === 'granted') {
+          if (
+            !newRow.is_read &&
+            attendanceNotificationsEnabled() &&
+            'Notification' in window &&
+            window.Notification.permission === 'granted'
+          ) {
             try {
               const desk = new window.Notification(newRow.title, {
                 body: notificationMessageInViewerTime(newRow.message, newRow.meta, newRow.title),
