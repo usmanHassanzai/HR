@@ -122,7 +122,9 @@ public class AttendancePingPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func setAttendanceNotifications(_ call: CAPPluginCall) {
         let enabled = call.getBool("enabled") ?? false
         AttendanceStore.attendanceNotifications = enabled
-        if !enabled {
+        if enabled {
+            UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        } else {
             UNUserNotificationCenter.current().getDeliveredNotifications { notes in
                 let ids = notes.map(\.request.identifier).filter { $0.hasPrefix("scorr-att-") }
                 UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ids)
@@ -516,7 +518,9 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
         }
         lastSsid = AttendanceStore.defaults.string(forKey: "scorr_att_last_ssid")
         lastBssid = AttendanceStore.defaults.string(forKey: "scorr_att_last_bssid")
-        requestNotificationPermission()
+        if AttendanceStore.attendanceNotifications {
+            requestNotificationPermission()
+        }
     }
 
     func rememberWifi(ssid: String?, bssid: String?) {
@@ -582,7 +586,9 @@ final class AttendanceAutoEngine: NSObject, CLLocationManagerDelegate {
             AttendanceKeychain.saveDeviceId(UUID().uuidString)
         }
         ensureAlwaysAuthorization()
-        requestNotificationPermission()
+        if AttendanceStore.attendanceNotifications {
+            requestNotificationPermission()
+        }
         syncSchedule { result in
             switch result {
             case .success:

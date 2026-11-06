@@ -11,6 +11,7 @@ import {
   isNativeApp,
 } from './nativePlatform';
 import { AttendancePing } from './attendancePingPlugin';
+import { attendanceNotificationsEnabled } from './attendanceNotificationPref';
 import { withTimeout } from './withTimeout';
 import { getAttendanceDeviceToken } from './attendanceDevice';
 
@@ -415,8 +416,10 @@ export async function requestAllIosAutoAttendanceAccess(): Promise<{
   if (!whileUsing.ok) {
     return { ok: false, warnings, error: whileUsing.detail };
   }
-  const notif = await requestNativeNotifications();
-  if (!notif.ok) warnings.push(notif.detail);
+  if (attendanceNotificationsEnabled()) {
+    const notif = await requestNativeNotifications();
+    if (!notif.ok) warnings.push(notif.detail);
+  }
   const always = await requestAlwaysLocation();
   if (!always.ok) {
     return {
@@ -429,8 +432,12 @@ export async function requestAllIosAutoAttendanceAccess(): Promise<{
   }
   try {
     const snap = await getNativePermissionSnapshot();
-    if (snap.notifications !== 'granted' && snap.notifications !== 'authorized') {
-      warnings.push('Allow notifications for check-in alerts.');
+    if (
+      attendanceNotificationsEnabled()
+      && snap.notifications !== 'granted'
+      && snap.notifications !== 'authorized'
+    ) {
+      warnings.push('Allow notifications in Settings if you want check-in and check-out alerts.');
     }
   } catch {
     /* optional */
@@ -449,8 +456,10 @@ export async function requestAllAndroidAutoAttendanceAccess(): Promise<{
   if (!whileUsing.ok) {
     return { ok: false, warnings, error: whileUsing.detail };
   }
-  const notif = await requestNativeNotifications();
-  if (!notif.ok) warnings.push(notif.detail);
+  if (attendanceNotificationsEnabled()) {
+    const notif = await requestNativeNotifications();
+    if (!notif.ok) warnings.push(notif.detail);
+  }
   try {
     if (typeof AttendancePing.requestNearbyWifi === 'function') {
       const wifi = await withTimeout(
@@ -500,8 +509,12 @@ export async function requestAllAndroidAutoAttendanceAccess(): Promise<{
     if (snap.batteryUnrestricted === false) {
       warnings.push('Confirm Unrestricted battery for Scorr so background check-in is not paused.');
     }
-    if (snap.notifications !== 'granted' && snap.notifications !== 'authorized') {
-      warnings.push('Allow notifications so the attendance service can stay active.');
+    if (
+      attendanceNotificationsEnabled()
+      && snap.notifications !== 'granted'
+      && snap.notifications !== 'authorized'
+    ) {
+      warnings.push('Allow notifications in Settings if you want check-in and check-out alerts.');
     }
     if (snap.nearbyWifi === 'denied') {
       warnings.push('Allow Nearby Wi‑Fi devices for office SSID matching.');
@@ -521,18 +534,6 @@ export async function requestAllDesktopAutoAttendanceAccess(): Promise<{
   warnings: string[];
 }> {
   const warnings: string[] = [];
-  const skipNotificationPermission = window.scorrDesktop?.platform === 'win32';
-  try {
-    if (
-      !skipNotificationPermission &&
-      typeof Notification !== 'undefined' &&
-      Notification.permission === 'default'
-    ) {
-      await Notification.requestPermission();
-    }
-  } catch {
-    /* ignore */
-  }
   try {
     await new Promise<void>((resolve) => {
       if (!navigator.geolocation) {

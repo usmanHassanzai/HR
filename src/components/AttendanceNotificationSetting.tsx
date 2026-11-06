@@ -4,6 +4,7 @@ import {
   setAttendanceNotificationsEnabled,
   syncAttendanceNotificationPref,
 } from '../utils/attendanceNotificationPref';
+import { requestNativeNotifications } from '../utils/autoAttendanceSetup';
 
 export default function AttendanceNotificationSetting() {
   const [on, setOn] = useState(attendanceNotificationsEnabled);
@@ -19,6 +20,12 @@ export default function AttendanceNotificationSetting() {
     setOn(next);
     try {
       await setAttendanceNotificationsEnabled(next);
+      if (next) {
+        await requestNativeNotifications();
+        if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+          await Notification.requestPermission();
+        }
+      }
     } finally {
       setBusy(false);
     }
