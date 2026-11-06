@@ -233,11 +233,7 @@ export default function ManagerRewardsPanel({
       setMsgError(true);
       setMsg(error.message);
     } else {
-      setMsg(
-        opts?.useBanked
-          ? 'Gift requested using banked weightage.'
-          : 'Gift request submitted.',
-      );
+      setMsg('Gift request submitted.');
       void load();
     }
     setRedeemingKey(null);
@@ -271,8 +267,8 @@ export default function ManagerRewardsPanel({
           <div>
             <h2 className="mgr-rewards-header__title">Company rewards</h2>
             <p className="mgr-rewards-header__subtitle">
-              Current + banked are added together for gifts (e.g. 60% + 30% = 90%). Banked never expires.
-              Leftover after a gift stays banked. Movie and surprise streak gifts use month streaks, not banked.
+              Gifts use this month's weightage, including anything left from earlier months.
+              Movie and surprise gifts use month streaks.
               {!revealToday ? ` ${weightageRevealHint()}` : ''}
             </p>
           </div>
@@ -282,7 +278,7 @@ export default function ManagerRewardsPanel({
             <span className="mgr-rewards-stat__label">Earned this month</span>
             <strong>
               {revealToday
-                ? formatAwardWeightage(myBalance.earned ?? myWeightage)
+                ? formatAwardWeightage((myBalance.earned ?? myWeightage) + (Number(myBalance.banked) || 0))
                 : 'Month end'}
             </strong>
           </div>
@@ -293,10 +289,6 @@ export default function ManagerRewardsPanel({
           <div className="mgr-rewards-stat">
             <span className="mgr-rewards-stat__label">Used on gifts</span>
             <strong>{formatAwardWeightage(revealToday ? myBalance.deducted : 0)}</strong>
-          </div>
-          <div className="mgr-rewards-stat">
-            <span className="mgr-rewards-stat__label">Saved for later</span>
-            <strong>{formatAwardWeightage(myBalance.banked)}</strong>
           </div>
           <div className="mgr-rewards-stat mgr-rewards-stat--gold">
             <span className="mgr-rewards-stat__label">Gifts to arrange</span>
@@ -315,7 +307,7 @@ export default function ManagerRewardsPanel({
       <KpiAwardProgressList
         rows={myProgress}
         title="Your company gifts"
-        intro="Current + banked are summed for dinner and catalog gifts. Leftover stays banked and never expires."
+        intro="Gifts use this month's weightage, including anything left from earlier months."
         monthWeightage={currentAvailable}
         bankedWeightage={myBalance.banked}
         onRedeem={claimMyGift}
@@ -327,7 +319,7 @@ export default function ManagerRewardsPanel({
         monthWeightage={currentAvailable}
         bankedWeightage={myBalance.banked}
         title="Reward catalog"
-        intro="Current + banked are added for every catalog gift. Example: 60% + 30% = 90%. Banked never expires."
+        intro="Gifts use this month's weightage, including anything left from earlier months."
         onRedeemed={() => void load()}
       />
 

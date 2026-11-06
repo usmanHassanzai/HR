@@ -205,7 +205,6 @@ export default function KpiScoreboardSummary({
       : active.weightAchieved;
   const usedWeightage = deferActive ? 0 : (showLiveGiftLedger ? giftUsed : 0);
   const monthRemaining = Math.max(0, earnedWeightage - usedWeightage);
-  /** Current month: available + banked. Past month board: that month's unused (before/while banking). */
   const currentOnly =
     deferActive
       ? 0
@@ -214,9 +213,11 @@ export default function KpiScoreboardSummary({
         : isCurrentMonthView
           ? monthRemaining
           : 0;
+  /** Earlier leftover is part of this month, not a separate banked figure. */
   const currentWeightage = isPastMonthView
     ? monthRemaining
     : currentOnly + bankedWeightage;
+  const earnedShown = isCurrentMonthView ? earnedWeightage + bankedWeightage : earnedWeightage;
 
   const rating = performanceRatingForScore(earnedWeightage);
   const ratingColor = performanceRatingColor(rating);
@@ -230,7 +231,7 @@ export default function KpiScoreboardSummary({
             <h2 className="emp-kpi-summary__title">{title}</h2>
             <p className="emp-kpi-summary__formula">
               Finish tasks to earn weightage (up to {KPI_WEIGHT_CAP}% each month). This month&apos;s awards unlock on the last day.
-              Unused weightage from earlier months stays saved and never expires until you redeem — leftovers after a gift stack with the next unlock.
+              Weightage left from earlier months is included in this month.
             </p>
           </div>
           {toolbar ? <div className="emp-kpi-toolbar">{toolbar}</div> : null}
@@ -313,12 +314,12 @@ export default function KpiScoreboardSummary({
               ? `Everything you have been given · ${overallKpis.length} task${overallKpis.length === 1 ? '' : 's'}.`
               : periodMode === 'year'
                 ? `Tasks in ${filterYear}. Switch to Month for gift balance details.`
-                : `Tasks in ${selectedLabel}. Unused weightage from earlier months stays available until you redeem.`}
+                : `Tasks in ${selectedLabel}. Earlier leftover is included in this month's weightage.`}
           </p>
 
           {deferActive ? (
             <p className="emp-kpi-month__reveal" role="status">
-              {weightageRevealHint()} Prior unused weightage stays in Saved for later and Left to use until you redeem — it never expires.
+              {weightageRevealHint()} Weightage you can already use is included in this month.
             </p>
           ) : null}
 
@@ -342,11 +343,11 @@ export default function KpiScoreboardSummary({
                 </span>
                 {deferActive ? (
                   <span className="emp-kpi-month__score-hint">
-                    This month&apos;s awards unlock on the last day — banked leftover is usable now
+                    This month&apos;s awards unlock on the last day. Earlier leftover is included.
                   </span>
                 ) : has && (showBankedRow || periodMode === 'month') ? (
                   <span className="emp-kpi-month__score-hint">
-                    Current remaining + saved from earlier months
+                    This month, including earlier leftover
                   </span>
                 ) : null}
               </div>
@@ -356,9 +357,7 @@ export default function KpiScoreboardSummary({
                 </span>
               ) : (
                 <span className="emp-kpi-month__rating emp-kpi-month__rating--muted">
-                  {deferActive
-                    ? (bankedWeightage > 0 ? 'Banked available' : 'Month-end unlock')
-                    : 'No tasks yet'}
+                  {deferActive ? 'Month-end unlock' : 'No tasks yet'}
                 </span>
               )}
             </div>
@@ -371,9 +370,11 @@ export default function KpiScoreboardSummary({
               </div>
               <div>
                 <dt>Earned this month</dt>
-                <dd>{formatKpiWeight(earnedWeightage)}</dd>
+                <dd>{formatKpiWeight(earnedShown)}</dd>
                 <span className="emp-kpi-stat-note">
-                  {deferActive ? 'Unlocks on last day' : 'From finished tasks'}
+                  {deferActive || (isCurrentMonthView && bankedWeightage > 0)
+                    ? 'Includes earlier leftover'
+                    : 'From finished tasks'}
                 </span>
               </div>
               <div>
@@ -386,18 +387,11 @@ export default function KpiScoreboardSummary({
                 <dd>{formatKpiWeight(currentWeightage)}</dd>
                 <span className="emp-kpi-stat-note">
                   {deferActive
-                    ? 'Banked leftover (usable now)'
+                    ? 'Usable now'
                     : isPastMonthView
-                      ? 'Unused this month (moves to bank next month)'
-                      : isCurrentMonthView
-                        ? 'Current + banked'
-                        : 'Banked account (usable any month)'}
+                      ? 'Unused this month'
+                      : 'Usable now'}
                 </span>
-              </div>
-              <div>
-                <dt>Saved for later</dt>
-                <dd>{formatKpiWeight(bankedWeightage)}</dd>
-                <span className="emp-kpi-stat-note">Banked account — every month, never expires</span>
               </div>
               <div>
                 <dt>In your tasks</dt>
@@ -423,9 +417,7 @@ export default function KpiScoreboardSummary({
 
             {showBankedRow ? (
               <p className="emp-kpi-weight-guide">
-                Simple rule: unused weightage from a closed month moves to <strong>Saved for later</strong> (banked) automatically.
-                Then <strong>Earned</strong> (after month end) + <strong>Saved for later</strong> − <strong>Used on gifts</strong> = <strong>Left to use</strong>.
-                Banked never expires and can be used any month for rewards.
+                <strong>Left to use</strong> is this month&apos;s weightage, including anything left from earlier months, minus gifts already used.
               </p>
             ) : null}
           </section>

@@ -490,16 +490,13 @@ export default function Analytics({
             <div className="analytics-user-hero__score-box">
               <span className="analytics-user-hero__score-label">Current weightage</span>
               <div className="analytics-user-hero__score-num">
-                {formatWeightagePct(monthBalance?.available ?? overallWeightage)}
+                {formatWeightagePct((monthBalance?.available ?? overallWeightage) + (monthBalance?.banked ?? 0))}
               </div>
               <span className="analytics-user-hero__score-rating">
-                Earned {formatWeightagePct(monthBalance?.earned ?? overallWeightage)}
+                Earned {formatWeightagePct((monthBalance?.earned ?? overallWeightage) + (monthBalance?.banked ?? 0))}
                 {monthBalance && monthBalance.deducted > 0
                   ? ` · Used ${formatWeightagePct(monthBalance.deducted)}`
                   : ` · ${formatKpiWeight(board.weightAssigned)} assigned`}
-                {monthBalance && monthBalance.banked > 0
-                  ? ` · Banked ${formatWeightagePct(monthBalance.banked)}`
-                  : ''}
               </span>
             </div>
           </section>

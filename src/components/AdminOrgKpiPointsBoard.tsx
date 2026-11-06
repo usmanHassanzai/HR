@@ -218,7 +218,7 @@ function OrgUserMonthModal({
                   <>
                     {' '}· Month weightage:{' '}
                     <strong style={{ color: 'var(--color-success)' }}>
-                      {Number(thisMonthWeightage).toFixed(Number(thisMonthWeightage) % 1 === 0 ? 0 : 1)}%
+                      {Number(thisMonthWeightage + monthBanked).toFixed(Number(thisMonthWeightage + monthBanked) % 1 === 0 ? 0 : 1)}%
                     </strong>
                   </>
                 )}
@@ -236,14 +236,14 @@ function OrgUserMonthModal({
                   <li>
                     <span>Current (available)</span>
                     <strong style={{ color: 'var(--color-success)' }}>
-                      {formatWeightagePct(thisMonthWeightage)}
+                      {formatWeightagePct(thisMonthWeightage + monthBanked)}
                     </strong>
                   </li>
                 )}
                 {monthEarned != null && (
                   <li>
                     <span>Earned this month</span>
-                    <strong>{formatWeightagePct(monthEarned)}</strong>
+                    <strong>{formatWeightagePct(monthEarned + monthBanked)}</strong>
                   </li>
                 )}
                 {monthUsed > 0 && (
@@ -252,12 +252,6 @@ function OrgUserMonthModal({
                     <strong style={{ color: 'var(--color-warning)' }}>
                       {formatWeightagePct(monthUsed)}
                     </strong>
-                  </li>
-                )}
-                {monthBanked > 0 && (
-                  <li>
-                    <span>Banked</span>
-                    <strong>{formatWeightagePct(monthBanked)}</strong>
                   </li>
                 )}
               </ul>
@@ -529,9 +523,8 @@ function PeopleTable({
               <th title="Assigned / earned completed weightage">Earned</th>
               <th>KPI tasks</th>
               <th>Period</th>
-              <th title="Current available after gift redeem">Current</th>
+              <th title="Current month weightage, including earlier leftover">Current</th>
               <th title="Weightage used on monthly gifts">Used</th>
-              <th title="Leftover weightage banked across months">Banked</th>
               <th>History</th>
             </tr>
           </thead>
@@ -544,9 +537,9 @@ function PeopleTable({
                 : (start || end || currentMonthLabel());
               const weightAssigned = Number(r.weight_assigned) || 0;
               const earned = Number(r.month_earned ?? r.weight_achieved) || 0;
-              const current = r.month_available != null ? Number(r.month_available) : earned;
-              const used = Number(r.month_used) || 0;
               const banked = Number(r.month_banked) || 0;
+              const current = (r.month_available != null ? Number(r.month_available) : earned) + banked;
+              const used = Number(r.month_used) || 0;
               return (
                 <tr
                   key={r.user_id}
@@ -601,11 +594,6 @@ function PeopleTable({
                     </strong>
                   </td>
                   <td>
-                    <strong style={{ color: banked > 0 ? 'var(--accent-primary)' : 'var(--text-muted)' }}>
-                      {formatWeightagePct(banked)}
-                    </strong>
-                  </td>
-                  <td>
                     <button
                       type="button"
                       className="btn btn-secondary btn-sm"
@@ -632,9 +620,9 @@ function PeopleTable({
             ? `${start} – ${end}`
             : (start || end || currentMonthLabel());
           const earned = Number(r.month_earned ?? r.weight_achieved) || 0;
-          const current = r.month_available != null ? Number(r.month_available) : earned;
-          const used = Number(r.month_used) || 0;
           const banked = Number(r.month_banked) || 0;
+          const current = (r.month_available != null ? Number(r.month_available) : earned) + banked;
+          const used = Number(r.month_used) || 0;
           return (
             <article
               key={`card-${r.user_id}`}
@@ -665,12 +653,6 @@ function PeopleTable({
                   <dt>Used</dt>
                   <dd style={{ color: used > 0 ? 'var(--color-warning)' : undefined }}>
                     {formatWeightagePct(used)}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Banked</dt>
-                  <dd style={{ color: banked > 0 ? 'var(--accent-primary)' : undefined }}>
-                    {formatWeightagePct(banked)}
                   </dd>
                 </div>
                 <div>

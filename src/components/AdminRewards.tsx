@@ -279,7 +279,7 @@ export default function AdminRewards({
           <div>
             <h2 className="admin-rewards-header__title">Rewards</h2>
             <p className="admin-rewards-header__subtitle">
-              Redeem dinner or catalog gifts whenever Current or Banked covers the cost — no one-gift-per-month limit. Movie and surprise streak gifts can also be redeemed when earned. Gift cost moves to Used as soon as they are redeemed.
+              Redeem dinner or catalog gifts whenever this month's weightage covers the cost — no one-gift-per-month limit. Movie and surprise streak gifts can also be redeemed when earned. Gift cost moves to Used as soon as they are redeemed.
             </p>
           </div>
         </div>

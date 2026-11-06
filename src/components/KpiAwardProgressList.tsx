@@ -31,7 +31,7 @@ const RULES: {
     how: (row) => {
       const min = Number(row?.min_pct ?? 95);
       const max = Number(row?.max_pct ?? 100);
-      return `Reach ${formatAwardWeightageBand(min, max)} total (this month + banked). Example: 60% current + 30% banked = 90%.`;
+      return `Reach ${formatAwardWeightageBand(min, max)} this month, including anything left from earlier months.`;
     },
   },
   {
@@ -55,7 +55,7 @@ function RuleIcon({ rule }: { rule: string }) {
 export default function KpiAwardProgressList({
   rows,
   title = 'How you earn rewards',
-  intro = 'These gifts come from your monthly weightage (completed KPI weight out of 100%). Redeem again whenever remaining Current or Banked covers the cost.',
+  intro = 'These gifts come from your monthly weightage (completed KPI weight out of 100%). Earlier leftover is included in this month.',
   monthWeightage = null,
   bankedWeightage = 0,
   claimedKeys,
@@ -114,7 +114,6 @@ export default function KpiAwardProgressList({
                   <>
                     {' '}
                     · Total {formatAwardWeightage(totalW)}
-                    {' '}(current {formatAwardWeightage(currentW)} + banked {formatAwardWeightage(banked)})
                     {canRedeemCurrent ? ` · gift uses ${formatAwardWeightage(dinnerCost)}` : ''}
                   </>
                 ) : null}

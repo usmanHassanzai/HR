@@ -26,7 +26,7 @@ export default function WeightageRewardCatalog({
   monthWeightage,
   bankedWeightage = 0,
   title = 'Reward catalog',
-  intro = 'Current month + banked weightage are added together for every gift. Example: 60% current + 30% banked = 90%. Banked never expires. Leftover after a redeem stays banked.',
+  intro = 'Gifts use this month\'s weightage, including anything left from earlier months.',
   onRedeemed,
 }: {
   userId: string;
@@ -86,7 +86,7 @@ export default function WeightageRewardCatalog({
     }
     setMsg({
       type: 'ok',
-      text: `Requested “${item.name}” using current + banked weightage — waiting for approval.`,
+      text: `Requested “${item.name}” — waiting for approval.`,
     });
     await load();
     onRedeemed?.();
@@ -155,13 +155,11 @@ export default function WeightageRewardCatalog({
                     Need {formatAwardWeightage(need)}
                     {' · '}
                     total {formatAwardWeightage(total)}
-                    {' '}(current {formatAwardWeightage(have)} + banked {formatAwardWeightage(banked)})
                   </span>
                 )}
                 {meetsTotal && !pending && (
                   <span className="emp-rewards-catalog-item__need">
                     Total {formatAwardWeightage(total)} covers this gift
-                    {' '}(current {formatAwardWeightage(have)} + banked {formatAwardWeightage(banked)})
                   </span>
                 )}
                 {pending && (

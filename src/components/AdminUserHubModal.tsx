@@ -399,15 +399,11 @@ export default function AdminUserHubModal({
                     </div>
                     <div className="user-hub-metric">
                       <span>Current</span>
-                      <strong>{formatWeightagePct(stats.monthAvailable ?? stats.rewardPoints)}</strong>
+                      <strong>{formatWeightagePct((stats.monthAvailable ?? stats.rewardPoints) + stats.monthBanked)}</strong>
                     </div>
                     <div className="user-hub-metric">
                       <span>Used</span>
                       <strong>{formatWeightagePct(stats.monthUsed)}</strong>
-                    </div>
-                    <div className="user-hub-metric">
-                      <span>Banked</span>
-                      <strong>{formatWeightagePct(stats.monthBanked)}</strong>
                     </div>
                     {pausedKpis.length > 0 && (
                       <div className="user-hub-metric">
@@ -580,15 +576,11 @@ export default function AdminUserHubModal({
                 </div>
                 <div className="user-hub-metric-row">
                   <span>Current:</span>
-                  <strong>{formatWeightagePct(stats.monthAvailable ?? stats.rewardPoints)}</strong>
+                  <strong>{formatWeightagePct((stats.monthAvailable ?? stats.rewardPoints) + stats.monthBanked)}</strong>
                 </div>
                 <div className="user-hub-metric-row">
                   <span>Used:</span>
                   <strong>{formatWeightagePct(stats.monthUsed)}</strong>
-                </div>
-                <div className="user-hub-metric-row">
-                  <span>Banked:</span>
-                  <strong>{formatWeightagePct(stats.monthBanked)}</strong>
                 </div>
                 <div className="user-hub-metric-row">
                   <span>Assigned weightage:</span>

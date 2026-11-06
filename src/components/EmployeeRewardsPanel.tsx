@@ -135,9 +135,7 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
     }
     setActionMsg({
       type: 'ok',
-      text: opts?.useBanked
-        ? 'Gift requested using banked weightage — your manager or admin will arrange it.'
-        : 'Gift requested — your manager or admin will arrange it.',
+      text: 'Gift requested — your manager or admin will arrange it.',
     });
     await fetchAll();
     setRedeemingKey(null);
@@ -162,8 +160,7 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
           <div>
             <h2 className="emp-rewards-header__title">Company rewards</h2>
             <p className="emp-rewards-header__subtitle">
-              Complete tasks to earn weightage. Current month + banked are added together for gifts (e.g. 60% + 30% = 90%).
-              Banked never expires. Leftover after a redeem stays banked. Movie needs 90–95% for 3 months in a row; surprise needs 90–95% for 6 months in a row.
+              Complete tasks to earn weightage. Earlier leftover is included in this month. Movie needs 90–95% for 3 months in a row; surprise needs 90–95% for 6 months in a row.
               {!revealToday ? ` ${weightageRevealHint()}` : ''}
             </p>
           </div>
@@ -172,7 +169,7 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
           <div className="emp-rewards-stat">
             <TrendingUp size={16} />
             <span className="emp-rewards-stat__label">Earned this month</span>
-            <strong>{revealToday ? formatAwardWeightage(earnedWeightage) : 'Month end'}</strong>
+            <strong>{revealToday ? formatAwardWeightage(earnedWeightage + (Number(balance.banked) || 0)) : 'Month end'}</strong>
           </div>
           <div className="emp-rewards-stat emp-rewards-stat--accent">
             <Gift size={16} />
@@ -182,10 +179,6 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
           <div className="emp-rewards-stat">
             <span className="emp-rewards-stat__label">Used on gifts</span>
             <strong>{formatAwardWeightage(revealToday ? balance.deducted : 0)}</strong>
-          </div>
-          <div className="emp-rewards-stat">
-            <span className="emp-rewards-stat__label">Saved for later</span>
-            <strong>{formatAwardWeightage(balance.banked)}</strong>
           </div>
         </div>
       </header>
@@ -210,7 +203,7 @@ export default function EmployeeRewardsPanel({ userId, kpis = [] }: EmployeeRewa
         monthWeightage={availableWeightage}
         bankedWeightage={balance.banked}
         onRedeemed={() => void fetchAll()}
-        intro="Current + banked are added for every catalog gift. Example: 60% + 30% = 90%. Banked never expires."
+        intro="Gifts use this month's weightage, including anything left from earlier months."
       />
 
       {milestones.length > 0 && (
