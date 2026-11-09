@@ -3,9 +3,6 @@ import {
   Smartphone,
   Download,
   Apple,
-  CheckCircle,
-  AlertCircle,
-  Loader2,
   Package,
   Calendar,
   Shield,
@@ -13,7 +10,6 @@ import {
   Monitor,
 } from 'lucide-react';
 import {
-  APK_DIRECT_UNTIL,
   APK_PATH,
   APP_STORE_URL,
   DESKTOP_LINUX_DEB_PATH,
@@ -170,20 +166,6 @@ async function checkIpaAvailable(): Promise<boolean> {
   }
 }
 
-const APP_FEATURES = [
-  'Admin, manager & employee dashboards',
-  'Hamburger navigation on mobile',
-  'GPS attendance & live tracking',
-  'KPI tasks, rewards & reports',
-];
-
-const apkUntilLabel = APK_DIRECT_UNTIL.toLocaleDateString('en-US', {
-  month: 'long',
-  day: 'numeric',
-  year: 'numeric',
-  timeZone: 'UTC',
-});
-
 async function checkDesktopFile(path: string): Promise<boolean> {
   // Cross-origin hosts (GitHub Releases) often block browser HEAD — treat absolute http(s) as OK.
   if (/^https?:\/\//i.test(path)) return true;
@@ -280,10 +262,9 @@ export default function MobileAppDownload() {
     <section id="download-app" className="landing-section landing-section--alt">
       <div className="landing-section__header landing-reveal">
         <div className="landing-section__eyebrow">Downloads</div>
-        <h2 className="landing-section__title">Download Scorr {windowsVersion}</h2>
+        <h2 className="landing-section__title">Download Scorr</h2>
         <p>
-          The current Windows app is version {windowsVersion}. Linux is {linuxVersion}.
-          Phone, laptop, and the website use the same Sign In.
+          Windows {windowsVersion}, Linux {linuxVersion}, and Android {versionManifest?.android?.versionName || '1.3.53'} use the same Sign In as the website.
         </p>
       </div>
 
@@ -298,11 +279,8 @@ export default function MobileAppDownload() {
             )}
           </div>
 
-          <h3>Android app (.apk)</h3>
-          <p>
-            Installs <strong>Scorr</strong> as a real Android app — opens directly to sign-in with the
-            updated mobile layout for admin, manager, and employee roles.
-          </p>
+          <h3>Android</h3>
+          <p>Install the phone app, then sign in with the same company account.</p>
 
           {androidInfo && apkReady && (
             <div className="landing-download-meta">
@@ -316,19 +294,6 @@ export default function MobileAppDownload() {
             </div>
           )}
 
-          <ul className="landing-download-features">
-            {APP_FEATURES.map((item) => (
-              <li key={item}><CheckCircle size={14} /> {item}</li>
-            ))}
-          </ul>
-
-          <ol className="landing-download-steps">
-            <li>Tap <strong>Download Android App</strong> below</li>
-            <li>Open your <strong>Downloads</strong> folder and tap <strong>scorr.apk</strong></li>
-            <li>Allow install from your browser if Android asks</li>
-            <li>Open Scorr → sign in → allow <strong>Location</strong> for attendance</li>
-          </ol>
-
           {PLAY_STORE_LIVE ? (
             <a
               href={PLAY_STORE_URL}
@@ -338,43 +303,26 @@ export default function MobileAppDownload() {
             >
               <Download size={18} /> Get it on Google Play
             </a>
-          ) : null}
-
-          {apkWindowOpen && (
-            apkReady === null ? (
-              <button type="button" className="btn btn-secondary landing-download-btn" disabled>
-                <Loader2 size={16} className="spin-icon" /> Checking download…
-              </button>
-            ) : apkReady ? (
-              <>
-                <a
-                  href={androidIsFile ? assetUrl(APK_PATH) : androidHref}
-                  className="btn btn-primary landing-download-btn"
-                  download={androidIsFile ? 'scorr.apk' : undefined}
-                  {...(!androidIsFile ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-                >
-                  <Download size={18} /> Download Android App
-                  {androidInfo?.sizeLabel ? ` (${androidInfo.sizeLabel})` : ''}
-                </a>
-                <a
-                  href={assetUrl(APK_PATH)}
-                  className="landing-download-direct"
-                  download="scorr.apk"
-                >
-                  Direct link · {typeof window !== 'undefined' ? window.location.host : 'scorr.walfia.ai'}
-                  /downloads/scorr.apk
-                </a>
-                <p className="landing-download-footnote">
-                  Direct APK available until <strong>{apkUntilLabel}</strong>
-                  {PLAY_STORE_LIVE ? '' : ' (Google Play listing not live yet)'}.
-                </p>
-              </>
-            ) : (
-              <div className="landing-download-soon">
-                <AlertCircle size={16} />
-                <span>APK is being prepared — check back after the next deploy.</span>
-              </div>
-            )
+          ) : (
+            <>
+              <a
+                href={androidIsFile ? assetUrl(APK_PATH) : androidHref}
+                className="btn btn-primary landing-download-btn"
+                download={androidIsFile ? 'scorr.apk' : undefined}
+                {...(!androidIsFile ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+              >
+                <Download size={18} /> Download Android App
+                {androidInfo?.sizeLabel ? ` (${androidInfo.sizeLabel})` : ''}
+              </a>
+              <a
+                href={assetUrl(APK_PATH)}
+                className="landing-download-direct"
+                download="scorr.apk"
+              >
+                Direct link · {typeof window !== 'undefined' ? window.location.host : 'scorr.walfia.ai'}
+                /downloads/scorr.apk
+              </a>
+            </>
           )}
 
           {onAndroid && apkReady && (
@@ -394,11 +342,8 @@ export default function MobileAppDownload() {
             </span>
           </div>
 
-          <h3>iPhone &amp; iPad app (.ipa)</h3>
-          <p>
-            Real installable <strong>Scorr</strong> app (Capacitor) — same Sign In, MFA, KPIs, and
-            automatic attendance as Android. Not Add to Home Screen.
-          </p>
+          <h3>iPhone</h3>
+          <p>Open Scorr in Safari and add it to the Home Screen until the App Store listing is live.</p>
 
           {(iosInfo?.version || iosInfo?.sizeLabel) && (
             <div className="landing-download-meta">
@@ -411,12 +356,6 @@ export default function MobileAppDownload() {
               <span><Shield size={14} /> {iosInfo.appId || 'ai.walfia.scorr'}</span>
             </div>
           )}
-
-          <ul className="landing-download-features">
-            {APP_FEATURES.map((item) => (
-              <li key={item}><CheckCircle size={14} /> {item}</li>
-            ))}
-          </ul>
 
           {iosIsStore ? (
             <>
@@ -490,10 +429,7 @@ export default function MobileAppDownload() {
           </div>
 
           <h3>Windows {windowsVersion}</h3>
-          <p>
-            Install <strong>Scorr</strong> permanently on Windows PCs — Setup adds Start Menu and
-            Desktop shortcuts. Opens to the same Sign In / Register screen for every role.
-          </p>
+          <p>Setup adds Start Menu and Desktop shortcuts, then opens Sign In.</p>
 
           <div className="landing-download-meta">
             <span>
@@ -502,18 +438,6 @@ export default function MobileAppDownload() {
             </span>
             <span><Calendar size={14} /> Updated {desktopInfo?.updatedLabel || 'November 6, 2026'}</span>
           </div>
-
-          <ul className="landing-download-features">
-            <li><CheckCircle size={14} /> Real installer (Start Menu + Desktop)</li>
-            <li><CheckCircle size={14} /> Same Sign In as web &amp; mobile</li>
-            <li><CheckCircle size={14} /> One app for every role</li>
-          </ul>
-
-          <ol className="landing-download-steps">
-            <li>Click <strong>Download for Windows</strong></li>
-            <li>Run <strong>Scorr-Setup.exe</strong></li>
-            <li>Follow the installer → open Scorr from Start Menu</li>
-          </ol>
 
           <a
             href={assetUrl(winHref)}
@@ -544,10 +468,7 @@ export default function MobileAppDownload() {
           </div>
 
           <h3>Linux {linuxVersion}</h3>
-          <p>
-            Install <strong>Scorr</strong> with the .deb package on Ubuntu/Debian — same Sign In
-            screen as Windows and mobile for admin, HR, manager, and employee.
-          </p>
+          <p>Install the .deb on Ubuntu or Debian, or use the AppImage if you want automatic updates.</p>
 
           {desktopInfo?.platforms?.linuxDeb && (
             <div className="landing-download-meta">
@@ -564,18 +485,6 @@ export default function MobileAppDownload() {
               <span><Shield size={14} /> {desktopInfo.appId || 'ai.walfia.scorr.desktop'}</span>
             </div>
           )}
-
-          <ul className="landing-download-features">
-            <li><CheckCircle size={14} /> System install via .deb</li>
-            <li><CheckCircle size={14} /> Appears in your app menu</li>
-            <li><CheckCircle size={14} /> Same Sign In for every role</li>
-          </ul>
-
-          <ol className="landing-download-steps">
-            <li>Click <strong>Download for Linux</strong></li>
-            <li>Run <code>sudo apt install ./Scorr.deb</code></li>
-            <li>Open <strong>Scorr</strong> from the app menu → Sign In</li>
-          </ol>
 
           <a
             href={assetUrl(linuxDebHref)}

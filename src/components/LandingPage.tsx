@@ -25,19 +25,19 @@ const FEATURES = [
   {
     icon: Target,
     title: 'KPI Weightage & Score',
-    desc: 'Weightage stays within 0–100%. Score is a points index that can rise above 100 when people over-deliver. Overall, Month, and Year views stay independent.',
+    desc: 'Each month has its own score: a person’s KPI result plus team points. The current month stays private until its last day.',
     color: '#2dd4a8',
   },
   {
     icon: Trophy,
     title: 'Rewards & Points',
-    desc: 'Hit monthly weightage targets to unlock company gifts and catalog rewards. Redeem with weightage.',
+    desc: 'Gifts use this month’s weightage. Earlier leftover is included. There is no separate banked balance on the dashboard.',
     color: '#fbbf24',
   },
   {
     icon: CalendarCheck,
     title: 'Shifts & Automatic Attendance',
-    desc: 'Day and overnight shifts with a guided phone/laptop setup. GPS + office Wi-Fi (multiple networks, IPv6) check people in and out during the shift window — immediate check-out when leaving is confirmed.',
+    desc: 'Office Wi-Fi or the office radius checks people in during the shift window. A shift ending does not sign anyone out.',
     color: '#38bdf8',
   },
   {
@@ -61,7 +61,7 @@ const FEATURES = [
   {
     icon: Users,
     title: 'People & Scoreboards',
-    desc: 'Admin and manager boards show each person’s overall score, month score, and weightage — same math as the employee scoreboard.',
+    desc: 'HR and admin see every score. Managers see their team. Each person sees their own result when the month opens.',
     color: '#38bdf8',
   },
   {
@@ -96,8 +96,8 @@ const SECURITY_POINTS = [
   },
   {
     icon: Clock,
-    title: '1-hour sessions',
-    desc: 'Web, Android, iPhone, and desktop sessions end after one hour from sign-in. Use Account Security to forget a trusted device when you leave a shared computer.',
+    title: 'Sessions that stay through the shift',
+    desc: 'Ending a shift does not sign anyone out. Scorr signs out after one hour without use, and any activity starts that hour again.',
   },
 ];
 
@@ -155,9 +155,8 @@ const FEE_STEPS = [
 ];
 
 const MARQUEE_ITEMS = [
-  'KPI Weightage', 'Score Index', 'Rewards Points', 'Night Shifts',
-  'Auto Attendance', 'Office Wi-Fi', 'Immediate Check-out', 'Authenticator MFA',
-  'Trusted Devices', '1-Hour Sessions', 'Auto App Updates', 'Attendance Export',
+  'Score weightage', 'Team bonus', 'Office Wi-Fi', 'GPS attendance',
+  'Authenticator MFA', 'Trusted devices', 'Windows', 'Linux', 'Android',
 ];
 
 const TRUST_ITEMS = [
@@ -418,11 +417,11 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
               <Shield size={14} /> Authenticator MFA · Trusted devices · 3-day free trial
             </div>
             <h1 className="landing-hero__title">
-              Performance, attendance &amp; secure access — <span>one platform</span>
+              Scores, attendance, and secure access <span>in one place</span>
             </h1>
             <p className="landing-hero__desc">
-              Scorr aligns KPIs (weightage vs score), GPS attendance, overnight shifts, and rewards —
-              protected with authenticator apps, backup codes, and email recovery for every privileged login.
+              Scorr gives every company a private workspace for monthly scores, office attendance,
+              and authenticator sign-in — on the web, Windows, Linux, and Android.
             </p>
             <div className="landing-hero__actions">
               <a href="#login" className="btn btn-primary" onClick={onRegisterNav}>
@@ -459,12 +458,12 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
                 <div className="landing-stat__label">Day Free Trial</div>
               </div>
               <div>
-                <div className="landing-stat__value"><AnimatedCounter target={3} /></div>
-                <div className="landing-stat__label">Role Dashboards</div>
+                <div className="landing-stat__value"><AnimatedCounter target={4} /></div>
+                <div className="landing-stat__label">Roles</div>
               </div>
               <div>
-                <div className="landing-stat__value"><AnimatedCounter target={1000} suffix="+" /></div>
-                <div className="landing-stat__label">Max Points / Month</div>
+                <div className="landing-stat__value">90</div>
+                <div className="landing-stat__label">Score to earn bonus</div>
               </div>
             </div>
           </div>
@@ -477,8 +476,8 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
 
       <div className="landing-marquee-wrap">
         <div className="landing-marquee">
-          {[...MARQUEE_ITEMS, ...MARQUEE_ITEMS].map((item, i) => (
-            <span key={i}>{item}</span>
+          {MARQUEE_ITEMS.map((item) => (
+            <span key={item}>{item}</span>
           ))}
         </div>
       </div>
@@ -516,7 +515,7 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
             { n: 1, title: 'Register & verify', desc: 'Create the company, confirm email, then wait for approval from info@walfia.ai before using Scorr.' },
             { n: 2, title: 'Secure the account', desc: 'Enroll an authenticator, save backup codes, and optionally trust this device for up to 7 days — required for privileged roles.' },
             { n: 3, title: 'Assign & deliver', desc: 'Managers assign weighted KPIs. Staff set up automatic attendance once (GPS + office Wi-Fi), work overnight shifts, and mark tasks complete.' },
-            { n: 4, title: 'Score, notify & reward', desc: 'Scoreboards update Overall / Month / Year. Managers and assigners get completion emails. Points convert to catalog rewards.' },
+            { n: 4, title: 'Score and reward', desc: 'HR sets the department mix. Scores combine personal KPIs and team points. Gifts redeem from this month’s weightage.' },
           ].map((s, i) => (
             <div key={s.n} className={`landing-step landing-reveal landing-reveal--delay-${i + 1}`}>
               <div className="landing-step__num">{s.n}</div>
@@ -532,9 +531,9 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
           <div className="landing-section__eyebrow">Security &amp; credentials</div>
           <h2 className="landing-section__title">Sign-in that protects the whole company</h2>
           <p>
-            Password alone is not enough. Scorr requires authenticator MFA on first sign-in per device,
-            lets people trust a device for up to 7 days (configurable), issues backup codes, and
-            ends sessions after one hour.
+            Password alone is not enough. Scorr asks for an authenticator on a new device,
+            can trust that device for up to 7 days, and signs people out after an hour without use.
+            A shift ending does not end the session.
           </p>
         </div>
         <div className="landing-features landing-features--security">
@@ -553,8 +552,8 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
           <div>
             <strong>What you need to sign in</strong>
             <span>
-              Company email and password, plus an authenticator or backup code on new or untrusted devices.
-              Trusted devices skip the code until expiry. Sessions last one hour. Lost phone? Use email OTP recovery, then re-enroll MFA.
+              Company email and password, plus an authenticator or backup code on a new device.
+              Trusted devices skip the code until they expire. Lost the phone? Recover by email, then enroll again.
             </span>
           </div>
         </div>
@@ -607,10 +606,10 @@ export default function LandingPage({ onLoginSuccess }: LandingPageProps) {
               No surprises. Scorr uses simple per-seat pricing with a <strong>3-day free trial</strong> so you can evaluate the full platform before committing.
             </p>
             <div className="landing-fees__highlight">
-              <strong>Rewards points never expire.</strong>
+              <strong>Each month keeps its own score.</strong>
               <p>
-                Catalog and company gifts redeem with monthly weightage (0–100%). No score-point balances.
-                Weightage stays 0–100%; score can exceed 100 when people over-deliver.
+                Gifts use this month’s weightage, and earlier leftover is included.
+                People see their own current-month score on the last day of the month.
               </p>
             </div>
           </div>

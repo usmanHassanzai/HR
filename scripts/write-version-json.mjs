@@ -18,23 +18,27 @@ function sha512File(path) {
   return createHash('sha512').update(buf).digest('base64');
 }
 
-function androidVersionCode() {
+function androidGradleVersion() {
   try {
     const gradle = readFileSync(join(root, 'android/app/build.gradle'), 'utf8');
-    const m = gradle.match(/versionCode\s+(\d+)/);
-    return m ? Number(m[1]) : 12;
+    const code = gradle.match(/versionCode\s+(\d+)/);
+    const name = gradle.match(/versionName\s+"([^"]+)"/);
+    return {
+      versionCode: code ? Number(code[1]) : 12,
+      versionName: name ? name[1] : '',
+    };
   } catch {
-    return 12;
+    return { versionCode: 12, versionName: '' };
   }
 }
 
 // Desktop feed URLs are pinned here. Never read them from .env / .env.local /
 // .env.desktop-urls — those files still point Windows at desktop-v1.3.8.
 // desktop-v1.3.46 crashes on start. 1.3.46 and 1.3.47 stay pre-releases.
-// Linux stays on 1.3.45 until that installer is published from the other laptop.
+// Windows and Linux installers are both desktop 1.3.53.
 // The website Windows feed is WINDOWS_RELEASE.
 const WINDOWS_RELEASE = '1.3.53';
-const LINUX_RELEASE = '1.3.45';
+const LINUX_RELEASE = '1.3.53';
 const WINDOWS_INSTALLERS = {
   '1.3.45': {
     sha512: '6xOC8K5GcOgSmr4RXEQ2P+VgRyTARv6NCVlQ8/glrm294xhrdedgepTw9uTrLLbAj7C77Xr3FK7/goujBkY30Q==',
@@ -157,21 +161,28 @@ try {
   previousManifest = null;
 }
 
+const gradleAndroid = androidGradleVersion();
+const previousAndroid = previousManifest?.android;
+const previousAndroidCode = Number(previousAndroid?.versionCode) || 0;
+// Keep a published APK version until gradle moves ahead, then publish that build.
+const android =
+  previousAndroid?.versionName && previousAndroidCode >= gradleAndroid.versionCode
+    ? previousAndroid
+    : {
+        versionName: gradleAndroid.versionName || version,
+        versionCode: gradleAndroid.versionCode,
+        apkUrl: `${base}/downloads/scorr.apk`,
+        notes,
+        minSupportedCode: Number(process.env.SCORR_ANDROID_MIN_CODE || previousAndroid?.minSupportedCode || 1),
+        sizeBytes: existsSync(apkPath) ? statSync(apkPath).size : buildInfo.android?.sizeBytes || null,
+      };
+
 const manifest = {
   generatedAt: new Date().toISOString(),
   webBuildId,
   mandatory: process.env.SCORR_UPDATE_MANDATORY === '1',
   notes,
-  android: previousManifest?.android?.versionName
-    ? previousManifest.android
-    : {
-        versionName: version,
-        versionCode: androidVersionCode(),
-        apkUrl: `${base}/downloads/scorr.apk`,
-        notes,
-        minSupportedCode: Number(process.env.SCORR_ANDROID_MIN_CODE || 1),
-        sizeBytes: existsSync(apkPath) ? statSync(apkPath).size : buildInfo.android?.sizeBytes || null,
-      },
+  android,
   windows: {
     version: WINDOWS_RELEASE,
     setupUrl: winUrl,

@@ -1,15 +1,15 @@
 {
-  "generatedAt": "2026-11-06T21:51:49.854Z",
-  "webBuildId": "1.3.47-2026-11-06215149",
+  "generatedAt": "2026-11-09T16:21:02.424Z",
+  "webBuildId": "1.3.47-2026-11-09162057",
   "mandatory": false,
   "notes": "Automatic attendance, Office Wi-Fi, 1-hour sessions, auto-updates. If install fails with a signature error, uninstall the old debug APK once, then install this release — after that, updates install over the old app.",
   "android": {
-    "versionName": "1.3.45",
-    "versionCode": 34,
+    "versionName": "1.3.53",
+    "versionCode": 35,
     "apkUrl": "https://scorr.walfia.ai/downloads/scorr.apk",
     "notes": "Automatic attendance, Office Wi-Fi, 1-hour sessions, auto-updates. If install fails with a signature error, uninstall the old debug APK once, then install this release — after that, updates install over the old app.",
     "minSupportedCode": 1,
-    "sizeBytes": 5787079
+    "sizeBytes": 5785055
   },
   "windows": {
     "version": "1.3.53",
@@ -18,9 +18,9 @@
     "notes": "Automatic attendance, Office Wi-Fi, 1-hour sessions, auto-updates. If install fails with a signature error, uninstall the old debug APK once, then install this release — after that, updates install over the old app."
   },
   "linux": {
-    "version": "1.3.45",
-    "debUrl": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.45/Scorr.deb",
-    "appImageUrl": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.45/Scorr.AppImage",
+    "version": "1.3.53",
+    "debUrl": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.53/Scorr.deb",
+    "appImageUrl": "https://github.com/usmanHassanzai/HR/releases/download/desktop-v1.3.53/Scorr.AppImage",
     "latestYmlUrl": "https://scorr.walfia.ai/downloads/desktop/latest-linux.yml",
     "notes": "Automatic attendance, Office Wi-Fi, 1-hour sessions, auto-updates. If install fails with a signature error, uninstall the old debug APK once, then install this release — after that, updates install over the old app."
   },

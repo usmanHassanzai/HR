@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Generates Scorr-Client-Feature-Guide.pdf — complete product guide (Oct 2026 / desktop 1.3.44+).
+ * Generates Scorr-Client-Feature-Guide.pdf — complete product guide (Nov 2026 / apps 1.3.53).
  *
  * Run: npm run docs:client-guide
  */
@@ -265,14 +265,14 @@ doc.setTextColor(203, 213, 225);
 [
   'Download & install · Register your organization · Sign up',
   'Admin, HR, Manager & Employee dashboards',
-  'Auto check-in (Wi-Fi then GPS) · KPIs · Daily reports · Rewards',
+  'Score weightage & bonus · KPIs · Auto check-in · Daily reports · Rewards',
 ].forEach((line, i) => doc.text(line, M, 96 + i * 7));
 
 doc.setFontSize(10);
 doc.setTextColor(148, 163, 184);
 doc.text('Live platform:   https://scorr.walfia.ai', M, 128);
 doc.text(`Document date:  ${generated}`, M, 136);
-doc.text('Product:         Desktop / apps 1.3.44+', M, 144);
+doc.text('Product:         Windows, Linux & Android 1.3.53', M, 144);
 doc.text('Prepared by:     Walfia', M, 152);
 doc.text('Support:         info@walfia.ai', M, 160);
 
@@ -298,30 +298,33 @@ title('Table of Contents');
   ['11.', 'How to mark attendance (auto & manual)'],
   ['12.', 'How to assign tasks (Admin & Manager)'],
   ['13.', 'KPI completion & review'],
-  ['14.', 'Rewards & gifts'],
-  ['15.', 'Daily work reports'],
-  ['16.', 'Office locations, Wi-Fi & live tracking'],
-  ['17.', 'Analytics, exports & notifications'],
-  ['18.', 'Auto updates'],
-  ['19.', 'Security & account deletion'],
-  ['20.', 'Plans, trial & demo'],
-  ['21.', 'Troubleshooting & support'],
-  ['22.', 'Quick reference'],
+  ['14.', 'Score weightage & bonus'],
+  ['15.', 'Rewards & gifts'],
+  ['16.', 'Daily work reports'],
+  ['17.', 'Office locations, Wi-Fi & live tracking'],
+  ['18.', 'Analytics, exports & notifications'],
+  ['19.', 'Auto updates'],
+  ['20.', 'Security & account deletion'],
+  ['21.', 'Plans, trial & demo'],
+  ['22.', 'Troubleshooting & support'],
+  ['23.', 'Quick reference'],
 ].forEach(([num, label]) => tocItem(num, label));
 drawFooter();
 newPage();
 
 // 1
 title('1. What is Scorr?');
-para('Scorr (https://scorr.walfia.ai) is your company workspace for performance KPIs, automatic attendance, leave, daily work reports, and weightage-based rewards. One account works on the website, Windows desktop, Linux desktop, Android app, and iPhone (Home Screen or native shell when published).');
-para('Each registered company is private. Staff in one organization cannot see another company’s people, tasks, attendance, or reports.');
+para('Scorr (https://scorr.walfia.ai) is your company workspace for KPI scores, team weightage, bonus, automatic attendance, leave, daily work reports, and rewards. One account works on the website, Windows desktop, Linux desktop, Android app, and iPhone (Home Screen or native shell when published).');
+para('Each registered company is private. Staff in one organization cannot see another company’s people, tasks, scores, attendance, or reports.');
 
 h2('What you can do');
 bullet('Register your organization and invite Admin, HR, Managers, and Employees.');
-bullet('Assign KPI tasks with weightage (0–100% per person) and review completions.');
-bullet('Automatic check-in on Android, iOS, Windows, and Linux installed apps: window is 1 hour before shift start until shift end (not after end). Policy wifi_then_radius — any saved office Wi-Fi (SSID or BSSID) checks you in without GPS; otherwise GPS inside your assigned office radius is required. Public/unsaved Wi-Fi never counts.');
+bullet('Assign one KPI, several, or all of a person’s KPIs together, each with weightage. Open tasks for one person cannot total more than 100%.');
+bullet('Score each month separately. A person’s score is their own KPI result plus team points. Bonus starts at 90 and caps at 20%.');
+bullet('HR sets each department’s individual/team mix. Managers see their team. Admin and HR see every score. A person’s own current-month score stays hidden until the last day of that month.');
+bullet('Automatic check-in on Android, iOS, Windows, and Linux installed apps: from 1 hour before shift start until shift end. Saved office Wi-Fi checks you in without GPS; otherwise GPS inside the office radius is required. You stay signed in when the shift ends. Check-in and check-out alerts stay off until you turn them on in Settings.');
 bullet('Submit daily work reports (employees, managers, and HR report to admin).');
-bullet('Redeem company gifts with monthly weightage (Current / Used / Banked).');
+bullet('Redeem company gifts with this month’s weightage. Earlier leftover is included in this month. There is no separate banked total on the dashboard.');
 bullet('Track field teams live and export monthly/quarterly reports.');
 
 note('Timezone for shifts and month-end weightage: Asia/Karachi. Branding can be customized by Admin under Settings.');
@@ -334,19 +337,19 @@ para('Open the website on your phone or computer: https://scorr.walfia.ai. Scrol
 para('Desktop and large installers are hosted on GitHub Releases (not as large binaries on Vercel). The website links you to the correct release assets.');
 
 h1('2.1 Windows desktop');
-bullet('On the homepage, click Download for Windows (or open the Windows card under #download-app).');
+bullet('On the homepage, click Download Windows 1.3.53 (or open the Windows card under #download-app).');
 bullet('You get Scorr-Setup.exe — the permanent Windows installer (Start Menu + Desktop shortcuts).');
-bullet('Current release (1.3.44+): https://github.com/usmanHassanzai/HR/releases/tag/desktop-v1.3.44 — or use /latest from the same releases list.');
+bullet('Current Windows release: https://github.com/usmanHassanzai/HR/releases/tag/desktop-v1.3.53');
 bullet('Window title shows Scorr Desktop x.y.z. Use this real Electron binary for automatic attendance — not Chrome “Install app” / PWA.');
 
 h1('2.2 Linux desktop');
-bullet('Download Scorr.deb and/or Scorr.AppImage from the same GitHub Release (or site Linux card).');
+bullet('Download Linux 1.3.53: Scorr.deb and Scorr.AppImage from https://github.com/usmanHassanzai/HR/releases/tag/desktop-v1.3.53 (or the site Linux card).');
 bullet('Prefer AppImage if you want silent background auto-update via electron-updater.');
 bullet('After install, Scorr appears in your applications menu (or you run the AppImage).');
 
 h1('2.3 Android');
-bullet('Tap Download Android App — downloads scorr.apk from the site (https://scorr.walfia.ai/downloads/scorr.apk).');
-bullet('App ID: ai.walfia.scorr · Version is shown on the download card / version.json.');
+bullet('The landing page always shows Download Android App, next to Windows and Linux. It downloads scorr.apk (https://scorr.walfia.ai/downloads/scorr.apk).');
+bullet('Current Android app is 1.3.53 (version code 35). App ID: ai.walfia.scorr. Phones already on an older release APK are offered this update.');
 bullet('In-app updates when versionCode advances — background download, then the system Install sheet (cannot be fully silent on Android).');
 
 h1('2.4 iPhone / iPad');
@@ -375,7 +378,7 @@ step(4, 'Follow Next → choose install folder if asked → Install.');
 step(5, 'Finish the wizard; open Scorr from the Start Menu or Desktop shortcut. Confirm the window title is Scorr Desktop x.y.z.');
 step(6, 'Sign in with your company email and password. For automatic attendance, enable it in-app and allow Location / tray / Start at login when prompted.');
 bullet('To uninstall later: Windows Settings → Apps → Scorr → Uninstall.');
-bullet('Updating: NSIS builds use electron-updater (see Section 18). You can also run a newer Scorr-Setup.exe over the existing install.');
+bullet('Updating: NSIS builds use electron-updater (see Section 19). You can also run a newer Scorr-Setup.exe over the existing install.');
 
 h1('3.2 Install on Linux');
 step(1, 'Open https://scorr.walfia.ai/#download-linux and choose Scorr.AppImage (preferred for silent updates) or Scorr.deb.');
@@ -468,7 +471,9 @@ bullet('Logout menu: Sign out, or Sign out & forget this device (clears trust on
 bullet('Trust is cleared automatically after password change/reset, admin Reset authenticator, MFA re-enrollment, or account removal.');
 
 h1('5.4 Sessions');
-bullet('Sessions last 1 hour absolute from sign-in on web, Android, iPhone, and desktop — then you sign in again.');
+bullet('You stay signed in during the shift and after it ends. Shift start and shift end do not sign you out.');
+bullet('If nobody uses the app for 1 hour, Scorr signs you out. Any activity resets that hour. This is the same on the website, phone, and desktop.');
+bullet('Settings → Notifications: check-in and check-out alerts stay off until you turn them on. That covers the website, Windows, Linux, and the phone, including when you are away from the office.');
 
 h1('5.5 Lost phone / authenticator');
 bullet('On the MFA screen: Send verification code to your login email → Verify → re-enroll.');
@@ -507,7 +512,8 @@ featureBlock('People', 'Add teammates. Set role, department, job title, Reports 
 featureBlock('Assign Task', 'Create KPI templates and assign tasks with weightage and dates. Review completions: Approve & award or Send back.');
 featureBlock('Daily Reports', 'See every manager and employee daily report by date and department. Filter All roles / Managers / Employees / HR. Stats show submitted vs missing.');
 featureBlock('Rewards', 'KPI awards, History, People, Redemptions, Catalog. Approve, Delivered, or Reject gift requests.');
-featureBlock('KPI & Rewards', 'Company weightage board: Earned, Current, Used, Banked per person.');
+featureBlock('KPI & Rewards', 'Month scoreboard for each person: own KPI result, team points, and the total. Each month stays separate.');
+featureBlock('Score weightage', 'Individual/team mix, live scores, and bonus %. HR sets the mix. Admin approves a closed month. Current-month scores stay hidden from the person until the last day.');
 featureBlock('Analytics', 'Individual performance trends and attainment.');
 featureBlock('Attendance', 'Leave approvals, Remote/hybrid marking, Shifts, History (by department). HR appears under Human Resources.');
 featureBlock('Office & Attendance', 'Create geofence zones, multiple office Wi-Fi networks per location (SSID/BSSID), assign people, automatic attendance devices & reminders.');
@@ -537,8 +543,8 @@ title('8. HR dashboard — how to use it');
 para('Eyebrow: HR console / HR workspace. HR has company-wide tools and also reports personally to a company admin — like a staff member with attendance and a daily report.');
 
 h1('8.1 Sidebar (same family as Admin)');
-bullet('People, Assign Task, Daily Reports, Rewards, KPI & Rewards, Analytics, Attendance, Office & Attendance, Live Tracking, Departments, Export, Settings.');
-bullet('Focus areas for HR day-to-day: Attendance, Daily Reports, People, Rewards, Shifts.');
+bullet('People, Assign Task, Daily Reports, Rewards, KPI & Rewards, Score weightage, Analytics, Attendance, Office & Attendance, Live Tracking, Departments, Export, Settings.');
+bullet('Focus areas for HR day-to-day: Score weightage, Attendance, Daily Reports, People, Rewards, Shifts.');
 
 h1('8.2 Attendance (HR)');
 featureBlock('My day', 'Your own shift card, Enable automatic check-in on the installed app, manual Clock in/out, leave request to admin, and your leave history.');
@@ -565,8 +571,9 @@ title('9. Manager dashboard — how to use it');
 para('Eyebrow: Manager console. Managers lead a department team and also complete their own KPIs and attendance.');
 
 h1('9.1 Menus');
-featureBlock('My KPIs', 'Your own assigned tasks and weightage scoreboard.');
-featureBlock('Assign Task', 'Create/assign KPIs to people in your department. Review team completions.');
+featureBlock('My KPIs', 'Your own assigned tasks. The month total includes your KPI result plus team points. The current month stays hidden until its last day.');
+featureBlock('Score weightage', 'See your team’s scores. While the month is open you can change your department’s individual/team split and the team points you award.');
+featureBlock('Assign Task', 'Pick one KPI, several, or Select all, then assign that set together. Review team completions.');
 featureBlock('People', 'Team ranking; open a person for scoreboard details.');
 featureBlock('Attendance', 'Approvals (leave) · My day (auto + manual check-in) · Team · Shifts · History.');
 featureBlock('Rewards', 'Approve / Delivered / Reject team gift requests. Redeem your own gifts.');
@@ -593,7 +600,8 @@ title('10. Employee dashboard — how to use it');
 para('Eyebrow: Employee. You only see your own work, attendance, and rewards.');
 
 h1('10.1 Menus');
-featureBlock('My KPIs', 'Open and History. Scoreboard shows Left to use, Earned, Used, Banked. Open a task to start it, then Mark Complete.');
+featureBlock('My KPIs', 'Open and History. Left to use is this month’s gain, including team points, minus gifts already used. Your current-month score stays hidden until the last day. Open a task to start it, then Mark Complete.');
+featureBlock('Score weightage', 'Your score for the selected month: individual points plus team points, and the bonus %. Hidden until the last day of the current month.');
 featureBlock('Attendance', 'One-time Automatic check-in setup on Android, iOS, Windows, or Linux installed app (not a normal browser). Window: 1 hour before shift start until shift end. Wi-Fi then GPS radius. Manual Clock in/out, leave, and history still available.');
 featureBlock('Rewards', 'Redeem company gifts / catalog with weightage. Track Pending · Approved · Delivered · Rejected.');
 featureBlock('Daily report', 'What did you accomplish today? (20–8000 characters). Submit or Update.');
@@ -605,7 +613,7 @@ step(2, 'During your window, arrive on office Wi-Fi or inside the geofence — a
 step(3, 'My KPIs → open tasks, complete work, Mark Complete.');
 step(4, 'Daily report → write today’s summary → Submit.');
 step(5, 'Clock out if leaving early. Request leave from Attendance when needed.');
-step(6, 'Rewards → redeem when you have enough Current or Banked weightage.');
+step(6, 'Rewards → redeem when Left to use covers the gift. Earlier leftover is already included.');
 
 note('Opening a KPI starts it. Only receiving the assignment email does not start the task.');
 drawFooter();
@@ -629,8 +637,11 @@ bullet('Policy wifi_then_radius: if connected to any saved office Wi-Fi for an a
 bullet('Otherwise GPS must be inside the assigned office radius. Public or unsaved Wi-Fi never counts.');
 bullet('Supported on Android phone, iOS, Windows, and Linux — only after Enable automatic check-in in the installed app (not a normal browser).');
 bullet('Desktop must be the real Scorr Desktop binary (title Scorr Desktop x.y.z), not Chrome “Install app” / PWA.');
-bullet('After manual Clock Out, auto re-check-in waits about 30 seconds (Android parity) before Wi-Fi/GPS can check you in again.');
-bullet('Permissions: Location Always (phones), notifications, Android battery unrestricted; desktop tray / start at login.');
+bullet('After a manual Clock Out, automatic check-in stays off for the rest of that shift. A manual Clock In turns it back on.');
+bullet('You stay signed in when the shift ends. Ending a shift does not log you out of Scorr.');
+bullet('Check-in and check-out alerts stay off until Settings → Notifications is turned on.');
+bullet('Checks run on a calm interval so phones and laptops stay smooth. Windows checks in once when you sign in, and a manual Clock In stays available.');
+bullet('Permissions: Location Always (phones), Android battery unrestricted, desktop tray / start at login. Notification permission is asked only if you turn alerts on.');
 bullet('Manual Clock in / Clock out remain available in the same window. Clock out can be from any place before shift end; open sessions close at shift end.');
 
 h1('11.3 Setup wizard (phones & desktop)');
@@ -674,15 +685,15 @@ spacer();
 h1('12.2 Admin — assign a task');
 step(1, 'Open Assign Task in the Admin console.');
 step(2, 'Optional: KPI\'s tab — create a template (category, weight guidance, description, grace/late rules).');
-step(3, 'Assign Task — choose department → person → task/template.');
-step(4, 'Set Weight (%), Start date, Due date, optional note. Check the Weight in use meter (must stay ≤ 100%).');
-step(5, 'Tap Assign KPI. The person gets in-app + email notification.');
+step(3, 'Assign Task — choose department → person. Open the KPI dropdown and tick one KPI, several, or Select all.');
+step(4, 'Set Weight (%), Start date, Due date, optional note. The open-task total for that person must stay ≤ 100%.');
+step(5, 'Assign that set together. The person gets in-app + email notification.');
 step(6, 'When they Mark Complete, open Review — set Weightage to award → Approve & award or Send back.');
 
 h1('12.3 Manager — assign a task');
 step(1, 'Open Assign Task in the Manager console.');
 step(2, 'Choose someone in your department.');
-step(3, 'Set weight and dates → Assign.');
+step(3, 'Tick one, several, or all KPIs, set weight and dates, then assign that set together.');
 step(4, 'You (and the reporting manager if applicable) get completion alerts to review.');
 
 h1('12.4 Filters on Assigned Task');
@@ -701,7 +712,7 @@ h1('13.1 Employee / assignee');
 step(1, 'My KPIs → Open a task (status becomes In progress).');
 step(2, 'Do the work before the due date.');
 step(3, 'Mark Complete → status pending_review.');
-step(4, 'Wait for Approve & award. Weightage may reveal on the dashboard on the last day of the month.');
+step(4, 'Wait for Approve & award. Your own awarded weightage and score for the current month appear on the last calendar day (Asia/Karachi). Past months stay visible.');
 
 h1('13.2 Admin / Manager review');
 step(1, 'Open Assign Task → Review filter (or notification deep link).');
@@ -711,26 +722,59 @@ step(3, 'Approve & award — or Send back with a note.');
 h2('Performance bands (typical)');
 bullet('Outstanding ≥ 95% · Excellent 90–94 · Good 80–89 · Needs Improvement 70–79 · Unsatisfactory below 70.');
 
-note('Awarded weightage feeds Current / Used / Banked for gifts. Unused closed-month leftovers can move to Banked (never expires).');
+note('Awarded weightage feeds Left to use for gifts. Earlier leftover is included in this month. Each month’s score stays on that month. There is no separate banked total on the dashboard.');
 drawFooter();
 newPage();
 
 // 14
-title('14. Rewards & gifts');
-para('Rewards use monthly weightage (0–100%), not a separate points wallet.');
+title('14. Score weightage & bonus');
+para('Score weightage is in every role’s menu. Each month is separate. A person’s score combines their own KPI result with the department result. Bonus is a percentage only.');
 
-tableHeader(['Label', 'Meaning']);
-tableRow('Earned', 'From finished/approved tasks this month.');
-tableRow('Current / Left to use', 'Spendable now.');
-tableRow('Used', 'Spent on gifts this month.');
-tableRow('Banked / Saved for later', 'Leftover from closed months — never expires.');
+h1('14.1 How the score is calculated');
+bullet('Individual points are the month scoreboard total already awarded for that person’s own KPIs.');
+bullet('Team points are the department average times the team weight, unless HR or the manager entered Points given. Blank Points given uses the department average.');
+bullet('Score = individual points + team points. Each part is rounded to one decimal, then added.');
+bullet('The individual weight and the team weight must total 100. Each value is from 0 to 100, with at most one decimal.');
+bullet('Bonus: below 90 is 0%. A score of 90 is 10%. Each point above 90 adds 1%, up to 20% at a score of 100.');
+
+h1('14.2 Who sees and edits what');
+tableHeader(['Role', 'What they do']);
+tableRow('Employee', 'Sees only their own score, mix, individual points, team points, and bonus. The current month stays hidden until its last day.');
+tableRow('Manager', 'Sees their team. While the month is open, can change their own department’s split and the team points awarded.');
+tableRow('HR', 'Sees every department and every score. Sets each mix, can save every department in one step, then closes the month.');
+tableRow('Admin', 'Sees every score. Does not edit the mix. After HR closes the month, Admin approves it and the scores lock.');
 spacer();
 
-h1('14.1 Redeem');
+h1('14.3 Month status');
+bullet('Open — HR and the department manager can still change the mix.');
+bullet('Closed — HR has locked the mix. Scores can still update until Admin approves.');
+bullet('Approved — scores and bonus stay as they were at approval.');
+bullet('Pick Month and Year at the top of Score weightage. Last year, this year, and next year are available.');
+
+h1('14.4 When scores appear');
+bullet('Employees and managers do not see their own current-month awarded weightage or score until the last calendar day of that month (28, 29, 30, or 31) in Asia/Karachi.');
+bullet('Past months stay visible. Future months are not mixed into the current dashboard.');
+bullet('HR and Admin can review the organization while the month is still open.');
+
+note('Own KPI points are the month scoreboard total. They are not weighted a second time. Team points use the team weight, unless Points given was entered. The two numbers are added for the month score.');
+drawFooter();
+newPage();
+
+// 15
+title('15. Rewards & gifts');
+para('Rewards use this month’s weightage. Earlier leftover is included in this month. There is no separate banked total on the screen.');
+
+tableHeader(['Label', 'Meaning']);
+tableRow('Left to use', 'This month’s gain, including team points, minus gifts already used.');
+tableRow('Used', 'Spent on gifts this month.');
+tableRow('Earlier leftover', 'Included in this month’s spendable amount. Other months stay on their own month.');
+spacer();
+
+h1('15.1 Redeem');
 bullet('Employee or Manager → Rewards → choose company gift or catalog item → Redeem.');
 bullet('Confirm cost in % weightage on screen.');
 
-h1('14.2 Approve');
+h1('15.2 Approve');
 bullet('Manager or Admin → Rewards → Redemptions / Gifts to arrange.');
 bullet('Approve · Delivered · Reject (reject returns weightage).');
 
@@ -739,41 +783,41 @@ drawFooter();
 newPage();
 
 // 15
-title('15. Daily work reports');
+title('16. Daily work reports');
 
-h1('15.1 Who submits');
+h1('16.1 Who submits');
 bullet('Employees, Managers, and HR submit their own daily report.');
 bullet('Company admins receive notifications and review submissions.');
 bullet('Length: minimum 20 characters, maximum 8000.');
 
-h1('15.2 How to submit (Employee / Manager / HR)');
+h1('16.2 How to submit (Employee / Manager / HR)');
 step(1, 'Open Daily report (or Daily Reports → My report for HR).');
 step(2, 'Pick the date (today or up to 7 days back).');
 step(3, 'Write a clear summary of projects and outcomes.');
 step(4, 'Submit today’s report (or Update if already saved).');
 
-h1('15.3 How Admin reviews');
+h1('16.3 How Admin reviews');
 step(1, 'Open Daily Reports.');
 step(2, 'Select a date on the calendar.');
 step(3, 'Filter department and role (All / Managers / Employees / HR).');
 step(4, 'Open cards to read content; see Submitted vs Not submitted counts.');
 
-h1('15.4 How HR uses Daily Reports');
+h1('16.4 How HR uses Daily Reports');
 bullet('My report — send your log to admin.');
 bullet('Organization — review manager and employee reports company-wide.');
 drawFooter();
 newPage();
 
 // 16
-title('16. Office locations, Wi-Fi & live tracking');
+title('17. Office locations, Wi-Fi & live tracking');
 
-h1('16.1 Office & Attendance (Admin / HR)');
+h1('17.1 Office & Attendance (Admin / HR)');
 step(1, 'Office & Attendance → create office: name, address, map pin (or current location), radius, Active.');
 step(2, 'Add office Wi-Fi networks (label, SSID, BSSID). Multiple networks per office are supported. Use current Wi-Fi to fill SSID/BSSID when on site.');
 step(3, 'Assign people — individual, or assign to all employees/managers/HR.');
 step(4, 'Automatic attendance: company toggles, enrolled devices table, not enrolled yet (Send reminder), flagged attendance.');
 
-h1('16.2 Live Tracking');
+h1('17.2 Live Tracking');
 bullet('Today’s board for GPS staff: At site / Away / Offline / No site.');
 bullet('Refreshes about every 2 minutes for the live board.');
 bullet('Phone and desktop apps use Wi-Fi + geofence checks inside the attendance window only — not continuous surveillance.');
@@ -784,62 +828,62 @@ drawFooter();
 newPage();
 
 // 17
-title('17. Analytics, exports & notifications');
+title('18. Analytics, exports & notifications');
 
-h1('17.1 Analytics');
+h1('18.1 Analytics');
 bullet('Admin/HR: Individual Performance & Activity Analytics — trends and attainment.');
 
-h1('17.2 Export');
+h1('18.2 Export');
 bullet('Export → Monthly or Quarterly → Excel, PDF, or CSV.');
 
-h1('17.3 Notifications');
+h1('18.3 Notifications');
 bullet('Bell icon: unread alerts. Tap to deep-link into tasks, leave, gifts, or daily reports.');
 bullet('Email subjects include KPI assigned/completed, shift changes, login details, and password/MFA recovery.');
 drawFooter();
 newPage();
 
 // 18
-title('18. Auto updates');
+title('19. Auto updates');
 
-h1('18.1 Web / Electron UI');
+h1('19.1 Web / Electron UI');
 bullet('Android, iOS (Capacitor), and desktop Electron load https://scorr.walfia.ai/?app=1 for most UI.');
 bullet('Clients poll /build-meta.json and hard-refresh when webBuildId advances — silent, no “Updating…” banner.');
 
-h1('18.2 Desktop binary (NSIS / AppImage)');
+h1('19.2 Desktop binary (NSIS / AppImage)');
 bullet('electron-updater checks on launch and around local 5 AM; Check for updates downloads/installs in the background.');
 bullet('Prefer AppImage on Linux for silent auto-update. .deb shows a download banner — install the new package manually or switch to AppImage.');
 bullet('Installer packages are large and hosted on GitHub Releases; updater feeds under /downloads/desktop/ on the site.');
 
-h1('18.3 Android');
+h1('19.3 Android');
 bullet('In-app updater checks version.json; background download then OS Install prompt when versionCode advances (cannot be fully silent).');
 
-h1('18.4 iOS');
+h1('19.4 iOS');
 bullet('Home Screen / PWA updates with the website hard refresh.');
 bullet('Native IPA: version messaging via version.json; App Store / TestFlight when published.');
 drawFooter();
 newPage();
 
 // 19
-title('19. Security & account deletion');
+title('20. Security & account deletion');
 
-h1('19.1 Safety basics');
+h1('20.1 Safety basics');
 bullet('Passwords hashed by Supabase Auth; failed logins rate-limited.');
-bullet('Sessions last 1 hour absolute from sign-in on every client, then sign out.');
+bullet('You stay signed in through the shift. Scorr signs you out only after 1 hour without use. Activity resets that hour.');
 bullet('MFA required for production accounts; trusted devices default 7 days — Admin can set up to 30 days or Always ask for staff vs admin/HR.');
 bullet('Backup codes, email recovery, and Admin → People → Reset authenticator.');
 bullet('Multi-tenant RLS; HTTPS; auto-attendance device tokens in Keystore / Keychain / desktop safeStorage.');
 bullet('Every record is company-scoped. Company signup needs email OTP.');
 
-h1('19.2 Device permissions');
+h1('20.2 Device permissions');
 tableHeader(['Permission', 'Why']);
 tableRow('Internet', 'Sign-in, KPIs, attendance, mail.');
 tableRow('Location (Always)', 'Automatic office check-in in the shift window.');
-tableRow('Notifications', 'Check-out alerts and reminders.');
+tableRow('Notifications', 'Off until Settings → Notifications is turned on. Then check-in and check-out alerts.');
 tableRow('Battery unrestricted (Android)', 'Keeps background attendance reliable.');
 tableRow('Tray / start at login (desktop)', 'Keeps desktop auto attendance available.');
 spacer();
 
-h1('19.3 Delete my account');
+h1('20.3 Delete my account');
 para('Help page: https://scorr.walfia.ai/delete-account');
 step(1, 'Settings → Account security → Delete my account.');
 step(2, 'Type DELETE and enter your password → Confirm.');
@@ -848,7 +892,7 @@ drawFooter();
 newPage();
 
 // 20
-title('20. Plans, trial & demo');
+title('21. Plans, trial & demo');
 
 tableHeader(['Plan', 'What you get']);
 tableRow('Starter', '3-Day Trial at $0, then about $12/user/mo · up to 25 employees.');
@@ -856,7 +900,7 @@ tableRow('Professional', 'About $18/user/mo · unlimited seats · GPS/shifts/ana
 tableRow('Enterprise', 'Custom — Contact Sales.');
 spacer();
 
-h1('20.1 Demo sandbox (?demo=1)');
+h1('21.1 Demo sandbox (?demo=1)');
 tableHeader(['Role', 'Login']);
 tableRow('Admin', 'admin@walfia.ai / admin123');
 tableRow('Manager', 'manager@walfia.ai / manager123');
@@ -867,14 +911,14 @@ drawFooter();
 newPage();
 
 // 21
-title('21. Troubleshooting & support');
+title('22. Troubleshooting & support');
 tableHeader(['Problem', 'What to try']);
-tableRow('Cannot download Windows/Linux', 'Use https://scorr.walfia.ai/#download-app. Packages open from the official GitHub Release (desktop-v1.3.44 or /latest).');
+tableRow('Cannot download Windows/Linux', 'Use https://scorr.walfia.ai/#download-app. Current packages are desktop 1.3.53 on the official GitHub Release.');
 tableRow('Windows Setup blocked', 'SmartScreen → More info → Run anyway only if you downloaded from scorr.walfia.ai / official Release.');
-tableRow('Windows blank screen after login', 'Use current Scorr Desktop 1.3.44+ (forces correct Content-Type for CSS/JS). Reinstall from GitHub Release if an old build.');
+tableRow('Windows blank screen after login', 'Install current Scorr Desktop 1.3.53 from the GitHub Release. Quit the old app fully, including the tray icon.');
 tableRow('Chrome “Install app” / PWA', 'Not sufficient for desktop auto attendance. Install Scorr-Setup.exe / AppImage / .deb so the title shows Scorr Desktop x.y.z.');
 tableRow('Linux .deb won’t install', 'cd ~/Downloads then: sudo apt install ./Scorr.deb (fix broken deps if apt asks). Prefer AppImage for silent updates.');
-tableRow('Cannot download APK', 'Use https://scorr.walfia.ai/#download-app → Download Android App.');
+tableRow('Android button missing', 'Refresh https://scorr.walfia.ai/#download-app. Download Android App stays next to Windows and Linux.');
 tableRow('APK won’t install', 'Allow install from browser/Files; uninstall old debug build only if signature conflicts, then reinstall.');
 tableRow('iPhone install fails', 'Use Safari → Share → Add to Home Screen (not Chrome).');
 tableRow('Awaiting approval', 'Wait for Walfia to approve at /platform; email info@walfia.ai if delayed.');
@@ -882,7 +926,7 @@ tableRow('Stuck on MFA', 'Backup code, email recovery, or Admin → People → R
 tableRow('Asked for MFA every time', 'Trust expired/revoked, Always ask policy, or Sign out & forget this device was used. Admin can raise trust up to 30 days.');
 tableRow('Wrong dashboard', 'Ask Admin to check your role on People.');
 tableRow('Cannot assign KPI', 'Department + person required; open weightage ≤ 100%.');
-tableRow('GPS / auto attendance fails', 'Installed app 1.3.44+; Location Always; assigned office + saved Wi-Fi and/or radius; company auto attendance ON; finish Enable automatic check-in. Window ends at shift end (not +1h). After manual Clock Out wait ~30s before auto re-check-in.');
+tableRow('GPS / auto attendance fails', 'Installed app 1.3.53; Location Always; assigned office + saved Wi-Fi and/or radius; company auto attendance ON; finish Enable automatic check-in. Window ends at shift end. After manual Clock Out, auto check-in waits until the next shift unless you Clock In.');
 tableRow('Update available', 'Desktop NSIS/AppImage: Check for updates (background). .deb: download banner. Android: Install sheet. Web: silent hard refresh via build-meta.');
 tableRow('HR under wrong group', 'History shows Human Resources for HR; not Unassigned.');
 tableRow('Daily report not visible', 'Admin: Daily Reports → pick date. HR: Organization tab.');
@@ -892,7 +936,7 @@ h1('Need help?');
 bullet('Website: https://scorr.walfia.ai');
 bullet('Register: Home → Register Company');
 bullet('Download apps: https://scorr.walfia.ai/#download-app');
-bullet('Desktop release: https://github.com/usmanHassanzai/HR/releases/tag/desktop-v1.3.44');
+bullet('Desktop release: https://github.com/usmanHassanzai/HR/releases/tag/desktop-v1.3.53');
 bullet('This guide: https://scorr.walfia.ai/downloads/Scorr-Client-Feature-Guide.pdf');
 bullet('Delete account help: https://scorr.walfia.ai/delete-account');
 bullet('Support: info@walfia.ai');
@@ -900,12 +944,12 @@ drawFooter();
 newPage();
 
 // 22
-title('22. Quick reference');
+title('23. Quick reference');
 tableHeader(['Item', 'Value']);
 tableRow('Live URL', 'https://scorr.walfia.ai');
-tableRow('Windows install', 'Scorr-Setup.exe from GitHub Releases (desktop-v1.3.44+)');
-tableRow('Linux install', 'Scorr.AppImage (prefer) or Scorr.deb');
-tableRow('Android download', '/downloads/scorr.apk or #download-app');
+tableRow('Windows install', 'Scorr-Setup.exe · desktop 1.3.53');
+tableRow('Linux install', 'Scorr.AppImage (prefer) or Scorr.deb · 1.3.53');
+tableRow('Android download', 'Download Android App · 1.3.53 · /downloads/scorr.apk');
 tableRow('iOS install', 'Safari → Add to Home Screen (?app=1); App Store when available');
 tableRow('Desktop app ID', 'ai.walfia.scorr.desktop');
 tableRow('Mobile app ID', 'ai.walfia.scorr');
@@ -916,15 +960,18 @@ tableRow('Open KPI weightage', '≤ 100% per person');
 tableRow('Daily report length', '20–8000 characters');
 tableRow('Auto check-in window', '1 hour before shift start → shift end');
 tableRow('Check-in policy', 'wifi_then_radius (any saved SSID/BSSID, else GPS radius)');
-tableRow('After manual Clock Out', '~30 seconds before auto re-check-in');
-tableRow('Session lifetime', '1 hour absolute from sign-in');
+tableRow('After manual Clock Out', 'Auto check-in stays off until the next shift, unless you Clock In');
+tableRow('Sign-out', '1 hour without use. Shift end does not sign you out');
+tableRow('Check-in alerts', 'Off until Settings → Notifications');
+tableRow('Score', 'Own KPI points + team points. Bonus from 90, max 20%');
+tableRow('Score visible to you', 'Last day of the current month (Asia/Karachi)');
 tableRow('Trusted device', 'Default 7 days; Admin up to 30 days or Always ask');
-tableRow('App / desktop version', '1.3.44+');
+tableRow('App / desktop version', '1.3.53');
 tableRow('Geofence default', '~150 m');
 tableRow('Large packages hosted on', 'GitHub Releases (not Vercel binary hosting)');
 spacer();
 
-para('Thank you for using Scorr — KPIs, automatic attendance, daily reports, and rewards in one secure company workspace on web, Windows, Linux, Android, and iPhone.');
+para('Thank you for using Scorr — scores, KPIs, automatic attendance, daily reports, and rewards in one secure company workspace on web, Windows, Linux, Android, and iPhone.');
 para('© Walfia · https://scorr.walfia.ai · info@walfia.ai');
 
 drawFooter();

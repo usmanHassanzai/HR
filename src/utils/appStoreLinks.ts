@@ -39,9 +39,6 @@ export const IOS_MANIFEST_PATH = '/downloads/ios/manifest.plist';
 
 export const IOS_PWA_INSTALL_URL = 'https://scorr.walfia.ai/?app=1';
 
-/** Direct APK download remains public until this date (30 days from 2026-10-02). */
-export const APK_DIRECT_UNTIL = new Date('2026-11-01T00:00:00.000Z');
-
 export const APK_PATH = '/downloads/scorr.apk';
 
 /**
@@ -68,8 +65,9 @@ export const DESKTOP_LINUX_DEB_PATH = `${DESKTOP_GH_LINUX}/Scorr.deb`;
 
 export const DESKTOP_LINUX_APPIMAGE_PATH = `${DESKTOP_GH_LINUX}/Scorr.AppImage`;
 
-export function isApkDirectDownloadAvailable(now = new Date()): boolean {
-  return now.getTime() < APK_DIRECT_UNTIL.getTime();
+/** APK stays the public Android download until Google Play is live. */
+export function isApkDirectDownloadAvailable(): boolean {
+  return !PLAY_STORE_LIVE;
 }
 
 /** Prefer Windows Setup / Linux deb based on UA. */

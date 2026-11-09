@@ -2,7 +2,8 @@
  * Electron laptop automatic attendance (Section H / R45–R53).
  * powerMonitor suspend/resume/shutdown + windowed heartbeat:
  *   checked out → Wi-Fi/radius check-in about every 15s (Windows and Linux);
- *   checked in  → leave + session-verify about every 30s.
+ *   checked in  → Windows and Linux stay in until Clock Out or shift end.
+ *   Linux checks out when the shift ends, not when Wi-Fi or GPS drops.
  * Wi-Fi is read off the main thread so netsh, PowerShell, and nmcli cannot freeze the app.
  * Uses device token from safeStorage; no dashboard session required after enrollment.
  */
@@ -573,8 +574,9 @@ function inManualCheckoutHold() {
   return true;
 }
 
-function windowsStaysCheckedIn() {
-  return process.platform === 'win32';
+/** Windows and Linux stay checked in for the whole shift. Auto check-out is shift end only. */
+function staysCheckedInUntilShiftEnd() {
+  return process.platform === 'win32' || process.platform === 'linux';
 }
 
 /** Start time of the schedule request currently stored in cachedSchedule. */
@@ -683,9 +685,17 @@ function armWindowWakeFromSchedule() {
   }
   if (nextEnd != null) {
     windowEndTimer = setTimeout(() => {
-      stopHeartbeat();
-      checkedInAttendanceDate = null;
-      armWindowWakeFromSchedule();
+      const finish = () => {
+        stopHeartbeat();
+        checkedInAttendanceDate = null;
+        armWindowWakeFromSchedule();
+      };
+      // Linux closes the open session at shift end. The server records the shift end time.
+      if (process.platform === 'linux') {
+        void sendEvent('heartbeat').finally(finish);
+        return;
+      }
+      finish();
     }, Math.min(Math.max(nextEnd - now + 750, 0), maxDelay));
   }
 }
@@ -1038,8 +1048,8 @@ function stillSuppressCheckin() {
 
 /** While open session: if GPS is clearly outside every GPS zone, fire exit. */
 async function probeLeaveWhileCheckedIn() {
-  // Windows stays checked in until the person clocks out or the shift ends.
-  if (windowsStaysCheckedIn()) return;
+  // Windows and Linux stay checked in until Clock Out or the shift ends.
+  if (staysCheckedInUntilShiftEnd()) return;
   if (!stillSuppressCheckin()) return;
   const zones = (cachedSchedule?.zones || []).filter((z) => {
     const mode = String(z?.detection_mode || 'gps_or_wifi').toLowerCase();
@@ -1261,7 +1271,7 @@ function startHeartbeatIfInWindow() {
     const wifi = await readWifiIdentityAsync();
     const onOffice = matchesScheduleOfficeWifi(wifi);
     // Early leave: drop office Wi-Fi while checked in → checkout (server ignores location).
-    if (!windowsStaysCheckedIn() && stillSuppressCheckin() && wasOnOfficeWifi && !onOffice) {
+    if (!staysCheckedInUntilShiftEnd() && stillSuppressCheckin() && wasOnOfficeWifi && !onOffice) {
       wasOnOfficeWifi = false;
       await sendEvent('wifi_disconnected');
       return;
@@ -1427,21 +1437,21 @@ function wirePowerEvents() {
   powerMonitor.on('resume', () => {
     void syncSchedule().then(() => {
       startHeartbeatIfInWindow();
-      if (!windowsStaysCheckedIn()) void sendEvent('power_on');
+      if (!staysCheckedInUntilShiftEnd()) void sendEvent('power_on');
     });
   });
   powerMonitor.on('unlock-screen', () => {
     if (!inManualCheckoutHold()) void sendEvent('heartbeat');
   });
   powerMonitor.on('suspend', () => {
-    // Windows sleep is not a clock-out. The session stays until Clock Out or shift end.
-    if (!windowsStaysCheckedIn()) {
+    // Sleep is not a clock-out. The session stays until Clock Out or shift end.
+    if (!staysCheckedInUntilShiftEnd()) {
       void sendEvent('power_off');
       stopHeartbeat();
     }
   });
   powerMonitor.on('shutdown', () => {
-    if (!windowsStaysCheckedIn()) void sendEvent('power_off');
+    if (!staysCheckedInUntilShiftEnd()) void sendEvent('power_off');
   });
   // Screen lock must NOT check out (R49) — ignore lock-screen if available
 }
@@ -1695,7 +1705,7 @@ app.whenReady().then(async () => {
 });
 
 app.on('before-quit', () => {
-  if (!windowsStaysCheckedIn()) void sendEvent('power_off');
+  if (!staysCheckedInUntilShiftEnd()) void sendEvent('power_off');
 });
 
 app.on('window-all-closed', () => {
