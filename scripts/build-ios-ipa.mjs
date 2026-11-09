@@ -50,22 +50,28 @@ for (const name of ['scorr.apk', 'scorr.ipa']) {
 run('npx cap sync ios');
 
 const now = new Date();
+const existingIpa = existsSync(join(downloadsDir, 'scorr.ipa'));
 writeBuildInfo(root, {
   ios: {
     available: true,
-    installMethod: 'pwa',
+    installMethod: existingIpa ? 'ipa' : 'native_project',
     appName: 'Scorr',
     appId: 'ai.walfia.scorr',
     version: packageVersion(root),
     updatedAt: now.toISOString(),
     updatedLabel: formatUpdatedLabel(now),
     pwaUrl: 'https://scorr.walfia.ai/?app=1',
-    ipaAvailable: false,
+    ipaAvailable: existingIpa,
     ipaFilename: 'scorr.ipa',
-    notes: 'Home Screen app opens Sign In only. Same KPI scoreboard, MFA, and attendance UI as Android.',
+    notes: existingIpa
+      ? 'Native IPA ready for Ad Hoc / TestFlight install.'
+      : 'Native Capacitor iOS project synced. Sign + archive on a Mac to publish scorr.ipa.',
   },
 });
-console.log('Updated public/downloads/build-info.json (iOS PWA install)');
+console.log('Updated public/downloads/build-info.json (iOS native)');
+if (existingIpa) {
+  run('node scripts/write-ios-ota-manifest.mjs');
+}
 
 if (!isMac) {
   console.log(`
@@ -74,12 +80,9 @@ Step 3/4: Skipped — not on macOS
 iOS native builds require a Mac with Xcode.
 
 What you can do now:
-  1. iPhone users: Install via Safari → Share → Add to Home Screen (same app, no Mac needed)
-  2. Push this repo and run GitHub Actions workflow "Build iOS" on macOS
-  3. On a Mac: node scripts/build-ios-ipa.mjs --archive
-
-Open in Xcode (Mac):
-  npm run cap:ios
+  1. On a Mac with Xcode: npm run build:ios:release  → public/downloads/scorr.ipa
+  2. Or: npm run cap:ios → Product → Run on a plugged-in iPhone
+  3. Or: GitHub Actions "Build iOS" with IOS_IPA_BUILD=true + Apple signing secrets
 `);
   process.exit(0);
 }
@@ -157,17 +160,17 @@ writeBuildInfo(root, {
     sizeLabel: `${(ipaBytes / 1024 / 1024).toFixed(1)} MB`,
   },
 });
+run('node scripts/write-ios-ota-manifest.mjs');
 
 const sizeMb = (ipaBytes / 1024 / 1024).toFixed(1);
 console.log(`
 Done! IPA copied to public/downloads/scorr.ipa (${sizeMb} MB)
-Updated public/downloads/build-info.json (iOS IPA)
+OTA manifest: public/downloads/ios/manifest.plist
 
-Note: iOS cannot install IPA from a website like Android APK.
-Use one of:
-  • TestFlight — upload via Xcode Organizer or App Store Connect
-  • Ad Hoc — register device UDIDs in Apple Developer portal
+Install options:
+  • Safari OTA (Ad Hoc / enterprise): itms-services → manifest.plist
+  • TestFlight — upload via Xcode Organizer
   • App Store — submit for review
 
-For most teams, publish TestFlight link on the website download section.
+Device UDIDs must be in the Ad Hoc provisioning profile.
 `);

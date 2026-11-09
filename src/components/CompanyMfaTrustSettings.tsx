@@ -14,6 +14,8 @@ const ADMIN_OPTIONS = [
   { value: 0, label: 'Always ask' },
   { value: 1, label: '1 day' },
   { value: 7, label: '7 days' },
+  { value: 14, label: '14 days' },
+  { value: 30, label: '30 days' },
 ];
 
 export default function CompanyMfaTrustSettings() {
@@ -55,8 +57,9 @@ export default function CompanyMfaTrustSettings() {
       </h3>
       <p style={{ margin: '0 0 0.85rem', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
         How long employees/managers and admins/HR may trust a device after entering an authenticator
-        or backup code. Platform owners always ask. Default is 7 days. Saving shortens or revokes
-        existing trusts to match (Always ask forgets those devices immediately).
+        or backup code. Choose 30 days to skip the authenticator on that device for a full month.
+        Platform owners always ask. Default is 7 days. Saving updates existing trusts to match
+        (Always ask forgets those devices immediately).
       </p>
       <label className="form-label">Employees &amp; managers</label>
       <select

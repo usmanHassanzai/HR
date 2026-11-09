@@ -10,7 +10,7 @@
 endobj
 4 0 obj
 <<
-/Length 1596
+/Length 1725
 >>
 stream
 0.5670000000000001 w
@@ -54,7 +54,7 @@ BT
 12.6499999999999986 TL
 0.796 0.835 0.882 rg
 45.354330708661422 530.0789763779526993 Td
-(Auto GPS attendance · Assign tasks · Daily reports · Rewards) Tj
+(Auto check-in \(Wi-Fi then GPS\) · KPIs · Daily reports · Rewards) Tj
 ET
 BT
 /F1 10 Tf
@@ -68,20 +68,27 @@ BT
 11.5 TL
 0.58 0.639 0.722 rg
 45.354330708661422 456.378188976377885 Td
-(Document date:  October 7, 2026) Tj
+(Document date:  October 19, 2026) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.58 0.639 0.722 rg
 45.354330708661422 433.7010236220471597 Td
-(Prepared by:     Walfia) Tj
+(Product:         Desktop / apps 1.3.44+) Tj
 ET
 BT
 /F1 10 Tf
 11.5 TL
 0.58 0.639 0.722 rg
 45.354330708661422 411.0238582677164914 Td
+(Prepared by:     Walfia) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.58 0.639 0.722 rg
+45.354330708661422 388.3466929133857661 Td
 (Support:         info@walfia.ai) Tj
 ET
 BT
@@ -89,7 +96,7 @@ BT
 10.3499999999999996 TL
 0.392 0.455 0.545 rg
 45.354330708661422 62.3624409448817687 Td
-(Windows Setup · Linux .deb · Android APK · iPhone Home Screen · Web) Tj
+(Windows · Linux AppImage/.deb · Android APK · iPhone · Web) Tj
 ET
 endstream
 endobj
@@ -103,7 +110,7 @@ endobj
 endobj
 6 0 obj
 <<
-/Length 4025
+/Length 4173
 >>
 stream
 0.5670000000000001 w
@@ -223,7 +230,7 @@ BT
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 569.7640157480313974 Td
-(11.  How to mark attendance) Tj
+(11.  How to mark attendance \(auto & manual\)) Tj
 ET
 BT
 /F1 9.8 Tf
@@ -258,7 +265,7 @@ BT
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 484.7246456692913057 Td
-(16.  Office & Attendance / live tracking) Tj
+(16.  Office locations, Wi-Fi & live tracking) Tj
 ET
 BT
 /F1 9.8 Tf
@@ -272,28 +279,35 @@ BT
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 450.7088976377952463 Td
-(18.  Security & account deletion) Tj
+(18.  Auto updates) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 433.7010236220471597 Td
-(19.  Plans, trial & demo) Tj
+(19.  Security & account deletion) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 416.69314960629913 Td
-(20.  Troubleshooting & support) Tj
+(20.  Plans, trial & demo) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 399.6852755905511003 Td
-(21.  Quick reference) Tj
+(21.  Troubleshooting & support) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+51.0236220472441033 382.6774015748030706 Td
+(22.  Quick reference) Tj
 ET
 BT
 /F1 8 Tf
@@ -321,7 +335,7 @@ endobj
 endobj
 8 0 obj
 <<
-/Length 4955
+/Length 4822
 >>
 stream
 1.7007874015748032 w
@@ -371,21 +385,21 @@ BT
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 45.354330708661422 739.8427559055118081 Td
-(Scorr \(https://scorr.walfia.ai\) is your company workspace for performance KPIs, GPS attendance, leave, daily work) Tj
+(Scorr \(https://scorr.walfia.ai\) is your company workspace for performance KPIs, automatic attendance, leave, daily) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 45.354330708661422 725.1025984251967884 Td
-(reports, and weightage-based rewards. One account works on the website, Windows desktop, Linux desktop,) Tj
+(work reports, and weightage-based rewards. One account works on the website, Windows desktop, Linux desktop,) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 45.354330708661422 710.3624409448818824 Td
-(Android app, and iPhone Home Screen app.) Tj
+(Android app, and iPhone \(Home Screen or native shell when published\).) Tj
 ET
 BT
 /F1 9.8 Tf
@@ -427,76 +441,69 @@ BT
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 610.8663779527557836 Td
-(•  Automatic attendance \(phone GPS + office Wi-Fi, or laptop on/off\) inside a fixed window: 1 hour before shift start) Tj
+(•  Automatic check-in on Android, iOS, Windows, and Linux installed apps: window is 1 hour before shift start until) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 596.1262204724408775 Td
-(through 1 hour after shift end, in the shift’s time zone. Immediate check-out when GPS confirms you left and you) Tj
+(shift end \(not after end\). Policy wifi_then_radius — any saved office Wi-Fi \(SSID or BSSID\) checks you in without) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 581.3860629921259715 Td
-(are off office Wi-Fi; 15-minute grace only when leaving cannot be confirmed. Manual clock in/out uses the same) Tj
+(GPS; otherwise GPS inside your assigned office radius is required. Public/unsaved Wi-Fi never counts.) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 566.6459055118109518 Td
-(window. Remote/hybrid day status and leave are separate.) Tj
-ET
-BT
-/F1 9.8 Tf
-11.2699999999999996 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 551.9057480314959321 Td
 (•  Submit daily work reports \(employees, managers, and HR report to admin\).) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 537.1655905511809124 Td
+48.1889763779527627 551.9057480314959321 Td
 (•  Redeem company gifts with monthly weightage \(Current / Used / Banked\).) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 522.4254330708660063 Td
+48.1889763779527627 537.1655905511809124 Td
 (•  Track field teams live and export monthly/quarterly reports.) Tj
 ET
 0.94 0.99 0.98 rg
 0.05 0.58 0.53 RG
 1.1338582677165356 w
-49.6062992125984294 516.1892125984250015 m
-545.6692913385827524 516.1892125984250015 l
-548.0175887000680177 516.1892125984250015 549.9212598425197029 514.2855414559733163 549.9212598425197029 511.9372440944880509 c
-549.9212598425197029 473.9529921259840535 l
-549.9212598425197029 471.604694764498845 547.5729624810344376 469.701023622047046 545.6692913385827524 469.701023622047046 c
-49.6062992125984294 469.701023622047046 l
-47.2580018511131641 469.701023622047046 45.354330708661422 472.0493209835323114 45.354330708661422 473.9529921259840535 c
-45.354330708661422 511.9372440944880509 l
-45.354330708661422 514.2855414559733163 47.7026280701466874 516.1892125984250015 49.6062992125984294 516.1892125984250015 c
+49.6062992125984294 530.9293700787400212 m
+545.6692913385827524 530.9293700787400212 l
+548.0175887000680177 530.9293700787400212 549.9212598425197029 529.025698936288336 549.9212598425197029 526.6774015748029569 c
+549.9212598425197029 488.6931496062990732 l
+549.9212598425197029 486.3448522448138647 547.5729624810344376 484.4411811023620658 545.6692913385827524 484.4411811023620658 c
+49.6062992125984294 484.4411811023620658 l
+47.2580018511131641 484.4411811023620658 45.354330708661422 486.7894784638473311 45.354330708661422 488.6931496062990732 c
+45.354330708661422 526.6774015748030706 l
+45.354330708661422 529.025698936288336 47.7026280701466874 530.9293700787400212 49.6062992125984294 530.9293700787400212 c
 h
 B
 BT
 /F1 9.2 Tf
 10.5799999999999983 TL
 0.059 0.463 0.431 rg
-56.6929133858267775 502.015984251968348 Td
+56.6929133858267775 516.7561417322833677 Td
 (Timezone for shifts and month-end weightage: Asia/Karachi. Branding can be customized by Admin under) Tj
 ET
 BT
 /F1 9.2 Tf
 10.5799999999999983 TL
 0.059 0.463 0.431 rg
-56.6929133858267775 487.2758267716533851 Td
+56.6929133858267775 502.015984251968348 Td
 (Settings.) Tj
 ET
 BT
@@ -525,7 +532,7 @@ endobj
 endobj
 10 0 obj
 <<
-/Length 6975
+/Length 7397
 >>
 stream
 1.1338582677165356 w
@@ -585,206 +592,213 @@ BT
 (https://scorr.walfia.ai/#download-app. Use the button that matches your device.) Tj
 ET
 BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+45.354330708661422 705.2600787401574962 Td
+(Desktop and large installers are hosted on GitHub Releases \(not as large binaries on Vercel\). The website links you) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+45.354330708661422 690.5199212598424765 Td
+(to the correct release assets.) Tj
+ET
+BT
 /F2 11 Tf
 12.6499999999999986 TL
 0.051 0.58 0.533 rg
-45.354330708661422 705.2600787401574962 Td
+45.354330708661422 670.6774015748030706 Td
 (2.1 Windows desktop) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 686.8348818897637784 Td
+48.1889763779527627 652.2522047244094665 Td
 (•  On the homepage, click Download for Windows \(or open the Windows card under #download-app\).) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 672.0947244094487587 Td
+48.1889763779527627 637.5120472440944468 Td
 (•  You get Scorr-Setup.exe — the permanent Windows installer \(Start Menu + Desktop shortcuts\).) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 657.3545669291338527 Td
-(•  Official release: https://github.com/usmanHassanzai/HR/releases/tag/desktop-v1.3.7 \(also linked from) Tj
+48.1889763779527627 622.7718897637794271 Td
+(•  Current release \(1.3.44+\): https://github.com/usmanHassanzai/HR/releases/tag/desktop-v1.3.44 — or use /latest) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 642.614409448818833 Td
-(scorr.walfia.ai/downloads\).) Tj
+48.1889763779527627 608.0317322834645211 Td
+(from the same releases list.) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 627.8742519685038133 Td
-(•  Version 1.3.7+. Desktop apps auto-update \(Windows / Linux AppImage\). Same Sign In for Admin, HR, Manager,) Tj
+48.1889763779527627 593.2915748031495013 Td
+(•  Window title shows Scorr Desktop x.y.z. Use this real Electron binary for automatic attendance — not Chrome) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 613.1340944881889072 Td
-(and Employee.) Tj
+48.1889763779527627 578.5514173228345953 Td
+(“Install app” / PWA.) Tj
 ET
 BT
 /F2 11 Tf
 12.6499999999999986 TL
 0.051 0.58 0.533 rg
-45.354330708661422 598.3939370078738875 Td
+45.354330708661422 563.8112598425195756 Td
 (2.2 Linux desktop) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 579.9687401574801697 Td
-(•  Click Download for Linux to get Scorr.deb \(Ubuntu / Debian style install\).) Tj
+48.1889763779527627 545.3860629921258578 Td
+(•  Download Scorr.deb and/or Scorr.AppImage from the same GitHub Release \(or site Linux card\).) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 565.2285826771652637 Td
-(•  Official release: https://github.com/usmanHassanzai/HR/releases/tag/desktop-v1.3.7 — Scorr.deb and AppImage) Tj
+48.1889763779527627 530.6459055118109518 Td
+(•  Prefer AppImage if you want silent background auto-update via electron-updater.) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 550.4884251968503577 Td
-(\(auto-update\).) Tj
-ET
-BT
-/F1 9.8 Tf
-11.2699999999999996 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 535.748267716535338 Td
-(•  After install, Scorr appears in your applications menu.) Tj
+48.1889763779527627 515.9057480314959321 Td
+(•  After install, Scorr appears in your applications menu \(or you run the AppImage\).) Tj
 ET
 BT
 /F2 11 Tf
 12.6499999999999986 TL
 0.051 0.58 0.533 rg
-45.354330708661422 521.0081102362203183 Td
+45.354330708661422 501.1655905511809692 Td
 (2.3 Android) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 502.5829133858266573 Td
-(•  Tap Download Android App — this downloads scorr.apk \(latest version\).) Tj
+48.1889763779527627 482.7403937007872514 Td
+(•  Tap Download Android App — downloads scorr.apk from the site \(https://scorr.walfia.ai/downloads/scorr.apk\).) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 487.8427559055116376 Td
-(•  You can also open: https://scorr.walfia.ai/downloads/scorr.apk) Tj
+48.1889763779527627 468.0002362204722886 Td
+(•  App ID: ai.walfia.scorr · Version is shown on the download card / version.json.) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 473.1025984251967316 Td
-(•  App ID: ai.walfia.scorr · Version is shown on the download card.) Tj
+48.1889763779527627 453.2600787401573825 Td
+(•  In-app updates when versionCode advances — background download, then the system Install sheet \(cannot be) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 458.3624409448818255 Td
-(•  Direct APK download remains available until 1 November 2026 \(until Google Play is live\).) Tj
+48.1889763779527627 438.5199212598424197 Td
+(fully silent on Android\).) Tj
 ET
 BT
 /F2 11 Tf
 12.6499999999999986 TL
 0.051 0.58 0.533 rg
-45.354330708661422 443.6222834645668627 Td
+45.354330708661422 423.7797637795275136 Td
 (2.4 iPhone / iPad) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 425.1970866141731449 Td
-(•  There is no separate APK for iPhone. Install from Safari as a Home Screen app.) Tj
+48.1889763779527627 405.3545669291337958 Td
+( •     P r i m a r y   p a t h   t o d a y :   S a f a r i  !’   A d d   t o   H o m e   S c r e e n   u s i n g   h t t p s : / / s c o r r . w a l f i a . a i / ? a p p = 1 .) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 410.4569291338582389 Td
-(•  Open https://scorr.walfia.ai/?app=1 in Safari \(see Section 3 for install steps\).) Tj
-ET
-BT
-/F1 9.8 Tf
-11.2699999999999996 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 395.7167716535433328 Td
+48.1889763779527627 390.6144094488188898 Td
 (•  When the App Store listing is live, the site will show Get it on the App Store.) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 375.8742519685039269 Td
+(•  Automatic check-in needs the installed Scorr app shell \(Capacitor\), not a normal Safari tab alone.) Tj
 ET
 BT
 /F2 11 Tf
 12.6499999999999986 TL
 0.051 0.58 0.533 rg
-45.354330708661422 380.97661417322837 Td
+45.354330708661422 361.1340944881890209 Td
 (2.5 This PDF guide & security overview) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 362.5514173228346522 Td
+48.1889763779527627 342.7088976377953031 Td
 (•  User guide: https://scorr.walfia.ai/downloads/Scorr-Client-Feature-Guide.pdf) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 347.8112598425197461 Td
+48.1889763779527627 327.9687401574803971 Td
 (•  Security overview for organizations: https://scorr.walfia.ai/downloads/Scorr-Security-Overview.pdf) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 333.0711023622048401 Td
+48.1889763779527627 313.2285826771654911 Td
 (•  Or regenerate locally: npm run docs:client-guide · npm run docs:security-guide) Tj
 ET
 0.94 0.99 0.98 rg
 0.05 0.58 0.53 RG
 1.1338582677165356 w
-49.6062992125984294 326.8348818897638921 m
-545.6692913385827524 326.8348818897638921 l
-548.0175887000680177 326.8348818897638921 549.9212598425197029 324.93121074731215 549.9212598425197029 322.5829133858268847 c
-549.9212598425197029 284.5986614173229441 l
-549.9212598425197029 282.2503640558376787 547.5729624810344376 280.3466929133859367 545.6692913385827524 280.3466929133859367 c
-49.6062992125984294 280.3466929133859367 l
-47.2580018511131641 280.3466929133859367 45.354330708661422 282.6949902748711452 45.354330708661422 284.5986614173229441 c
-45.354330708661422 322.5829133858268847 l
-45.354330708661422 324.93121074731215 47.7026280701466874 326.8348818897638921 49.6062992125984294 326.8348818897638921 c
+49.6062992125984294 306.9923622047245431 m
+545.6692913385827524 306.9923622047245431 l
+548.0175887000680177 306.9923622047245431 549.9212598425197029 305.0886910622727441 549.9212598425197029 302.7403937007875356 c
+549.9212598425197029 264.7561417322835382 l
+549.9212598425197029 262.4078443707983297 547.5729624810344376 260.5041732283465308 545.6692913385827524 260.5041732283465308 c
+49.6062992125984294 260.5041732283465308 l
+47.2580018511131641 260.5041732283465308 45.354330708661422 262.8524705898317961 45.354330708661422 264.7561417322835382 c
+45.354330708661422 302.7403937007875356 l
+45.354330708661422 305.0886910622727441 47.7026280701466874 306.9923622047245431 49.6062992125984294 306.9923622047245431 c
 h
 B
 BT
 /F1 9.2 Tf
 10.5799999999999983 TL
 0.059 0.463 0.431 rg
-56.6929133858267775 312.6616535433072386 Td
+56.6929133858267775 292.8191338582678327 Td
 (Inside the already-installed Android, iOS, Windows, or Linux app, store/download buttons are hidden — you) Tj
 ET
 BT
 /F1 9.2 Tf
 10.5799999999999983 TL
 0.059 0.463 0.431 rg
-56.6929133858267775 297.9214960629923326 Td
+56.6929133858267775 278.0789763779529267 Td
 (already have Scorr installed.) Tj
 ET
 BT
@@ -813,7 +827,7 @@ endobj
 endobj
 12 0 obj
 <<
-/Length 11986
+/Length 11286
 >>
 stream
 1.1338582677165356 w
@@ -870,14 +884,14 @@ BT
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 45.354330708661422 721.4175590551180903 Td
-(Use Scorr-Setup.exe — do not rely on unzipping a portable folder. The Setup wizard installs Scorr so you can open it) Tj
+(Use Scorr-Setup.exe from the official GitHub Release linked on scorr.walfia.ai. The Setup wizard installs Scorr so) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 45.354330708661422 706.6774015748030706 Td
-(from the Start Menu and Desktop.) Tj
+(you can open it from the Start Menu and Desktop.) Tj
 ET
 BT
 /F2 9.8 Tf
@@ -954,350 +968,329 @@ BT
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 83.4616220472440915 599.5277952755903925 Td
-(Finish the wizard; open Scorr from the Start Menu or Desktop shortcut.) Tj
-ET
-BT
-/F2 9.8 Tf
-11.2699999999999996 TL
-0.051 0.58 0.533 rg
-45.354330708661422 581.3860629921258578 Td
-(Step 6:) Tj
+(Finish the wizard; open Scorr from the Start Menu or Desktop shortcut. Confirm the window title is Scorr) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 581.3860629921258578 Td
-( S i g n   i n   w i t h   y o u r   c o m p a n y   e m a i l   a n d   p a s s w o r d  !’   a l l o w   L o c a t i o n   \( A l w a y s   /   b a c k g r o u n d \)   i f   y o u   u s e   G P S) Tj
+83.4616220472440915 584.7876377952754865 Td
+(Desktop x.y.z.) Tj
+ET
+BT
+/F2 9.8 Tf
+11.2699999999999996 TL
+0.051 0.58 0.533 rg
+45.354330708661422 566.6459055118109518 Td
+(Step 6:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 83.4616220472440915 566.6459055118109518 Td
-(attendance.) Tj
+(Sign in with your company email and password. For automatic attendance, enable it in-app and allow) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 548.5041732283463034 Td
-( •     T o   u n i n s t a l l   l a t e r :   W i n d o w s   S e t t i n g s  !’   A p p s  !’   S c o r r  !’   U n i n s t a l l   \( o r   u s e   t h e   u n i n s t a l l e r   f r o m   t h e   S t a r t   M e n u \) .) Tj
+83.4616220472440915 551.9057480314959321 Td
+(Location / tray / Start at login when prompted.) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 533.7640157480313974 Td
-(•  Updating: download the latest Scorr-Setup.exe and run it again over the existing install.) Tj
+( •     T o   u n i n s t a l l   l a t e r :   W i n d o w s   S e t t i n g s  !’   A p p s  !’   S c o r r  !’   U n i n s t a l l .) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 519.0238582677163777 Td
+(•  Updating: NSIS builds use electron-updater \(see Section 18\). You can also run a newer Scorr-Setup.exe over the) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 504.283700787401358 Td
+(existing install.) Tj
 ET
 BT
 /F2 11 Tf
 12.6499999999999986 TL
 0.051 0.58 0.533 rg
-45.354330708661422 519.0238582677163777 Td
-(3.2 Install on Linux \(.deb\)) Tj
+45.354330708661422 489.5435433070863951 Td
+(3.2 Install on Linux) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 500.5986614173226599 Td
+45.354330708661422 471.1183464566926773 Td
 (Step 1:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 500.5986614173226599 Td
-(Open https://scorr.walfia.ai/#download-linux and click Download for Linux \(Scorr.deb\).) Tj
+83.4616220472440915 471.1183464566926773 Td
+(Open https://scorr.walfia.ai/#download-linux and choose Scorr.AppImage \(preferred for silent updates\) or) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+83.4616220472440915 456.3781889763777144 Td
+(Scorr.deb.) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 482.4569291338580683 Td
+45.354330708661422 438.2364566929132366 Td
 (Step 2:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 482.4569291338580683 Td
-(Open a terminal in your Downloads folder: cd ~/Downloads) Tj
+83.4616220472440915 438.2364566929132366 Td
+(For .deb: cd ~/Downloads then sudo apt install ./Scorr.deb) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 464.3151968503935336 Td
+45.354330708661422 420.0947244094487019 Td
 (Step 3:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 464.3151968503935336 Td
-(Install: sudo apt install ./Scorr.deb) Tj
+83.4616220472440915 420.0947244094487019 Td
+(For AppImage: chmod +x Scorr.AppImage and run it \(or integrate with your desktop\).) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 446.1734645669289989 Td
+45.354330708661422 401.952992125984224 Td
 (Step 4:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 446.1734645669289989 Td
-(Open Scorr from your applications menu \(or search for “Scorr”\).) Tj
+83.4616220472440915 401.952992125984224 Td
+( O p e n   S c o r r  !’   c o n f i r m   t i t l e   S c o r r   D e s k t o p   x . y . z  !’   S i g n   i n .) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 428.0317322834645211 Td
+45.354330708661422 383.8112598425197461 Td
 (Step 5:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 428.0317322834645211 Td
-( S i g n   i n   w i t h   y o u r   c o m p a n y   e m a i l  !’   a l l o w   L o c a t i o n   i f   n e e d e d   f o r   a t t e n d a n c e .) Tj
+83.4616220472440915 383.8112598425197461 Td
+(Enable automatic check-in in the installed app if your role uses office attendance.) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 409.8899999999999864 Td
+48.1889763779527627 365.6695275590552114 Td
 (•  If apt reports dependency issues: sudo apt --fix-broken install then retry the .deb install.) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 395.1498425196850803 Td
-(•  Updating: download the new Scorr.deb and run sudo apt install ./Scorr.deb again.) Tj
+48.1889763779527627 350.9293700787403054 Td
+(•  .deb updates usually need a new download; prefer AppImage for background auto-update.) Tj
 ET
 BT
 /F2 11 Tf
 12.6499999999999986 TL
 0.051 0.58 0.533 rg
-45.354330708661422 380.4096850393701743 Td
+45.354330708661422 336.1892125984253425 Td
 (3.3 Install on Android) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 361.9844881889764565 Td
+45.354330708661422 317.7640157480316248 Td
 (Step 1:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 361.9844881889764565 Td
+83.4616220472440915 317.7640157480316248 Td
 (Tap Download Android App on https://scorr.walfia.ai/#download-app.) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 343.8427559055119218 Td
+45.354330708661422 299.6222834645672037 Td
 (Step 2:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 343.8427559055119218 Td
+83.4616220472440915 299.6222834645672037 Td
 (Open your phone’s Downloads folder \(or the notification\) and tap scorr.apk.) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 325.7010236220473871 Td
+45.354330708661422 281.480551181102669 Td
 (Step 3:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 325.7010236220473871 Td
+83.4616220472440915 281.480551181102669 Td
 (If Android asks “Install unknown apps?” or “Allow from this source?”, allow it for your browser or Files app.) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 307.5592913385829661 Td
+45.354330708661422 263.3388188976381343 Td
 (Step 4:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 307.5592913385829661 Td
+83.4616220472440915 263.3388188976381343 Td
 ( T a p   I n s t a l l  !’   O p e n .) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 289.4175590551184314 Td
+45.354330708661422 245.1970866141735996 Td
 (Step 5:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 289.4175590551184314 Td
+83.4616220472440915 245.1970866141735996 Td
 (Sign in with your company email and password.) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 271.2758267716538967 Td
+45.354330708661422 227.0553543307091786 Td
 (Step 6:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 271.2758267716538967 Td
-(When prompted, allow Location \(Always / while using the app + background\) so GPS attendance can auto) Tj
+83.4616220472440915 227.0553543307091786 Td
+(When prompted, allow Location Always, notifications, and set battery to Unrestricted so automatic) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 256.5356692913389907 Td
-(check you in and out.) Tj
+83.4616220472440915 212.3151968503941589 Td
+(attendance stays reliable.) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 238.393937007874456 Td
+48.1889763779527627 194.1734645669297379 Td
 ( •     I f   i n s t a l l   i s   b l o c k e d :   S e t t i n g s  !’   A p p s  !’   S p e c i a l   a c c e s s  !’   I n s t a l l   u n k n o w n   a p p s  !’   e n a b l e   f o r   C h r o m e / F i l e s .) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 223.6537795275595499 Td
-( •     R e l e a s e - s i g n e d   A P K s   u p d a t e   i n - a p p   \( U p d a t e   a v a i l a b l e  !’   I n s t a l l \)   w i t h o u t   u n i n s t a l l i n g .   I f   y o u   s t i l l   h a v e   a n   o l d   d e b u g) Tj
+48.1889763779527627 179.4333070866147182 Td
+(•  Release-signed APKs update in-app when versionCode advances. If you still have an old debug APK, uninstall) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 208.9136220472446439 Td
-(APK, uninstall once, then install 1.3.7+ from scorr.walfia.ai.) Tj
+48.1889763779527627 164.6931496062998121 Td
+(once, then install the current release from scorr.walfia.ai.) Tj
 ET
 BT
 /F2 11 Tf
 12.6499999999999986 TL
 0.051 0.58 0.533 rg
-45.354330708661422 194.1734645669297379 Td
+45.354330708661422 149.9529921259849061 Td
 (3.4 Install on iPhone / iPad \(Safari\)) Tj
 ET
 1. 0.95 0.95 rg
 0.73 0.11 0.11 RG
 1.1338582677165356 w
-49.6062992125984294 184.2522047244100065 m
-545.6692913385827524 184.2522047244100065 l
-548.0175887000680177 184.2522047244100065 549.9212598425197029 182.348533581958236 549.9212598425197029 180.0002362204729991 c
-549.9212598425197029 156.7561417322840498 l
-549.9212598425197029 154.4078443707987844 547.5729624810344376 152.5041732283470424 545.6692913385827524 152.5041732283470424 c
-49.6062992125984294 152.5041732283470424 l
-47.2580018511131641 152.5041732283470424 45.354330708661422 154.8524705898322793 45.354330708661422 156.7561417322840498 c
-45.354330708661422 180.0002362204729991 l
-45.354330708661422 182.348533581958236 47.7026280701466874 184.2522047244100065 49.6062992125984294 184.2522047244100065 c
+49.6062992125984294 140.0317322834652032 m
+545.6692913385827524 140.0317322834652032 l
+548.0175887000680177 140.0317322834652032 549.9212598425197029 138.1280611410134611 549.9212598425197029 135.7797637795281958 c
+549.9212598425197029 112.5356692913392607 l
+549.9212598425197029 110.1873719298539243 547.5729624810344376 108.2837007874022532 545.6692913385827524 108.2837007874022532 c
+49.6062992125984294 108.2837007874022532 l
+47.2580018511131641 108.2837007874022532 45.354330708661422 110.6319981488875754 45.354330708661422 112.5356692913392607 c
+45.354330708661422 135.7797637795281958 l
+45.354330708661422 138.1280611410134611 47.7026280701466874 140.0317322834652032 49.6062992125984294 140.0317322834652032 c
 h
 B
 BT
 /F1 9.2 Tf
 10.5799999999999983 TL
 0.6 0.106 0.106 rg
-56.6929133858267775 170.0789763779532677 Td
+56.6929133858267775 125.8585039370085497 Td
 (Use Safari only — Chrome or other browsers cannot Add to Home Screen the same way.) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 132.6616535433076933 Td
+45.354330708661422 88.4411811023628616 Td
 (Step 1:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 132.6616535433076933 Td
+83.4616220472440915 88.4411811023628616 Td
 (Open https://scorr.walfia.ai/?app=1 in Safari.) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 114.5199212598431586 Td
+45.354330708661422 70.2994488188983269 Td
 (Step 2:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 114.5199212598431586 Td
+83.4616220472440915 70.2994488188983269 Td
 (Tap the Share button \(square with an arrow pointing up\).) Tj
-ET
-BT
-/F2 9.8 Tf
-11.2699999999999996 TL
-0.051 0.58 0.533 rg
-45.354330708661422 96.3781889763786239 Td
-(Step 3:) Tj
-ET
-BT
-/F1 9.8 Tf
-11.2699999999999996 TL
-0.2 0.255 0.333 rg
-83.4616220472440915 96.3781889763786239 Td
-(Scroll the share sheet and tap Add to Home Screen.) Tj
-ET
-BT
-/F2 9.8 Tf
-11.2699999999999996 TL
-0.051 0.58 0.533 rg
-45.354330708661422 78.2364566929142029 Td
-(Step 4:) Tj
-ET
-BT
-/F1 9.8 Tf
-11.2699999999999996 TL
-0.2 0.255 0.333 rg
-83.4616220472440915 78.2364566929142029 Td
-( C o n f i r m   t h e   n a m e   S c o r r  !’   t a p   A d d .) Tj
-ET
-BT
-/F2 9.8 Tf
-11.2699999999999996 TL
-0.051 0.58 0.533 rg
-45.354330708661422 60.0947244094496682 Td
-(Step 5:) Tj
-ET
-BT
-/F1 9.8 Tf
-11.2699999999999996 TL
-0.2 0.255 0.333 rg
-83.4616220472440915 60.0947244094496682 Td
-( O p e n   t h e   n e w   S c o r r   i c o n   o n   y o u r   H o m e   S c r e e n  !’   S i g n   I n .) Tj
 ET
 BT
 /F1 8 Tf
@@ -1325,7 +1318,7 @@ endobj
 endobj
 14 0 obj
 <<
-/Length 2508
+/Length 3688
 >>
 stream
 1.1338582677165356 w
@@ -1363,69 +1356,118 @@ BT
 9.1999999999999993 TL
 0.392 0.455 0.545 rg
 45.354330708661422 779.5277952755905062 Td
-(Step 6:) Tj
+(Step 3:) Tj
 ET
 BT
 /F1 8 Tf
 9.1999999999999993 TL
 0.2 0.255 0.333 rg
 76.2236220472441062 779.5277952755905062 Td
-(Allow Location when you use GPS attendance.) Tj
+(Scroll the share sheet and tap Add to Home Screen.) Tj
+ET
+BT
+/F2 9.8 Tf
+11.2699999999999996 TL
+0.051 0.58 0.533 rg
+45.354330708661422 761.3860629921259715 Td
+(Step 4:) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+83.4616220472440915 761.3860629921259715 Td
+( C o n f i r m   t h e   n a m e   S c o r r  !’   t a p   A d d .) Tj
+ET
+BT
+/F2 9.8 Tf
+11.2699999999999996 TL
+0.051 0.58 0.533 rg
+45.354330708661422 743.2443307086614368 Td
+(Step 5:) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+83.4616220472440915 743.2443307086614368 Td
+( O p e n   t h e   n e w   S c o r r   i c o n   o n   y o u r   H o m e   S c r e e n  !’   S i g n   I n .) Tj
+ET
+BT
+/F2 9.8 Tf
+11.2699999999999996 TL
+0.051 0.58 0.533 rg
+45.354330708661422 725.1025984251967884 Td
+(Step 6:) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+83.4616220472440915 725.1025984251967884 Td
+(For automatic check-in on native builds, complete Enable automatic check-in and allow Location Always.) Tj
 ET
 BT
 /F2 11 Tf
 12.6499999999999986 TL
 0.051 0.58 0.533 rg
-45.354330708661422 761.3860629921259715 Td
+45.354330708661422 706.9608661417322537 Td
 (3.5 Website \(browser only\)) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 742.9608661417322537 Td
+48.1889763779527627 688.5356692913385359 Td
 (•  You can use Scorr fully in the browser at https://scorr.walfia.ai without installing.) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 728.2207086614173477 Td
+48.1889763779527627 673.7955118110235162 Td
 (•  Sign In with the same email and password as the desktop and mobile apps.) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 659.0553543307086102 Td
+(•  Automatic check-in cannot enroll in a normal browser — use the installed Android, iOS, Windows, or Linux app.) Tj
 ET
 BT
 /F2 11 Tf
 12.6499999999999986 TL
 0.051 0.58 0.533 rg
-45.354330708661422 713.480551181102328 Td
+45.354330708661422 644.3151968503935905 Td
 (3.6 After install — first open) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 695.0553543307086102 Td
+48.1889763779527627 625.8899999999998727 Td
 (•  You see Sign In / Register Company only \(no marketing homepage chrome\).) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 680.3151968503937042 Td
+48.1889763779527627 611.1498425196849666 Td
 ( •     S i g n   i n  !’   a c c e p t   t h e   m o n i t o r i n g   /   l o c a t i o n   p o l i c y   i f   s h o w n .) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 665.5750393700786844 Td
+48.1889763779527627 596.4096850393699469 Td
 (•  Enroll authenticator MFA and save backup codes \(Section 5\).) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 650.8348818897636647 Td
+48.1889763779527627 581.6695275590550409 Td
 (•  Your role \(Admin, HR, Manager, or Employee\) opens the matching dashboard.) Tj
 ET
 BT
@@ -1756,7 +1798,7 @@ endobj
 endobj
 18 0 obj
 <<
-/Length 7902
+/Length 8086
 >>
 stream
 1.1338582677165356 w
@@ -1848,202 +1890,209 @@ BT
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 45.354330708661422 644.0317322834645211 Td
-(After password, Scorr opens Authenticator required. Use Google Authenticator or Microsoft Authenticator.) Tj
+(After password, Scorr opens Authenticator required. Use Google Authenticator or Microsoft Authenticator. MFA is) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+45.354330708661422 629.2915748031495013 Td
+(required for production Admin, HR, Manager, and Employee accounts.) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 624.1892125984251152 Td
+45.354330708661422 609.4490551181102092 Td
 (Step 1:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 624.1892125984251152 Td
+83.4616220472440915 609.4490551181102092 Td
 (Scan the QR code \(or type the Manual key\).) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 606.0474803149605805 Td
+45.354330708661422 591.3073228346455608 Td
 (Step 2:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 606.0474803149605805 Td
+83.4616220472440915 591.3073228346455608 Td
 ( E n t e r   y o u r   a c c o u n t   p a s s w o r d   a n d   t h e   6 - d i g i t   a u t h e n t i c a t o r   c o d e  !’   V e r i f y   a n d   c o n t i n u e .) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 587.9057480314959321 Td
+45.354330708661422 573.1655905511809124 Td
 (Step 3:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 587.9057480314959321 Td
+83.4616220472440915 573.1655905511809124 Td
 (Save 10 one-time backup codes \(XXXX-XXXX\). Download or copy them and store offline.) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 569.7640157480313974 Td
+45.354330708661422 555.0238582677163777 Td
 (Step 4:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 569.7640157480313974 Td
-(Optional: tick Trust this device for 7 days \(default on in the apps\). Next logins on that device skip the code) Tj
+83.4616220472440915 555.0238582677163777 Td
+(Optional: tick Trust this device \(default duration 7 days\). Company Admin can set staff vs admin/HR trust to) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 555.0238582677163777 Td
-(until expiry.) Tj
+83.4616220472440915 540.283700787401358 Td
+( A l w a y s   a s k ,   o r   u p   t o   3 0   d a y s   u n d e r   S e t t i n g s  !’   S e c u r i t y .) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 536.882125984251843 Td
+45.354330708661422 522.1419685039368233 Td
 (Step 5:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 536.882125984251843 Td
+83.4616220472440915 522.1419685039368233 Td
 (Later logins on a new/untrusted device: password + authenticator code, or one unused backup code.) Tj
 ET
 BT
 /F2 11 Tf
 12.6499999999999986 TL
 0.051 0.58 0.533 rg
-45.354330708661422 518.7403937007873083 Td
+45.354330708661422 504.0002362204722886 Td
 (5.3 Trusted devices) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 500.3151968503935336 Td
-(•  MFA is required on first sign-in per device. Trusted devices skip the authenticator code for up to 7 days \(company) Tj
-ET
-BT
-/F1 9.8 Tf
-11.2699999999999996 TL
-0.2 0.255 0.333 rg
 48.1889763779527627 485.5750393700785708 Td
-( A d m i n  !’   S e t t i n g s  !’   S e c u r i t y   c a n   s e t   1 – 3 0   d a y s   o r   A l w a y s   a s k \) .) Tj
+(•  Default trust length is 7 days. Admin can configure separately for employees/managers and for admins/HR:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 470.8348818897636079 Td
-( •     S e t t i n g s  !’   A c c o u n t   s e c u r i t y  !’   T r u s t e d   d e v i c e s :   F o r g e t   o n e   d e v i c e   o r   F o r g e t   a l l .) Tj
+(Always ask, 1, 7, 14, or 30 days.) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 456.0947244094487019 Td
-(•  Logout menu: Sign out, or Sign out & forget this device \(clears trust on shared computers\).) Tj
+( •     S e t t i n g s  !’   A c c o u n t   s e c u r i t y  !’   T r u s t e d   d e v i c e s :   F o r g e t   o n e   d e v i c e   o r   F o r g e t   a l l .) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 441.3545669291337958 Td
-(•  Trust is cleared automatically after password change/reset, admin Reset authenticator, MFA re-enrollment, or) Tj
+(•  Logout menu: Sign out, or Sign out & forget this device \(clears trust on shared computers\).) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 426.614409448818833 Td
+(•  Trust is cleared automatically after password change/reset, admin Reset authenticator, MFA re-enrollment, or) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 411.8742519685039269 Td
 (account removal.) Tj
 ET
 BT
 /F2 11 Tf
 12.6499999999999986 TL
 0.051 0.58 0.533 rg
-45.354330708661422 411.8742519685039269 Td
+45.354330708661422 397.1340944881889641 Td
 (5.4 Sessions) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 393.4490551181102092 Td
-(•  Sessions last 1 hour from sign-in on web, Android, iPhone, and desktop — then you sign in again.) Tj
+48.1889763779527627 378.7088976377953031 Td
+(•  Sessions last 1 hour absolute from sign-in on web, Android, iPhone, and desktop — then you sign in again.) Tj
 ET
 BT
 /F2 11 Tf
 12.6499999999999986 TL
 0.051 0.58 0.533 rg
-45.354330708661422 378.7088976377953031 Td
+45.354330708661422 363.9687401574803403 Td
 (5.5 Lost phone / authenticator) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 360.2837007874015853 Td
+48.1889763779527627 345.5435433070866225 Td
 ( •     O n   t h e   M F A   s c r e e n :   S e n d   v e r i f i c a t i o n   c o d e   t o   y o u r   l o g i n   e m a i l  !’   V e r i f y  !’   r e - e n r o l l .) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 345.5435433070866225 Td
+48.1889763779527627 330.8033858267717164 Td
 ( •     O r   a s k   y o u r   A d m i n  !’   P e o p l e  !’   R e s e t   a u t h e n t i c a t o r .) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 330.8033858267717164 Td
+48.1889763779527627 316.0632283464567536 Td
 ( •     S e t t i n g s  !’   A c c o u n t   s e c u r i t y :   r e g e n e r a t e   b a c k u p   c o d e s ,   s e t   a   r e c o v e r y   e m a i l .) Tj
 ET
 0.94 0.99 0.98 rg
 0.05 0.58 0.53 RG
 1.1338582677165356 w
-49.6062992125984294 324.5671653543307684 m
-545.6692913385827524 324.5671653543307684 l
-548.0175887000680177 324.5671653543307684 549.9212598425197029 322.6634942118790264 549.9212598425197029 320.315196850393761 c
-549.9212598425197029 282.3309448818898204 l
-549.9212598425197029 279.9826475204045551 547.5729624810344376 278.078976377952813 545.6692913385827524 278.078976377952813 c
-49.6062992125984294 278.078976377952813 l
-47.2580018511131641 278.078976377952813 45.354330708661422 280.4272737394380783 45.354330708661422 282.3309448818898204 c
-45.354330708661422 320.315196850393761 l
-45.354330708661422 322.6634942118790264 47.7026280701466874 324.5671653543307684 49.6062992125984294 324.5671653543307684 c
+49.6062992125984294 309.8270078740158624 m
+545.6692913385827524 309.8270078740158624 l
+548.0175887000680177 309.8270078740158624 549.9212598425197029 307.9233367315641203 549.9212598425197029 305.575039370078855 c
+549.9212598425197029 267.5907874015749144 l
+549.9212598425197029 265.242490040089649 547.5729624810344376 263.338818897637907 545.6692913385827524 263.338818897637907 c
+49.6062992125984294 263.338818897637907 l
+47.2580018511131641 263.338818897637907 45.354330708661422 265.6871162591231155 45.354330708661422 267.5907874015749144 c
+45.354330708661422 305.575039370078855 l
+45.354330708661422 307.9233367315641203 47.7026280701466874 309.8270078740158624 49.6062992125984294 309.8270078740158624 c
 h
 B
 BT
 /F1 9.2 Tf
 10.5799999999999983 TL
 0.059 0.463 0.431 rg
-56.6929133858267775 310.3939370078741149 Td
+56.6929133858267775 295.6537795275592089 Td
 (Demo sandbox accounts skip MFA. Real Admin, HR, Manager, and Employee accounts must enroll. Platform) Tj
 ET
 BT
 /F1 9.2 Tf
 10.5799999999999983 TL
 0.059 0.463 0.431 rg
-56.6929133858267775 295.6537795275592089 Td
+56.6929133858267775 280.9136220472443028 Td
 (owners always enter a code \(no trust\).) Tj
 ET
 BT
@@ -2072,7 +2121,7 @@ endobj
 endobj
 20 0 obj
 <<
-/Length 4391
+/Length 4418
 >>
 stream
 1.1338582677165356 w
@@ -2160,21 +2209,21 @@ BT
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 685.4175590551180903 Td
-(Full company setup: people, departments, assign tasks, rewards, attendance, Office) Tj
+(Full company setup: people, departments, assign tasks, rewards, attendance, office) Tj
 ET
 BT
 /F1 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 670.6774015748030706 Td
-(GPS, live tracking, analytics, export, branding. Reviews manager/HR leave and daily) Tj
+(locations + multi Wi-Fi, live tracking, analytics, export, branding. Reviews) Tj
 ET
 BT
 /F1 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 655.9372440944881646 Td
-(reports.) Tj
+(manager/HR leave and daily reports.) Tj
 ET
 BT
 /F2 8.8 Tf
@@ -2230,7 +2279,7 @@ BT
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 575.4333070866141497 Td
-(Own KPIs, GPS/remote attendance, leave requests, daily report, redeem gifts.) Tj
+(Own KPIs, auto/manual attendance, leave requests, daily report, redeem gifts.) Tj
 ET
 BT
 /F2 10 Tf
@@ -2258,7 +2307,7 @@ BT
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 503.4333070866140929 Td
-(•  Work location: Office \(GPS\) · Remote \(supervisor marks\) · Hybrid.) Tj
+(•  Work location: Office \(GPS/Wi-Fi\) · Remote \(supervisor marks\) · Hybrid.) Tj
 ET
 BT
 /F1 9.8 Tf
@@ -2293,7 +2342,7 @@ endobj
 endobj
 22 0 obj
 <<
-/Length 8057
+/Length 7986
 >>
 stream
 1.7007874015748032 w
@@ -2476,189 +2525,182 @@ BT
 10.6950000000000003 TL
 0.278 0.333 0.412 rg
 53.8582677165354369 401.3860629921259715 Td
-(Create geofence zones, multi-network office Wi-Fi, assign people, automatic attendance devices & reminders.) Tj
+(Create geofence zones, multiple office Wi-Fi networks per location \(SSID/BSSID\), assign people, automatic attendance) Tj
+ET
+BT
+/F1 9.3 Tf
+10.6950000000000003 TL
+0.278 0.333 0.412 rg
+53.8582677165354369 386.6459055118110655 Td
+(devices & reminders.) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.059 0.09 0.165 rg
-45.354330708661422 379.5592913385827387 Td
+45.354330708661422 364.8191338582677758 Td
 (Live Tracking) Tj
 ET
 BT
 /F1 9.3 Tf
 10.6950000000000003 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 364.8191338582677758 Td
+53.8582677165354369 350.0789763779528698 Td
 (Today’s field board: At site / Away / Offline.) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.059 0.09 0.165 rg
-45.354330708661422 342.9923622047244862 Td
+45.354330708661422 328.2522047244095802 Td
 (Departments) Tj
 ET
 BT
 /F1 9.3 Tf
 10.6950000000000003 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 328.2522047244095802 Td
+53.8582677165354369 313.5120472440946742 Td
 (Org structure \(Sales, Marketing, …\).) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.059 0.09 0.165 rg
-45.354330708661422 306.4254330708663474 Td
+45.354330708661422 291.6852755905513277 Td
 (Export) Tj
 ET
 BT
 /F1 9.3 Tf
 10.6950000000000003 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 291.6852755905513277 Td
+53.8582677165354369 276.9451181102364217 Td
 (Monthly or quarterly Excel / PDF / CSV.) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.059 0.09 0.165 rg
-45.354330708661422 269.8585039370080949 Td
+45.354330708661422 255.1183464566931889 Td
 (Settings) Tj
 ET
 BT
 /F1 9.3 Tf
 10.6950000000000003 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 255.1183464566931889 Td
-(Branding \(name, logo, colors\) + Account security + Delete my account.) Tj
+53.8582677165354369 240.3781889763782829 Td
+(Branding \(name, logo, colors\) + MFA trust policy + Account security + Delete my account.) Tj
 ET
 BT
 /F2 11 Tf
 12.6499999999999986 TL
 0.051 0.58 0.533 rg
-45.354330708661422 233.2915748031498424 Td
+45.354330708661422 218.5514173228349364 Td
 (7.2 First-week checklist) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 214.8663779527561246 Td
+45.354330708661422 200.1262204724412186 Td
 (Step 1:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 214.8663779527561246 Td
-(Settings — company name, logo, colors.) Tj
+83.4616220472440915 200.1262204724412186 Td
+(Settings — company name, logo, colors; set MFA trust days for staff vs admin/HR if needed.) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 196.7246456692917036 Td
+45.354330708661422 181.9844881889767976 Td
 (Step 2:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 196.7246456692917036 Td
+83.4616220472440915 181.9844881889767976 Td
 (Departments — create departments.) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 178.5829133858271689 Td
+45.354330708661422 163.8427559055122629 Td
 (Step 3:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 178.5829133858271689 Td
+83.4616220472440915 163.8427559055122629 Td
 (People — add Managers, Employees, and HR. Set Reports to and Work location.) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 160.4411811023626342 Td
+45.354330708661422 145.7010236220477282 Td
 (Step 4:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 160.4411811023626342 Td
-(Office & Attendance — create zones, Wi-Fi networks, and assign staff.) Tj
+83.4616220472440915 145.7010236220477282 Td
+(Office & Attendance — create zones, add all office Wi-Fi networks, assign staff.) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 142.2994488188982132 Td
+45.354330708661422 127.5592913385831935 Td
 (Step 5:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 142.2994488188982132 Td
+83.4616220472440915 127.5592913385831935 Td
 ( A t t e n d a n c e  !’   S h i f t s   —   c r e a t e   s h i f t s   a n d   a s s i g n   p e o p l e .) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 124.1577165354336785 Td
+45.354330708661422 109.4175590551187724 Td
 (Step 6:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 124.1577165354336785 Td
+83.4616220472440915 109.4175590551187724 Td
 (Assign Task — create templates, assign first KPIs.) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 106.0159842519691438 Td
+45.354330708661422 91.2758267716542377 Td
 (Step 7:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 106.0159842519691438 Td
-(Ask everyone to install the app, enroll MFA, and allow Location.) Tj
-ET
-BT
-/F2 11 Tf
-12.6499999999999986 TL
-0.051 0.58 0.533 rg
-45.354330708661422 87.8742519685046091 Td
-(7.3 What only Admin does) Tj
+83.4616220472440915 91.2758267716542377 Td
+(Ask everyone to install the real app \(not PWA-only for auto attendance\), enroll MFA, and Enable automatic) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 69.449055118111005 Td
-(•  Approve manager and HR leave requests.) Tj
-ET
-BT
-/F1 9.8 Tf
-11.2699999999999996 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 54.7088976377959852 Td
-(•  Receive notifications when HR or managers submit daily reports.) Tj
+83.4616220472440915 76.5356692913393317 Td
+(check-in.) Tj
 ET
 BT
 /F1 8 Tf
@@ -2686,7 +2728,7 @@ endobj
 endobj
 24 0 obj
 <<
-/Length 976
+/Length 1465
 >>
 stream
 1.7007874015748032 w
@@ -2720,11 +2762,32 @@ BT
 (scorr.walfia.ai) Tj
 ET
 BT
-/F1 8 Tf
-9.1999999999999993 TL
-0.392 0.455 0.545 rg
-48.1889763779527627 779.5277952755905062 Td
-(•  Approve new company branding and full org settings.) Tj
+/F2 11 Tf
+12.6499999999999986 TL
+0.051 0.58 0.533 rg
+45.354330708661422 779.5277952755905062 Td
+(7.3 What only Admin does) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 761.1025984251967884 Td
+(•  Approve manager and HR leave requests.) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 746.3624409448818824 Td
+(•  Receive notifications when HR or managers submit daily reports.) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 731.6222834645668627 Td
+(•  Approve new company branding and full org settings \(including MFA trust policy\).) Tj
 ET
 BT
 /F1 8 Tf
@@ -2752,7 +2815,7 @@ endobj
 endobj
 26 0 obj
 <<
-/Length 6525
+/Length 6511
 >>
 stream
 1.7007874015748032 w
@@ -2823,14 +2886,14 @@ BT
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 686.8348818897637784 Td
-(•  People, Assign Task, Daily Reports, Rewards, KPI & Rewards, Analytics, Attendance, Office GPS, Live Tracking,) Tj
+(•  People, Assign Task, Daily Reports, Rewards, KPI & Rewards, Analytics, Attendance, Office & Attendance, Live) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 672.0947244094487587 Td
-(Departments, Export, Settings.) Tj
+(Tracking, Departments, Export, Settings.) Tj
 ET
 BT
 /F1 9.8 Tf
@@ -2858,14 +2921,14 @@ BT
 10.6950000000000003 TL
 0.278 0.333 0.412 rg
 53.8582677165354369 609.4490551181102092 Td
-(Your own shift card, auto GPS attendance when you enter/leave the office \(manual Clock in/out still available\), leave) Tj
+(Your own shift card, Enable automatic check-in on the installed app, manual Clock in/out, leave request to admin, and) Tj
 ET
 BT
 /F1 9.3 Tf
 10.6950000000000003 TL
 0.278 0.333 0.412 rg
 53.8582677165354369 594.7088976377951894 Td
-(request to admin, and your leave history.) Tj
+(your leave history.) Tj
 ET
 BT
 /F2 9.8 Tf
@@ -2984,7 +3047,7 @@ BT
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 287.149842519685194 Td
-(•  Set Work location so HR can use Office GPS, Remote, or Hybrid attendance.) Tj
+(•  Set Work location so HR can use Office auto attendance, Remote, or Hybrid.) Tj
 ET
 0.94 0.99 0.98 rg
 0.05 0.58 0.53 RG
@@ -3040,7 +3103,7 @@ endobj
 endobj
 28 0 obj
 <<
-/Length 6227
+/Length 6270
 >>
 stream
 1.1338582677165356 w
@@ -3216,14 +3279,14 @@ BT
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 83.4616220472440915 427.1813385826770855 Td
-( O p e n   A t t e n d a n c e  !’   M y   d a y .   W i t h   O f f i c e   G P S ,   S c o r r   a u t o   c h e c k s   y o u   i n   w h e n   y o u   e n t e r   t h e   o f f i c e   d u r i n g) Tj
+( O p e n   A t t e n d a n c e  !’   M y   d a y .   W i t h   a u t o m a t i c   c h e c k - i n   e n a b l e d   o n   t h e   i n s t a l l e d   a p p ,   S c o r r   c h e c k s   y o u   i n) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 83.4616220472440915 412.4411811023621226 Td
-(shift hours \(you can also tap Clock in\).) Tj
+(during the window when you are on saved office Wi-Fi or inside the office radius.) Tj
 ET
 BT
 /F2 9.8 Tf
@@ -3307,7 +3370,7 @@ BT
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 83.4616220472440915 303.5907874015750849 Td
-(Clock out when you leave \(mid-shift checkout is allowed if needed\).) Tj
+(Clock out when you leave early if needed; open sessions close at shift end.) Tj
 ET
 BT
 /F2 10 Tf
@@ -3356,7 +3419,7 @@ endobj
 endobj
 30 0 obj
 <<
-/Length 7086
+/Length 6352
 >>
 stream
 1.7007874015748032 w
@@ -3441,195 +3504,167 @@ BT
 10.6950000000000003 TL
 0.278 0.333 0.412 rg
 53.8582677165354369 650.2679527559054122 Td
-(One-time Automatic attendance setup wizard \(phone or laptop\): GPS + office Wi-Fi \(multiple networks / IPv6\), or laptop) Tj
+(One-time Automatic check-in setup on Android, iOS, Windows, or Linux installed app \(not a normal browser\). Window: 1) Tj
 ET
 BT
 /F1 9.3 Tf
 10.6950000000000003 TL
 0.278 0.333 0.412 rg
 53.8582677165354369 635.5277952755905062 Td
-(on/off. Active from 1 hour before shift until 1 hour after. Immediate check-out when you leave and are off office Wi-Fi.) Tj
-ET
-BT
-/F1 9.3 Tf
-10.6950000000000003 TL
-0.278 0.333 0.412 rg
-53.8582677165354369 620.7876377952754865 Td
-(Manual Clock in/out, leave, and history still available. Web browsers show download/setup instructions instead of) Tj
-ET
-BT
-/F1 9.3 Tf
-10.6950000000000003 TL
-0.278 0.333 0.412 rg
-53.8582677165354369 606.0474803149605805 Td
-(Enable.) Tj
+(hour before shift start until shift end. Wi-Fi then GPS radius. Manual Clock in/out, leave, and history still available.) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.059 0.09 0.165 rg
-45.354330708661422 584.220708661417234 Td
+45.354330708661422 613.7010236220471597 Td
 (Rewards) Tj
 ET
 BT
 /F1 9.3 Tf
 10.6950000000000003 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 569.480551181102328 Td
+53.8582677165354369 598.96086614173214 Td
 (Redeem company gifts / catalog with weightage. Track Pending · Approved · Delivered · Rejected.) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.059 0.09 0.165 rg
-45.354330708661422 547.6537795275589815 Td
+45.354330708661422 577.1340944881889072 Td
 (Daily report) Tj
 ET
 BT
 /F1 9.3 Tf
 10.6950000000000003 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 532.9136220472439618 Td
+53.8582677165354369 562.3939370078738875 Td
 (What did you accomplish today? \(20–8000 characters\). Submit or Update.) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.059 0.09 0.165 rg
-45.354330708661422 511.0868503937006722 Td
+45.354330708661422 540.5671653543306547 Td
 (Settings) Tj
 ET
 BT
 /F1 9.3 Tf
 10.6950000000000003 TL
 0.278 0.333 0.412 rg
-53.8582677165354369 496.3466929133856524 Td
+53.8582677165354369 525.827007874015635 Td
 (Change password, backup codes, recovery email, Delete my account.) Tj
 ET
 BT
 /F2 11 Tf
 12.6499999999999986 TL
 0.051 0.58 0.533 rg
-45.354330708661422 474.5199212598424197 Td
+45.354330708661422 504.0002362204722886 Td
 (10.2 Typical daily flow) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 456.0947244094487019 Td
+45.354330708661422 485.5750393700786276 Td
 (Step 1:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 456.0947244094487019 Td
-( S i g n   i n   o n c e   o n   w e b   o r   p h o n e   a p p  !’   a l l o w   L o c a t i o n   \( A l w a y s   /   b a c k g r o u n d   o n   t h e   p h o n e \)   i f   y o u   u s e   O f f i c e) Tj
-ET
-BT
-/F1 9.8 Tf
-11.2699999999999996 TL
-0.2 0.255 0.333 rg
-83.4616220472440915 441.3545669291337958 Td
-(GPS.) Tj
+83.4616220472440915 485.5750393700786276 Td
+( S i g n   i n   o n   t h e   i n s t a l l e d   a p p  !’   c o m p l e t e   E n a b l e   a u t o m a t i c   c h e c k - i n   a n d   p e r m i s s i o n   p r o m p t s .) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 423.2128346456692611 Td
+45.354330708661422 467.4333070866140361 Td
 (Step 2:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 423.2128346456692611 Td
-( A t t e n d a n c e  !’   M a r k   a t t e n d a n c e   /   M y   d a y .   D u r i n g   y o u r   s h i f t ,   e n t e r i n g   t h e   o f f i c e   a u t o   c h e c k s   y o u   i n ;   y o u   c a n) Tj
-ET
-BT
-/F1 9.8 Tf
-11.2699999999999996 TL
-0.2 0.255 0.333 rg
-83.4616220472440915 408.4726771653543551 Td
-(also tap Clock in inside the zone.) Tj
+83.4616220472440915 467.4333070866140361 Td
+(During your window, arrive on office Wi-Fi or inside the geofence — auto check-in; or tap Clock in.) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 390.3309448818898204 Td
+45.354330708661422 449.2915748031495582 Td
 (Step 3:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 390.3309448818898204 Td
+83.4616220472440915 449.2915748031495582 Td
 ( M y   K P I s  !’   o p e n   t a s k s ,   c o m p l e t e   w o r k ,   M a r k   C o m p l e t e .) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 372.1892125984253425 Td
+45.354330708661422 431.1498425196850235 Td
 (Step 4:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 372.1892125984253425 Td
+83.4616220472440915 431.1498425196850235 Td
 ( D a i l y   r e p o r t  !’   w r i t e   t o d a y ’ s   s u m m a r y  !’   S u b m i t .) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 354.0474803149608078 Td
+45.354330708661422 413.0081102362205456 Td
 (Step 5:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 354.0474803149608078 Td
-(Clock out when leaving. Request leave from Attendance when needed.) Tj
+83.4616220472440915 413.0081102362205456 Td
+(Clock out if leaving early. Request leave from Attendance when needed.) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 335.90574803149633 Td
+45.354330708661422 394.8663779527560109 Td
 (Step 6:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 335.90574803149633 Td
+83.4616220472440915 394.8663779527560109 Td
 ( R e w a r d s  !’   r e d e e m   w h e n   y o u   h a v e   e n o u g h   C u r r e n t   o r   B a n k e d   w e i g h t a g e .) Tj
 ET
 0.94 0.99 0.98 rg
 0.05 0.58 0.53 RG
 1.1338582677165356 w
-49.6062992125984294 326.2679527559058101 m
-545.6692913385827524 326.2679527559058101 l
-548.0175887000680177 326.2679527559058101 549.9212598425197029 324.3642816134540681 549.9212598425197029 322.0159842519688027 c
-549.9212598425197029 298.7718897637798818 l
-549.9212598425197029 296.4235924022946165 547.5729624810344376 294.5199212598428744 545.6692913385827524 294.5199212598428744 c
-49.6062992125984294 294.5199212598428744 l
-47.2580018511131641 294.5199212598428744 45.354330708661422 296.8682186213280829 45.354330708661422 298.7718897637798818 c
-45.354330708661422 322.0159842519688027 l
-45.354330708661422 324.3642816134540681 47.7026280701466874 326.2679527559058101 49.6062992125984294 326.2679527559058101 c
+49.6062992125984294 385.2285826771655479 m
+545.6692913385827524 385.2285826771655479 l
+548.0175887000680177 385.2285826771655479 549.9212598425197029 383.3249115347138058 549.9212598425197029 380.9766141732285405 c
+549.9212598425197029 357.7325196850395628 l
+549.9212598425197029 355.3842223235543543 547.5729624810344376 353.4805511811025553 545.6692913385827524 353.4805511811025553 c
+49.6062992125984294 353.4805511811025553 l
+47.2580018511131641 353.4805511811025553 45.354330708661422 355.8288485425878207 45.354330708661422 357.7325196850395628 c
+45.354330708661422 380.9766141732285405 l
+45.354330708661422 383.3249115347138058 47.7026280701466874 385.2285826771655479 49.6062992125984294 385.2285826771655479 c
 h
 B
 BT
 /F1 9.2 Tf
 10.5799999999999983 TL
 0.059 0.463 0.431 rg
-56.6929133858267775 312.0947244094490998 Td
+56.6929133858267775 371.0553543307088376 Td
 (Opening a KPI starts it. Only receiving the assignment email does not start the task.) Tj
 ET
 BT
@@ -3658,7 +3693,7 @@ endobj
 endobj
 32 0 obj
 <<
-/Length 10283
+/Length 9664
 >>
 stream
 1.1338582677165356 w
@@ -3696,7 +3731,7 @@ BT
 16.6749999999999972 TL
 0.059 0.09 0.165 rg
 45.354330708661422 779.5277952755905062 Td
-(11. How to mark attendance) Tj
+(11. How to mark attendance \(auto & manual\)) Tj
 ET
 0.05 0.58 0.53 RG
 1.7007874015748032 w
@@ -3708,14 +3743,14 @@ BT
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 45.354330708661422 739.8427559055118081 Td
-(Attendance uses your Work location \(Office / Remote / Hybrid\), your assigned shift, and \(for Office\) an Office GPS) Tj
+(Attendance uses your Work location \(Office / Remote / Hybrid\), your assigned shift, and \(for Office\) assigned office) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 45.354330708661422 725.1025984251967884 Td
-(zone. Times use Asia/Karachi.) Tj
+(location\(s\) plus any saved office Wi-Fi networks. Times use Asia/Karachi.) Tj
 ET
 BT
 /F2 11 Tf
@@ -3802,272 +3837,258 @@ BT
 12.6499999999999986 TL
 0.051 0.58 0.533 rg
 45.354330708661422 589.0396062992125508 Td
-(11.2 Office — automatic attendance setup + clock in / out) Tj
+(11.2 Automatic check-in \(critical rules\)) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 570.614409448818833 Td
+(•  Window: from 1 hour before shift start until shift end — not one hour after end.) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 555.8742519685038133 Td
+(•  Policy wifi_then_radius: if connected to any saved office Wi-Fi for an assigned location \(SSID or BSSID; multiple) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 541.1340944881889072 Td
+( n e t w o r k s   p e r   o f f i c e \)  !’   c h e c k   i n   w i t h o u t   G P S .) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 526.3939370078740012 Td
+(•  Otherwise GPS must be inside the assigned office radius. Public or unsaved Wi-Fi never counts.) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 511.6537795275589815 Td
+(•  Supported on Android phone, iOS, Windows, and Linux — only after Enable automatic check-in in the installed) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 496.9136220472440186 Td
+(app \(not a normal browser\).) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 482.1734645669289989 Td
+(•  Desktop must be the real Scorr Desktop binary \(title Scorr Desktop x.y.z\), not Chrome “Install app” / PWA.) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 467.4333070866140361 Td
+(•  After manual Clock Out, auto re-check-in waits about 30 seconds \(Android parity\) before Wi-Fi/GPS can check) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 452.69314960629913 Td
+(you in again.) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 437.952992125984224 Td
+(•  Permissions: Location Always \(phones\), notifications, Android battery unrestricted; desktop tray / start at login.) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 423.2128346456692611 Td
+(•  Manual Clock in / Clock out remain available in the same window. Clock out can be from any place before shift) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 408.4726771653543551 Td
+(end; open sessions close at shift end.) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0.051 0.58 0.533 rg
+45.354330708661422 393.7325196850393922 Td
+(11.3 Setup wizard \(phones & desktop\)) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 570.614409448818833 Td
+45.354330708661422 375.3073228346457313 Td
 (Step 1:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 570.614409448818833 Td
-(Admin assigns you an office zone, a shift, and \(optional\) office Wi-Fi networks. Company automatic) Tj
+83.4616220472440915 375.3073228346457313 Td
+(Admin assigns you an office zone \(with Wi-Fi networks if used\), a shift, and company automatic attendance) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 555.8742519685038133 Td
-(attendance must be ON.) Tj
+83.4616220472440915 360.5671653543307684 Td
+(must be ON.) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 537.7325196850392786 Td
+45.354330708661422 342.4254330708662906 Td
 (Step 2:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 537.7325196850392786 Td
-( O n   A n d r o i d   o r   i P h o n e   a p p   \( o r   W i n d o w s / L i n u x   d e s k t o p \) :   A u t o m a t i c   a t t e n d a n c e  !’   S e t   u p   —   f o l l o w   t h e) Tj
+83.4616220472440915 342.4254330708662906 Td
+(On Android, iOS, Windows, or Linux app: Automatic attendance / Enable automatic check-in — follow the) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 522.9923622047242588 Td
-(step-by-step wizard \(disclosure, account check, location Always, notifications, battery tips on Android,) Tj
-ET
-BT
-/F1 9.8 Tf
-11.2699999999999996 TL
-0.2 0.255 0.333 rg
-83.4616220472440915 508.2522047244093528 Td
-(register device\).) Tj
+83.4616220472440915 327.6852755905513277 Td
+(wizard \(disclosure, account check, Location Always, notifications, battery tips on Android, register device\).) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 490.1104724409447613 Td
+45.354330708661422 309.543543307086793 Td
 (Step 3:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 490.1104724409447613 Td
-(Allow Location Always / background so attendance works without opening the dashboard.) Tj
+83.4616220472440915 309.543543307086793 Td
+(Stay enrolled; background pings run only inside the attendance window — not continuous surveillance.) Tj
 ET
 BT
 /F2 9.8 Tf
 11.2699999999999996 TL
 0.051 0.58 0.533 rg
-45.354330708661422 471.9687401574802834 Td
+45.354330708661422 291.401811023622372 Td
 (Step 4:) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 471.9687401574802834 Td
-( E n t e r   t h e   o f f i c e   d u r i n g   t h e   w i n d o w   \( o p e n s   1   h o u r   b e f o r e   s h i f t   s t a r t \)  !’   S c o r r   a u t o   c h e c k s   y o u   i n   \( G P S   a n d / o r) Tj
-ET
-BT
-/F1 9.8 Tf
-11.2699999999999996 TL
-0.2 0.255 0.333 rg
-83.4616220472440915 457.2285826771653205 Td
-(office Wi-Fi\).) Tj
-ET
-BT
-/F2 9.8 Tf
-11.2699999999999996 TL
-0.051 0.58 0.533 rg
-45.354330708661422 439.0868503937008427 Td
-(Step 5:) Tj
-ET
-BT
-/F1 9.8 Tf
-11.2699999999999996 TL
-0.2 0.255 0.333 rg
-83.4616220472440915 439.0868503937008427 Td
-( L e a v e   c o n f i r m e d   \( o u t s i d e   g e o f e n c e   /   2   a c c u r a t e   o u t s i d e   r e a d i n g s   A N D   n o t   o n   o f f i c e   W i - F i \)  !’   i m m e d i a t e) Tj
-ET
-BT
-/F1 9.8 Tf
-11.2699999999999996 TL
-0.2 0.255 0.333 rg
-83.4616220472440915 424.3466929133858798 Td
-( c h e c k - o u t   a t   t h a t   t i m e .   W i - F i   o f f   b u t   G P S   s t i l l   i n s i d e  !’   s t a y   c h e c k e d   i n .   G P S   o u t s i d e   b u t   s t i l l   o n   o f f i c e   W i - F i  !’) Tj
-ET
-BT
-/F1 9.8 Tf
-11.2699999999999996 TL
-0.2 0.255 0.333 rg
-83.4616220472440915 409.6065354330709738 Td
-( s t a y   c h e c k e d   i n .   W i - F i   o f f   a n d   G P S   u n a v a i l a b l e  !’   1 5 - m i n u t e   g r a c e ,   t h e n   c h e c k   o u t   a t   l a s t   p r e s e n c e .) Tj
-ET
-BT
-/F2 9.8 Tf
-11.2699999999999996 TL
-0.051 0.58 0.533 rg
-45.354330708661422 391.4648031496064391 Td
-(Step 6:) Tj
-ET
-BT
-/F1 9.8 Tf
-11.2699999999999996 TL
-0.2 0.255 0.333 rg
-83.4616220472440915 391.4648031496064391 Td
-( L a p t o p :   s h u t d o w n / s l e e p  !’   i m m e d i a t e   c h e c k - o u t .   I f   a n o t h e r   e n r o l l e d   l a p t o p   i s   s t i l l   o n   t h e   o f f i c e   n e t w o r k ,   y o u) Tj
-ET
-BT
-/F1 9.8 Tf
-11.2699999999999996 TL
-0.2 0.255 0.333 rg
-83.4616220472440915 376.7246456692915331 Td
-(stay checked in \(multi-device rule\).) Tj
-ET
-BT
-/F2 9.8 Tf
-11.2699999999999996 TL
-0.051 0.58 0.533 rg
-45.354330708661422 358.5829133858270552 Td
-(Step 7:) Tj
-ET
-BT
-/F1 9.8 Tf
-11.2699999999999996 TL
-0.2 0.255 0.333 rg
-83.4616220472440915 358.5829133858270552 Td
-(Manual Clock in / Clock out remain available when you need them.) Tj
-ET
-BT
-/F1 9.8 Tf
-11.2699999999999996 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 340.4411811023625205 Td
-(•  Multi-visit days are supported — each enter/leave pair is saved; time away is not counted.) Tj
-ET
-BT
-/F1 9.8 Tf
-11.2699999999999996 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 325.7010236220476145 Td
-(•  Apps load the live site so most updates need no reinstall; native APK/desktop updates install over the previous) Tj
-ET
-BT
-/F1 9.8 Tf
-11.2699999999999996 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 310.9608661417327085 Td
-(version.) Tj
-ET
-BT
-/F1 9.8 Tf
-11.2699999999999996 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 296.2207086614176887 Td
-(•  On the website, use download/setup cards — automatic attendance is not enabled in a normal browser.) Tj
+83.4616220472440915 291.401811023622372 Td
+(Web browsers show download/setup instructions instead of Enable.) Tj
 ET
 BT
 /F2 11 Tf
 12.6499999999999986 TL
 0.051 0.58 0.533 rg
-45.354330708661422 281.4805511811027827 Td
-(11.3 Remote) Tj
+45.354330708661422 273.2600787401578373 Td
+(11.4 Remote) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 263.0553543307090649 Td
-(•  You do not use GPS. Your supervisor \(manager or admin\) marks Present or Absent.) Tj
+48.1889763779527627 254.8348818897641195 Td
+(•  You do not use GPS/Wi-Fi auto check-in. Your supervisor \(manager or admin\) marks Present or Absent.) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 248.3151968503941589 Td
+48.1889763779527627 240.0947244094492135 Td
 (•  That record is saved in your attendance history.) Tj
 ET
 BT
 /F2 11 Tf
 12.6499999999999986 TL
 0.051 0.58 0.533 rg
-45.354330708661422 233.5750393700792529 Td
-(11.4 Hybrid) Tj
+45.354330708661422 225.3545669291343074 Td
+(11.5 Hybrid) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 215.1498425196855351 Td
-(•  Office days: auto GPS check-in/out \(manual buttons still available\).) Tj
+48.1889763779527627 206.9293700787405896 Td
+(•  Office days: auto check-in/out rules above \(manual buttons still available\).) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 200.4096850393706291 Td
+48.1889763779527627 192.1892125984256836 Td
 (•  Work-from-home days: mark Present / Absent on My day, or your supervisor marks you.) Tj
 ET
 BT
 /F2 11 Tf
 12.6499999999999986 TL
 0.051 0.58 0.533 rg
-45.354330708661422 185.669527559055723 Td
-(11.5 Leave) Tj
+45.354330708661422 177.4490551181106639 Td
+(11.6 Leave) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 167.2443307086620052 Td
+48.1889763779527627 159.0238582677169461 Td
 ( •     R e q u e s t   l e a v e :   A n n u a l   /   S i c k   /   O t h e r   ·   F r o m   /   T o   ·   r e a s o n  !’   S u b m i t .) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 152.5041732283470992 Td
+48.1889763779527627 144.2837007874020401 Td
 ( •     E m p l o y e e   l e a v e  !’   m a n a g e r   \( o r   a d m i n \)   a p p r o v e s .) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 137.7640157480320795 Td
+48.1889763779527627 129.5435433070871341 Td
 ( •     M a n a g e r   a n d   H R   l e a v e  !’   A d m i n   a p p r o v e s .) Tj
 ET
 BT
 /F2 11 Tf
 12.6499999999999986 TL
 0.051 0.58 0.533 rg
-45.354330708661422 123.0238582677171735 Td
-(11.6 History & downloads) Tj
+45.354330708661422 114.803385826772228 Td
+(11.7 History & downloads) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 104.5986614173234557 Td
+48.1889763779527627 96.3781889763785102 Td
 (•  Browse This month / Month by month / Full year.) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 89.8585039370085497 Td
+48.1889763779527627 81.6380314960636042 Td
 ( •     A d m i n / H R   H i s t o r y :   p i c k   d e p a r t m e n t   \( o r   H u m a n   R e s o u r c e s   f o r   H R   s t a f f \)  !’   p e r s o n  !’   d o w n l o a d   C S V .) Tj
 ET
 BT
@@ -5163,7 +5184,7 @@ endobj
 endobj
 42 0 obj
 <<
-/Length 5012
+/Length 5006
 >>
 stream
 1.7007874015748032 w
@@ -5201,7 +5222,7 @@ BT
 16.6749999999999972 TL
 0.059 0.09 0.165 rg
 45.354330708661422 779.5277952755905062 Td
-(16. Office & Attendance / live tracking) Tj
+(16. Office locations, Wi-Fi & live tracking) Tj
 ET
 0.05 0.58 0.53 RG
 1.7007874015748032 w
@@ -5241,14 +5262,14 @@ BT
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 83.4616220472440915 703.2758267716535556 Td
-(Add office Wi-Fi networks \(label, SSID, BSSID, IPv4/IPv6\). Use current Wi-Fi to fill SSID/BSSID when on) Tj
+(Add office Wi-Fi networks \(label, SSID, BSSID\). Multiple networks per office are supported. Use current) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 83.4616220472440915 688.5356692913385359 Td
-(site.) Tj
+(Wi-Fi to fill SSID/BSSID when on site.) Tj
 ET
 BT
 /F2 9.8 Tf
@@ -5311,14 +5332,14 @@ BT
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 571.4648031496061549 Td
-(•  Phone apps use geofence exit + Wi-Fi checks for immediate leave detection; background work is only inside the) Tj
+(•  Phone and desktop apps use Wi-Fi + geofence checks inside the attendance window only — not continuous) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 556.7246456692912489 Td
-(attendance window — not continuous surveillance.) Tj
+(surveillance.) Tj
 ET
 BT
 /F1 9.8 Tf
@@ -5501,7 +5522,7 @@ endobj
 endobj
 46 0 obj
 <<
-/Length 5752
+/Length 3742
 >>
 stream
 1.7007874015748032 w
@@ -5539,7 +5560,7 @@ BT
 16.6749999999999972 TL
 0.059 0.09 0.165 rg
 45.354330708661422 779.5277952755905062 Td
-(18. Security & account deletion) Tj
+(18. Auto updates) Tj
 ET
 0.05 0.58 0.53 RG
 1.7007874015748032 w
@@ -5551,192 +5572,112 @@ BT
 12.6499999999999986 TL
 0.051 0.58 0.533 rg
 45.354330708661422 739.8427559055118081 Td
-(18.1 Safety basics) Tj
+(18.1 Web / Electron UI) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 721.4175590551180903 Td
-(•  Passwords hashed by Supabase Auth; failed logins rate-limited.) Tj
+(•  Android, iOS \(Capacitor\), and desktop Electron load https://scorr.walfia.ai/?app=1 for most UI.) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
 48.1889763779527627 706.6774015748030706 Td
-(•  Sessions last 1 hour from sign-in on every client, then sign out.) Tj
-ET
-BT
-/F1 9.8 Tf
-11.2699999999999996 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 691.9372440944881646 Td
-(•  MFA required on first sign-in per device; trusted devices skip the code for up to 7 days \(configurable\).) Tj
-ET
-BT
-/F1 9.8 Tf
-11.2699999999999996 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 677.1970866141731449 Td
-(•  Privileged roles use TOTP MFA + backup codes + email recovery.) Tj
-ET
-BT
-/F1 9.8 Tf
-11.2699999999999996 TL
-0.2 0.255 0.333 rg
-48.1889763779527627 662.4569291338582389 Td
-(•  Every record is company-scoped. Company signup needs email OTP.) Tj
+(•  Clients poll /build-meta.json and hard-refresh when webBuildId advances — silent, no “Updating…” banner.) Tj
 ET
 BT
 /F2 11 Tf
 12.6499999999999986 TL
 0.051 0.58 0.533 rg
-45.354330708661422 647.7167716535432191 Td
-(18.2 Device permissions) Tj
-ET
-0.95 0.96 0.98 rg
-45.354330708661422 640.6301574803148924 504.5669291338583093 -19.8425196850393704 re
-f
-BT
-/F2 8.8 Tf
-10.1199999999999992 TL
-0.118 0.161 0.231 rg
-51.0236220472441033 629.2915748031495013 Td
-(Permission) Tj
+45.354330708661422 691.9372440944881646 Td
+(18.2 Desktop binary \(NSIS / AppImage\)) Tj
 ET
 BT
-/F2 8.8 Tf
-10.1199999999999992 TL
-0.118 0.161 0.231 rg
-181.4173228346456881 629.2915748031495013 Td
-(Why) Tj
-ET
-BT
-/F2 8.8 Tf
-10.1199999999999992 TL
+/F1 9.8 Tf
+11.2699999999999996 TL
 0.2 0.255 0.333 rg
-51.0236220472441033 609.4490551181102092 Td
-(Internet) Tj
+48.1889763779527627 673.5120472440944468 Td
+(•  electron-updater checks on launch and around local 5 AM; Check for updates downloads/installs in the) Tj
 ET
 BT
-/F1 8.8 Tf
-10.1199999999999992 TL
+/F1 9.8 Tf
+11.2699999999999996 TL
 0.2 0.255 0.333 rg
-181.4173228346456881 609.4490551181102092 Td
-(Sign-in, KPIs, attendance, mail.) Tj
+48.1889763779527627 658.7718897637794271 Td
+(background.) Tj
 ET
 BT
-/F2 8.8 Tf
-10.1199999999999992 TL
+/F1 9.8 Tf
+11.2699999999999996 TL
 0.2 0.255 0.333 rg
-51.0236220472441033 592.4411811023621794 Td
-(Location \(Always\)) Tj
+48.1889763779527627 644.0317322834645211 Td
+(•  Prefer AppImage on Linux for silent auto-update. .deb shows a download banner — install the new package) Tj
 ET
 BT
-/F1 8.8 Tf
-10.1199999999999992 TL
+/F1 9.8 Tf
+11.2699999999999996 TL
 0.2 0.255 0.333 rg
-181.4173228346456881 592.4411811023621794 Td
-(Automatic office check-in/out in the shift window.) Tj
+48.1889763779527627 629.2915748031495013 Td
+(manually or switch to AppImage.) Tj
 ET
 BT
-/F2 8.8 Tf
-10.1199999999999992 TL
+/F1 9.8 Tf
+11.2699999999999996 TL
 0.2 0.255 0.333 rg
-51.0236220472441033 575.4333070866141497 Td
-(Notifications) Tj
+48.1889763779527627 614.5514173228345953 Td
+(•  Installer packages are large and hosted on GitHub Releases; updater feeds under /downloads/desktop/ on the) Tj
 ET
 BT
-/F1 8.8 Tf
-10.1199999999999992 TL
+/F1 9.8 Tf
+11.2699999999999996 TL
 0.2 0.255 0.333 rg
-181.4173228346456881 575.4333070866141497 Td
-(Check-out alerts and reminders.) Tj
-ET
-BT
-/F2 8.8 Tf
-10.1199999999999992 TL
-0.2 0.255 0.333 rg
-51.0236220472441033 558.42543307086612 Td
-(Battery unrestricted \(Android\)) Tj
-ET
-BT
-/F1 8.8 Tf
-10.1199999999999992 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 558.42543307086612 Td
-(Keeps background attendance reliable.) Tj
+48.1889763779527627 599.8112598425195756 Td
+(site.) Tj
 ET
 BT
 /F2 11 Tf
 12.6499999999999986 TL
 0.051 0.58 0.533 rg
-45.354330708661422 531.4962992125983874 Td
-(18.3 Delete my account) Tj
+45.354330708661422 585.0711023622045559 Td
+(18.3 Android) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-45.354330708661422 513.0711023622045559 Td
-(Help page: https://scorr.walfia.ai/delete-account) Tj
+48.1889763779527627 566.6459055118109518 Td
+(•  In-app updater checks version.json; background download then OS Install prompt when versionCode advances) Tj
 ET
 BT
-/F2 9.8 Tf
+/F1 9.8 Tf
 11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 551.9057480314959321 Td
+(\(cannot be fully silent\).) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
 0.051 0.58 0.533 rg
-45.354330708661422 493.2285826771652637 Td
-(Step 1:) Tj
+45.354330708661422 537.1655905511809124 Td
+(18.4 iOS) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 493.2285826771652637 Td
-( S e t t i n g s  !’   A c c o u n t   s e c u r i t y  !’   D e l e t e   m y   a c c o u n t .) Tj
-ET
-BT
-/F2 9.8 Tf
-11.2699999999999996 TL
-0.051 0.58 0.533 rg
-45.354330708661422 475.086850393700729 Td
-(Step 2:) Tj
+48.1889763779527627 518.7403937007873083 Td
+(•  Home Screen / PWA updates with the website hard refresh.) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-83.4616220472440915 475.086850393700729 Td
-( T y p e   D E L E T E   a n d   e n t e r   y o u r   p a s s w o r d  !’   C o n f i r m .) Tj
-ET
-1. 0.95 0.95 rg
-0.73 0.11 0.11 RG
-1.1338582677165356 w
-49.6062992125984294 465.4490551181102092 m
-545.6692913385827524 465.4490551181102092 l
-548.0175887000680177 465.4490551181102092 549.9212598425197029 463.5453839756584671 549.9212598425197029 461.1970866141732017 c
-549.9212598425197029 423.2128346456692611 l
-549.9212598425197029 420.8645372841839958 547.5729624810344376 418.9608661417322537 545.6692913385827524 418.9608661417322537 c
-49.6062992125984294 418.9608661417322537 l
-47.2580018511131641 418.9608661417322537 45.354330708661422 421.3091635032175191 45.354330708661422 423.2128346456692611 c
-45.354330708661422 461.1970866141732017 l
-45.354330708661422 463.5453839756584671 47.7026280701466874 465.4490551181102092 49.6062992125984294 465.4490551181102092 c
-h
-B
-BT
-/F1 9.2 Tf
-10.5799999999999983 TL
-0.6 0.106 0.106 rg
-56.6929133858267775 451.2758267716535556 Td
-(Company owners with other members must transfer ownership or delete the whole company first. Email) Tj
-ET
-BT
-/F1 9.2 Tf
-10.5799999999999983 TL
-0.6 0.106 0.106 rg
-56.6929133858267775 436.5356692913385928 Td
-(info@walfia.ai for help \(within 30 days\).) Tj
+48.1889763779527627 504.0002362204722886 Td
+(•  Native IPA: version messaging via version.json; App Store / TestFlight when published.) Tj
 ET
 BT
 /F1 8 Tf
@@ -5763,6 +5704,297 @@ endobj
 >>
 endobj
 48 0 obj
+<<
+/Length 6482
+>>
+stream
+1.7007874015748032 w
+0.05 0.58 0.53 RG
+0.97 0.98 0.99 rg
+0. 841.8899999999999864 595.2755905511811534 -39.6850393700787407 re
+f
+0.89 0.91 0.94 RG
+0. 802.2049606299211746 m
+595.2755905511811534 802.2049606299211746 l
+S
+BT
+/F2 8 Tf
+9.1999999999999993 TL
+0.051 0.58 0.533 rg
+45.354330708661422 816.3781889763779418 Td
+(SCORR) Tj
+ET
+BT
+/F1 8 Tf
+9.1999999999999993 TL
+0.392 0.455 0.545 rg
+96.3779527559055254 816.3781889763779418 Td
+(Complete User Guide) Tj
+ET
+BT
+/F1 8 Tf
+9.1999999999999993 TL
+0.392 0.455 0.545 rg
+501.2812598425197166 816.3781889763779418 Td
+(scorr.walfia.ai) Tj
+ET
+BT
+/F2 14.5 Tf
+16.6749999999999972 TL
+0.059 0.09 0.165 rg
+45.354330708661422 779.5277952755905062 Td
+(19. Security & account deletion) Tj
+ET
+0.05 0.58 0.53 RG
+1.7007874015748032 w
+45.354330708661422 758.2679527559055259 m
+147.4015748031496287 758.2679527559055259 l
+S
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0.051 0.58 0.533 rg
+45.354330708661422 739.8427559055118081 Td
+(19.1 Safety basics) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 721.4175590551180903 Td
+(•  Passwords hashed by Supabase Auth; failed logins rate-limited.) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 706.6774015748030706 Td
+(•  Sessions last 1 hour absolute from sign-in on every client, then sign out.) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 691.9372440944881646 Td
+(•  MFA required for production accounts; trusted devices default 7 days — Admin can set up to 30 days or Always) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 677.1970866141731449 Td
+(ask for staff vs admin/HR.) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 662.4569291338582389 Td
+( •     B a c k u p   c o d e s ,   e m a i l   r e c o v e r y ,   a n d   A d m i n  !’   P e o p l e  !’   R e s e t   a u t h e n t i c a t o r .) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 647.7167716535432191 Td
+(•  Multi-tenant RLS; HTTPS; auto-attendance device tokens in Keystore / Keychain / desktop safeStorage.) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 632.9766141732281994 Td
+(•  Every record is company-scoped. Company signup needs email OTP.) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0.051 0.58 0.533 rg
+45.354330708661422 618.2364566929132934 Td
+(19.2 Device permissions) Tj
+ET
+0.95 0.96 0.98 rg
+45.354330708661422 611.149842519684853 504.5669291338583093 -19.8425196850393704 re
+f
+BT
+/F2 8.8 Tf
+10.1199999999999992 TL
+0.118 0.161 0.231 rg
+51.0236220472441033 599.8112598425195756 Td
+(Permission) Tj
+ET
+BT
+/F2 8.8 Tf
+10.1199999999999992 TL
+0.118 0.161 0.231 rg
+181.4173228346456881 599.8112598425195756 Td
+(Why) Tj
+ET
+BT
+/F2 8.8 Tf
+10.1199999999999992 TL
+0.2 0.255 0.333 rg
+51.0236220472441033 579.9687401574801697 Td
+(Internet) Tj
+ET
+BT
+/F1 8.8 Tf
+10.1199999999999992 TL
+0.2 0.255 0.333 rg
+181.4173228346456881 579.9687401574801697 Td
+(Sign-in, KPIs, attendance, mail.) Tj
+ET
+BT
+/F2 8.8 Tf
+10.1199999999999992 TL
+0.2 0.255 0.333 rg
+51.0236220472441033 562.96086614173214 Td
+(Location \(Always\)) Tj
+ET
+BT
+/F1 8.8 Tf
+10.1199999999999992 TL
+0.2 0.255 0.333 rg
+181.4173228346456881 562.96086614173214 Td
+(Automatic office check-in in the shift window.) Tj
+ET
+BT
+/F2 8.8 Tf
+10.1199999999999992 TL
+0.2 0.255 0.333 rg
+51.0236220472441033 545.9529921259841103 Td
+(Notifications) Tj
+ET
+BT
+/F1 8.8 Tf
+10.1199999999999992 TL
+0.2 0.255 0.333 rg
+181.4173228346456881 545.9529921259841103 Td
+(Check-out alerts and reminders.) Tj
+ET
+BT
+/F2 8.8 Tf
+10.1199999999999992 TL
+0.2 0.255 0.333 rg
+51.0236220472441033 528.9451181102360806 Td
+(Battery unrestricted \(Android\)) Tj
+ET
+BT
+/F1 8.8 Tf
+10.1199999999999992 TL
+0.2 0.255 0.333 rg
+181.4173228346456881 528.9451181102360806 Td
+(Keeps background attendance reliable.) Tj
+ET
+BT
+/F2 8.8 Tf
+10.1199999999999992 TL
+0.2 0.255 0.333 rg
+51.0236220472441033 511.9372440944881077 Td
+(Tray / start at login \(desktop\)) Tj
+ET
+BT
+/F1 8.8 Tf
+10.1199999999999992 TL
+0.2 0.255 0.333 rg
+181.4173228346456881 511.9372440944881077 Td
+(Keeps desktop auto attendance available.) Tj
+ET
+BT
+/F2 11 Tf
+12.6499999999999986 TL
+0.051 0.58 0.533 rg
+45.354330708661422 485.0081102362203751 Td
+(19.3 Delete my account) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+45.354330708661422 466.5829133858266005 Td
+(Help page: https://scorr.walfia.ai/delete-account) Tj
+ET
+BT
+/F2 9.8 Tf
+11.2699999999999996 TL
+0.051 0.58 0.533 rg
+45.354330708661422 446.7403937007872514 Td
+(Step 1:) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+83.4616220472440915 446.7403937007872514 Td
+( S e t t i n g s  !’   A c c o u n t   s e c u r i t y  !’   D e l e t e   m y   a c c o u n t .) Tj
+ET
+BT
+/F2 9.8 Tf
+11.2699999999999996 TL
+0.051 0.58 0.533 rg
+45.354330708661422 428.5986614173227736 Td
+(Step 2:) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+83.4616220472440915 428.5986614173227736 Td
+( T y p e   D E L E T E   a n d   e n t e r   y o u r   p a s s w o r d  !’   C o n f i r m .) Tj
+ET
+1. 0.95 0.95 rg
+0.73 0.11 0.11 RG
+1.1338582677165356 w
+49.6062992125984294 418.9608661417322537 m
+545.6692913385827524 418.9608661417322537 l
+548.0175887000680177 418.9608661417322537 549.9212598425197029 417.0571949992805116 549.9212598425197029 414.7088976377952463 c
+549.9212598425197029 376.7246456692913057 l
+549.9212598425197029 374.3763483078060403 547.5729624810344376 372.4726771653542983 545.6692913385827524 372.4726771653542983 c
+49.6062992125984294 372.4726771653542983 l
+47.2580018511131641 372.4726771653542983 45.354330708661422 374.8209745268395068 45.354330708661422 376.7246456692913057 c
+45.354330708661422 414.7088976377952463 l
+45.354330708661422 417.0571949992805116 47.7026280701466874 418.9608661417322537 49.6062992125984294 418.9608661417322537 c
+h
+B
+BT
+/F1 9.2 Tf
+10.5799999999999983 TL
+0.6 0.106 0.106 rg
+56.6929133858267775 404.7876377952755433 Td
+(Company owners with other members must transfer ownership or delete the whole company first. Email) Tj
+ET
+BT
+/F1 9.2 Tf
+10.5799999999999983 TL
+0.6 0.106 0.106 rg
+56.6929133858267775 390.0474803149606373 Td
+(info@walfia.ai for help \(within 30 days\).) Tj
+ET
+BT
+/F1 8 Tf
+9.1999999999999993 TL
+0.58 0.639 0.722 rg
+282.8777952755905858 28.3466929133857093 Td
+(Page 23) Tj
+ET
+BT
+/F1 8 Tf
+9.1999999999999993 TL
+0.58 0.639 0.722 rg
+45.354330708661422 28.3466929133857093 Td
+(© Walfia · Scorr) Tj
+ET
+endstream
+endobj
+49 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 50 0 R
+>>
+endobj
+50 0 obj
 <<
 /Length 3708
 >>
@@ -5802,7 +6034,7 @@ BT
 16.6749999999999972 TL
 0.059 0.09 0.165 rg
 45.354330708661422 779.5277952755905062 Td
-(19. Plans, trial & demo) Tj
+(20. Plans, trial & demo) Tj
 ET
 0.05 0.58 0.53 RG
 1.7007874015748032 w
@@ -5873,7 +6105,7 @@ BT
 12.6499999999999986 TL
 0.051 0.58 0.533 rg
 45.354330708661422 659.0553543307086102 Td
-(19.1 Demo sandbox \(?demo=1\)) Tj
+(20.1 Demo sandbox \(?demo=1\)) Tj
 ET
 0.95 0.96 0.98 rg
 45.354330708661422 651.9687401574802834 504.5669291338583093 -19.8425196850393704 re
@@ -5946,7 +6178,7 @@ BT
 9.1999999999999993 TL
 0.58 0.639 0.722 rg
 282.8777952755905858 28.3466929133857093 Td
-(Page 23) Tj
+(Page 24) Tj
 ET
 BT
 /F1 8 Tf
@@ -5957,17 +6189,17 @@ BT
 ET
 endstream
 endobj
-49 0 obj
+51 0 obj
 <</Type /Page
 /Parent 1 0 R
 /Resources 2 0 R
 /MediaBox [0 0 595.2799999999999727 841.8899999999999864]
-/Contents 50 0 R
+/Contents 52 0 R
 >>
 endobj
-50 0 obj
+52 0 obj
 <<
-/Length 8930
+/Length 9927
 >>
 stream
 1.7007874015748032 w
@@ -6005,7 +6237,7 @@ BT
 16.6749999999999972 TL
 0.059 0.09 0.165 rg
 45.354330708661422 779.5277952755905062 Td
-(20. Troubleshooting & support) Tj
+(21. Troubleshooting & support) Tj
 ET
 0.05 0.58 0.53 RG
 1.7007874015748032 w
@@ -6041,14 +6273,14 @@ BT
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 720.0002362204724022 Td
-( U s e   h t t p s : / / s c o r r . w a l f i a . a i / # d o w n l o a d - a p p  !’   D o w n l o a d   f o r   W i n d o w s   /   L i n u x .   F i l e s) Tj
+(Use https://scorr.walfia.ai/#download-app. Packages open from the official GitHub) Tj
 ET
 BT
 /F1 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 705.2600787401574962 Td
-(open from the official GitHub Release.) Tj
+(Release \(desktop-v1.3.44 or /latest\).) Tj
 ET
 BT
 /F2 8.8 Tf
@@ -6062,293 +6294,335 @@ BT
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 688.2522047244094665 Td
-( S m a r t S c r e e n  !’   M o r e   i n f o  !’   R u n   a n y w a y   o n l y   i f   y o u   d o w n l o a d e d   f r o m   s c o r r . w a l f i a . a i .) Tj
+( S m a r t S c r e e n  !’   M o r e   i n f o  !’   R u n   a n y w a y   o n l y   i f   y o u   d o w n l o a d e d   f r o m   s c o r r . w a l f i a . a i   /) Tj
 ET
 BT
 /F1 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 673.5120472440944468 Td
-(Then finish the Setup wizard.) Tj
+(official Release.) Tj
 ET
 BT
 /F2 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 656.5041732283464171 Td
-(Windows only runs from a folder) Tj
+(Windows blank screen after login) Tj
 ET
 BT
 /F1 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 656.5041732283464171 Td
-(You used an old zip. Download Scorr-Setup.exe and install — then open from Start) Tj
+(Use current Scorr Desktop 1.3.44+ \(forces correct Content-Type for CSS/JS\).) Tj
 ET
 BT
 /F1 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 641.7640157480313974 Td
-(Menu.) Tj
+(Reinstall from GitHub Release if an old build.) Tj
 ET
 BT
 /F2 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 624.7561417322833677 Td
-(Linux .deb won’t install) Tj
+(Chrome “Install app” / PWA) Tj
 ET
 BT
 /F1 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 624.7561417322833677 Td
-(cd ~/Downloads then: sudo apt install ./Scorr.deb \(fix broken deps if apt asks\).) Tj
-ET
-BT
-/F2 8.8 Tf
-10.1199999999999992 TL
-0.2 0.255 0.333 rg
-51.0236220472441033 607.748267716535338 Td
-(Cannot download APK) Tj
+(Not sufficient for desktop auto attendance. Install Scorr-Setup.exe / AppImage / .deb) Tj
 ET
 BT
 /F1 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
-181.4173228346456881 607.748267716535338 Td
-( U s e   h t t p s : / / s c o r r . w a l f i a . a i / # d o w n l o a d - a p p  !’   D o w n l o a d   A n d r o i d   A p p .   T r y   a n o t h e r) Tj
+181.4173228346456881 610.0159842519684616 Td
+(so the title shows Scorr Desktop x.y.z.) Tj
+ET
+BT
+/F2 8.8 Tf
+10.1199999999999992 TL
+0.2 0.255 0.333 rg
+51.0236220472441033 593.0081102362204319 Td
+(Linux .deb won’t install) Tj
 ET
 BT
 /F1 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 593.0081102362204319 Td
-(browser.) Tj
-ET
-BT
-/F2 8.8 Tf
-10.1199999999999992 TL
-0.2 0.255 0.333 rg
-51.0236220472441033 576.0002362204722886 Td
-(APK won’t install) Tj
+(cd ~/Downloads then: sudo apt install ./Scorr.deb \(fix broken deps if apt asks\). Prefer) Tj
 ET
 BT
 /F1 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
-181.4173228346456881 576.0002362204722886 Td
-(Allow install from browser/Files; uninstall old build only if signature conflicts, then) Tj
+181.4173228346456881 578.2679527559054122 Td
+(AppImage for silent updates.) Tj
+ET
+BT
+/F2 8.8 Tf
+10.1199999999999992 TL
+0.2 0.255 0.333 rg
+51.0236220472441033 561.2600787401573825 Td
+(Cannot download APK) Tj
 ET
 BT
 /F1 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 561.2600787401573825 Td
-(reinstall.) Tj
+( U s e   h t t p s : / / s c o r r . w a l f i a . a i / # d o w n l o a d - a p p  !’   D o w n l o a d   A n d r o i d   A p p .) Tj
 ET
 BT
 /F2 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 544.2522047244093528 Td
-(iPhone install fails) Tj
+(APK won’t install) Tj
 ET
 BT
 /F1 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 544.2522047244093528 Td
+(Allow install from browser/Files; uninstall old debug build only if signature conflicts,) Tj
+ET
+BT
+/F1 8.8 Tf
+10.1199999999999992 TL
+0.2 0.255 0.333 rg
+181.4173228346456881 529.5120472440944468 Td
+(then reinstall.) Tj
+ET
+BT
+/F2 8.8 Tf
+10.1199999999999992 TL
+0.2 0.255 0.333 rg
+51.0236220472441033 512.5041732283464171 Td
+(iPhone install fails) Tj
+ET
+BT
+/F1 8.8 Tf
+10.1199999999999992 TL
+0.2 0.255 0.333 rg
+181.4173228346456881 512.5041732283464171 Td
 ( U s e   S a f a r i  !’   S h a r e  !’   A d d   t o   H o m e   S c r e e n   \( n o t   C h r o m e \) .) Tj
 ET
 BT
 /F2 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
-51.0236220472441033 527.2443307086613231 Td
+51.0236220472441033 495.4962992125983305 Td
 (Awaiting approval) Tj
 ET
 BT
 /F1 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
-181.4173228346456881 527.2443307086613231 Td
+181.4173228346456881 495.4962992125983305 Td
 (Wait for Walfia to approve at /platform; email info@walfia.ai if delayed.) Tj
 ET
 BT
 /F2 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
-51.0236220472441033 510.2364566929132934 Td
+51.0236220472441033 478.4884251968503008 Td
 (Stuck on MFA) Tj
 ET
 BT
 /F1 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
-181.4173228346456881 510.2364566929132934 Td
+181.4173228346456881 478.4884251968503008 Td
 ( B a c k u p   c o d e ,   e m a i l   r e c o v e r y ,   o r   A d m i n  !’   P e o p l e  !’   R e s e t   a u t h e n t i c a t o r .) Tj
 ET
 BT
 /F2 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
-51.0236220472441033 493.2285826771652637 Td
-(Wrong dashboard) Tj
-ET
-BT
-/F1 8.8 Tf
-10.1199999999999992 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 493.2285826771652637 Td
-(Ask Admin to check your role on People.) Tj
-ET
-BT
-/F2 8.8 Tf
-10.1199999999999992 TL
-0.2 0.255 0.333 rg
-51.0236220472441033 476.2207086614171772 Td
-(Cannot assign KPI) Tj
-ET
-BT
-/F1 8.8 Tf
-10.1199999999999992 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 476.2207086614171772 Td
-( D e p a r t m e n t   +   p e r s o n   r e q u i r e d ;   o p e n   w e i g h t a g e  "d   1 0 0 % .) Tj
-ET
-BT
-/F2 8.8 Tf
-10.1199999999999992 TL
-0.2 0.255 0.333 rg
-51.0236220472441033 459.2128346456691474 Td
-(GPS / auto attendance fails) Tj
-ET
-BT
-/F1 8.8 Tf
-10.1199999999999992 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 459.2128346456691474 Td
-(Precise/Always location; assigned office + shift; company auto attendance ON; finish) Tj
-ET
-BT
-/F1 8.8 Tf
-10.1199999999999992 TL
-0.2 0.255 0.333 rg
-181.4173228346456881 444.4726771653542414 Td
-(setup wizard; install latest 1.3.7+ app. Wi-Fi sleep alone does not check you out.) Tj
-ET
-BT
-/F2 8.8 Tf
-10.1199999999999992 TL
-0.2 0.255 0.333 rg
-51.0236220472441033 427.4648031496062117 Td
+51.0236220472441033 461.4805511811022711 Td
 (Asked for MFA every time) Tj
 ET
 BT
 /F1 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
-181.4173228346456881 427.4648031496062117 Td
+181.4173228346456881 461.4805511811022711 Td
 (Trust expired/revoked, Always ask policy, or Sign out & forget this device was used.) Tj
-ET
-BT
-/F2 8.8 Tf
-10.1199999999999992 TL
-0.2 0.255 0.333 rg
-51.0236220472441033 410.456929133858182 Td
-(Update available) Tj
 ET
 BT
 /F1 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
-181.4173228346456881 410.456929133858182 Td
-(Android/desktop: Install or Restart to update. Web/PWA: Refresh. Login and) Tj
+181.4173228346456881 446.7403937007873083 Td
+(Admin can raise trust up to 30 days.) Tj
+ET
+BT
+/F2 8.8 Tf
+10.1199999999999992 TL
+0.2 0.255 0.333 rg
+51.0236220472441033 429.7325196850392786 Td
+(Wrong dashboard) Tj
+ET
+BT
+/F1 8.8 Tf
+10.1199999999999992 TL
+0.2 0.255 0.333 rg
+181.4173228346456881 429.7325196850392786 Td
+(Ask Admin to check your role on People.) Tj
+ET
+BT
+/F2 8.8 Tf
+10.1199999999999992 TL
+0.2 0.255 0.333 rg
+51.0236220472441033 412.7246456692912489 Td
+(Cannot assign KPI) Tj
+ET
+BT
+/F1 8.8 Tf
+10.1199999999999992 TL
+0.2 0.255 0.333 rg
+181.4173228346456881 412.7246456692912489 Td
+( D e p a r t m e n t   +   p e r s o n   r e q u i r e d ;   o p e n   w e i g h t a g e  "d   1 0 0 % .) Tj
+ET
+BT
+/F2 8.8 Tf
+10.1199999999999992 TL
+0.2 0.255 0.333 rg
+51.0236220472441033 395.7167716535432191 Td
+(GPS / auto attendance fails) Tj
 ET
 BT
 /F1 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 395.7167716535432191 Td
-(attendance enrollment survive updates.) Tj
+(Installed app 1.3.44+; Location Always; assigned office + saved Wi-Fi and/or radius;) Tj
+ET
+BT
+/F1 8.8 Tf
+10.1199999999999992 TL
+0.2 0.255 0.333 rg
+181.4173228346456881 380.9766141732283131 Td
+(company auto attendance ON; finish Enable automatic check-in. Window ends at) Tj
+ET
+BT
+/F1 8.8 Tf
+10.1199999999999992 TL
+0.2 0.255 0.333 rg
+181.4173228346456881 366.2364566929133503 Td
+(shift end \(not +1h\). After manual Clock Out wait ~30s before auto re-check-in.) Tj
 ET
 BT
 /F2 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
-51.0236220472441033 378.7088976377951894 Td
+51.0236220472441033 349.2285826771653205 Td
+(Update available) Tj
+ET
+BT
+/F1 8.8 Tf
+10.1199999999999992 TL
+0.2 0.255 0.333 rg
+181.4173228346456881 349.2285826771653205 Td
+(Desktop NSIS/AppImage: Check for updates \(background\). .deb: download banner.) Tj
+ET
+BT
+/F1 8.8 Tf
+10.1199999999999992 TL
+0.2 0.255 0.333 rg
+181.4173228346456881 334.4884251968504145 Td
+(Android: Install sheet. Web: silent hard refresh via build-meta.) Tj
+ET
+BT
+/F2 8.8 Tf
+10.1199999999999992 TL
+0.2 0.255 0.333 rg
+51.0236220472441033 317.480551181102328 Td
 (HR under wrong group) Tj
 ET
 BT
 /F1 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
-181.4173228346456881 378.7088976377951894 Td
+181.4173228346456881 317.480551181102328 Td
 (History shows Human Resources for HR; not Unassigned.) Tj
 ET
 BT
 /F2 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
-51.0236220472441033 361.7010236220471597 Td
+51.0236220472441033 300.4726771653542983 Td
 (Daily report not visible) Tj
 ET
 BT
 /F1 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
-181.4173228346456881 361.7010236220471597 Td
+181.4173228346456881 300.4726771653542983 Td
 ( A d m i n :   D a i l y   R e p o r t s  !’   p i c k   d a t e .   H R :   O r g a n i z a t i o n   t a b .) Tj
 ET
 BT
 /F2 11 Tf
 12.6499999999999986 TL
 0.051 0.58 0.533 rg
-45.354330708661422 334.7718897637794271 Td
+45.354330708661422 273.5435433070865656 Td
 (Need help?) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 316.3466929133857093 Td
+48.1889763779527627 255.1183464566929615 Td
 (•  Website: https://scorr.walfia.ai) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 301.6065354330708033 Td
+48.1889763779527627 240.3781889763779418 Td
 ( •     R e g i s t e r :   H o m e  !’   R e g i s t e r   C o m p a n y) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 286.8663779527558972 Td
+48.1889763779527627 225.6380314960630358 Td
 (•  Download apps: https://scorr.walfia.ai/#download-app) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 272.1262204724409912 Td
+48.1889763779527627 210.8978740157481298 Td
+(•  Desktop release: https://github.com/usmanHassanzai/HR/releases/tag/desktop-v1.3.44) Tj
+ET
+BT
+/F1 9.8 Tf
+11.2699999999999996 TL
+0.2 0.255 0.333 rg
+48.1889763779527627 196.1577165354332237 Td
 (•  This guide: https://scorr.walfia.ai/downloads/Scorr-Client-Feature-Guide.pdf) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 257.3860629921259715 Td
+48.1889763779527627 181.4175590551183177 Td
 (•  Delete account help: https://scorr.walfia.ai/delete-account) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-48.1889763779527627 242.6459055118110655 Td
+48.1889763779527627 166.677401574803298 Td
 (•  Support: info@walfia.ai) Tj
 ET
 BT
@@ -6356,7 +6630,7 @@ BT
 9.1999999999999993 TL
 0.58 0.639 0.722 rg
 282.8777952755905858 28.3466929133857093 Td
-(Page 24) Tj
+(Page 25) Tj
 ET
 BT
 /F1 8 Tf
@@ -6367,17 +6641,17 @@ BT
 ET
 endstream
 endobj
-51 0 obj
+53 0 obj
 <</Type /Page
 /Parent 1 0 R
 /Resources 2 0 R
 /MediaBox [0 0 595.2799999999999727 841.8899999999999864]
-/Contents 52 0 R
+/Contents 54 0 R
 >>
 endobj
-52 0 obj
+54 0 obj
 <<
-/Length 6650
+/Length 7351
 >>
 stream
 1.7007874015748032 w
@@ -6415,7 +6689,7 @@ BT
 16.6749999999999972 TL
 0.059 0.09 0.165 rg
 45.354330708661422 779.5277952755905062 Td
-(21. Quick reference) Tj
+(22. Quick reference) Tj
 ET
 0.05 0.58 0.53 RG
 1.7007874015748032 w
@@ -6465,7 +6739,7 @@ BT
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 702.9923622047243725 Td
-(Scorr-Setup.exe from #download-windows \(Start Menu install\)) Tj
+(Scorr-Setup.exe from GitHub Releases \(desktop-v1.3.44+\)) Tj
 ET
 BT
 /F2 8.8 Tf
@@ -6479,7 +6753,7 @@ BT
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 685.9844881889763428 Td
-( S c o r r . d e b  !’   s u d o   a p t   i n s t a l l   . / S c o r r . d e b) Tj
+(Scorr.AppImage \(prefer\) or Scorr.deb) Tj
 ET
 BT
 /F2 8.8 Tf
@@ -6507,7 +6781,7 @@ BT
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 651.9687401574802834 Td
-( S a f a r i  !’   A d d   t o   H o m e   S c r e e n   \( ? a p p = 1 \)) Tj
+( S a f a r i  !’   A d d   t o   H o m e   S c r e e n   \( ? a p p = 1 \) ;   A p p   S t o r e   w h e n   a v a i l a b l e) Tj
 ET
 BT
 /F2 8.8 Tf
@@ -6612,104 +6886,132 @@ BT
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 515.9057480314959321 Td
-(Shift window) Tj
+(Auto check-in window) Tj
 ET
 BT
 /F1 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 515.9057480314959321 Td
-(60 minutes before start / after end) Tj
+( 1   h o u r   b e f o r e   s h i f t   s t a r t  !’   s h i f t   e n d) Tj
 ET
 BT
 /F2 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 498.8978740157479592 Td
-(Session lifetime) Tj
+(Check-in policy) Tj
 ET
 BT
 /F1 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 498.8978740157479592 Td
-(1 hour from sign-in) Tj
+(wifi_then_radius \(any saved SSID/BSSID, else GPS radius\)) Tj
 ET
 BT
 /F2 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 481.8899999999999295 Td
-(Trusted device) Tj
+(After manual Clock Out) Tj
 ET
 BT
 /F1 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 481.8899999999999295 Td
-(Up to 7 days \(company policy\)) Tj
+(~30 seconds before auto re-check-in) Tj
 ET
 BT
 /F2 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 464.8821259842518998 Td
-(App version) Tj
+(Session lifetime) Tj
 ET
 BT
 /F1 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 464.8821259842518998 Td
-(1.3.7+) Tj
+(1 hour absolute from sign-in) Tj
 ET
 BT
 /F2 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 447.8742519685038701 Td
-(Geofence default) Tj
+(Trusted device) Tj
 ET
 BT
 /F1 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 447.8742519685038701 Td
-(~150 m) Tj
+(Default 7 days; Admin up to 30 days or Always ask) Tj
 ET
 BT
 /F2 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
 51.0236220472441033 430.8663779527558404 Td
-(Direct APK until) Tj
+(App / desktop version) Tj
 ET
 BT
 /F1 8.8 Tf
 10.1199999999999992 TL
 0.2 0.255 0.333 rg
 181.4173228346456881 430.8663779527558404 Td
-(1 November 2026) Tj
+(1.3.44+) Tj
+ET
+BT
+/F2 8.8 Tf
+10.1199999999999992 TL
+0.2 0.255 0.333 rg
+51.0236220472441033 413.8585039370078107 Td
+(Geofence default) Tj
+ET
+BT
+/F1 8.8 Tf
+10.1199999999999992 TL
+0.2 0.255 0.333 rg
+181.4173228346456881 413.8585039370078107 Td
+(~150 m) Tj
+ET
+BT
+/F2 8.8 Tf
+10.1199999999999992 TL
+0.2 0.255 0.333 rg
+51.0236220472441033 396.850629921259781 Td
+(Large packages hosted on) Tj
+ET
+BT
+/F1 8.8 Tf
+10.1199999999999992 TL
+0.2 0.255 0.333 rg
+181.4173228346456881 396.850629921259781 Td
+(GitHub Releases \(not Vercel binary hosting\)) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-45.354330708661422 403.9372440944881077 Td
-(Thank you for using Scorr — KPIs, GPS attendance, daily reports, and rewards in one secure company workspace) Tj
+45.354330708661422 369.9214960629920483 Td
+(Thank you for using Scorr — KPIs, automatic attendance, daily reports, and rewards in one secure company) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-45.354330708661422 389.1970866141732017 Td
-(on web, Windows, Linux, Android, and iPhone.) Tj
+45.354330708661422 355.1813385826771423 Td
+(workspace on web, Windows, Linux, Android, and iPhone.) Tj
 ET
 BT
 /F1 9.8 Tf
 11.2699999999999996 TL
 0.2 0.255 0.333 rg
-45.354330708661422 369.3545669291338527 Td
+45.354330708661422 335.3388188976377364 Td
 (© Walfia · https://scorr.walfia.ai · info@walfia.ai) Tj
 ET
 BT
@@ -6717,7 +7019,7 @@ BT
 9.1999999999999993 TL
 0.58 0.639 0.722 rg
 282.8777952755905858 28.3466929133857093 Td
-(Page 25) Tj
+(Page 26) Tj
 ET
 BT
 /F1 8 Tf
@@ -6730,11 +7032,11 @@ endstream
 endobj
 1 0 obj
 <</Type /Pages
-/Kids [3 0 R 5 0 R 7 0 R 9 0 R 11 0 R 13 0 R 15 0 R 17 0 R 19 0 R 21 0 R 23 0 R 25 0 R 27 0 R 29 0 R 31 0 R 33 0 R 35 0 R 37 0 R 39 0 R 41 0 R 43 0 R 45 0 R 47 0 R 49 0 R 51 0 R ]
-/Count 25
+/Kids [3 0 R 5 0 R 7 0 R 9 0 R 11 0 R 13 0 R 15 0 R 17 0 R 19 0 R 21 0 R 23 0 R 25 0 R 27 0 R 29 0 R 31 0 R 33 0 R 35 0 R 37 0 R 39 0 R 41 0 R 43 0 R 45 0 R 47 0 R 49 0 R 51 0 R 53 0 R ]
+/Count 26
 >>
 endobj
-53 0 obj
+55 0 obj
 <<
 /Type /Font
 /BaseFont /Helvetica
@@ -6744,7 +7046,7 @@ endobj
 /LastChar 255
 >>
 endobj
-54 0 obj
+56 0 obj
 <<
 /Type /Font
 /BaseFont /Helvetica-Bold
@@ -6754,7 +7056,7 @@ endobj
 /LastChar 255
 >>
 endobj
-55 0 obj
+57 0 obj
 <<
 /Type /Font
 /BaseFont /Helvetica-Oblique
@@ -6764,7 +7066,7 @@ endobj
 /LastChar 255
 >>
 endobj
-56 0 obj
+58 0 obj
 <<
 /Type /Font
 /BaseFont /Helvetica-BoldOblique
@@ -6774,7 +7076,7 @@ endobj
 /LastChar 255
 >>
 endobj
-57 0 obj
+59 0 obj
 <<
 /Type /Font
 /BaseFont /Courier
@@ -6784,7 +7086,7 @@ endobj
 /LastChar 255
 >>
 endobj
-58 0 obj
+60 0 obj
 <<
 /Type /Font
 /BaseFont /Courier-Bold
@@ -6794,7 +7096,7 @@ endobj
 /LastChar 255
 >>
 endobj
-59 0 obj
+61 0 obj
 <<
 /Type /Font
 /BaseFont /Courier-Oblique
@@ -6804,7 +7106,7 @@ endobj
 /LastChar 255
 >>
 endobj
-60 0 obj
+62 0 obj
 <<
 /Type /Font
 /BaseFont /Courier-BoldOblique
@@ -6814,7 +7116,7 @@ endobj
 /LastChar 255
 >>
 endobj
-61 0 obj
+63 0 obj
 <<
 /Type /Font
 /BaseFont /Times-Roman
@@ -6824,7 +7126,7 @@ endobj
 /LastChar 255
 >>
 endobj
-62 0 obj
+64 0 obj
 <<
 /Type /Font
 /BaseFont /Times-Bold
@@ -6834,7 +7136,7 @@ endobj
 /LastChar 255
 >>
 endobj
-63 0 obj
+65 0 obj
 <<
 /Type /Font
 /BaseFont /Times-Italic
@@ -6844,7 +7146,7 @@ endobj
 /LastChar 255
 >>
 endobj
-64 0 obj
+66 0 obj
 <<
 /Type /Font
 /BaseFont /Times-BoldItalic
@@ -6854,7 +7156,7 @@ endobj
 /LastChar 255
 >>
 endobj
-65 0 obj
+67 0 obj
 <<
 /Type /Font
 /BaseFont /ZapfDingbats
@@ -6863,7 +7165,7 @@ endobj
 /LastChar 255
 >>
 endobj
-66 0 obj
+68 0 obj
 <<
 /Type /Font
 /BaseFont /Symbol
@@ -6876,32 +7178,32 @@ endobj
 <<
 /ProcSet [/PDF /Text /ImageB /ImageC /ImageI]
 /Font <<
-/F1 53 0 R
-/F2 54 0 R
-/F3 55 0 R
-/F4 56 0 R
-/F5 57 0 R
-/F6 58 0 R
-/F7 59 0 R
-/F8 60 0 R
-/F9 61 0 R
-/F10 62 0 R
-/F11 63 0 R
-/F12 64 0 R
-/F13 65 0 R
-/F14 66 0 R
+/F1 55 0 R
+/F2 56 0 R
+/F3 57 0 R
+/F4 58 0 R
+/F5 59 0 R
+/F6 60 0 R
+/F7 61 0 R
+/F8 62 0 R
+/F9 63 0 R
+/F10 64 0 R
+/F11 65 0 R
+/F12 66 0 R
+/F13 67 0 R
+/F14 68 0 R
 >>
 /XObject <<
 >>
 >>
 endobj
-67 0 obj
+69 0 obj
 <<
 /Producer (jsPDF 4.2.1)
-/CreationDate (D:20261007203809+05'00')
+/CreationDate (D:20261019190119+05'00')
 >>
 endobj
-68 0 obj
+70 0 obj
 <<
 /Type /Catalog
 /Pages 1 0 R
@@ -6910,83 +7212,85 @@ endobj
 >>
 endobj
 xref
-0 69
+0 71
 0000000000 65535 f 
-0000149916 00000 n 
-0000151904 00000 n 
+0000156623 00000 n 
+0000158618 00000 n 
 0000000015 00000 n 
 0000000152 00000 n 
-0000001800 00000 n 
-0000001937 00000 n 
-0000006014 00000 n 
-0000006151 00000 n 
-0000011158 00000 n 
-0000011296 00000 n 
-0000018324 00000 n 
-0000018463 00000 n 
-0000030503 00000 n 
-0000030642 00000 n 
-0000033203 00000 n 
-0000033342 00000 n 
-0000040377 00000 n 
-0000040516 00000 n 
-0000048471 00000 n 
-0000048610 00000 n 
-0000053054 00000 n 
-0000053193 00000 n 
-0000061303 00000 n 
-0000061442 00000 n 
-0000062470 00000 n 
-0000062609 00000 n 
-0000069187 00000 n 
-0000069326 00000 n 
-0000075606 00000 n 
-0000075745 00000 n 
-0000082884 00000 n 
-0000083023 00000 n 
-0000093360 00000 n 
-0000093499 00000 n 
-0000102122 00000 n 
-0000102261 00000 n 
-0000107322 00000 n 
-0000107461 00000 n 
-0000111569 00000 n 
-0000111708 00000 n 
-0000116438 00000 n 
-0000116577 00000 n 
-0000121642 00000 n 
-0000121781 00000 n 
-0000124108 00000 n 
-0000124247 00000 n 
-0000130052 00000 n 
-0000130191 00000 n 
-0000133952 00000 n 
-0000134091 00000 n 
-0000143074 00000 n 
-0000143213 00000 n 
-0000150139 00000 n 
-0000150265 00000 n 
-0000150396 00000 n 
-0000150530 00000 n 
-0000150668 00000 n 
-0000150792 00000 n 
-0000150921 00000 n 
-0000151053 00000 n 
-0000151189 00000 n 
-0000151317 00000 n 
-0000151444 00000 n 
-0000151573 00000 n 
-0000151706 00000 n 
-0000151808 00000 n 
-0000152157 00000 n 
-0000152243 00000 n 
+0000001929 00000 n 
+0000002066 00000 n 
+0000006291 00000 n 
+0000006428 00000 n 
+0000011302 00000 n 
+0000011440 00000 n 
+0000018890 00000 n 
+0000019029 00000 n 
+0000030369 00000 n 
+0000030508 00000 n 
+0000034249 00000 n 
+0000034388 00000 n 
+0000041423 00000 n 
+0000041562 00000 n 
+0000049701 00000 n 
+0000049840 00000 n 
+0000054311 00000 n 
+0000054450 00000 n 
+0000062489 00000 n 
+0000062628 00000 n 
+0000064146 00000 n 
+0000064285 00000 n 
+0000070849 00000 n 
+0000070988 00000 n 
+0000077311 00000 n 
+0000077450 00000 n 
+0000083855 00000 n 
+0000083994 00000 n 
+0000093711 00000 n 
+0000093850 00000 n 
+0000102473 00000 n 
+0000102612 00000 n 
+0000107673 00000 n 
+0000107812 00000 n 
+0000111920 00000 n 
+0000112059 00000 n 
+0000116789 00000 n 
+0000116928 00000 n 
+0000121987 00000 n 
+0000122126 00000 n 
+0000124453 00000 n 
+0000124592 00000 n 
+0000128387 00000 n 
+0000128526 00000 n 
+0000135061 00000 n 
+0000135200 00000 n 
+0000138961 00000 n 
+0000139100 00000 n 
+0000149080 00000 n 
+0000149219 00000 n 
+0000156853 00000 n 
+0000156979 00000 n 
+0000157110 00000 n 
+0000157244 00000 n 
+0000157382 00000 n 
+0000157506 00000 n 
+0000157635 00000 n 
+0000157767 00000 n 
+0000157903 00000 n 
+0000158031 00000 n 
+0000158158 00000 n 
+0000158287 00000 n 
+0000158420 00000 n 
+0000158522 00000 n 
+0000158871 00000 n 
+0000158957 00000 n 
 trailer
 <<
-/Size 69
-/Root 68 0 R
-/Info 67 0 R
-/ID [ <BE60B1E6438095886B77045A0F0402DC> <BE60B1E6438095886B77045A0F0402DC> ]
+/Size 71
+/Root 70 0 R
+/Info 69 0 R
+/ID [ <C5D43834171AEB8573BD791A4FD41525> <C5D43834171AEB8573BD791A4FD41525> ]
 >>
 startxref
-152347
+159061
 %%EOF

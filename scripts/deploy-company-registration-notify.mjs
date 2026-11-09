@@ -1,5 +1,5 @@
 /**
- * Deploy company_registration_notify edge function (emails info@walfia.ai).
+ * Deploy company_registration_notify edge function (emails usmankhan14700@gmail.com).
  * Run: node scripts/deploy-company-registration-notify.mjs
  * Uses existing RESEND_API_KEY project secret.
  */

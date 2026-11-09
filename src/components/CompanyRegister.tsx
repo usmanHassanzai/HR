@@ -298,7 +298,7 @@ export default function CompanyRegister({ onBack, onSession, embedded = false }:
           </h2>
           <p className="company-register__intro">
             {step === 1
-              ? 'Takes about a minute. After you verify your email, the platform owner (info@walfia.ai) must approve your organization before you can use Scorr.'
+              ? 'Takes about a minute. After you verify your email, the platform owner (usmankhan14700@gmail.com) must approve your organization before you can use Scorr.'
               : 'Optional — you can skip this and add details later.'}
           </p>
         </div>

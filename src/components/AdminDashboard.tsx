@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { supabase } from '../lib/supabase';
 import { Profile } from '../utils/kpiHelpers';
-import { Users, Loader2, AlertCircle, CheckCircle, Download, FileSpreadsheet, FileText, BarChart2, BarChart3, Trophy, CalendarCheck, MapPin, Radio, Building2, Settings, Shield, ClipboardList, Coins } from 'lucide-react';
+import { Users, Loader2, AlertCircle, CheckCircle, Download, FileSpreadsheet, FileText, BarChart2, BarChart3, Trophy, CalendarCheck, MapPin, Radio, Building2, Settings, Shield, ClipboardList, Coins, Scale } from 'lucide-react';
 import '../styles/admin-dashboard.css';
 import AdminResetPasswordModal from './AdminResetPasswordModal';
 import AdminEditUserModal from './AdminEditUserModal';
@@ -38,6 +38,7 @@ const DepartmentsAdminPanel = lazy(() => import('./DepartmentsAdminPanel'));
 const ManagerKpiConfig = lazy(() => import('./ManagerKpiConfig'));
 const ManagerPersonalPanel = lazy(() => import('./ManagerPersonalPanel'));
 const PlatformCompaniesConsole = lazy(() => import('./PlatformCompaniesConsole'));
+const ScoreWeightagePanel = lazy(() => import('./ScoreWeightagePanel'));
 
 type AdminTab =
     | 'mine'
@@ -53,12 +54,13 @@ type AdminTab =
     | 'tracking'
     | 'departments'
     | 'companies'
-    | 'dailyReports';
+    | 'dailyReports'
+    | 'scoreWeightage';
 
 const ADMIN_TAB_KEY = 'scorr-admin-active-tab';
 const ADMIN_TABS: AdminTab[] = [
   'mine', 'users', 'kpis', 'export', 'analytics', 'settings', 'rewards', 'kpiPoints',
-  'attendance', 'office', 'tracking', 'departments', 'companies', 'dailyReports',
+  'attendance', 'office', 'tracking', 'departments', 'companies', 'dailyReports', 'scoreWeightage',
 ];
 
 function initialAdminTab(isHr: boolean, platformOwner: boolean): AdminTab {
@@ -343,6 +345,7 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
       { id: 'dailyReports', label: 'Daily Reports', icon: <FileText size={18} />, description: isHr ? 'My report & organization review' : 'Staff daily work logs', badge: dailyReportUnread },
       { id: 'rewards', label: 'Rewards', icon: <Trophy size={18} />, description: 'Gifts, history & redemptions' },
       { id: 'kpiPoints', label: 'KPI & Rewards', icon: <Coins size={18} />, description: "Each person's score and points" },
+      { id: 'scoreWeightage', label: 'Score weightage', icon: <Scale size={18} />, description: isHr ? 'Individual/team mix and bonus %' : 'Approve months and bonus %' },
       { id: 'analytics', label: 'Analytics', icon: <BarChart3 size={18} />, description: 'Trends & attainment' },
       { id: 'attendance', label: 'Attendance', icon: <CalendarCheck size={18} />, description: isHr ? 'My day, leave & history' : 'Leave & approvals' },
       { id: 'office', label: 'Office & Attendance', icon: <MapPin size={18} />, description: 'GPS office zones & assignments' },
@@ -498,7 +501,9 @@ export default function AdminDashboard({ profile, organizationName }: AdminDashb
       {!isDemoProfile(profile) && (
         <BackupCodesLowBanner onOpenSettings={() => setActiveTab('settings')} />
       )}
-      {activeTab === 'companies' && platformOwner ? (
+      {activeTab === 'scoreWeightage' ? (
+        <ScoreWeightagePanel profile={profile} />
+      ) : activeTab === 'companies' && platformOwner ? (
         <PlatformCompaniesConsole profile={profile} embedded />
       ) : activeTab === 'export' ? (
         <div className="admin-reports-page">

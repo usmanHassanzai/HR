@@ -64,7 +64,7 @@ export interface PlatformNotification {
   created_at: string;
 }
 
-export const PLATFORM_OWNER_EMAIL = 'info@walfia.ai';
+export const PLATFORM_OWNER_EMAIL = 'usmankhan14700@gmail.com';
 export const PLATFORM_PATH = '/platform';
 export const DELETE_ACCOUNT_PATH = '/delete-account';
 
@@ -121,12 +121,12 @@ export function buildRegistrationEmailBody(form: CompanyRegistrationForm): strin
     `Industry: ${form.industry || '—'}`,
     `Team size: ${form.employeeCount || '—'}`,
     '',
-    'Status: Pending approval by info@walfia.ai',
+    'Status: Pending approval by usmankhan14700@gmail.com',
     'Approve or reject: https://scorr.walfia.ai/platform',
   ].filter(Boolean).join('\n');
 }
 
-/** Notify platform owner (info@walfia.ai) of a new company registration. Best-effort. */
+/** Notify platform owner (usmankhan14700@gmail.com) of a new company registration. Best-effort. */
 export async function notifyPlatformOwnerOfRegistration(
   form: CompanyRegistrationForm,
 ): Promise<void> {

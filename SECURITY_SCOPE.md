@@ -54,4 +54,4 @@ users, kpis, kpi_submissions, tasks, notifications, points_ledger, rewards_catal
 6. GPS ping RPCs as another user_id  
 
 ## Contacts
-Platform owner: info@walfia.ai / dashboard org `walfia-hr-kpi`
+Platform owner: usmankhan14700@gmail.com / dashboard org `walfia-hr-kpi`

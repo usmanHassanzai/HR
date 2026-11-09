@@ -30,11 +30,17 @@ export const PLAY_STORE_LIVE = false;
 /**
  * Apple App Store product page.
  * Set `VITE_APP_STORE_URL` (e.g. https://apps.apple.com/app/scorr/idXXXXXXXXX)
- * when the listing is live; until then iOS uses Home Screen install.
+ * when the listing is live.
  */
 export const APP_STORE_URL = (
   (import.meta.env.VITE_APP_STORE_URL as string | undefined) || ''
 ).trim();
+
+/** Direct IPA (Ad Hoc / enterprise) — same pattern as Android APK when published. */
+export const IPA_PATH = '/downloads/scorr.ipa';
+
+/** OTA install manifest for Ad Hoc IPA (itms-services). */
+export const IOS_MANIFEST_PATH = '/downloads/ios/manifest.plist';
 
 export const IOS_PWA_INSTALL_URL = 'https://scorr.walfia.ai/?app=1';
 
@@ -85,13 +91,25 @@ export function androidInstallIsDownload(): boolean {
   return !PLAY_STORE_LIVE && isApkDirectDownloadAvailable();
 }
 
-/** Working iOS install target — App Store when configured, else PWA install page. */
-export function iosInstallHref(): string {
-  return APP_STORE_URL || IOS_PWA_INSTALL_URL;
+/** Working iOS install target — App Store → IPA OTA → PWA fallback. */
+export function iosInstallHref(opts?: { ipaAvailable?: boolean }): string {
+  if (APP_STORE_URL) return APP_STORE_URL;
+  if (opts?.ipaAvailable) return IPA_PATH;
+  return IOS_PWA_INSTALL_URL;
 }
 
 export function iosInstallIsAppStore(): boolean {
   return Boolean(APP_STORE_URL);
+}
+
+export function iosInstallIsIpa(opts?: { ipaAvailable?: boolean }): boolean {
+  return !APP_STORE_URL && Boolean(opts?.ipaAvailable);
+}
+
+/** Safari OTA install URL for Ad Hoc / enterprise IPA (requires HTTPS manifest). */
+export function iosOtaInstallHref(origin = 'https://scorr.walfia.ai'): string {
+  const manifestUrl = `${origin.replace(/\/$/, '')}${IOS_MANIFEST_PATH}`;
+  return `itms-services://?action=download-manifest&url=${encodeURIComponent(manifestUrl)}`;
 }
 
 /** Store / sideload install CTAs — never show inside Capacitor or Electron shells. */

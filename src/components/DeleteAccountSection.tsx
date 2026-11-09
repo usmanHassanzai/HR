@@ -36,7 +36,7 @@ async function loadDeletionInfo(): Promise<AccountDeletionInfo> {
   if (viaEdge.info) return viaEdge.info;
   throw new Error(
     error?.message
-      || 'Could not load account details. Ask your admin to enable self-serve account deletion, or email info@walfia.ai.',
+      || 'Could not load account details. Ask your admin to enable self-serve account deletion, or email usmankhan14700@gmail.com.',
   );
 }
 
@@ -56,7 +56,7 @@ async function invokeDeleteAccount(body: Record<string, unknown>) {
     const msg = invokeErr.message || 'Request failed.';
     if (/failed to send|FunctionsFetchError|not found|404/i.test(msg)) {
       throw new Error(
-        'Account deletion service is unavailable. Please try again shortly or contact info@walfia.ai.',
+        'Account deletion service is unavailable. Please try again shortly or contact usmankhan14700@gmail.com.',
       );
     }
     throw new Error(msg);

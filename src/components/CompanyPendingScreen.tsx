@@ -38,7 +38,7 @@ export default function CompanyPendingScreen({ company, onLogout }: CompanyPendi
                 <Bell size={16} /> Please wait for admin approval
               </p>
               <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
-                Your registration has been received and details were sent to <strong>info@walfia.ai</strong>.
+                Your registration has been received and details were sent to <strong>usmankhan14700@gmail.com</strong>.
                 The platform owner will review your organization. You cannot open the dashboard until they approve —
                 this page updates automatically when access is granted.
               </p>
@@ -59,7 +59,7 @@ export default function CompanyPendingScreen({ company, onLogout }: CompanyPendi
             </div>
             <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '1rem' }}>
               Your 3-day free trial has ended, so access for all employees, managers, HR, and admins is paused.
-              Contact <strong>info@walfia.ai</strong> to subscribe or request a trial extension.
+              Contact <strong>usmankhan14700@gmail.com</strong> to subscribe or request a trial extension.
             </p>
           </>
         )}
@@ -72,7 +72,7 @@ export default function CompanyPendingScreen({ company, onLogout }: CompanyPendi
             <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '1rem' }}>
               Your organization is paused by the platform owner
               {company.paused_reason && company.paused_reason !== 'billing' ? ` (${company.paused_reason})` : ' (usually billing)'}.
-              Nobody in this company can open Scorr until <strong>info@walfia.ai</strong> resumes access.
+              Nobody in this company can open Scorr until <strong>usmankhan14700@gmail.com</strong> resumes access.
             </p>
           </>
         )}

@@ -35,6 +35,7 @@
 - `supabase/migrations/wifi_radius_reentry_after_checkout_2026-10-13.sql`
 - `supabase/migrations/manual_wifi_or_radius_checkin_2026-10-13.sql` (harden matcher + unstub manual geo Clock in/out)
 - `supabase/migrations/fix_office_wifi_match_robust_2026-10-13.sql` (SSID OR BSSID OR IP; case-insensitive SSID)
+- `supabase/migrations/wifi_match_any_saved_ssid_bssid_2026-10-15.sql` (BSSID dash/colon normalize; re-sync multi-network aggregates)
 
 ## User must push / redeploy (agent does not)
 

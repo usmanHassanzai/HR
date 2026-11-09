@@ -26,7 +26,7 @@ Use this if a key leaked, a company reports a breach, or you suspect unauthorize
 ## Who to notify
 | Role | Contact |
 |---|---|
-| Platform owner | info@walfia.ai (Supabase org `walfia-hr-kpi`) |
+| Platform owner | usmankhan14700@gmail.com (Supabase org `walfia-hr-kpi`) |
 | Engineering | Repo maintainers — rotate keys, deploy  
 | Affected company admin | Email on `companies.contact_email` |
 | Supabase | Dashboard support if you believe the platform itself was compromised |

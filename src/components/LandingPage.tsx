@@ -169,7 +169,7 @@ const TRUST_ITEMS = [
   'Trusted devices (7 days)',
   'Company data isolation',
   'Android + desktop auto-update',
-  'iPhone Home Screen app',
+  'iPhone native app',
   'Demo sandbox available',
 ];
 

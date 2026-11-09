@@ -19,6 +19,7 @@ import {
   APP_STORE_URL,
   DESKTOP_LINUX_DEB_PATH,
   DESKTOP_WIN_PATH,
+  IPA_PATH,
   IOS_PWA_INSTALL_URL,
   PLAY_STORE_LIVE,
   PLAY_STORE_URL,
@@ -27,6 +28,8 @@ import {
   isApkDirectDownloadAvailable,
   iosInstallHref,
   iosInstallIsAppStore,
+  iosInstallIsIpa,
+  iosOtaInstallHref,
   showStoreInstallCtas,
 } from '../utils/appStoreLinks';
 
@@ -45,6 +48,9 @@ interface PlatformBuildInfo {
   updatedAt?: string;
   updatedLabel?: string;
   pwaUrl?: string;
+  installMethod?: string;
+  ipaAvailable?: boolean;
+  ipaFilename?: string;
 }
 
 interface DesktopPlatformInfo {
@@ -139,6 +145,19 @@ async function checkApkAvailable(): Promise<boolean> {
   }
 }
 
+async function checkIpaAvailable(): Promise<boolean> {
+  try {
+    const r = await fetch(assetUrl(IPA_PATH), { method: 'HEAD', cache: 'no-store' });
+    if (!r.ok) return false;
+    const type = (r.headers.get('content-type') || '').toLowerCase();
+    const length = Number(r.headers.get('content-length') || 0);
+    if (type.includes('text/html')) return false;
+    return length > 1_000_000 || type.includes('octet-stream') || type.includes('zip') || type.includes('iphone');
+  } catch {
+    return false;
+  }
+}
+
 const APP_FEATURES = [
   'Admin, manager & employee dashboards',
   'Hamburger navigation on mobile',
@@ -171,6 +190,7 @@ async function checkDesktopFile(path: string): Promise<boolean> {
 export default function MobileAppDownload() {
   const [buildInfo, setBuildInfo] = useState<BuildInfoFile | null>(null);
   const [apkReady, setApkReady] = useState<boolean | null>(null);
+  const [ipaReady, setIpaReady] = useState<boolean | null>(null);
   const [desktopReady, setDesktopReady] = useState<{
     win: boolean;
     deb: boolean;
@@ -184,7 +204,9 @@ export default function MobileAppDownload() {
   const iosInfo = buildInfo?.ios;
   const desktopInfo = buildInfo?.desktop;
   const pwaUrl = iosInfo?.pwaUrl || IOS_PWA_INSTALL_URL;
-  const pwaHost = pwaUrl.replace(/^https?:\/\//, '').replace(/\?.*$/, '');
+  const ipaAvailable = Boolean(iosInfo?.ipaAvailable) || ipaReady === true;
+  const iosIsIpa = iosInstallIsIpa({ ipaAvailable });
+  const iosIsStore = iosInstallIsAppStore();
   const onIos = ua?.ios === true;
   const onAndroid = ua?.android === true;
   const onWindows = ua?.win === true;
@@ -221,6 +243,9 @@ export default function MobileAppDownload() {
         setApkReady(headOk || info?.android?.available === true);
       }
 
+      const ipaHeadOk = await checkIpaAvailable();
+      setIpaReady(ipaHeadOk || info?.ios?.ipaAvailable === true);
+
       const winUrl = info?.desktop?.platforms?.windows?.url || DESKTOP_WIN_PATH;
       const debUrl = info?.desktop?.platforms?.linuxDeb?.url || DESKTOP_LINUX_DEB_PATH;
 
@@ -254,7 +279,7 @@ export default function MobileAppDownload() {
         <p>
           Separate installers for each platform — same Sign In for admin, HR, managers, and employees.
           Windows Setup, Linux .deb, Android APK{PLAY_STORE_LIVE ? ' / Google Play' : ''}, and iPhone
-          {iosInstallIsAppStore() ? ' (App Store)' : ' (Home Screen)'}.
+          {iosIsStore ? ' (App Store)' : iosIsIpa ? ' (native IPA)' : ' (native app — build on Mac)'}.
         </p>
       </div>
 
@@ -357,21 +382,26 @@ export default function MobileAppDownload() {
               <Apple size={28} />
             </div>
             <span className="landing-download-badge landing-download-badge--live">
-              {iosInstallIsAppStore() ? 'App Store' : 'iOS ready'}
+              {iosIsStore ? 'App Store' : iosIsIpa ? 'Native IPA ready' : 'Native iOS app'}
             </span>
           </div>
 
-          <h3>iPhone &amp; iPad app</h3>
-          {iosInstallIsAppStore() ? (
-            <p>
-              Install <strong>Scorr</strong> from the App Store for the native iPhone experience —
-              Sign In, MFA (trusted devices), KPIs, and automatic attendance (Always location + office Wi-Fi), same as Android.
-            </p>
-          ) : (
-            <p>
-              Install from <strong>Safari</strong> → <strong>Add to Home Screen</strong> for Sign In, MFA, KPIs, and GPS attendance.
-              The native Capacitor iPhone build (when published) adds Always location, region monitoring, and automatic attendance setup — same path as Android.
-            </p>
+          <h3>iPhone &amp; iPad app (.ipa)</h3>
+          <p>
+            Real installable <strong>Scorr</strong> app (Capacitor) — same Sign In, MFA, KPIs, and
+            automatic attendance as Android. Not Add to Home Screen.
+          </p>
+
+          {(iosInfo?.version || iosInfo?.sizeLabel) && (
+            <div className="landing-download-meta">
+              {iosInfo.version && (
+                <span><Package size={14} /> v{iosInfo.version}{iosInfo.sizeLabel ? ` · ${iosInfo.sizeLabel}` : ''}</span>
+              )}
+              {iosInfo.updatedLabel && (
+                <span><Calendar size={14} /> Updated {iosInfo.updatedLabel}</span>
+              )}
+              <span><Shield size={14} /> {iosInfo.appId || 'ai.walfia.scorr'}</span>
+            </div>
           )}
 
           <ul className="landing-download-features">
@@ -380,7 +410,7 @@ export default function MobileAppDownload() {
             ))}
           </ul>
 
-          {iosInstallIsAppStore() ? (
+          {iosIsStore ? (
             <>
               <a
                 href={iosInstallHref()}
@@ -399,57 +429,62 @@ export default function MobileAppDownload() {
                 Open in the App Store
               </a>
             </>
+          ) : iosIsIpa ? (
+            <>
+              <ol className="landing-download-steps">
+                <li>On iPhone (Safari): tap <strong>Install Scorr</strong> below</li>
+                <li>Trust the developer if iOS asks (Settings → General → VPN &amp; Device Management)</li>
+                <li>Open Scorr → sign in → Location → <strong>Always</strong> for auto attendance</li>
+              </ol>
+              <a
+                href={typeof window !== 'undefined' ? iosOtaInstallHref(window.location.origin) : iosOtaInstallHref()}
+                className="btn btn-primary landing-download-btn"
+              >
+                <Apple size={18} /> Install Scorr on iPhone
+                {iosInfo?.sizeLabel ? ` (${iosInfo.sizeLabel})` : ''}
+              </a>
+              <a
+                href={assetUrl(IPA_PATH)}
+                className="landing-download-direct"
+                download="scorr.ipa"
+              >
+                Direct IPA · /downloads/scorr.ipa
+              </a>
+              {onIos && (
+                <p className="landing-download-note landing-download-note--highlight">
+                  You&apos;re on iPhone — tap Install above (Safari). Ad Hoc builds must include this device UDID.
+                </p>
+              )}
+            </>
           ) : (
             <>
               <ol className="landing-download-steps">
-                <li>Open <strong>{pwaHost}</strong> in <strong>Safari</strong> on your iPhone</li>
-                <li>Tap <strong>Share</strong> (square with arrow up)</li>
-                <li>Scroll → <strong>Add to Home Screen</strong> → <strong>Add</strong></li>
-                <li>Open the Scorr icon — you see Sign In / Register only</li>
-                <li>Sign in and allow <strong>Location</strong> for auto attendance</li>
+                <li>On a Mac with Xcode + Apple Developer account</li>
+                <li>Run <strong>npm run build:ios:release</strong> (archives + exports IPA)</li>
+                <li>Or open <strong>npm run cap:ios</strong> → Product → Archive → distribute to TestFlight / Ad Hoc</li>
+                <li>Publish <strong>scorr.ipa</strong> to /downloads for OTA install</li>
               </ol>
-
-              {installed ? (
-                <div className="landing-download-installed">
-                  <CheckCircle size={18} /> Scorr is installed on this device
-                </div>
-              ) : onIos ? (
-                <a
-                  href={pwaUrl}
-                  className="btn btn-primary landing-download-btn"
-                  onClick={(e) => { e.preventDefault(); openPwaInstall(); }}
-                >
-                  <Home size={18} /> Install Scorr on this iPhone
-                </a>
-              ) : (
-                <a
-                  href={pwaUrl}
-                  className="btn btn-primary landing-download-btn"
-                  onClick={(e) => { e.preventDefault(); openPwaInstall(); }}
-                >
-                  <Apple size={18} /> Open iOS install page
-                </a>
-              )}
-
-              <a href={pwaUrl} className="landing-download-direct">
-                Install URL · {pwaHost}
+              <a
+                href={iosInstallHref({ ipaAvailable: false })}
+                className="btn btn-secondary landing-download-btn"
+                onClick={(e) => {
+                  if (!iosIsStore) {
+                    e.preventDefault();
+                    openPwaInstall();
+                  }
+                }}
+              >
+                <Home size={18} /> Temporary Home Screen (until IPA is published)
               </a>
-
+              <p className="landing-download-footnote">
+                Native iOS project is in <strong>ios/</strong> — IPA must be signed on a Mac (Apple requirement).
+                Android / Windows / Linux downloads are unchanged.
+              </p>
               {iosHint && onIos && !installed && (
                 <p className="landing-download-note landing-download-note--highlight">
-                  Tap <strong>Share</strong> at the bottom of Safari → <strong>Add to Home Screen</strong>
+                  Temporary only: Safari → Share → Add to Home Screen (not the full native app).
                 </p>
               )}
-
-              {onIos && !installed && (
-                <p className="landing-download-note landing-download-note--highlight">
-                  You&apos;re on iPhone — use Share → Add to Home Screen to install Scorr.
-                </p>
-              )}
-
-              <p className="landing-download-footnote">
-                Native App Store listing is not live yet — Home Screen install works for all iPhone users today.
-              </p>
             </>
           )}
         </div>

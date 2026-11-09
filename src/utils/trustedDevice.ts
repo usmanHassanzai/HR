@@ -331,31 +331,15 @@ export async function saveMfaTrustPolicy(staffDays: number, adminDays: number): 
   if (error) throw new Error(error.message);
 }
 
-/** Sign out and optionally forget this device's trust token. */
+/**
+ * Optional forget on logout — clears local/cookie token only.
+ * Does not revoke all trusted devices (that would break multi-day trust).
+ */
 export async function forgetThisDeviceOnLogout(): Promise<void> {
   try {
-    await invokeTrustedDevice('revoke_all').catch(() => undefined);
+    await invokeTrustedDevice('clear_cookie').catch(() => undefined);
   } catch {
     /* ignore */
   }
   await clearTrustedDeviceLocal();
-  if (useCookieProxy()) {
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const access = sessionData.session?.access_token;
-      if (access) {
-        await fetch(COOKIE_API, {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${access}`,
-          },
-          body: JSON.stringify({ action: 'clear_cookie' }),
-        });
-      }
-    } catch {
-      /* ignore */
-    }
-  }
 }

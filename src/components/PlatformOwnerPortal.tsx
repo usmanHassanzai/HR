@@ -38,7 +38,7 @@ export default function PlatformOwnerPortal() {
           setSession(null);
           setAlert({
             kind: 'error',
-            text: 'Access denied. This console is only for the platform owner (info@walfia.ai). Company admins cannot view registered companies here.',
+            text: 'Access denied. This console is only for the platform owner (usmankhan14700@gmail.com). Company admins cannot view registered companies here.',
           });
         } else {
           setSession(s);
@@ -59,7 +59,7 @@ export default function PlatformOwnerPortal() {
       setSession(null);
       setAlert({
         kind: 'error',
-        text: 'This console is only for the platform owner (info@walfia.ai). Organization admins must use the company login.',
+        text: 'This console is only for the platform owner (usmankhan14700@gmail.com). Organization admins must use the company login.',
       });
     } else {
       setSession(s);
@@ -93,7 +93,7 @@ export default function PlatformOwnerPortal() {
             </div>
             <h1 className="platform-login-card__title">Scorr Platform Console</h1>
             <p className="platform-login-card__subtitle">
-              Owner access only — info@walfia.ai<br />
+              Owner access only — usmankhan14700@gmail.com<br />
               Review company registrations, approvals, and platform alerts. Separate from organization admin login.
             </p>
           </div>

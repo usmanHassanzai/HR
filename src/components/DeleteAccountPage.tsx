@@ -109,7 +109,7 @@ export default function DeleteAccountPage() {
             </li>
             <li>
               <strong>Employees and managers:</strong> email{' '}
-              <a href="mailto:info@walfia.ai">info@walfia.ai</a> from the address on your account.
+              <a href="mailto:usmankhan14700@gmail.com">usmankhan14700@gmail.com</a> from the address on your account.
               We will process deletion within 30 days.
             </li>
           </ol>
@@ -144,7 +144,7 @@ export default function DeleteAccountPage() {
             <div>
               <p style={{ margin: '0 0 1rem', color: 'var(--text-secondary)', fontSize: '0.92rem', lineHeight: 1.5 }}>
                 Self-service account deletion is not available for employee or manager accounts in the app.
-                Email <a href="mailto:info@walfia.ai">info@walfia.ai</a> from the address on your account and we
+                Email <a href="mailto:usmankhan14700@gmail.com">usmankhan14700@gmail.com</a> from the address on your account and we
                 will process deletion within 30 days.
               </p>
             </div>
@@ -159,7 +159,7 @@ export default function DeleteAccountPage() {
             <div>
               <p style={{ margin: '0 0 1rem', color: 'var(--text-secondary)', fontSize: '0.92rem', lineHeight: 1.5 }}>
                 Self-service deletion is available for admin and HR accounts. Email{' '}
-                <a href="mailto:info@walfia.ai">info@walfia.ai</a> if you need help removing this account.
+                <a href="mailto:usmankhan14700@gmail.com">usmankhan14700@gmail.com</a> if you need help removing this account.
               </p>
             </div>
           ) : (
@@ -173,7 +173,7 @@ export default function DeleteAccountPage() {
               </a>
               <p style={{ margin: '1.1rem 0 0', fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
                 Need help? Email{' '}
-                <a href="mailto:info@walfia.ai">info@walfia.ai</a>
+                <a href="mailto:usmankhan14700@gmail.com">usmankhan14700@gmail.com</a>
                 {' '}from the address on your account and we will process deletion within 30 days.
               </p>
             </div>

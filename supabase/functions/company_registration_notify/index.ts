@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 
-const PLATFORM_OWNER_EMAIL = 'info@walfia.ai';
+const PLATFORM_OWNER_EMAIL = 'usmankhan14700@gmail.com';
 
 const ALLOWED_ORIGINS = new Set([
   'https://scorr.walfia.ai',
@@ -53,7 +53,7 @@ serve(async (req) => {
       '',
       'Status: Pending approval',
       'Approve or reject: https://scorr.walfia.ai/platform',
-      '(Or open Admin → Registered Companies while signed in as info@walfia.ai)',
+      '(Or open Admin → Registered Companies while signed in as usmankhan14700@gmail.com)',
     ];
     const text = lines.join('\n');
     const subject = `New company registration: ${companyName}`;
